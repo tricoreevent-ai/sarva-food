@@ -1,0 +1,47 @@
+{
+  "name": "Sarva Food",
+  "short_name": "Sarva",
+  "description": "Mobile-first food ordering, POS, KDS, and restaurant operations.",
+  "start_url": "/splash",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#fff8f1",
+  "theme_color": "#e94235",
+  "categories": ["food", "shopping", "business"],
+  "icons": [
+    {
+      "src": "/icons/sarva-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse Restaurants",
+      "short_name": "Restaurants",
+      "url": "/restaurants",
+      "icons": [{ "src": "/icons/sarva-icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Track Order",
+      "short_name": "Track",
+      "url": "/track-order",
+      "icons": [{ "src": "/icons/sarva-icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Open Cart",
+      "short_name": "Cart",
+      "url": "/cart",
+      "icons": [{ "src": "/icons/sarva-icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Owner POS",
+      "short_name": "POS",
+      "url": "/pos",
+      "icons": [{ "src": "/icons/sarva-icon.svg", "sizes": "any" }]
+    }
+  ]
+}

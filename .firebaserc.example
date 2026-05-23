@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "sarva-food-development",
+    "development": "sarva-food-development",
+    "staging": "sarva-food-staging",
+    "production": "sarva-food-production"
+  }
+}

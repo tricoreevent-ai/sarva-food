@@ -1,0 +1,818 @@
+import type { LucideIcon } from "lucide-react";
+
+export type Restaurant = {
+  id: string;
+  tenantId?: string;
+  ownerId?: string;
+  branchId?: string;
+  ownerIds?: string[];
+  name: string;
+  displayName?: string;
+  slug: string;
+  cuisine: string;
+  location: string;
+  rating: number;
+  deliveryTime: string;
+  priceForTwo: number;
+  image: string;
+  isOpen: boolean;
+  tags: string[];
+  instagramHandle: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryRadiusKm?: number;
+  distanceKm?: number;
+  etaMinutes?: number;
+  deliveryEligible?: boolean;
+  approved?: boolean;
+  reviewCount?: number;
+  deliveryFee?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  foodTypes?: Array<"veg" | "nonveg" | "egg" | "vegan" | "jain">;
+  popularItems?: string[];
+  categoryTags?: string[];
+  offerCodes?: string[];
+  searchKeywords?: string[];
+  contact?: RestaurantContactSettings;
+  ownerProfile?: OwnerContactSettings;
+  deliverySettings?: DeliverySettings;
+  scheduling?: RestaurantSchedulingSettings;
+  advancedFeatures?: AdvancedRestaurantFeatures;
+};
+
+export type RestaurantContactSettings = {
+  phone: string;
+  whatsapp: string;
+  supportEmail: string;
+  callbackEnabled: boolean;
+};
+
+export type OwnerContactSettings = {
+  businessPhone: string;
+  businessWhatsapp: string;
+  businessEmail: string;
+  cateringPhone: string;
+  cateringWhatsapp: string;
+  cateringEmail: string;
+  emergencyPhone: string;
+};
+
+export type DeliverySettings = {
+  radiusKm: number;
+  baseFee: number;
+  freeDeliveryAbove?: number;
+  maxOrdersPerSlot?: number;
+  deliverySlotMinutes?: number;
+};
+
+export type RestaurantSchedulingSettings = {
+  enabled: boolean;
+  minPrepMinutes: number;
+  cutoffMinutes: number;
+  slotMinutes: number;
+  maxOrdersPerSlot: number;
+  dineInReservationEnabled: boolean;
+  parcelSchedulingEnabled: boolean;
+  deliverySchedulingEnabled: boolean;
+};
+
+export type AdvancedRestaurantFeatures = {
+  preorder: boolean;
+  festivalMenus: boolean;
+  limitedTimeMenus: boolean;
+  comboBuilder: boolean;
+  subscriptionMeals: boolean;
+  recurringLunchPlans: boolean;
+  groupOrdering: boolean;
+  officeOrdering: boolean;
+  splitPayments: boolean;
+  familyCartSharing: boolean;
+};
+
+export type BusinessListingApplication = {
+  id: string;
+  tenantId?: string;
+  businessName: string;
+  ownerName: string;
+  ownerEmail: string;
+  mobile?: string;
+  cuisine: string;
+  address: string;
+  area: string;
+  hotelName?: string;
+  logo?: string;
+  googleMapLocation?: string;
+  latitude?: number;
+  longitude?: number;
+  mapboxPlaceId?: string;
+  locationVerified?: boolean;
+  gstDetails?: string;
+  phoneNumber?: string;
+  operatingHours?: string;
+  fssaiLicense?: string;
+  diningAvailable?: boolean;
+  cloudKitchen?: boolean;
+  deliveryRadiusKm: number;
+  restaurantImages: string[];
+  foodImages: string[];
+  status: "pending" | "approved" | "rejected";
+  submittedAt: string;
+  reviewedAt?: string;
+};
+
+export type MenuItem = {
+  id: string;
+  restaurantSlug: string;
+  ownerId?: string;
+  name: string;
+  translations?: Partial<Record<"hi" | "ml" | "ta" | "kn" | "ar", { name?: string; description?: string }>>;
+  category: string;
+  categoryId?: string;
+  cuisineIds?: string[];
+  description: string;
+  longDescription?: string;
+  price: number;
+  dineInPrice?: number;
+  parcelPrice?: number;
+  deliveryPrice?: number;
+  taxRate?: 5 | 18;
+  packingCharge?: number;
+  image: string;
+  images?: string[];
+  isVeg: boolean;
+  foodType?: "veg" | "nonveg" | "egg" | "vegan" | "jain";
+  isPopular?: boolean;
+  prepTime: string;
+  calories?: number;
+  spiceLevel?: "mild" | "medium" | "hot";
+  dietaryLabels?: string[];
+  allergenLabels?: string[];
+  tags?: string[];
+  soldOut?: boolean;
+  modifiers?: Array<{ name: string; price: number }>;
+  addOns?: Array<{ name: string; price: number }>;
+  variantGroups?: MenuVariantGroup[];
+  modifierGroups?: ModifierGroup[];
+  recipeLinks?: InventoryRecipeLink[];
+  menuVisibility?: Record<"dine-in" | "parcel" | "delivery", boolean>;
+  scheduleIds?: string[];
+};
+
+export type MenuCategory = {
+  id: string;
+  restaurantSlug: string;
+  name: string;
+  translations?: Partial<Record<"hi" | "ml" | "ta" | "kn" | "ar", string>>;
+  image?: string;
+  banner?: string;
+  enabled: boolean;
+  sortOrder: number;
+  schedule?: { days: string[]; startTime: string; endTime: string };
+};
+
+export type Cuisine = {
+  id: string;
+  restaurantSlug: string;
+  name: string;
+  image?: string;
+  icon?: string;
+  enabled: boolean;
+};
+
+export type MenuVariantGroup = {
+  id: string;
+  name: string;
+  required: boolean;
+  options: Array<{ id: string; name: string; price: number }>;
+};
+
+export type ModifierGroup = {
+  id: string;
+  name: string;
+  required: boolean;
+  min: number;
+  max: number;
+  options: Array<{ id: string; name: string; price: number }>;
+};
+
+export type ComboOffer = {
+  id: string;
+  restaurantSlug: string;
+  name: string;
+  description?: string;
+  image?: string;
+  itemIds: string[];
+  price: number;
+  discount: number;
+  available: boolean;
+};
+
+export type MenuSchedule = {
+  id: string;
+  restaurantSlug: string;
+  name: string;
+  days: string[];
+  startTime: string;
+  endTime: string;
+  enabled: boolean;
+};
+
+export type InventoryRecipeLink = {
+  inventoryItemId: string;
+  quantity: number;
+  unit: string;
+};
+
+export type TaxSettings = {
+  id: string;
+  restaurantSlug: string;
+  branchId: string;
+  gstEnabled: boolean;
+  gstin?: string;
+  pricingMode: "inclusive" | "exclusive";
+  defaultGstRate: 5 | 18;
+  cgstRate: number;
+  sgstRate: number;
+  igstRate: number;
+  serviceChargeRate: number;
+  defaultPackingCharge: number;
+  sac: "996331";
+};
+
+export type Offer = {
+  code: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  discount: number;
+  minimumOrder: number;
+  channel: "Web" | "Instagram" | "POS" | "Catering";
+  restaurantSlug?: string;
+  restaurantName?: string;
+  restaurantRating?: number;
+  restaurantDistanceKm?: number;
+  validity?: string;
+  category?: string;
+  image?: string;
+  banner?: string;
+  mobileBanner?: string;
+  promoTag?: string;
+  appliesTo?: Array<"dine-in" | "delivery" | "parcel" | "takeaway">;
+  discountType?: "percentage" | "flat" | "free-delivery" | "buy-x-get-y" | "combo";
+  offerType?: "flat" | "percentage" | "free-delivery" | "buy-x-get-y" | "combo" | "festival" | "first-order" | "bulk" | "catering" | "happy-hour";
+  validFrom?: string;
+  validTo?: string;
+  startTime?: string;
+  endTime?: string;
+  daysOfWeek?: string[];
+  maxDiscount?: number;
+  applicableCategories?: string[];
+  applicableItemIds?: string[];
+  newCustomersOnly?: boolean;
+  usageLimit?: number;
+  perUserLimit?: number;
+  status?: "active" | "inactive" | "paused";
+  showOnHomepage?: boolean;
+  showOnRestaurantPage?: boolean;
+  hiddenFromHomepage?: boolean;
+  featured?: boolean;
+  priority?: number;
+  sponsored?: boolean;
+  sponsoredPriority?: number;
+  adBudget?: number;
+  campaignStatus?: "draft" | "scheduled" | "active" | "paused" | "ended";
+  conditions?: string;
+  loyaltyHook?: "points-ready" | "vip-ready" | "reorder-ready";
+};
+
+export type CmsBanner = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  mobileImageUrl?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  visible: boolean;
+  publishFrom?: string;
+  publishTo?: string;
+  sortOrder: number;
+};
+
+export type CmsSettings = {
+  disclaimer: string;
+  homepage: {
+    title: string;
+    subtitle: string;
+    visible: boolean;
+  };
+  banners: CmsBanner[];
+  footer: {
+    visible: boolean;
+    note: string;
+  };
+  announcements: CmsBanner[];
+  sponsoredAds: CmsBanner[];
+  legalPages: {
+    terms: string;
+    privacy: string;
+  };
+  updatedAt?: string;
+};
+
+export type Review = {
+  id: string;
+  restaurantSlug: string;
+  restaurantName?: string;
+  menuItemId?: string;
+  menuItemName?: string;
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  imageUrls?: string[];
+  verifiedOrder: boolean;
+  ownerReply?: {
+    message: string;
+    repliedAt: string;
+    repliedBy: string;
+  };
+  status: "published" | "pending" | "hidden" | "reported";
+  reportCount?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TimelineStep = {
+  label: string;
+  description: string;
+  time: string;
+  status: "done" | "active" | "pending";
+};
+
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+export type Stat = {
+  label: string;
+  value: string;
+  delta: string;
+  tone: "success" | "warning" | "info" | "accent";
+};
+
+export type PaymentOption = "upi" | "card" | "cod" | "cash";
+
+export type PaymentBreakdown = {
+  method: Exclude<PaymentOption, "cod">;
+  amount: number;
+  reference?: string;
+};
+
+export type OrderChannel = "Web" | "Instagram" | "WhatsApp" | "POS" | "Catering";
+
+export type OrderStatus =
+  | "new"
+  | "accepted"
+  | "rejected"
+  | "preparing"
+  | "ready"
+  | "served"
+  | "picked-up"
+  | "delivered"
+  | "completed"
+  | "cancelled";
+
+export type CustomerDetails = {
+  name: string;
+  phone: string;
+  address: string;
+};
+
+export type OrderLine = {
+  itemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  lineType?: "menu" | "inventory";
+  gstRate?: number;
+  hsnCode?: string;
+  modifiers?: string[];
+  notes?: string;
+  allergyNote?: string;
+};
+
+export type OrderTotals = {
+  subtotal: number;
+  discount: number;
+  deliveryFee: number;
+  tax: number;
+  total: number;
+};
+
+export type DemoOrder = {
+  id: string;
+  restaurantSlug: string;
+  customer: CustomerDetails;
+  lines: OrderLine[];
+  totals: OrderTotals;
+  offerCode?: string;
+  payment: PaymentOption;
+  channel: OrderChannel;
+  status: OrderStatus;
+  createdAt: string;
+  deliveryOtp: string;
+  statusNote?: string;
+  fulfillmentType?: "delivery" | "parcel" | "dine-in";
+  scheduleMode?: "now" | "scheduled";
+  scheduledFor?: string;
+  scheduledStatus?: "requested" | "accepted" | "rejected" | "expired";
+  prepEstimateMinutes?: number;
+  cutoffAt?: string;
+  guestCount?: number;
+  groupOrderId?: string;
+  splitPayment?: boolean;
+};
+
+export type MockUser = {
+  id: string;
+  name: string;
+  role: StaffRole | "customer" | "admin" | "delivery";
+  tenantId?: string;
+  branchIds?: string[];
+  restaurantSlug?: string;
+};
+
+export type DeliveryStatus = "assigned" | "accepted" | "rejected" | "picked-up" | "on-the-way" | "delivered" | "failed";
+
+export type DeliveryAssignment = {
+  id: string;
+  orderId: string;
+  pickup: string;
+  drop: string;
+  eta: string;
+  status: DeliveryStatus;
+  otp: string;
+  distanceKm?: number;
+  driverId?: string;
+  routeHook?: "optimization-ready";
+};
+
+export type Supplier = {
+  id: string;
+  name: string;
+  phone: string;
+  category: string;
+  paymentTerms: string;
+};
+
+export type ChartAccount = {
+  id: string;
+  name: string;
+  type: "asset" | "liability" | "income" | "expense" | "equity";
+  balance: number;
+};
+
+export type ExpenseEntry = {
+  id: string;
+  branchId: string;
+  accountId: string;
+  supplierId?: string;
+  amount: number;
+  taxAmount: number;
+  paidBy: PaymentOption;
+  note: string;
+  timestamp: string;
+};
+
+export type LoyaltyCustomer = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  points: number;
+  tier: "Regular" | "Silver" | "Gold" | "VIP";
+  lifetimeValue: number;
+  totalOrders?: number;
+  lastOrderAt?: string;
+  inactiveDays?: number;
+  previousOrderIds?: string[];
+  orderFrequency: string;
+  inactiveRisk: boolean;
+  birthdayCouponReady?: boolean;
+  referralHook?: boolean;
+};
+
+export type SocialTemplate = {
+  id: string;
+  name: string;
+  format: string;
+  mood: string;
+  palette: string;
+};
+
+export type CateringPackage = {
+  id: string;
+  name: string;
+  guests: string;
+  price: string;
+  pricePerGuest: number;
+  basePrice: number;
+  inclusions: string[];
+};
+
+export type CateringQuote = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  whatsapp?: string;
+  guestCount: number;
+  packageId: string;
+  eventDate?: string;
+  eventTime?: string;
+  eventType?: string;
+  eventNotes: string;
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  imageUrls?: string[];
+  callbackRequested?: boolean;
+  contactPreference?: "phone" | "whatsapp" | "email";
+  status?: "new" | "contacted" | "quoted" | "confirmed" | "converted" | "cancelled";
+  convertedOrderId?: string;
+};
+
+export type PosTable = {
+  table: string;
+  seats: string;
+  status: "Open" | "Dining" | "Bill requested" | "Reserved" | "Cleaning" | "Inactive";
+  amount: string;
+  floor?: string;
+  note?: string;
+  lastCleanedAt?: string;
+};
+
+export type PosOrderType = "dine-in" | "takeaway" | "parcel" | "delivery";
+
+export type PosBill = {
+  table: string;
+  orderType: PosOrderType;
+  lines: OrderLine[];
+  payment: PaymentOption;
+  splitPayments?: PaymentBreakdown[];
+  paid: boolean;
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  linkedKitchenOrderId?: string;
+  guestCount?: number;
+  waiterName?: string;
+  cashierName?: string;
+  discount?: number;
+  applyGst?: boolean;
+  waiveParcelCharge?: boolean;
+  tenderedAmount?: number;
+  invoiceNumber?: string;
+  billDeliveryLink?: string;
+  billDeliveryQr?: string;
+  duplicatePrint?: boolean;
+};
+
+export type OperatingHoursSlot = {
+  start: string;
+  end: string;
+};
+
+export type OperatingHoursDay = {
+  day: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+  open: boolean;
+  slots: OperatingHoursSlot[];
+};
+
+export type OwnerBusinessProfile = {
+  hotelName: string;
+  logo: string;
+  coverImage?: string;
+  businessAddress: string;
+  googleMapLocation: string;
+  latitude?: number;
+  longitude?: number;
+  mapboxPlaceId?: string;
+  locationVerified?: boolean;
+  cuisineType: string;
+  cuisineTypes?: string[];
+  gstDetails?: string;
+  phoneNumber: string;
+  whatsappNumber?: string;
+  supportEmail?: string;
+  cateringPhoneNumber?: string;
+  cateringWhatsappNumber?: string;
+  cateringEmail?: string;
+  emergencySupportNumber?: string;
+  operatingHours: string;
+  operatingHoursSchedule?: OperatingHoursDay[];
+  operatingHoursPreference?: "specified" | "not-specified";
+  deliveryRadiusKm: number;
+  fssaiLicense?: string;
+  diningAvailable: boolean;
+  cloudKitchen: boolean;
+  reviewStatus?: "draft" | "pending_review" | "approved" | "rejected";
+  completed: boolean;
+};
+
+export type SocialPostStatus = "pending" | "approved" | "rejected" | "published";
+
+export type SocialPost = {
+  id: string;
+  restaurantSlug: string;
+  foodImage: string;
+  headline: string;
+  offerCode: string;
+  caption: string;
+  cta: string;
+  locationTag: string;
+  scheduledAt?: string;
+  status: SocialPostStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  publishedAt?: string;
+  adminNote?: string;
+  channels: Array<"Instagram" | "Facebook">;
+};
+
+export type TableStatus = "vacant" | "new" | "occupied" | "preparing" | "ready" | "served" | "completed" | "billed";
+
+export type KitchenLifecycleStatus = "new" | "preparing" | "ready" | "served" | "completed";
+
+export type TableOrderStatus = KitchenLifecycleStatus | "occupied" | "billed";
+
+export type TableOrder = {
+  id: string;
+  tableNumber: string;
+  source: "QR" | "Waiter" | "POS" | "Takeaway" | "Parcel" | "Delivery";
+  orderType?: PosOrderType;
+  guestName?: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  scheduledFor?: string;
+  lines: OrderLine[];
+  status: TableOrderStatus;
+  priority: "normal" | "rush";
+  waiterId?: string;
+  waiterName?: string;
+  branchId?: string;
+  printerProfileId?: string;
+  activityLog?: ActivityLog[];
+  createdAt: string;
+  etaMinutes: number;
+  total?: number;
+};
+
+export type PaperWidth = "58mm" | "80mm" | "100mm" | "label" | "A4";
+
+export type PrinterSettings = {
+  kitchenPrinterName: string;
+  billingPrinterName: string;
+  autoPrintOrders: boolean;
+  compactTickets: boolean;
+  connectionStatus: "connected" | "offline" | "browser-preview";
+  profiles?: PrinterProfile[];
+  escPosReady?: boolean;
+  templates?: PrintTemplate[];
+  printLogs?: PrintLog[];
+};
+
+export type StaffRole = "owner" | "manager" | "cashier" | "waiter" | "chef" | "kitchen-manager" | "delivery-staff" | "delivery" | "accountant" | "admin" | "inventory-manager";
+
+export type StaffMember = {
+  id: string;
+  name: string;
+  role: StaffRole;
+  roleId?: string;
+  status: "active" | "invited" | "off-duty";
+  branchId: string;
+  permissions: string[];
+  lastActivity: string;
+};
+
+export type ActivityLog = {
+  id: string;
+  userId: string;
+  action: string;
+  module: string;
+  timestamp: string;
+};
+
+export type PrinterProfile = {
+  id: string;
+  name: string;
+  type: "kitchen" | "billing" | "bar";
+  branchId: string;
+  paperWidth: PaperWidth;
+  connection: "usb" | "bluetooth" | "ethernet" | "browser" | "escpos";
+  status: "online" | "offline" | "test";
+  copies?: number;
+  autoCut?: boolean;
+  encoding?: "utf-8" | "cp437" | "cp858";
+  marginMm?: number;
+  fontScale?: "compact" | "normal" | "large";
+};
+
+export type PrintTemplate = {
+  id: string;
+  name: string;
+  branchId: string;
+  type: "bill" | "receipt" | "kot";
+  paperWidth: PaperWidth;
+  mode: "compact" | "standard" | "premium" | "branded";
+  logoUrl?: string;
+  footerImageUrl?: string;
+  brandName?: string;
+  showLogo: boolean;
+  showGstBreakup: boolean;
+  showQrCode: boolean;
+  showFooter: boolean;
+  showWaiterName: boolean;
+  showItemNotes: boolean;
+  showBranch: boolean;
+  footerNote?: string;
+  refundPolicy?: string;
+  language?: "en" | "hi" | "ml";
+};
+
+export type PrintLog = {
+  id: string;
+  type: "bill" | "kot" | "test";
+  status: "printed" | "failed" | "reprint" | "queued";
+  timestamp: string;
+  user: string;
+  branchId: string;
+  printerProfileId: string;
+  referenceId: string;
+};
+
+export type RestaurantBranch = {
+  id: string;
+  tenantId?: string;
+  name: string;
+  restaurantSlug: string;
+  address: string;
+  phone: string;
+  managerId?: string;
+};
+
+export type InventoryItem = {
+  id: string;
+  name: string;
+  category: string;
+  branchId: string;
+  sku?: string;
+  price?: number;
+  currentStock: number;
+  unit: string;
+  reorderLevel: number;
+  lowStockAlert?: number;
+  gstApplicable?: boolean;
+  gstRate?: number;
+  hsnCode?: string;
+  sellable?: boolean;
+  supplier?: string;
+  deductionHook?: "recipe";
+};
+
+export type PurchasePlaceholder = {
+  id: string;
+  supplier: string;
+  itemName: string;
+  quantity: number;
+  expectedAt: string;
+  status: "draft" | "ordered" | "received";
+};
+
+export type RestaurantTransaction = {
+  id: string;
+  timestamp: string;
+  userId: string;
+  branchId: string;
+  orderId: string;
+  paymentMethod: PaymentOption;
+  subtotal: number;
+  taxData: { gstRate: number; gstAmount: number };
+  total: number;
+  type: "sale" | "void" | "refund" | "expense";
+};
+
+export type OfflineQueueItem = {
+  id: string;
+  module: "kitchen" | "POS" | "billing" | "orders" | "inventory" | "customers" | "loyalty" | "reports" | "accounting";
+  action: string;
+  status: "queued" | "retrying" | "failed" | "conflict" | "synced";
+  createdAt: string;
+  lastError?: string;
+};

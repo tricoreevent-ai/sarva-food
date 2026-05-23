@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn() && userDoc().role == "admin" && userDoc().active == true;
+    }
+
+    function isRestaurantStaff(restaurantId) {
+      return signedIn()
+        && userDoc().active == true
+        && userDoc().role in ["owner", "manager", "cashier", "accountant", "admin", "inventory-manager"]
+        && restaurantId in userDoc().restaurantIds;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches("image/(jpeg|png|webp)")
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /restaurants/{restaurantId}/menu/{fileName} {
+      allow read: if true;
+      allow write: if isImage() && (isAdmin() || isRestaurantStaff(restaurantId));
+    }
+
+    match /restaurants/{restaurantId}/branding/{fileName} {
+      allow read: if true;
+      allow write: if isImage() && (isAdmin() || isRestaurantStaff(restaurantId));
+    }
+
+    match /restaurants/{restaurantId}/receipts/{fileName} {
+      allow read: if isAdmin() || isRestaurantStaff(restaurantId);
+      allow write: if isImage() && (isAdmin() || isRestaurantStaff(restaurantId));
+    }
+
+    match /restaurants/{restaurantId}/accounting/{fileName} {
+      allow read, write: if signedIn()
+        && userDoc().active == true
+        && userDoc().role in ["owner", "manager", "accountant", "admin"]
+        && restaurantId in userDoc().restaurantIds;
+    }
+
+    match /restaurants/{restaurantId}/social/{fileName} {
+      allow read: if true;
+      allow write: if isImage() && (isAdmin() || isRestaurantStaff(restaurantId));
+    }
+
+    match /restaurants/{restaurantId}/social/exports/{fileName} {
+      allow read: if true;
+      allow write: if isImage() && (isAdmin() || isRestaurantStaff(restaurantId));
+    }
+
+    match /users/{userId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if signedIn() && request.auth.uid == userId && isImage();
+    }
+  }
+}

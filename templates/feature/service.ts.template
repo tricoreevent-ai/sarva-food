@@ -1,0 +1,11 @@
+export type __FEATURE_NAME__Record = {
+  id: string;
+  restaurantId: string;
+  updatedAt?: unknown;
+};
+
+export async function list__FEATURE_NAME__Records(restaurantId: string) {
+  // Future Firebase integration:
+  // query collection by restaurantId with pagination and repository helpers.
+  return { restaurantId, items: [] as __FEATURE_NAME__Record[] };
+}

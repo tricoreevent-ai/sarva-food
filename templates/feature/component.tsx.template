@@ -1,0 +1,15 @@
+"use client";
+
+import { SectionHeader } from "@/components/layout/section-header";
+
+export function __FEATURE_NAME__Flow() {
+  // Flow note: keep feature UI mock-data driven until backend contracts are stable.
+  return (
+    <section className="space-y-4">
+      <SectionHeader
+        title="__FEATURE_TITLE__"
+        description="Describe the user job and the future API contract here."
+      />
+    </section>
+  );
+}

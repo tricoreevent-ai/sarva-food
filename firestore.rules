@@ -1,0 +1,725 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function hasUserProfile() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function currentUser() {
+      return hasUserProfile() ? get(userPath(request.auth.uid)).data : {};
+    }
+
+    function isActiveUser() {
+      return signedIn() && currentUser().active == true;
+    }
+
+    function hasRole(role) {
+      return isActiveUser() && currentUser().role == role;
+    }
+
+    function isAdmin() {
+      return hasRole("admin");
+    }
+
+    function isOperationalRole() {
+      return isActiveUser()
+        && currentUser().role in [
+          "owner",
+          "manager",
+          "cashier",
+          "waiter",
+          "chef",
+          "kitchen-manager",
+          "accountant",
+          "inventory-manager",
+          "delivery-staff"
+        ];
+    }
+
+    function hasTenant(data) {
+      return "tenantId" in data && data.tenantId is string && data.tenantId.size() > 0;
+    }
+
+    function userHasTenant(tenantId) {
+      return isAdmin()
+        || (
+          isOperationalRole()
+          && tenantId is string
+          && (
+            ("tenantIds" in currentUser() && tenantId in currentUser().tenantIds)
+            || ("tenantId" in currentUser() && currentUser().tenantId == tenantId)
+            || ("restaurantIds" in currentUser() && tenantId in currentUser().restaurantIds)
+          )
+        );
+    }
+
+    function canAccessBranch(data) {
+      return isAdmin()
+        || !("branchId" in data)
+        || !("branchIds" in currentUser())
+        || currentUser().branchIds.size() == 0
+        || data.branchId in currentUser().branchIds;
+    }
+
+    function tenantScopedCreate() {
+      return hasTenant(request.resource.data)
+        && userHasTenant(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+    }
+
+    function tenantScopedRead() {
+      return hasTenant(resource.data)
+        && userHasTenant(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    function tenantScopedUpdate() {
+      return hasTenant(resource.data)
+        && hasTenant(request.resource.data)
+        && resource.data.tenantId == request.resource.data.tenantId
+        && userHasTenant(resource.data.tenantId)
+        && canAccessBranch(resource.data)
+        && canAccessBranch(request.resource.data);
+    }
+
+    function canManagePeopleFor(tenantId) {
+      return isAdmin()
+        || (
+          userHasTenant(tenantId)
+          && currentUser().role in ["owner", "manager"]
+        );
+    }
+
+    function canManageAccountingFor(tenantId) {
+      return isAdmin()
+        || (
+          userHasTenant(tenantId)
+          && currentUser().role in ["owner", "manager", "accountant"]
+        );
+    }
+
+    function canManageInventoryFor(tenantId) {
+      return isAdmin()
+        || (
+          userHasTenant(tenantId)
+          && currentUser().role in ["owner", "manager", "inventory-manager"]
+        );
+    }
+
+    function employeeRole(role) {
+      return role in [
+        "manager",
+        "cashier",
+        "waiter",
+        "chef",
+        "kitchen-manager",
+        "accountant",
+        "inventory-manager",
+        "delivery-staff"
+      ];
+    }
+
+    function publicPublishedRead() {
+      return hasTenant(resource.data)
+        && (
+          ("active" in resource.data && resource.data.active == true)
+          || ("available" in resource.data && resource.data.available == true)
+          || tenantScopedRead()
+        );
+    }
+
+    function publicRestaurantRead() {
+      return hasTenant(resource.data)
+        && ("active" in resource.data && resource.data.active == true)
+        && !("isDeleted" in resource.data && resource.data.isDeleted == true);
+    }
+
+    function publicDeliveryMenuRead() {
+      return hasTenant(resource.data)
+        && ("available" in resource.data && resource.data.available == true)
+        && !("isDeleted" in resource.data && resource.data.isDeleted == true)
+        && (
+          !("menuVisibility" in resource.data)
+          || !("delivery" in resource.data.menuVisibility)
+          || resource.data.menuVisibility.delivery == true
+        )
+        && (
+          !("channelConfig" in resource.data)
+          || !("delivery" in resource.data.channelConfig)
+          || (
+            resource.data.channelConfig.delivery.visible == true
+            && resource.data.channelConfig.delivery.available == true
+          )
+        );
+    }
+
+    function publicActiveRead() {
+      return hasTenant(resource.data)
+        && !("isDeleted" in resource.data && resource.data.isDeleted == true)
+        && (
+          ("active" in resource.data && resource.data.active == true)
+          || ("enabled" in resource.data && resource.data.enabled == true)
+        );
+    }
+
+    function ownsUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function ownsCustomerData(data) {
+      return "customerId" in data && ownsUser(data.customerId);
+    }
+
+    function validOrderCreate() {
+      return hasTenant(request.resource.data)
+        && request.resource.data.keys().hasAll([
+          "tenantId",
+          "restaurantId",
+          "customerId",
+          "customerName",
+          "customerPhone",
+          "channel",
+          "status",
+          "lines",
+          "subtotal",
+          "discount",
+          "tax",
+          "deliveryFee",
+          "total",
+          "paymentStatus"
+        ])
+        && request.resource.data.status in ["new", "preparing", "ready", "served", "completed"]
+        && request.resource.data.paymentStatus in ["pending", "authorized"]
+        && request.resource.data.total >= 0
+        && request.resource.data.lines.size() > 0
+        && request.resource.data.lines.size() <= 50;
+    }
+
+    function orderStatusOnlyUpdate() {
+      return request.resource.data.tenantId == resource.data.tenantId
+        && request.resource.data.restaurantId == resource.data.restaurantId
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "status",
+          "paymentStatus",
+          "updatedAt",
+          "deliveryOtp"
+        ]);
+    }
+
+    match /users/{userId} {
+      allow create: if (
+          ownsUser(userId)
+          && request.resource.data.role == "customer"
+          && request.resource.data.active == true
+        )
+        || isAdmin()
+        || (
+          hasTenant(request.resource.data)
+          && canManagePeopleFor(request.resource.data.tenantId)
+          && employeeRole(request.resource.data.role)
+        );
+      allow read: if ownsUser(userId)
+        || isAdmin()
+        || (
+          hasTenant(resource.data)
+          && canManagePeopleFor(resource.data.tenantId)
+        );
+      allow update: if isAdmin()
+        || (
+          ownsUser(userId)
+          && resource.data.role == "customer"
+          && request.resource.data.role == resource.data.role
+          && !("tenantId" in request.resource.data)
+        )
+        || (
+          hasTenant(resource.data)
+          && canManagePeopleFor(resource.data.tenantId)
+          && employeeRole(resource.data.role)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.tenantId == resource.data.tenantId
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /customerProfiles/{userId} {
+      allow create, read, update: if ownsUser(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /customerAddresses/{addressId} {
+      allow read: if isAdmin()
+        || ("customerId" in resource.data && ownsUser(resource.data.customerId))
+        || (hasTenant(resource.data) && tenantScopedRead());
+      allow create: if ("customerId" in request.resource.data && ownsUser(request.resource.data.customerId))
+        || tenantScopedCreate();
+      allow update, delete: if isAdmin()
+        || ("customerId" in resource.data && ownsUser(resource.data.customerId))
+        || tenantScopedUpdate();
+    }
+
+    match /customerOrders/{orderId} {
+      allow create: if signedIn()
+        && validOrderCreate()
+        && (
+          ownsUser(request.resource.data.customerId)
+          || userHasTenant(request.resource.data.tenantId)
+        );
+      allow read: if ownsUser(resource.data.customerId) || tenantScopedRead() || isAdmin();
+      allow update: if isAdmin()
+        || (tenantScopedUpdate() && orderStatusOnlyUpdate())
+        || (
+          ownsUser(resource.data.customerId)
+          && request.resource.data.status == "cancelled"
+          && resource.data.status in ["new", "accepted"]
+          && orderStatusOnlyUpdate()
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /customerLoyalty/{loyaltyId} {
+      allow read: if ("customerId" in resource.data && ownsUser(resource.data.customerId))
+        || tenantScopedRead()
+        || isAdmin();
+      allow create: if tenantScopedCreate() || isAdmin();
+      allow update, delete: if tenantScopedUpdate() || isAdmin();
+    }
+
+    match /customerPaymentMethods/{paymentMethodId} {
+      allow read: if ownsCustomerData(resource.data) || isAdmin();
+      allow create: if ownsCustomerData(request.resource.data);
+      allow update, delete: if ownsCustomerData(resource.data) || isAdmin();
+    }
+
+    match /customerSavedRestaurants/{savedRestaurantId} {
+      allow read: if ownsCustomerData(resource.data) || isAdmin();
+      allow create: if ownsCustomerData(request.resource.data);
+      allow update, delete: if ownsCustomerData(resource.data) || isAdmin();
+    }
+
+    match /customerCoupons/{couponId} {
+      allow read: if ownsCustomerData(resource.data) || isAdmin();
+      allow create: if isAdmin() || tenantScopedCreate();
+      allow update, delete: if isAdmin() || tenantScopedUpdate();
+    }
+
+    match /customerReviews/{reviewId} {
+      allow read: if ownsCustomerData(resource.data) || tenantScopedRead() || isAdmin();
+      allow create: if ownsCustomerData(request.resource.data);
+      allow update, delete: if ownsCustomerData(resource.data) || isAdmin();
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isAdmin() || userHasTenant(tenantId);
+      allow write: if isAdmin();
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if publicRestaurantRead() || tenantScopedRead() || isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (hasTenant(resource.data) && canManagePeopleFor(resource.data.tenantId));
+      allow delete: if isAdmin();
+    }
+
+    match /branches/{branchId} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /roles/{roleId} {
+      allow read: if signedIn();
+      allow create: if hasTenant(request.resource.data) && canManagePeopleFor(request.resource.data.tenantId);
+      allow update, delete: if hasTenant(resource.data) && canManagePeopleFor(resource.data.tenantId);
+    }
+
+    match /menus/{id} {
+      allow read: if publicDeliveryMenuRead() || tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /menuItems/{id} {
+      allow read: if publicDeliveryMenuRead() || tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /menuCategories/{id} {
+      allow read: if publicActiveRead() || tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /deliveryMenus/{id} {
+      allow read: if publicDeliveryMenuRead() || tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /dineInMenus/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /parcelMenus/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /cuisines/{id} {
+      allow read: if publicPublishedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /menuVariants/{id} {
+      allow read: if publicPublishedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /modifierGroups/{id} {
+      allow read: if publicPublishedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /taxSettings/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /comboOffers/{id} {
+      allow read: if publicPublishedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /menuSchedules/{id} {
+      allow read: if publicPublishedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /offers/{offerId} {
+      allow read: if publicActiveRead() || tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /coupons/{couponId} {
+      allow read: if tenantScopedRead()
+        || ("customerId" in resource.data && ownsUser(resource.data.customerId));
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /orders/{orderId} {
+      allow create: if signedIn()
+        && validOrderCreate()
+        && (
+          ownsUser(request.resource.data.customerId)
+          || userHasTenant(request.resource.data.tenantId)
+        );
+      allow read: if ownsUser(resource.data.customerId)
+        || tenantScopedRead()
+        || isAdmin()
+        || (hasRole("delivery") && exists(/databases/$(database)/documents/deliveries/$(orderId)));
+      allow update: if isAdmin()
+        || (tenantScopedUpdate() && orderStatusOnlyUpdate())
+        || (
+          ownsUser(resource.data.customerId)
+          && request.resource.data.status == "cancelled"
+          && resource.data.status in ["new", "accepted"]
+          && orderStatusOnlyUpdate()
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /orderItems/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /kitchenOrders/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate()
+        && request.resource.data.status in ["new", "preparing"]
+        && request.resource.data.lines.size() > 0
+        && request.resource.data.lines.size() <= 50;
+      allow update: if tenantScopedUpdate()
+        && request.resource.data.status in ["new", "preparing", "ready", "served", "completed", "cancelled"];
+      allow delete: if isAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow read: if tenantScopedRead() || ownsUser(customerId);
+      allow create: if tenantScopedCreate()
+        && request.resource.data.normalizedPhone is string;
+      allow update: if tenantScopedUpdate()
+        && request.resource.data.normalizedPhone is string;
+      allow delete: if isAdmin();
+    }
+
+    match /loyaltyCustomers/{customerId} {
+      allow read: if tenantScopedRead() || ownsUser(customerId);
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /tables/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /restaurantTables/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /restaurantSettings/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /settings/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /inventory/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if hasTenant(request.resource.data)
+        && canManageInventoryFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManageInventoryFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /inventoryTransactions/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if hasTenant(request.resource.data)
+        && canManageInventoryFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManageInventoryFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /purchaseOrders/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if hasTenant(request.resource.data)
+        && canManageInventoryFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManageInventoryFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /suppliers/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if hasTenant(request.resource.data)
+        && canManageInventoryFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManageInventoryFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /reports/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /accountingEntries/{id} {
+      allow read: if hasTenant(resource.data)
+        && canManageAccountingFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+      allow create: if hasTenant(request.resource.data)
+        && canManageAccountingFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManageAccountingFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /expenses/{id} {
+      allow read: if hasTenant(resource.data)
+        && canManageAccountingFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+      allow create: if hasTenant(request.resource.data)
+        && canManageAccountingFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManageAccountingFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /printers/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if hasTenant(request.resource.data)
+        && canManagePeopleFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManagePeopleFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /printerProfiles/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if hasTenant(request.resource.data)
+        && canManagePeopleFor(request.resource.data.tenantId)
+        && canAccessBranch(request.resource.data);
+      allow update, delete: if hasTenant(resource.data)
+        && canManagePeopleFor(resource.data.tenantId)
+        && canAccessBranch(resource.data);
+    }
+
+    match /billTemplates/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /kotTemplates/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /receiptTemplates/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /receipts/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /paymentTransactions/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /notifications/{id} {
+      allow read: if tenantScopedRead()
+        || ("userId" in resource.data && ownsUser(resource.data.userId));
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate()
+        || ("userId" in resource.data && ownsUser(resource.data.userId));
+    }
+
+    match /staffActivityLogs/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if isAdmin();
+    }
+
+    match /deliveries/{id} {
+      allow read: if isAdmin()
+        || tenantScopedRead()
+        || (hasRole("delivery-staff") && resource.data.partnerId == request.auth.uid);
+      allow create: if tenantScopedCreate();
+      allow update: if isAdmin()
+        || tenantScopedUpdate()
+        || (
+          hasRole("delivery-staff")
+          && resource.data.partnerId == request.auth.uid
+          && request.resource.data.partnerId == resource.data.partnerId
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /deliveryAgents/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /campaigns/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /socialTemplates/{id} {
+      allow read: if ("public" in resource.data && resource.data.public == true)
+        || isAdmin()
+        || (hasTenant(resource.data) && userHasTenant(resource.data.tenantId));
+      allow create: if isAdmin()
+        || !("tenantId" in request.resource.data)
+        || tenantScopedCreate();
+      allow update, delete: if isAdmin()
+        || (hasTenant(resource.data) && userHasTenant(resource.data.tenantId));
+    }
+
+    match /socialPosts/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /cateringRequests/{id} {
+      allow create: if signedIn() && hasTenant(request.resource.data);
+      allow read: if isAdmin()
+        || tenantScopedRead()
+        || ("customerId" in resource.data && ownsUser(resource.data.customerId));
+      allow update: if isAdmin() || tenantScopedUpdate();
+      allow delete: if isAdmin();
+    }
+
+    match /callbackRequests/{id} {
+      allow create: if signedIn() && hasTenant(request.resource.data);
+      allow read: if isAdmin()
+        || tenantScopedRead()
+        || ("customerId" in resource.data && ownsUser(resource.data.customerId));
+      allow update: if isAdmin() || tenantScopedUpdate();
+      allow delete: if isAdmin();
+    }
+
+    match /subscriptions/{id} {
+      allow read: if isAdmin() || tenantScopedRead();
+      allow write: if isAdmin();
+    }
+
+    match /printLogs/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /kotPrintQueue/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
