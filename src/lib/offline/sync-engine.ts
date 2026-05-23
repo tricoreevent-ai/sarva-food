@@ -3,7 +3,7 @@ import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase
 import { shouldUseFirebase } from "@/lib/env";
 import { isOnline, subscribeConnectivity } from "@/lib/offline/connectivity-monitor";
 import { cleanupStaleOfflineCache } from "@/lib/offline/offline-storage";
-import { assertCanSyncTenant } from "@/lib/operational-access";
+import { assertCanSyncTenant, resolveOperationalAccess } from "@/lib/operational-access";
 import {
   deleteOfflineQueueEntry,
   getOfflineQueue,
@@ -74,6 +74,10 @@ export async function syncQueuedOperations(options: { forceConflicts?: boolean }
 
 async function runSync(options: { forceConflicts?: boolean }) {
   const entries = (await getOfflineQueue()).filter(shouldProcess);
+  if (!entries.length) return;
+
+  const access = await resolveOperationalAccess().catch(() => null);
+  if (!access?.allowed) return;
 
   for (const entry of entries) {
     await syncEntry(entry, options);
