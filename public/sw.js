@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sarva-v7-20260518";
+const CACHE_VERSION = "sarva-v8-20260526";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const MENU_CACHE = `${CACHE_VERSION}-menus`;
@@ -55,12 +55,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") {
     if (["POST", "PUT", "PATCH"].includes(request.method)) {
-      event.waitUntil(
-        Promise.all([
-          notifyClients("SARVA_SYNC_QUEUE"),
-          registerBackgroundSync(),
-        ]),
-      );
+      event.waitUntil(notifyClients("SARVA_SYNC_QUEUE"));
     }
     return;
   }
@@ -145,11 +140,6 @@ function canCache(response) {
 async function notifyClients(type) {
   const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
   clients.forEach((client) => client.postMessage({ type, version: CACHE_VERSION }));
-}
-
-async function registerBackgroundSync() {
-  if (!self.registration.sync) return;
-  await self.registration.sync.register("sarva-sync-queue");
 }
 
 async function clearSarvaCaches() {

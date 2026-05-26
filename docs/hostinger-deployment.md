@@ -27,6 +27,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 ```env
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
+NEXT_PUBLIC_LAUNCH_RESTAURANT_IDS=cafe-al-arab-thanisandra,falak-leela-bhartiya
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
 
@@ -84,6 +85,16 @@ Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual 
 For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
 
 For customer Google sign-in, add the same OAuth client id to `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_ID`, and add the OAuth secret to `GOOGLE_OAUTH_CLIENT_SECRET`. In Firebase Authentication, enable the Google provider and add both `mistyrose-butterfly-740173.hostingersite.com` and the final custom domain under authorized domains.
+
+The customer public pages can read the launch restaurants through Firestore public REST when Firebase Admin keys are not present. Owner/admin APIs still require the Firebase Admin variables. If `/api/public/restaurants` returns 500 on Hostinger, first confirm these required server keys exist in hPanel:
+
+```env
+FIREBASE_ADMIN_PROJECT_ID=
+FIREBASE_ADMIN_CLIENT_EMAIL=
+FIREBASE_ADMIN_PRIVATE_KEY=
+```
+
+If those are not ready yet, make sure `NEXT_PUBLIC_LAUNCH_RESTAURANT_IDS` contains the active Firestore restaurant document ids that should be visible to customers.
 
 ## Pre-Deploy Checks
 

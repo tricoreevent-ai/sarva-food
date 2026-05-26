@@ -1,12 +1,46 @@
 import "server-only";
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { adminDb } from "@/firebase/admin";
+import { defaultAppCategories } from "@/lib/default-app-categories";
 import { resolveTenantId } from "@/lib/tenant";
 import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
 
 const PUBLIC_RESTAURANT_LIMIT = 100;
 const PUBLIC_MENU_LIMIT = 200;
 const PUBLIC_MENU_FALLBACK_LIMIT = 500;
+const PUBLIC_REST_LIMIT = 500;
+const DEFAULT_PUBLIC_RESTAURANT_IDS = ["cafe-al-arab-thanisandra", "falak-leela-bhartiya"];
+
+type PublicFieldFilter = {
+  fieldPath: string;
+  op?: "EQUAL";
+  value: string | number | boolean;
+};
+
+type FirestoreRestValue = {
+  stringValue?: string;
+  integerValue?: string;
+  doubleValue?: number;
+  booleanValue?: boolean;
+  timestampValue?: string;
+  nullValue?: null;
+  arrayValue?: { values?: FirestoreRestValue[] };
+  mapValue?: { fields?: Record<string, FirestoreRestValue> };
+  referenceValue?: string;
+  geoPointValue?: { latitude: number; longitude: number };
+};
+
+type FirestoreRestDocument = {
+  name: string;
+  fields?: Record<string, FirestoreRestValue>;
+};
+
+type FirestoreRunQueryRow = {
+  document?: FirestoreRestDocument;
+  error?: { code?: number; message?: string; status?: string };
+};
 
 function serializeFirestoreValue(value: unknown): unknown {
   if (value instanceof Date) {
@@ -38,6 +72,149 @@ function docToJson<T extends { id: string }>(
     id: snapshot.id,
     ...snapshot.data(),
   }) as T;
+}
+
+function hasAdminFirestoreCredentials() {
+  return Boolean(
+    (
+      process.env.FIREBASE_ADMIN_PROJECT_ID &&
+      process.env.FIREBASE_ADMIN_CLIENT_EMAIL &&
+      process.env.FIREBASE_ADMIN_PRIVATE_KEY
+    ) ||
+    existsSync(join(process.cwd(), "service-account-key.json")) ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    process.env.FIREBASE_CONFIG,
+  );
+}
+
+function isAdminCredentialError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /credential|private key|DECODER|PEM|application default|Could not load the default credentials|Unable to detect a Project Id/i.test(message);
+}
+
+function publicRestConfig() {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  if (!projectId || !apiKey) {
+    throw new Error("Missing NEXT_PUBLIC_FIREBASE_PROJECT_ID or NEXT_PUBLIC_FIREBASE_API_KEY for public Firestore REST fallback.");
+  }
+  return { projectId, apiKey };
+}
+
+async function runPublicFirestoreQuery<T extends { id: string }>(
+  collectionId: string,
+  input: {
+    filters?: PublicFieldFilter[];
+    orderBy?: { fieldPath: string; direction?: "ASCENDING" | "DESCENDING" };
+    limit?: number;
+  } = {},
+) {
+  const { projectId, apiKey } = publicRestConfig();
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId }],
+        ...(input.filters?.length ? { where: restWhere(input.filters) } : {}),
+        ...(input.orderBy ? { orderBy: [{ field: { fieldPath: input.orderBy.fieldPath }, direction: input.orderBy.direction ?? "ASCENDING" }] } : {}),
+        limit: input.limit ?? PUBLIC_REST_LIMIT,
+      },
+    }),
+  });
+
+  const payload = (await response.json().catch(() => [])) as FirestoreRunQueryRow[] | { error?: { message?: string; status?: string } };
+  if (!response.ok || !Array.isArray(payload)) {
+    const message = Array.isArray(payload) ? response.statusText : payload.error?.message ?? response.statusText;
+    throw new Error(`Public Firestore REST query failed for ${collectionId}: ${message}`);
+  }
+
+  const errorRow = payload.find((row) => row.error);
+  if (errorRow?.error) {
+    throw new Error(`Public Firestore REST query failed for ${collectionId}: ${errorRow.error.message ?? errorRow.error.status ?? "unknown error"}`);
+  }
+
+  return payload
+    .map((row) => row.document)
+    .filter((doc): doc is FirestoreRestDocument => Boolean(doc))
+    .map((doc) => restDocumentToJson<T>(doc));
+}
+
+async function getPublicFirestoreDocument<T extends { id: string }>(collectionId: string, docId: string) {
+  const { projectId, apiKey } = publicRestConfig();
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${collectionId}/${encodeURIComponent(docId)}?key=${apiKey}`;
+  const response = await fetch(url, { cache: "no-store" });
+  if (response.status === 404 || response.status === 403) return null;
+  const payload = (await response.json().catch(() => ({}))) as FirestoreRestDocument & { error?: { message?: string } };
+  if (!response.ok || payload.error) {
+    throw new Error(`Public Firestore REST document read failed for ${collectionId}/${docId}: ${payload.error?.message ?? response.statusText}`);
+  }
+  return restDocumentToJson<T>(payload);
+}
+
+function publicRestaurantIds() {
+  const configured = process.env.NEXT_PUBLIC_LAUNCH_RESTAURANT_IDS
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return configured?.length ? configured : DEFAULT_PUBLIC_RESTAURANT_IDS;
+}
+
+function restWhere(filters: PublicFieldFilter[]) {
+  const fieldFilters = filters.map((filter) => ({
+    fieldFilter: {
+      field: { fieldPath: filter.fieldPath },
+      op: filter.op ?? "EQUAL",
+      value: restValue(filter.value),
+    },
+  }));
+
+  if (fieldFilters.length === 1) return fieldFilters[0];
+
+  return {
+    compositeFilter: {
+      op: "AND",
+      filters: fieldFilters,
+    },
+  };
+}
+
+function restValue(value: string | number | boolean): FirestoreRestValue {
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value };
+  }
+  return { stringValue: value };
+}
+
+function restDocumentToJson<T extends { id: string }>(document: FirestoreRestDocument): T {
+  const id = decodeURIComponent(document.name.split("/").pop() ?? "");
+  return {
+    id,
+    ...Object.fromEntries(
+      Object.entries(document.fields ?? {}).map(([key, value]) => [key, restFieldValue(value)]),
+    ),
+  } as T;
+}
+
+function restFieldValue(value: FirestoreRestValue): unknown {
+  if ("stringValue" in value) return value.stringValue;
+  if ("integerValue" in value) return Number(value.integerValue);
+  if ("doubleValue" in value) return value.doubleValue;
+  if ("booleanValue" in value) return value.booleanValue;
+  if ("timestampValue" in value) return value.timestampValue;
+  if ("nullValue" in value) return null;
+  if ("referenceValue" in value) return value.referenceValue;
+  if ("geoPointValue" in value) return value.geoPointValue;
+  if ("arrayValue" in value) return (value.arrayValue?.values ?? []).map(restFieldValue);
+  if ("mapValue" in value) {
+    return Object.fromEntries(
+      Object.entries(value.mapValue?.fields ?? {}).map(([key, entry]) => [key, restFieldValue(entry)]),
+    );
+  }
+  return undefined;
 }
 
 function isMissingIndexError(error: unknown) {
@@ -75,6 +252,8 @@ function publicDataErrorHint(message: string) {
 }
 
 export async function getPublicRestaurantDocs(slug?: string) {
+  if (!hasAdminFirestoreCredentials()) return getPublicRestaurantDocsFromRest(slug);
+
   try {
     let restaurantsQuery = adminDb()
       .collection("restaurants")
@@ -87,11 +266,19 @@ export async function getPublicRestaurantDocs(slug?: string) {
     }
 
     const snapshot = await restaurantsQuery.limit(slug ? 1 : PUBLIC_RESTAURANT_LIMIT).get();
-    return toPublicRestaurantDocs(snapshot.docs, slug);
+    return toPublicRestaurantDocs(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item)), slug);
   } catch (error) {
     if (isMissingIndexError(error)) return getPublicRestaurantDocsWithoutCompositeIndex(slug);
+    if (isAdminCredentialError(error)) return getPublicRestaurantDocsFromRest(slug);
     throw error;
   }
+}
+
+async function getPublicRestaurantDocsFromRest(slug?: string) {
+  const docs = (await Promise.all(
+    publicRestaurantIds().map((id) => getPublicFirestoreDocument<RestaurantDoc>("restaurants", id)),
+  )).filter((doc): doc is RestaurantDoc => Boolean(doc));
+  return toPublicRestaurantDocs(docs, slug);
 }
 
 async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
@@ -100,15 +287,11 @@ async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
     : adminDb().collection("restaurants").where("active", "==", true).limit(PUBLIC_RESTAURANT_LIMIT);
 
   const snapshot = await restaurantsQuery.get();
-  return toPublicRestaurantDocs(snapshot.docs, slug);
+  return toPublicRestaurantDocs(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item)), slug);
 }
 
-function toPublicRestaurantDocs(
-  docs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[],
-  slug?: string,
-) {
+function toPublicRestaurantDocs(docs: RestaurantDoc[], slug?: string) {
   return docs
-    .map((item) => docToJson<RestaurantDoc>(item))
     .filter((item) => !item.isDeleted && item.active === true && (!slug || item.slug === slug))
     .sort((first, second) => first.name.localeCompare(second.name))
     .map(toPublicRestaurantDoc)
@@ -117,6 +300,8 @@ function toPublicRestaurantDocs(
 
 export async function getPublicMenuDocs(restaurantId: string) {
   const tenantId = resolveTenantId(restaurantId);
+  if (!hasAdminFirestoreCredentials()) return getPublicMenuDocsFromRest(tenantId);
+
   try {
     const [menusSnapshot, menuItemsSnapshot] = await Promise.all([
       adminDb()
@@ -135,11 +320,33 @@ export async function getPublicMenuDocs(restaurantId: string) {
         .get(),
     ]);
 
-    return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs]);
+    return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs].map((item) => docToJson<MenuDoc>(item)));
   } catch (error) {
     if (isMissingIndexError(error)) return getPublicMenuDocsWithoutCompositeIndex(tenantId);
+    if (isAdminCredentialError(error)) return getPublicMenuDocsFromRest(tenantId);
     throw error;
   }
+}
+
+async function getPublicMenuDocsFromRest(tenantId: string) {
+  const [menus, menuItems] = await Promise.all([
+    runPublicFirestoreQuery<MenuDoc>("menus", {
+      filters: [
+        { fieldPath: "available", value: true },
+        { fieldPath: "tenantId", value: tenantId },
+      ],
+      limit: PUBLIC_MENU_LIMIT,
+    }),
+    runPublicFirestoreQuery<MenuDoc>("menuItems", {
+      filters: [
+        { fieldPath: "available", value: true },
+        { fieldPath: "tenantId", value: tenantId },
+      ],
+      limit: PUBLIC_MENU_LIMIT,
+    }),
+  ]);
+
+  return toPublicMenuDocs([...menus, ...menuItems].filter((item) => isSameTenant(item, tenantId)));
 }
 
 async function getPublicMenuDocsWithoutCompositeIndex(tenantId: string) {
@@ -156,14 +363,11 @@ async function getPublicMenuDocsWithoutCompositeIndex(tenantId: string) {
       .get(),
   ]);
 
-  return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs]);
+  return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs].map((item) => docToJson<MenuDoc>(item)));
 }
 
-function toPublicMenuDocs(
-  docs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[],
-) {
+function toPublicMenuDocs(docs: MenuDoc[]) {
   const publicDocs = docs
-    .map((item) => docToJson<MenuDoc>(item))
     .filter((item) =>
       !item.isDeleted &&
       item.available !== false &&
@@ -181,7 +385,15 @@ function toPublicMenuDocs(
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
 }
 
+function isSameTenant(doc: Partial<MenuDoc | OfferDoc | RestaurantDoc>, tenantId: string) {
+  const candidate = doc as { tenantId?: string; restaurantId?: string; id?: string };
+  const docTenant = candidate.tenantId ?? candidate.restaurantId ?? candidate.id;
+  return Boolean(docTenant && resolveTenantId(docTenant) === tenantId);
+}
+
 export async function getPublicOfferDocs(restaurantId?: string) {
+  if (!hasAdminFirestoreCredentials()) return getPublicOfferDocsFromRest(restaurantId);
+
   let offersQuery = adminDb()
     .collection("offers")
     .where("active", "==", true);
@@ -198,12 +410,35 @@ export async function getPublicOfferDocs(restaurantId?: string) {
       .filter((item) => item.active && !item.isDeleted && isOfferCurrentlyVisible(item))
       .map(toPublicOfferDoc);
     return docs;
-  } catch {
+  } catch (error) {
+    if (isAdminCredentialError(error)) return getPublicOfferDocsFromRest(restaurantId);
     throw new Error("Unable to load public offers.");
   }
 }
 
+async function getPublicOfferDocsFromRest(restaurantId?: string) {
+  const tenantId = restaurantId ? resolveTenantId(restaurantId) : undefined;
+  const tenantIds = tenantId ? [tenantId] : publicRestaurantIds().map(resolveTenantId);
+  const docs = (await Promise.all(
+    tenantIds.map((id) =>
+      runPublicFirestoreQuery<OfferDoc>("offers", {
+        filters: [
+          { fieldPath: "active", value: true },
+          { fieldPath: "tenantId", value: id },
+        ],
+        limit: 50,
+      }),
+    ),
+  )).flat();
+
+  return docs
+    .filter((item) => item.active && !item.isDeleted && (!tenantId || isSameTenant(item, tenantId)) && isOfferCurrentlyVisible(item))
+    .map(toPublicOfferDoc);
+}
+
 export async function getPublicCategoryDocs() {
+  if (!hasAdminFirestoreCredentials()) return getPublicCategoryDocsFromRest();
+
   try {
     const snapshot = await adminDb()
       .collection("appCategories")
@@ -213,6 +448,7 @@ export async function getPublicCategoryDocs() {
       .get();
     return snapshot.docs.map((item) => toPublicCategoryDoc(docToJson<AppCategoryDoc>(item)));
   } catch (error) {
+    if (isAdminCredentialError(error)) return getPublicCategoryDocsFromRest();
     if (!isMissingIndexError(error)) throw error;
     const snapshot = await adminDb()
       .collection("appCategories")
@@ -225,7 +461,37 @@ export async function getPublicCategoryDocs() {
   }
 }
 
+async function getPublicCategoryDocsFromRest() {
+  try {
+    const docs = await runPublicFirestoreQuery<AppCategoryDoc>("appCategories", {
+      filters: [{ fieldPath: "active", value: true }],
+      limit: 100,
+    });
+    return docs
+      .map(toPublicCategoryDoc)
+      .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
+  } catch {
+    const now = new Date();
+    return defaultAppCategories.map((item) => ({
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      imagePath: item.image,
+      icon: item.icon,
+      sortOrder: item.sortOrder,
+      active: item.active,
+      colorTheme: item.colorTheme,
+      createdAt: item.createdAt ? new Date(item.createdAt) : now,
+      updatedAt: item.updatedAt ? new Date(item.updatedAt) : now,
+    } satisfies AppCategoryDoc));
+  }
+}
+
 export async function getPublicReviewDocs(restaurantId: string, menuItemId?: string) {
+  if (!hasAdminFirestoreCredentials()) {
+    return { reviews: [], summary: { averageRating: 0, ratingCount: 0 } };
+  }
+
   let reviewsQuery = adminDb()
     .collection("customerReviews")
     .where("restaurantId", "==", resolveTenantId(restaurantId))
