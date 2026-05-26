@@ -27,10 +27,13 @@ const required = [
   "SMTP_PASS",
   "SMTP_FROM",
   "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
+  "NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID",
   "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_API_KEY",
   "CLOUDINARY_API_SECRET",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
 ];
 
 const missing = required.filter((key) => !process.env[key]);
@@ -88,6 +91,14 @@ if (normalizedPrivateKey && !normalizedPrivateKey.includes("\n")) {
 const razorpayKeys = ["NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"];
 if (razorpayKeys.some((key) => process.env[key]) && razorpayKeys.some((key) => !process.env[key])) {
   invalid.push("Razorpay variables are optional, but if one is set all Razorpay key and webhook variables must be set.");
+}
+
+if (
+  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID &&
+  process.env.GOOGLE_OAUTH_CLIENT_ID &&
+  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID !== process.env.GOOGLE_OAUTH_CLIENT_ID
+) {
+  invalid.push("NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_ID must match.");
 }
 
 if (missing.length || invalid.length) {

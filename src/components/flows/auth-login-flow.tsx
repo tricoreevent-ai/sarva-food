@@ -313,6 +313,15 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     if (/auth\/too-many-requests/i.test(raw)) {
       return "Too many attempts. Please wait a moment and try again.";
     }
+    if (/auth\/unauthorized-domain/i.test(raw)) {
+      return "Google sign-in is not enabled for this domain. Add this domain in Firebase Authentication authorized domains.";
+    }
+    if (/auth\/popup-blocked|auth\/popup-closed-by-user/i.test(raw)) {
+      return "Google sign-in popup was blocked or closed. Allow popups for this site and try again.";
+    }
+    if (/auth\/operation-not-allowed/i.test(raw)) {
+      return "Google sign-in is not enabled in Firebase Authentication.";
+    }
     if (/not available for your account type/i.test(raw)) {
       return "Please use the correct login screen for this account.";
     }
@@ -673,7 +682,8 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
                   variant="secondary"
                   disabled={!firebaseEnabled}
                   onClick={() => withErrorBoundary(async () => {
-                    await signInWithGoogle("customer");
+                    const user = await signInWithGoogle("customer");
+                    await syncStoreUser(user.uid);
                   })}
                 >
                   <ShieldCheck className="size-4" />

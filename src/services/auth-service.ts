@@ -12,6 +12,7 @@ import {
   sendPasswordResetEmail,
   sendSignInLinkToEmail,
   setPersistence,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithEmailLink,
   signInWithPhoneNumber,
@@ -40,6 +41,35 @@ const OPERATIONAL_ROLES: UserRole[] = [
   "delivery",
 ];
 const ADMIN_ROLES: UserRole[] = ["admin"];
+const GOOGLE_IDENTITY_SCRIPT_ID = "sarva-google-identity-services";
+let googleIdentityScriptPromise: Promise<void> | null = null;
+
+type GoogleOAuthTokenResponse = {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GoogleTokenClient = {
+  requestAccessToken: (options?: { prompt?: string }) => void;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        oauth2?: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: GoogleOAuthTokenResponse) => void;
+            error_callback?: (error: unknown) => void;
+          }) => GoogleTokenClient;
+        };
+      };
+    };
+  }
+}
 
 export function subscribeToAuth(callback: (user: User | null) => void) {
   return onAuthStateChanged(getFirebaseAuth(), callback);
@@ -47,8 +77,13 @@ export function subscribeToAuth(callback: (user: User | null) => void) {
 
 export async function signInWithGoogle(role: UserRole = "customer") {
   const auth = getFirebaseAuth();
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
   await setPersistence(auth, browserLocalPersistence);
-  const result = await signInWithPopup(auth, new GoogleAuthProvider());
+  const result = await signInWithPopup(auth, provider).catch(async (error) => {
+    if (!shouldTryConfiguredGoogleClient(error)) throw error;
+    return signInWithConfiguredGoogleClient(auth);
+  });
   await ensureCustomerProfile(result.user, role);
   await syncAuthSession();
   return result.user;
@@ -309,3 +344,75 @@ export const DEV_AUTH_FIXTURE = {
   operationalRoles: OPERATIONAL_ROLES,
   adminRoles: ADMIN_ROLES,
 };
+
+function configuredGoogleClientId() {
+  return process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID?.trim();
+}
+
+function shouldTryConfiguredGoogleClient(error: unknown) {
+  if (!configuredGoogleClientId()) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return !/popup-closed-by-user|cancelled|cancelled-popup-request/i.test(message);
+}
+
+async function signInWithConfiguredGoogleClient(auth: ReturnType<typeof getFirebaseAuth>) {
+  const clientId = configuredGoogleClientId();
+  if (!clientId) throw new Error("Google OAuth client id is not configured.");
+
+  await loadGoogleIdentityServices();
+  const tokenResponse = await requestGoogleAccessToken(clientId);
+  if (!tokenResponse.access_token) {
+    throw new Error(tokenResponse.error_description || tokenResponse.error || "Google sign-in did not return an access token.");
+  }
+
+  return signInWithCredential(auth, GoogleAuthProvider.credential(null, tokenResponse.access_token));
+}
+
+function loadGoogleIdentityServices() {
+  if (typeof window === "undefined") return Promise.reject(new Error("Google sign-in is available only in the browser."));
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+
+  googleIdentityScriptPromise ??= new Promise((resolve, reject) => {
+    const existing = document.getElementById(GOOGLE_IDENTITY_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Unable to load Google sign-in.")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = GOOGLE_IDENTITY_SCRIPT_ID;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Unable to load Google sign-in."));
+    document.head.appendChild(script);
+  });
+
+  return googleIdentityScriptPromise;
+}
+
+function requestGoogleAccessToken(clientId: string) {
+  return new Promise<GoogleOAuthTokenResponse>((resolve, reject) => {
+    const tokenClient = window.google?.accounts?.oauth2?.initTokenClient({
+      client_id: clientId,
+      scope: "openid email profile",
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(response.error_description || response.error));
+          return;
+        }
+        resolve(response);
+      },
+      error_callback: reject,
+    });
+
+    if (!tokenClient) {
+      reject(new Error("Google sign-in is not ready."));
+      return;
+    }
+
+    tokenClient.requestAccessToken({ prompt: "select_account" });
+  });
+}

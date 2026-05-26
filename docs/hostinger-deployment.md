@@ -39,6 +39,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=
+NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
 NEXT_PUBLIC_ENABLE_DEV_LOGIN=false
 NEXT_PUBLIC_ENABLE_TEST_LOGIN=false
@@ -46,6 +47,8 @@ NEXT_PUBLIC_ENABLE_TEST_LOGIN=false
 FIREBASE_ADMIN_PROJECT_ID=
 FIREBASE_ADMIN_CLIENT_EMAIL=
 FIREBASE_ADMIN_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
 
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
@@ -79,6 +82,8 @@ CLOUDINARY_URL=
 Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual values are clearer in Hostinger.
 
 For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
+
+For customer Google sign-in, add the same OAuth client id to `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_ID`, and add the OAuth secret to `GOOGLE_OAUTH_CLIENT_SECRET`. In Firebase Authentication, enable the Google provider and add both `mistyrose-butterfly-740173.hostingersite.com` and the final custom domain under authorized domains.
 
 ## Pre-Deploy Checks
 
