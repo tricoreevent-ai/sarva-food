@@ -13,7 +13,7 @@ const { FieldValue, getFirestore } = await import("firebase-admin/firestore");
 const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "sarva-food-app";
 const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "sarva-food-app.firebasestorage.app";
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+const privateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
 const serviceAccountPath = "service-account-key.json";
 const serviceAccount = existsSync(serviceAccountPath)
   ? JSON.parse(readFileSync(serviceAccountPath, "utf8"))
@@ -32,6 +32,17 @@ const app = getApps()[0] || initializeApp({
   projectId: serviceAccount?.project_id ?? projectId,
   storageBucket,
 });
+
+function normalizePrivateKey(value) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  const unquoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+  return unquoted.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+}
 
 const db = getFirestore(app);
 const auth = getAuth(app);

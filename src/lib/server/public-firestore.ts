@@ -54,6 +54,26 @@ function isMissingIndexError(error: unknown) {
   );
 }
 
+export function logPublicDataError(scope: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : undefined;
+  const hint = publicDataErrorHint(message);
+  console.error(`[Sarva public API] ${scope} failed${code ? ` (${code})` : ""}: ${message}${hint ? ` ${hint}` : ""}`);
+}
+
+function publicDataErrorHint(message: string) {
+  if (/DECODER|PEM|private key|invalid_grant|credential/i.test(message)) {
+    return "Check FIREBASE_ADMIN_PRIVATE_KEY in hosting. In Hostinger hPanel paste the value without wrapping quotes; escaped \\n line breaks are supported.";
+  }
+  if (/Could not load the default credentials|Unable to detect a Project Id|application default/i.test(message)) {
+    return "Set FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, and FIREBASE_ADMIN_PRIVATE_KEY in hosting environment variables.";
+  }
+  if (/permission-denied|Missing or insufficient permissions/i.test(message)) {
+    return "Deploy Firestore rules and confirm public restaurant/menu documents are active.";
+  }
+  return "";
+}
+
 export async function getPublicRestaurantDocs(slug?: string) {
   try {
     let restaurantsQuery = adminDb()

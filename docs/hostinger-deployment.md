@@ -45,7 +45,7 @@ NEXT_PUBLIC_ENABLE_TEST_LOGIN=false
 
 FIREBASE_ADMIN_PROJECT_ID=
 FIREBASE_ADMIN_CLIENT_EMAIL=
-FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_ADMIN_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
 
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
@@ -78,7 +78,7 @@ CLOUDINARY_URL=
 
 Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual values are clearer in Hostinger.
 
-For `FIREBASE_ADMIN_PRIVATE_KEY`, paste the full private key with `\n` line breaks inside the quoted value. Do not upload or commit `service-account-key.json`.
+For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
 
 ## Pre-Deploy Checks
 
@@ -127,9 +127,10 @@ The cleanup keeps the launch restaurant ids `test-owner` and `falak-leela-bharti
 5. Set the build settings from the table above.
 6. Add all required environment variables.
 7. Click Deploy.
-8. After deployment, open the Hostinger domain and verify `/`, `/restaurant/cafe-al-arab`, `/owner/login`, and `/admin/login`.
-9. Connect the final custom domain and update `NEXT_PUBLIC_APP_URL` to that HTTPS URL.
-10. Redeploy after changing `NEXT_PUBLIC_APP_URL`.
+8. After deployment, open `/api/public/restaurants`. It should return `{"data":[...]}` with HTTP 200. If it returns 500, open Hostinger application logs and look for a `[Sarva public API] restaurants failed` message.
+9. Verify `/`, `/restaurants`, `/restaurant/cafe-al-arab`, `/owner/login`, and `/admin/login`.
+10. Connect the final custom domain and update `NEXT_PUBLIC_APP_URL` to that HTTPS URL.
+11. Redeploy after changing `NEXT_PUBLIC_APP_URL`.
 
 ## Notes
 

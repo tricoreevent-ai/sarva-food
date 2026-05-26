@@ -75,8 +75,14 @@ if (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && /\s/.test(process.env.NEXT_PU
   invalid.push("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN must not contain spaces or line breaks.");
 }
 
-if (process.env.FIREBASE_ADMIN_PRIVATE_KEY && !process.env.FIREBASE_ADMIN_PRIVATE_KEY.includes("BEGIN PRIVATE KEY")) {
+const normalizedPrivateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
+
+if (normalizedPrivateKey && !normalizedPrivateKey.includes("BEGIN PRIVATE KEY")) {
   invalid.push("FIREBASE_ADMIN_PRIVATE_KEY must contain the full service account private key.");
+}
+
+if (normalizedPrivateKey && !normalizedPrivateKey.includes("\n")) {
+  invalid.push("FIREBASE_ADMIN_PRIVATE_KEY must include newline separators. Use escaped \\n line breaks in hosting variables.");
 }
 
 const razorpayKeys = ["NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"];
@@ -92,3 +98,14 @@ if (missing.length || invalid.length) {
 }
 
 console.log("Production environment validation passed.");
+
+function normalizePrivateKey(value) {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  const unquoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+  return unquoted.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+}

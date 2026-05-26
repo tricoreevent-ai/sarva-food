@@ -12,7 +12,7 @@ function getAdminApp() {
 
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
   const localServiceAccountPath = join(process.cwd(), "service-account-key.json");
 
   if (projectId && clientEmail && privateKey) {
@@ -49,6 +49,22 @@ function getAdminApp() {
     projectId,
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
+}
+
+export function normalizePrivateKey(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  const unquoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+
+  return unquoted
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
 }
 
 export const adminApp = getAdminApp;

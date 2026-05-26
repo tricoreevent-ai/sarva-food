@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getPublicOfferDocs } from "@/lib/server/public-firestore";
+import { getPublicOfferDocs, logPublicDataError } from "@/lib/server/public-firestore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       { data },
       { headers: CACHE_HEADERS },
     );
-  } catch {
+  } catch (error) {
+    logPublicDataError("offers", error);
     return NextResponse.json({ data: [], error: "Unable to load public offers." }, { status: 500 });
   }
 }
