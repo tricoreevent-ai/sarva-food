@@ -3,20 +3,26 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Database, Wifi, WifiOff } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { getFirebaseApp, isFirebaseConfigured } from "@/firebase/client";
+import { useAppStore } from "@/lib/app-store";
 import { startOfflineSyncEngine } from "@/lib/offline";
+import { getInitials } from "@/lib/utils";
 
 const SPLASH_SEEN_KEY = "sarva-startup-splash-seen";
 
 export function AppStartupGate() {
+  const pathname = usePathname();
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
   const [visible, setVisible] = useState(false);
   const [label, setLabel] = useState("Starting mobile app");
   const [online, setOnline] = useState(true);
+  const operationalPath = (pathname === "/owner" || pathname.startsWith("/owner/") || pathname.startsWith("/pos")) && pathname !== "/owner/login";
 
   useEffect(() => {
     if (navigator.webdriver || window.location.search.includes("visual-check=1")) {
       window.sessionStorage.setItem(SPLASH_SEEN_KEY, "true");
-      startOfflineSyncEngine();
+      if (operationalPath) startOfflineSyncEngine();
       return;
     }
 
@@ -37,8 +43,12 @@ export function AppStartupGate() {
         }
       }, 420),
       window.setTimeout(() => {
-        startOfflineSyncEngine();
-        setLabel(navigator.onLine ? "Ready for orders" : "Offline queue ready");
+        if (operationalPath) {
+          startOfflineSyncEngine();
+          setLabel(navigator.onLine ? "Ready for orders" : "Offline queue ready");
+          return;
+        }
+        setLabel("Ready");
       }, 720),
       window.setTimeout(() => {
         window.sessionStorage.setItem(SPLASH_SEEN_KEY, "true");
@@ -49,7 +59,7 @@ export function AppStartupGate() {
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, []);
+  }, [operationalPath]);
 
   return (
     <AnimatePresence>
@@ -71,10 +81,10 @@ export function AppStartupGate() {
               transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
               className="food-gradient grid size-24 place-items-center rounded-lg text-3xl font-black text-white shadow-2xl"
             >
-              SF
+              {getInitials(productName)}
             </motion.div>
             <div>
-              <h1 className="text-3xl font-black">Sarva Food</h1>
+              <h1 className="text-3xl font-black">{productName}</h1>
               <p className="mt-2 text-sm font-semibold text-muted-foreground">{label}</p>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">

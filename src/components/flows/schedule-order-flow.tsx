@@ -41,9 +41,6 @@ type ScheduleType = "delivery" | "pickup" | "bulk" | "catering";
 type DiscoveryMode = "scheduled" | "catering";
 type DietFilter = "all" | "veg" | "nonveg";
 
-const landingChips = ["All", "Breakfast", "Lunch", "Dinner", "Veg", "Non-Veg", "Fast Delivery", "Bulk Friendly", "Catering Available"];
-const mealFilters = ["All", "Breakfast", "Lunch", "Dinner", "Snacks"] as const;
-
 const defaultCatering: CateringDraft = {
   fullName: "",
   phone: "",
@@ -78,7 +75,7 @@ export function ScheduleOrderFlow() {
   const [scheduleType, setScheduleType] = useState<ScheduleType>("delivery");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [cuisineFilter, setCuisineFilter] = useState("all");
-  const [mealFilter, setMealFilter] = useState<(typeof mealFilters)[number]>("All");
+  const [mealFilter, setMealFilter] = useState("All");
   const [dietFilter, setDietFilter] = useState<DietFilter>("all");
   const [taxEnabled, setTaxEnabled] = useState(true);
   const [cart, setCart] = useState<ScheduleCartLine[]>([]);
@@ -106,6 +103,7 @@ export function ScheduleOrderFlow() {
   const dateLabel = selectedDate ? new Date(`${selectedDate}T00:00`).toLocaleDateString("en-IN", { dateStyle: "medium" }) : "";
   const scheduleDays = scheduleType === "catering" || discoveryMode === "catering" ? 120 : 14;
   const restaurantsForLocation = nearbyOnly ? nearbyRestaurants : locationRestaurants;
+  const landingChips = useMemo(() => buildDiscoveryChips(restaurantsForLocation), [restaurantsForLocation]);
   const scheduledRestaurants = useMemo(() => {
     const normalized = restaurantQuery.trim().toLowerCase();
     return restaurantsForLocation
@@ -114,6 +112,15 @@ export function ScheduleOrderFlow() {
       .sort((first, second) => (first.distanceKm ?? 999) - (second.distanceKm ?? 999) || second.rating - first.rating);
   }, [activeChip, discoveryMode, restaurantQuery, restaurantsForLocation]);
   const categories = useMemo(() => Array.from(new Set(menuItems.map((item) => item.category).filter(Boolean))), [menuItems]);
+  const menuFilters = useMemo(() => {
+    const values = menuItems.flatMap((item) => [
+      item.subcategory,
+      ...(item.tags ?? []),
+      ...(item.badges ?? []),
+      ...(item.searchKeywords ?? []),
+    ]);
+    return Array.from(new Set(values.map((value) => value?.trim()).filter(Boolean) as string[])).slice(0, 16);
+  }, [menuItems]);
   const cuisines = useMemo(() => {
     const restaurantCuisines = (restaurant?.cuisine ?? "").split(",").map((item) => item.trim()).filter(Boolean);
     const itemCuisines = menuItems.flatMap((item) => item.cuisineIds ?? []).map(humanize);
@@ -447,8 +454,9 @@ export function ScheduleOrderFlow() {
                   <option value="all">All cuisines</option>
                   {cuisines.map((cuisine) => <option key={cuisine} value={cuisine}>{cuisine}</option>)}
                 </select>
-                <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold" value={mealFilter} onChange={(event) => setMealFilter(event.target.value as (typeof mealFilters)[number])}>
-                  {mealFilters.map((meal) => <option key={meal} value={meal}>{meal}</option>)}
+                <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold" value={mealFilter} onChange={(event) => setMealFilter(event.target.value)}>
+                  <option value="All">All menu tags</option>
+                  {menuFilters.map((meal) => <option key={meal} value={meal}>{meal}</option>)}
                 </select>
                 <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold" value={dietFilter} onChange={(event) => setDietFilter(event.target.value as DietFilter)}>
                   <option value="all">Veg and Non-Veg</option>
@@ -660,6 +668,27 @@ function buildSlots(dateValue: string, restaurant: Restaurant | null, scheduleTy
     });
   }
   return slots.filter((slot) => !slot.disabled).slice(0, scheduleType === "catering" ? 18 : 12);
+}
+
+function buildDiscoveryChips(restaurants: Restaurant[]) {
+  const chips = new Set<string>(["All"]);
+  for (const restaurant of restaurants) {
+    const tagText = [...(restaurant.tags ?? []), ...(restaurant.categoryTags ?? [])].join(" ").toLowerCase();
+    if (restaurant.foodTypes?.includes("veg")) chips.add("Veg");
+    if (restaurant.foodTypes?.includes("nonveg")) chips.add("Non-Veg");
+    if (Number.parseInt(restaurant.deliveryTime, 10) <= 30) chips.add("Fast Delivery");
+    if (tagText.includes("bulk") || restaurant.advancedFeatures?.officeOrdering || restaurant.advancedFeatures?.groupOrdering) chips.add("Bulk Friendly");
+    if (tagText.includes("catering") || restaurant.scheduling?.enabled) chips.add("Catering Available");
+    for (const value of [
+      restaurant.cuisine,
+      ...(restaurant.tags ?? []),
+      ...(restaurant.categoryTags ?? []),
+    ]) {
+      const label = value.trim();
+      if (label) chips.add(label);
+    }
+  }
+  return Array.from(chips).slice(0, 10);
 }
 
 function matchesRestaurant(restaurant: Restaurant, normalizedQuery: string, chip: string, mode: DiscoveryMode) {

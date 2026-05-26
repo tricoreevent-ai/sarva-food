@@ -10,16 +10,12 @@ import {
   Heart,
   LocateFixed,
   MapPin,
-  MoreHorizontal,
   Plus,
   Search,
-  ShieldCheck,
   ShoppingCart,
   SlidersHorizontal,
   Star,
-  Truck,
   User,
-  Utensils,
 } from "lucide-react";
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { LocationHydrationBoundary } from "@/components/location/location-hydration-boundary";
@@ -30,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { useLocationCommerce } from "@/hooks/use-location-commerce";
-import { usePublicMenu, usePublicOffers, usePublicRestaurants } from "@/hooks/use-public-data";
+import { usePublicCategories, usePublicMenu, usePublicOffers, usePublicRestaurants } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { getCartSubtotal, useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -38,25 +34,9 @@ import { isOfferForSurface } from "@/lib/offer-engine";
 import type { CmsBanner, MenuItem, Offer, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
-const foodChips = [
-  { label: "All", icon: Grid2X2 },
-  { label: "Biryani", fallback: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?auto=format&fit=crop&w=500&q=80" },
-  { label: "Burgers", fallback: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=80" },
-  { label: "Indian", fallback: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=500&q=80" },
-  { label: "Healthy", fallback: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=500&q=80" },
-  { label: "Desserts", fallback: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=500&q=80" },
-];
-
-const desktopFoodChips = [
-  ...foodChips,
-  { label: "Chinese", fallback: "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=500&q=80" },
-  { label: "South Indian", fallback: "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=500&q=80" },
-  { label: "Drinks", fallback: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=500&q=80" },
-  { label: "More", icon: MoreHorizontal },
-];
-
 export function CustomerDiscoveryHome() {
   const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants();
+  const { categories: appCategories } = usePublicCategories();
   const {
     location,
     nearbyRestaurants,
@@ -115,17 +95,22 @@ export function CustomerDiscoveryHome() {
     return Array.from(new Map(scoped.map((item) => [item.id, item])).values()).slice(0, 8);
   }, [menuItems, recommendedRestaurants]);
 
-  const chipImages = useMemo(() => {
+  const categoryChips = useMemo(
+    () => appCategories.filter((category) => category.active).sort((first, second) => first.sortOrder - second.sortOrder),
+    [appCategories],
+  );
+  const categoryImages = useMemo(() => {
     const map = new Map<string, string>();
-    for (const chip of foodChips) {
+    for (const chip of categoryChips) {
       const match = menuItems.find((item) =>
-        item.category.toLowerCase().includes(chip.label.toLowerCase()) ||
-        item.name.toLowerCase().includes(chip.label.toLowerCase()),
+        item.category.toLowerCase().includes(chip.name.toLowerCase()) ||
+        item.name.toLowerCase().includes(chip.name.toLowerCase()) ||
+        item.tags?.some((tag) => tag.toLowerCase().includes(chip.name.toLowerCase())),
       );
-      if (match?.image) map.set(chip.label, match.image);
+      if (chip.image || match?.image) map.set(chip.slug, chip.image || match?.image || "");
     }
     return map;
-  }, [menuItems]);
+  }, [categoryChips, menuItems]);
 
   function handleLocationSelect(nextLocation: typeof visibleLocationOptions[number]) {
     selectLocation(nextLocation);
@@ -267,12 +252,16 @@ export function CustomerDiscoveryHome() {
         <div className="container-page pt-6">
           <div className="relative min-h-[22.5rem] overflow-hidden rounded-[1.35rem] bg-[linear-gradient(110deg,#fff7ef_0%,#fffdf9_47%,#ffe5d3_100%)] px-10 py-10 shadow-[0_22px_70px_rgba(255,90,47,0.12)] ring-1 ring-orange-100 lg:px-16">
             <div className="relative z-10 max-w-xl">
-              <h1 className="text-5xl font-black leading-[1.05] tracking-normal xl:text-[3.65rem]">
-                {cmsSettings.homepage?.visible !== false ? cmsSettings.homepage.title : "Fresh food, delivered fast"}
-              </h1>
-              <p className="mt-5 max-w-md text-lg leading-8 text-muted-foreground">
-                {cmsSettings.homepage?.visible !== false ? cmsSettings.homepage.subtitle : "Order from restaurants near you with delivery, pickup, scheduled orders, and catering."}
-              </p>
+              {cmsSettings.homepage?.visible !== false && cmsSettings.homepage.title ? (
+                <h1 className="text-5xl font-black leading-[1.05] tracking-normal xl:text-[3.65rem]">
+                  {cmsSettings.homepage.title}
+                </h1>
+              ) : null}
+              {cmsSettings.homepage?.visible !== false && cmsSettings.homepage.subtitle ? (
+                <p className="mt-5 max-w-md text-lg leading-8 text-muted-foreground">
+                  {cmsSettings.homepage.subtitle}
+                </p>
+              ) : null}
               <div className="mt-7 flex max-w-xl items-center gap-3">
                 <button
                   type="button"
@@ -288,11 +277,6 @@ export function CustomerDiscoveryHome() {
                 <Button asChild size="lg" className="h-14 rounded-lg px-8 shadow-xl shadow-primary/20">
                   <Link href="/restaurants">Find Food</Link>
                 </Button>
-              </div>
-              <div className="mt-7 grid max-w-2xl grid-cols-3 gap-5">
-                <DesktopTrustItem icon={Truck} title="Fast Delivery" text="On-time, every time" />
-                <DesktopTrustItem icon={Utensils} title="Best Quality" text="Fresh and tasty food" />
-                <DesktopTrustItem icon={ShieldCheck} title="Safe & Hygienic" text="Your safety first" />
               </div>
             </div>
             <div className="absolute -right-6 -top-20 h-[32rem] w-[42rem]">
@@ -316,59 +300,71 @@ export function CustomerDiscoveryHome() {
         </div>
       </section>
 
+      {categoryChips.length ? (
       <section className="customer-scroll flex gap-3 overflow-x-auto px-4 pb-4 md:hidden">
-        {foodChips.map((chip, index) => (
+        <Link
+          href="/restaurants"
+          className="flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center"
+        >
+          <span className="food-gradient grid size-14 place-items-center overflow-hidden rounded-full border border-transparent text-white shadow-xl">
+            <Grid2X2 className="size-6" />
+          </span>
+          <span className="text-xs font-bold">All</span>
+        </Link>
+        {categoryChips.slice(0, 10).map((chip) => (
           <Link
-            key={chip.label}
-            href={chip.label === "All" ? "/restaurants" : `/restaurants?query=${encodeURIComponent(chip.label)}`}
+            key={chip.id}
+            href={`/restaurants?query=${encodeURIComponent(chip.name)}`}
             className="flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center"
           >
-            <span className={cn(
-              "grid size-14 place-items-center overflow-hidden rounded-full border bg-white shadow-md",
-              index === 0 && "food-gradient border-transparent text-white shadow-xl",
-            )}>
-              {chip.icon ? <chip.icon className="size-6" /> : (
-                <SafeImage
-                  src={chipImages.get(chip.label) ?? chip.fallback}
-                  alt={chip.label}
-                  width={50}
-                  height={50}
-                  fallbackSrc={IMAGE_FALLBACKS.food}
-                  className="size-11 rounded-full object-cover"
-                />
-              )}
+            <span className="grid size-14 place-items-center overflow-hidden rounded-full border bg-white shadow-md" style={{ borderColor: chip.colorTheme ?? undefined }}>
+              <SafeImage
+                src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food}
+                alt={chip.name}
+                width={50}
+                height={50}
+                fallbackSrc={IMAGE_FALLBACKS.food}
+                className="size-11 rounded-full object-cover"
+              />
             </span>
-            <span className="text-xs font-bold">{chip.label}</span>
+            <span className="text-xs font-bold">{chip.name}</span>
           </Link>
         ))}
       </section>
+      ) : null}
 
+      {categoryChips.length ? (
       <section className="container-page hidden gap-4 py-5 md:flex">
-        {desktopFoodChips.map((chip, index) => (
+        <Link
+          href="/restaurants"
+          className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/5 text-center text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+        >
+          <span className="grid size-10 place-items-center overflow-hidden rounded-full text-primary">
+            <Grid2X2 className="size-6" />
+          </span>
+          <span className="text-sm font-black">All</span>
+        </Link>
+        {categoryChips.slice(0, 9).map((chip) => (
           <Link
-            key={chip.label}
-            href={chip.label === "All" ? "/restaurants" : `/restaurants?query=${encodeURIComponent(chip.label)}`}
-            className={cn(
-              "group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl border bg-white text-center shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg",
-              index === 0 && "border-primary/40 bg-primary/5 text-primary",
-            )}
+            key={chip.id}
+            href={`/restaurants?query=${encodeURIComponent(chip.name)}`}
+            className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl border bg-white text-center shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
           >
-            <span className={cn("grid size-10 place-items-center overflow-hidden rounded-full", index === 0 ? "text-primary" : "bg-orange-50")}>
-              {chip.icon ? <chip.icon className="size-6" /> : (
-                <SafeImage
-                  src={chipImages.get(chip.label) ?? chip.fallback}
-                  alt={chip.label}
-                  width={40}
-                  height={40}
-                  fallbackSrc={IMAGE_FALLBACKS.food}
-                  className="size-10 rounded-full object-cover"
-                />
-              )}
+            <span className="grid size-10 place-items-center overflow-hidden rounded-full bg-orange-50">
+              <SafeImage
+                src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food}
+                alt={chip.name}
+                width={40}
+                height={40}
+                fallbackSrc={IMAGE_FALLBACKS.food}
+                className="size-10 rounded-full object-cover"
+              />
             </span>
-            <span className="text-sm font-black">{chip.label}</span>
+            <span className="text-sm font-black">{chip.name}</span>
           </Link>
         ))}
       </section>
+      ) : null}
 
       {cmsBanners.length ? (
         <section className="customer-scroll container-page flex gap-4 overflow-x-auto pb-5">
@@ -475,28 +471,6 @@ export function CustomerDiscoveryHome() {
         </Button>
       ) : null}
     </main>
-  );
-}
-
-function DesktopTrustItem({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: typeof Truck;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
-        <Icon className="size-5" aria-hidden="true" />
-      </span>
-      <span>
-        <span className="block text-sm font-black">{title}</span>
-        <span className="block text-xs font-semibold text-muted-foreground">{text}</span>
-      </span>
-    </div>
   );
 }
 

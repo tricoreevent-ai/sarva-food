@@ -37,7 +37,7 @@ export function EmptyStateCard({
   title,
   description,
   actionLabel = "Start setup",
-  actionHref = "/owner/profile?tab=onboarding",
+  actionHref = "/owner/settings?tab=profile",
   onRetry,
   retryLabel = "Retry",
   className,

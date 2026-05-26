@@ -21,8 +21,9 @@ import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicMenu } from "@/hooks/use-public-data";
+import { useAppStore } from "@/lib/app-store";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, getInitials } from "@/lib/utils";
 
 export function MobilePullToRefresh({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -188,6 +189,7 @@ export function DashboardQuickActions({ app }: { app: "owner" | "pos" | "admin" 
 
 export function PremiumSplash() {
   const router = useRouter();
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
   const [progress, setProgress] = useState(8);
   const [networkLabel, setNetworkLabel] = useState("Checking connection");
   const [installReady, setInstallReady] = useState(false);
@@ -227,12 +229,12 @@ export function PremiumSplash() {
               transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
               className="food-gradient grid size-24 place-items-center rounded-lg text-3xl font-black text-white shadow-2xl"
             >
-              SF
+              {getInitials(productName)}
             </motion.div>
             <div>
               <Badge className="mb-3 bg-primary/10 text-primary">
                 <Sparkles className="mr-1 size-3" />
-                Sarva Food
+                {productName}
               </Badge>
               <h1 className="text-4xl font-black tracking-normal">Food, orders, POS.</h1>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">

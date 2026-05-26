@@ -23,7 +23,6 @@ import {
   Users,
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
-import { OwnerTopbar } from "@/components/owner/topbar";
 import { OrderCard, type OpsOrder } from "@/components/orders/order-card";
 import { OrderFilters } from "@/components/orders/order-filters";
 import { IntegrationDialog } from "@/components/orders/integration-dialog";
@@ -62,8 +61,6 @@ export function OwnerOrderManagementFlow() {
   const [operationsOpen, setOperationsOpen] = useState(true);
   const firebaseEnabled = shouldUseFirebase();
   const authUser = useAppStore((state) => state.authUser);
-  const restaurants = useAppStore((state) => state.restaurants);
-  const branches = useAppStore((state) => state.branches);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
   const firebaseQueue = useRestaurantOrders(firebaseEnabled ? restaurantId : undefined);
   const localOrders = useAppStore((state) => state.orders);
@@ -79,8 +76,6 @@ export function OwnerOrderManagementFlow() {
   const tabCatering = cateringInquiries.filter((quote) => matchesCateringTab(quote, tab));
   const visibleOrders = tabOrders.filter((order) => matchesFilter(order, filter));
   const visibleCatering = tabCatering.filter(() => filter === "all" || filter === "catering");
-  const activeRestaurant = restaurants.find((item) => item.slug === restaurantId) ?? restaurants[0];
-  const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Rajesh";
   const metrics = buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries);
   const filters = buildFilters(tabOrders, tabCatering);
 
@@ -94,8 +89,6 @@ export function OwnerOrderManagementFlow() {
 
   return (
     <div className="space-y-6">
-      <OwnerTopbar ownerName={ownerName} branchName={branches[0]?.name ?? activeRestaurant?.name ?? "Main Branch"} liveOrders={metrics.newOrders} />
-
       <div>
         <h1 className="text-3xl font-black tracking-tight text-neutral-950">Orders</h1>
         <p className="mt-2 text-base font-medium text-slate-600">Manage online orders from your website, POS, and delivery partners.</p>

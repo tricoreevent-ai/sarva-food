@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { FirestoreStoreHydrator } from "@/components/firebase/firestore-store-hydrator";
 import { AnalyticsProvider } from "@/components/monitoring/analytics-provider";
-import { SyncCenter } from "@/components/offline/sync-center";
+import { SyncCenterScope } from "@/components/offline/sync-center-scope";
 import { PwaRegistrar } from "@/components/pwa/pwa-registrar";
 import { AppStartupGate } from "@/components/mobile/app-startup-gate";
 import { AppToaster } from "@/components/ui/app-toaster";
@@ -88,7 +88,7 @@ export default function RootLayout({
               <AppStartupGate />
               <AuthSessionBridge />
               <FirestoreStoreHydrator />
-              <SyncCenter />
+              <SyncCenterScope />
               <AppToaster />
               <Suspense fallback={null}>
                 <AnalyticsProvider />

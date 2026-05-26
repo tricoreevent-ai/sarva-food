@@ -84,9 +84,10 @@ Flow:
 1. Owner creates a menu item.
 2. Owner edits an existing item.
 3. Owner marks items sold out or restocked.
-4. Image upload is simulated with a browser data URL preview.
+4. Menu, category, cuisine, combo, offer, CMS, profile, and social images are uploaded through the reusable Cloudinary upload widget.
+5. The upload widget supports local file preview, center-crop optimization, remote web-address upload, progress state, remove/retry behavior, and stores only Cloudinary URLs in form state.
 
-Future Firebase point: upload files to Firebase Storage and write menu item documents under `restaurants/{restaurantId}/menuItems/{itemId}`.
+Future Firebase point: write menu item documents under `restaurants/{restaurantId}/menuItems/{itemId}`. Image binaries should remain in Cloudinary, not Firebase Storage.
 
 ## Instagram Post Creator
 
@@ -97,13 +98,13 @@ Route path:
 
 Flow:
 
-1. User uploads a food image placeholder.
+1. User uploads or selects a food image through Cloudinary.
 2. User selects a template.
 3. User edits headline, caption, and offer code.
 4. Preview auto-fits the image and overlays text.
 5. Generate and export actions call fake studio APIs.
 
-Future Firebase point: save drafts in `socialPosts/{postId}`, upload images to Storage, and call a publisher function for scheduled posts.
+Future Firebase point: save drafts in `socialPosts/{postId}` and call a publisher function for scheduled posts. Image binaries should remain in Cloudinary.
 
 ## Delivery Flow
 
@@ -126,18 +127,18 @@ Future Firebase point: rider auth, geolocation, and delivery status can update `
 
 Route path:
 
-- `/pos`
+- `/owner/pos`
 
 Flow:
 
-1. Cashier adds menu items to a bill.
-2. Cashier changes quantities.
-3. Cashier assigns a table.
-4. Cashier chooses payment type.
-5. Fake API marks the bill paid.
-6. Invoice preview updates live.
+1. Step 1 `Select items`: waiter or cashier browses category-filtered menu and inventory products with a sticky live order panel.
+2. Step 2 `Customer & order details`: order type, table, customer phone lookup, delivery address, waiter assignment, and kitchen note are captured.
+3. Step 3 `Review order`: items remain editable while GST, parcel charge, discounts, coupons, and payment method are configured.
+4. Step 4 `Processing`: UI shows live order save, KOT creation, and sync progress states.
+5. Step 5 `Success`: order ID, KOT reference, print bill, new order, and active order actions are shown.
+6. Hold, save, resume, active-order edit, and past-order export remain available through the POS sidebar.
 
-Future Firebase point: create `bills/{billId}`, `payments/{paymentId}`, and table occupancy updates.
+Future Firebase point: create `bills/{billId}`, `payments/{paymentId}`, table occupancy updates, and dedicated wizard-state persistence for handheld waiter devices.
 
 ## Catering Flow
 

@@ -1,14 +1,110 @@
-import { NextResponse } from "next/server";
-import { singleCuisineOptions } from "@/lib/single-restaurant-data";
+import { FieldValue } from "firebase-admin/firestore";
+import { NextResponse, type NextRequest } from "next/server";
+import { adminDb } from "@/firebase/admin";
+import { slugifyCuisine } from "@/lib/default-app-cuisines";
+import { getSessionFromRequest } from "@/lib/server-auth";
+import type { AppCuisine } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+type CuisineRequest = {
+  cuisine?: Partial<AppCuisine>;
+  cuisines?: Partial<AppCuisine>[];
+};
 
 export async function GET() {
+  const snapshot = await adminDb().collection("appCuisines").limit(200).get();
+  const cuisines = snapshot.docs
+    .map((doc) => {
+      const data = doc.data() as AppCuisine & { imagePath?: string; isDeleted?: boolean };
+      return { ...data, image: data.image ?? data.imagePath, id: doc.id };
+    })
+    .filter((item) => !item.isDeleted)
+    .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0) || first.name.localeCompare(second.name));
+
   return NextResponse.json({
-    cuisines: singleCuisineOptions.map((name) => ({
-      id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      name,
-      enabled: true,
-    })),
+    cuisines,
   });
+}
+
+export async function POST(request: NextRequest) {
+  const forbidden = await requireAdmin(request);
+  if (forbidden) return forbidden;
+
+  const body = (await request.json().catch(() => ({}))) as CuisineRequest;
+  const cuisines = body.cuisines ?? (body.cuisine ? [body.cuisine] : []);
+  if (!cuisines.length) {
+    return NextResponse.json({ error: "Cuisine data is required." }, { status: 400 });
+  }
+
+  const batch = adminDb().batch();
+  const saved: AppCuisine[] = [];
+  cuisines.forEach((input, index) => {
+    const name = String(input.name ?? "").trim();
+    if (!name) return;
+    const slug = slugifyCuisine(input.slug || name);
+    const id = input.id || slug;
+    const sortOrder = Number(input.sortOrder) || index + 1;
+    const payload = sanitize({
+      name,
+      slug,
+      imagePath: input.image?.trim(),
+      icon: input.icon?.trim(),
+      color: input.color?.trim(),
+      sortOrder,
+      active: input.active !== false,
+      description: input.description?.trim(),
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      isDeleted: false,
+    });
+    batch.set(adminDb().collection("appCuisines").doc(id), payload, { merge: true });
+    saved.push({
+      id,
+      name,
+      slug,
+      image: input.image?.trim(),
+      icon: input.icon?.trim(),
+      color: input.color?.trim(),
+      sortOrder,
+      active: input.active !== false,
+      description: input.description?.trim(),
+    });
+  });
+
+  if (!saved.length) {
+    return NextResponse.json({ error: "At least one cuisine name is required." }, { status: 400 });
+  }
+
+  await batch.commit();
+  return NextResponse.json({ ok: true, cuisines: saved });
+}
+
+export async function DELETE(request: NextRequest) {
+  const forbidden = await requireAdmin(request);
+  if (forbidden) return forbidden;
+
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "Cuisine id is required." }, { status: 400 });
+  }
+  await adminDb().collection("appCuisines").doc(id).set({
+    active: false,
+    isDeleted: true,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return NextResponse.json({ ok: true, id });
+}
+
+async function requireAdmin(request: NextRequest) {
+  const session = await getSessionFromRequest(request);
+  if (!session || session.role !== "admin") {
+    return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
+  }
+  return null;
+}
+
+function sanitize(input: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }

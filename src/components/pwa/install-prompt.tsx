@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAppStore } from "@/lib/app-store";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -10,6 +11,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 export function InstallPrompt() {
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -55,7 +57,7 @@ export function InstallPrompt() {
           <Download className="size-5" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">Install Sarva Food</p>
+          <p className="text-sm font-bold">Install {productName}</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Optional shortcut for repeat orders. Browser ordering stays fully supported.
           </p>

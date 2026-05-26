@@ -38,10 +38,15 @@ export async function getCachedPublicData<T>(
   }
 
   if (existing && existing.staleUntil > now) {
-    existing.inflight = refreshCacheWithDeadline(key, loader, options).finally(() => {
-      const latest = cache.get(key) as CacheEntry<T> | undefined;
-      if (latest) delete latest.inflight;
-    });
+    existing.inflight = refreshCacheWithDeadline(key, loader, options)
+      .catch((error) => {
+        console.warn(error instanceof Error ? error.message : `Public data refresh failed for ${key}`);
+        return existing.data;
+      })
+      .finally(() => {
+        const latest = cache.get(key) as CacheEntry<T> | undefined;
+        if (latest) delete latest.inflight;
+      });
     return { data: existing.data, status: "stale" };
   }
 
@@ -90,10 +95,19 @@ function refreshCacheWithDeadline<T>(
   loader: () => Promise<T>,
   options: { ttlMs: number; staleMs: number; timeoutMs?: number },
 ) {
-  return Promise.race([
-    refreshCache(key, loader, options),
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Public data loader timed out for ${key}`)), options.timeoutMs ?? DEFAULT_PUBLIC_LOADER_TIMEOUT_MS);
-    }),
-  ]);
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const refreshPromise = refreshCache(key, loader, options);
+  refreshPromise.catch((error) => {
+    console.warn(error instanceof Error ? error.message : `Public data refresh failed for ${key}`);
+  });
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`Public data loader timed out for ${key}`)),
+      options.timeoutMs ?? DEFAULT_PUBLIC_LOADER_TIMEOUT_MS,
+    );
+  });
+
+  return Promise.race([refreshPromise, timeout]).finally(() => {
+    clearTimeout(timeoutId);
+  });
 }

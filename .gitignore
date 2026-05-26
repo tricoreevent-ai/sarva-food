@@ -1,13 +1,26 @@
-.next/
+# Dependencies
 node_modules/
+
+# Next.js and build output
+.next/
 out/
 build/
 dist/
 coverage/
 functions/lib/
 *.tsbuildinfo
+
+# Local environment files. Keep examples commit-safe.
 .env*
 !.env.example
+!.env*.example
+
+# Hosting/provider local state
+.vercel/
+.firebase/
+.hostinger/
+
+# Logs and generated temp files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -20,5 +33,16 @@ tmp-*.log
 tmp-*.err.log
 tmp-*.png
 tmp-*.txt
-service-account-key.json
+tmp/
+
+# Local machine and private credentials
+.vscode/
+.sixth/
 certs/
+service-account-key.json
+service-account*.json
+firebase-adminsdk*.json
+*.pem
+*.key
+*.p12
+*.pfx

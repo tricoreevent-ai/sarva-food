@@ -83,7 +83,7 @@ export function CustomerMenuFlow({
   const filterKey = [category, debouncedQuery, dietFilter, maxPrice, popularOnly, cuisineFilter, spiceFilter, mealFilter, availableOnly, chefSpecialOnly, comboOnly].join("|");
   const activeVisibleCount = visibleState.key === filterKey ? visibleState.count : 24;
   const filterOptions = useMemo(() => buildFilterOptions(scopedMenu), [scopedMenu]);
-  const visibleMenu = scopedMenu.filter((item) => {
+  const visibleMenu = useMemo(() => scopedMenu.filter((item) => {
     const itemText = menuSearchText(item);
     const matchesCategory =
       category === "All" || (category === "Popular" ? Boolean(item.isPopular) : item.category === category);
@@ -100,7 +100,7 @@ export function CustomerMenuFlow({
     const matchesChefSpecial = !chefSpecialOnly || Boolean(item.tags?.some((tag) => /chef|special/i.test(tag)));
     const matchesCombo = !comboOnly || Boolean(item.tags?.some((tag) => /combo|meal box|thali/i.test(tag)));
     return matchesCategory && matchesSearch && matchesDiet && matchesPrice && matchesPopular && matchesCuisine && matchesSpice && matchesMeal && matchesAvailable && matchesChefSpecial && matchesCombo;
-  });
+  }), [availableOnly, category, chefSpecialOnly, comboOnly, cuisineFilter, debouncedQuery, dietFilter, maxPrice, mealFilter, popularOnly, scopedMenu, spiceFilter]);
   const renderedMenu = visibleMenu.slice(0, activeVisibleCount);
   const highlightedItem = highlightItemId
     ? scopedMenu.find((item) => item.id === highlightItemId)
@@ -420,8 +420,12 @@ function useDebouncedValue(value: string, delayMs: number) {
 function menuSearchText(item: {
   name: string;
   category: string;
+  subcategory?: string;
   description: string;
+  cuisineIds?: string[];
   tags?: string[];
+  badges?: string[];
+  searchKeywords?: string[];
   dietaryLabels?: string[];
   allergenLabels?: string[];
   foodType?: string;
@@ -429,9 +433,13 @@ function menuSearchText(item: {
   return [
     item.name,
     item.category,
+    item.subcategory ?? "",
     item.description,
     item.foodType ?? "",
+    ...(item.cuisineIds ?? []),
     ...(item.tags ?? []),
+    ...(item.badges ?? []),
+    ...(item.searchKeywords ?? []),
     ...(item.dietaryLabels ?? []),
     ...(item.allergenLabels ?? []),
   ].join(" ").toLowerCase();

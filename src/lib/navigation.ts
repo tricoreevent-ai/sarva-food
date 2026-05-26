@@ -14,6 +14,7 @@ import {
   PackageCheck,
   Percent,
   ReceiptText,
+  ClipboardCheck,
   Settings2,
   ShieldCheck,
   ShoppingBag,
@@ -22,6 +23,7 @@ import {
   Table2,
   Users,
   Utensils,
+  Soup,
 } from "lucide-react";
 import type { NavItem } from "@/lib/types";
 
@@ -45,16 +47,20 @@ export const ownerNav: NavItem[] = [
   { label: "Reports", href: "/owner/reports", icon: BarChart3 },
   { label: "Inventory", href: "/owner/inventory", icon: PackageCheck },
   { label: "Employees", href: "/owner/employees", icon: Users },
+  { label: "Accounting", href: "/owner/accounting", icon: CreditCard },
   { label: "Settings", href: "/owner/settings", icon: Settings2 },
 ];
 
 export const adminNav: NavItem[] = [
   { label: "Overview", href: "/admin", icon: Home },
   { label: "Restaurants", href: "/admin/restaurants", icon: Store },
+  { label: "Food Categories", href: "/admin/categories", icon: Utensils },
+  { label: "Cuisine Types", href: "/admin/cuisines", icon: Soup },
+  { label: "Owner Reviews", href: "/admin/reviews", icon: ClipboardCheck },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
   { label: "Campaigns", href: "/admin/campaigns", icon: Megaphone },
-  { label: "CMS", href: "/admin/cms", icon: LayoutTemplate },
+  { label: "System Settings", href: "/admin/cms", icon: LayoutTemplate },
   { label: "Social Queue", href: "/admin/social-queue", icon: ImagePlus },
   { label: "Meta Integrations", href: "/admin/meta", icon: Settings2 },
   { label: "Map Settings", href: "/admin/settings/map", icon: MapPin },

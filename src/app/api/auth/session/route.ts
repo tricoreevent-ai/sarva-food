@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyFirebaseIdToken } from "@/lib/server-auth";
+import { getSessionFromCookies, verifyFirebaseIdToken } from "@/lib/server-auth";
 
 function getCookieOptions(request: NextRequest) {
   return {
@@ -9,6 +9,24 @@ function getCookieOptions(request: NextRequest) {
     path: "/",
     maxAge: 60 * 60 * 24 * 5,
   };
+}
+
+export async function GET() {
+  const session = await getSessionFromCookies();
+
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "No active session." }, { status: 401 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    uid: session.uid,
+    role: session.role,
+    tenantId: session.tenantId,
+    tenantIds: session.tenantIds,
+    branchIds: session.branchIds,
+    restaurantIds: session.restaurantIds,
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -39,9 +57,13 @@ export async function POST(request: NextRequest) {
   response.cookies.set("sarva_uid", session.uid, cookieOptions);
   response.cookies.set("sarva_role", session.role, cookieOptions);
   if (session.tenantId) response.cookies.set("sarva_tenant", session.tenantId, cookieOptions);
+  else response.cookies.delete("sarva_tenant");
   if (session.tenantIds.length) response.cookies.set("sarva_tenants", session.tenantIds.join(","), cookieOptions);
+  else response.cookies.delete("sarva_tenants");
   if (session.branchIds.length) response.cookies.set("sarva_branch_ids", session.branchIds.join(","), cookieOptions);
+  else response.cookies.delete("sarva_branch_ids");
   if (session.restaurantIds.length) response.cookies.set("sarva_restaurants", session.restaurantIds.join(","), cookieOptions);
+  else response.cookies.delete("sarva_restaurants");
 
   return response;
 }

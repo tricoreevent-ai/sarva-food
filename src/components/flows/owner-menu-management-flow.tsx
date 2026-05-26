@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, BarChart3, Boxes, Copy, Download, Edit3, FileSpreadsheet, ImagePlus, Languages, Loader2, PackageCheck, Plus, QrCode, Save, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
-import { useForm, type Resolver } from "react-hook-form";
+import { AlertTriangle, BarChart3, Boxes, Copy, Download, Edit3, FileSpreadsheet, Languages, Loader2, PackageCheck, Plus, QrCode, Save, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { SectionHeader } from "@/components/layout/section-header";
+import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { usePublicCategories } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { buildQrPayload, calculateRestaurantTax, cloneMenuForChannel, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
 import { advancedMenuItemSchema, comboSchema, cuisineSchema, menuCategorySchema, taxSettingsSchema } from "@/lib/schemas/menu";
-import { uploadMenuItemImage } from "@/services/advanced-menu-service";
 import type { ComboOffer, InventoryItem, MenuItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
@@ -58,6 +59,7 @@ export function OwnerMenuManagementFlow() {
   const allMenuItems = useAppStore((state) => state.menuItems);
   const allCategories = useAppStore((state) => state.menuCategories);
   const allCuisines = useAppStore((state) => state.cuisines);
+  const { categories: masterCategories } = usePublicCategories();
   const taxSettings = useAppStore((state) => state.taxSettings);
   const combos = useAppStore((state) => state.comboOffers);
   const inventoryItems = useAppStore((state) => state.inventoryItems);
@@ -121,6 +123,12 @@ export function OwnerMenuManagementFlow() {
   );
   const categories = useMemo(() => allCategories.filter((item) => item.restaurantSlug === restaurantId).sort((a, b) => a.sortOrder - b.sortOrder), [allCategories, restaurantId]);
   const cuisines = useMemo(() => allCuisines.filter((item) => item.restaurantSlug === restaurantId), [allCuisines, restaurantId]);
+  const categoryChoices = useMemo(() => {
+    const localChoices = categories.map((item) => ({ id: item.id, name: item.name }));
+    const masterChoices = masterCategories.map((item) => ({ id: item.id, name: item.name }));
+    return Array.from(new Map([...masterChoices, ...localChoices].map((item) => [item.id, item])).values())
+      .sort((first, second) => first.name.localeCompare(second.name));
+  }, [categories, masterCategories]);
   const lowStock = useMemo(() => inventoryItems.filter((item) => getInventoryStatus(item) !== "ok"), [inventoryItems]);
   const channelRevenuePreview = useMemo(
     () => menuItems.reduce((sum, item) => sum + (isItemVisible(item, activeChannel) ? getChannelPrice(item, activeChannel) : 0), 0),
@@ -131,8 +139,9 @@ export function OwnerMenuManagementFlow() {
     defaultValues: {
       name: "",
       translations: {},
-      category: "Specials",
+      category: "",
       categoryId: "",
+      subcategory: "",
       cuisineIds: [],
       description: "",
       longDescription: "",
@@ -145,6 +154,8 @@ export function OwnerMenuManagementFlow() {
       foodType: "veg",
       spiceLevel: "medium",
       tags: "bestseller",
+      badges: "",
+      searchKeywords: "",
       allergens: "",
       modifiers: "",
       addOns: "",
@@ -153,6 +164,8 @@ export function OwnerMenuManagementFlow() {
       menuVisibility: { "dine-in": true, parcel: true, delivery: true },
     },
   });
+  const selectedCategoryId = useWatch({ control: form.control, name: "categoryId" }) ?? "";
+  const selectedCuisineIds = useWatch({ control: form.control, name: "cuisineIds" }) ?? [];
 
   function beginEdit(item: MenuItem) {
     setEditing(item);
@@ -160,6 +173,7 @@ export function OwnerMenuManagementFlow() {
       name: item.name,
       category: item.category,
       categoryId: item.categoryId ?? "",
+      subcategory: item.subcategory ?? "",
       cuisineIds: item.cuisineIds ?? [],
       description: item.description,
       longDescription: item.longDescription ?? "",
@@ -172,6 +186,8 @@ export function OwnerMenuManagementFlow() {
       foodType: item.foodType ?? (item.isVeg ? "veg" : "nonveg"),
       spiceLevel: item.spiceLevel ?? "medium",
       tags: item.tags?.join(", ") ?? "",
+      badges: item.badges?.join(", ") ?? "",
+      searchKeywords: item.searchKeywords?.join(", ") ?? "",
       allergens: item.allergenLabels?.join(", ") ?? "",
       modifiers: item.modifiers?.map((entry) => `${entry.name}:${entry.price}`).join(", ") ?? "",
       addOns: item.addOns?.map((entry) => `${entry.name}:${entry.price}`).join(", ") ?? "",
@@ -186,8 +202,12 @@ export function OwnerMenuManagementFlow() {
   async function handleSubmit(values: MenuFormValues) {
     const modifiers = parsePricedList(values.modifiers);
     const addOns = parsePricedList(values.addOns);
-    const category = categories.find((entry) => entry.name.toLowerCase() === values.category.toLowerCase());
+    const selectedCategory = categoryChoices.find((entry) => entry.id === values.categoryId) ??
+      categoryChoices.find((entry) => entry.name.toLowerCase() === values.category.toLowerCase());
     const recipeLinks = inventoryItems.slice(0, 2).map((item) => ({ inventoryItemId: item.id, quantity: 1, unit: item.unit }));
+    const tags = splitList(values.tags);
+    const badges = splitList(values.badges);
+    const searchKeywords = splitList(values.searchKeywords);
     const modifierGroups = [
       {
         id: editing?.modifierGroups?.[0]?.id ?? `mod-${values.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "custom"}`,
@@ -201,8 +221,10 @@ export function OwnerMenuManagementFlow() {
     const common = {
       ...values,
       ownerId: authUser.id,
-      categoryId: category?.id,
-      cuisineIds: cuisines.slice(0, 2).map((item) => item.id),
+      category: selectedCategory?.name ?? values.category,
+      categoryId: selectedCategory?.id ?? values.categoryId,
+      subcategory: values.subcategory?.trim(),
+      cuisineIds: values.cuisineIds,
       modifiers,
       addOns,
       modifierGroups,
@@ -215,7 +237,9 @@ export function OwnerMenuManagementFlow() {
       foodType: values.foodType,
       isVeg: ["veg", "vegan", "jain"].includes(values.foodType),
       spiceLevel: values.spiceLevel,
-      tags: splitList(values.tags),
+      tags,
+      badges,
+      searchKeywords,
       dietaryLabels: values.foodType === "jain" ? ["jain"] : values.foodType === "vegan" ? ["vegan"] : [],
       allergenLabels: splitList(values.allergens),
       menuVisibility: values.menuVisibility,
@@ -236,36 +260,27 @@ export function OwnerMenuManagementFlow() {
       await createMenuItem({
       restaurantSlug: restaurantId,
       ...common,
-      isPopular: false,
+      isPopular: tags.some((tag) => ["popular", "bestseller"].includes(tag.toLowerCase())),
     });
     form.reset();
     setImagePreview(fallbackImage);
   }
 
-  async function handleImageFile(file?: File) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(String(reader.result));
-    reader.readAsDataURL(file);
-    const uploaded = await uploadMenuItemImage(restaurantId, file).catch(() => null);
-    if (uploaded?.downloadUrl) setImagePreview(uploaded.downloadUrl);
-  }
-
   function downloadExcelTemplate() {
-    const rows = [
-      {
-        "item name": "Malabar Chicken Biryani",
-        category: "biryani",
-        price: 340,
-        description: "Dum-cooked chicken biryani with raita and salna.",
-        "veg/non-veg": "nonveg",
-        "image URL": "https://images.unsplash.com/photo-1563379091339-03246963d51a?auto=format&fit=crop&w=900&q=80",
-        "dine-in enabled": "yes",
-        "parcel enabled": "yes",
-        "delivery enabled": "yes",
-      },
-    ];
-    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      [
+        "item name",
+        "category",
+        "price",
+        "description",
+        "veg/non-veg",
+        "image URL",
+        "dine-in enabled",
+        "parcel enabled",
+        "delivery enabled",
+      ],
+      ["", "", "", "", "", "", "", "", ""],
+    ]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Menu template");
     XLSX.writeFile(workbook, "sarva-menu-import-template.xlsx");
@@ -497,16 +512,15 @@ export function OwnerMenuManagementFlow() {
             <div className="relative aspect-[16/10] overflow-hidden rounded-lg bg-muted">
               <SafeImage src={imagePreview} alt="Menu image preview" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="420px" className="object-cover" />
             </div>
-            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed text-sm font-semibold">
-              <ImagePlus className="size-4" aria-hidden="true" />
-              Upload image
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => void handleImageFile(event.target.files?.[0])}
-              />
-            </label>
+            <CloudinaryUploadWidget
+              folder="menu"
+              restaurantId={restaurantId}
+              aspectRatio={4 / 3}
+              tags={["menu-item"]}
+              label="Upload and crop image"
+              className="min-h-12 border-dashed"
+              onUpload={(url) => setImagePreview(url)}
+            />
             <div className="grid gap-2">
               <Label htmlFor="menu-name">Name</Label>
               <Input id="menu-name" {...form.register("name")} />
@@ -514,7 +528,19 @@ export function OwnerMenuManagementFlow() {
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="menu-category">Category</Label>
-                <Input id="menu-category" {...form.register("category")} />
+                <select
+                  id="menu-category"
+                  className="h-11 rounded-md border bg-background px-3 text-sm"
+                  value={selectedCategoryId}
+                  onChange={(event) => {
+                    const selected = categoryChoices.find((item) => item.id === event.target.value);
+                    form.setValue("categoryId", selected?.id ?? "");
+                    form.setValue("category", selected?.name ?? "");
+                  }}
+                >
+                  <option value="">Select admin category</option>
+                  {categoryChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="menu-price">Price</Label>
@@ -523,6 +549,26 @@ export function OwnerMenuManagementFlow() {
                   inputMode="numeric"
                   {...form.register("price", { valueAsNumber: true })}
                 />
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="menu-subcategory">Subcategory</Label>
+                <Input id="menu-subcategory" placeholder="Rolls, family pack, half grill" {...form.register("subcategory")} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Cuisines</Label>
+                <select
+                  multiple
+                  className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm"
+                  value={selectedCuisineIds}
+                  onChange={(event) => {
+                    const selected = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
+                    form.setValue("cuisineIds", selected);
+                  }}
+                >
+                  {cuisines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -567,7 +613,17 @@ export function OwnerMenuManagementFlow() {
             </div>
             <div className="grid gap-2">
               <Label>Tags</Label>
-              <Input placeholder="bestseller, chef special, spicy" {...form.register("tags")} />
+              <Input placeholder="bestseller, chef special, spicy, shawarma, family pack" {...form.register("tags")} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Badges</Label>
+                <Input placeholder="New item, Ramadan special" {...form.register("badges")} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Search keywords</Label>
+                <Input placeholder="jumbo meal, friday special, kids" {...form.register("searchKeywords")} />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label>Allergens</Label>
@@ -676,7 +732,10 @@ export function OwnerMenuManagementFlow() {
           <Card><CardContent className="space-y-3 p-5">
             <h2 className="font-black">Create category</h2>
             <Input placeholder="Kerala Specials" value={categoryDraft.name} onChange={(event) => setCategoryDraft({ ...categoryDraft, name: event.target.value })} />
+            <Input placeholder="Image URL" value={categoryDraft.image} onChange={(event) => setCategoryDraft({ ...categoryDraft, image: event.target.value })} />
+            <CloudinaryUploadWidget folder="categories" restaurantId={restaurantId} aspectRatio={4 / 3} tags={["menu-category"]} label="Upload category image" onUpload={(url) => setCategoryDraft({ ...categoryDraft, image: url })} />
             <Input placeholder="Banner URL" value={categoryDraft.banner} onChange={(event) => setCategoryDraft({ ...categoryDraft, banner: event.target.value })} />
+            <CloudinaryUploadWidget folder="categories" restaurantId={restaurantId} aspectRatio={16 / 9} tags={["category-banner"]} label="Upload category banner" onUpload={(url) => setCategoryDraft({ ...categoryDraft, banner: url })} />
             <div className="grid grid-cols-2 gap-2"><Input type="time" value={categoryDraft.startTime} onChange={(event) => setCategoryDraft({ ...categoryDraft, startTime: event.target.value })} /><Input type="time" value={categoryDraft.endTime} onChange={(event) => setCategoryDraft({ ...categoryDraft, endTime: event.target.value })} /></div>
             <div className="flex gap-2">
               <Button onClick={() => {
@@ -709,6 +768,7 @@ export function OwnerMenuManagementFlow() {
               <h2 className="font-black">{cuisineDraft.id ? "Edit cuisine" : "Create cuisine"}</h2>
               <Input placeholder="Arabic" value={cuisineDraft.name} onChange={(event) => setCuisineDraft({ ...cuisineDraft, name: event.target.value })} />
               <Input placeholder="Image/icon URL" value={cuisineDraft.image} onChange={(event) => setCuisineDraft({ ...cuisineDraft, image: event.target.value })} />
+              <CloudinaryUploadWidget folder="cuisines" restaurantId={restaurantId} aspectRatio={1} tags={["cuisine"]} label="Upload cuisine image" onUpload={(url) => setCuisineDraft({ ...cuisineDraft, image: url })} />
               <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-bold">
                 <input type="checkbox" checked={cuisineDraft.enabled} onChange={(event) => setCuisineDraft({ ...cuisineDraft, enabled: event.target.checked })} />
                 Active
@@ -762,6 +822,7 @@ export function OwnerMenuManagementFlow() {
               <Input placeholder="Family grill pack" value={comboDraft.name} onChange={(event) => setComboDraft({ ...comboDraft, name: event.target.value })} />
               <Textarea placeholder="Short description" value={comboDraft.description} onChange={(event) => setComboDraft({ ...comboDraft, description: event.target.value })} />
               <Input placeholder="Image URL" value={comboDraft.image} onChange={(event) => setComboDraft({ ...comboDraft, image: event.target.value })} />
+              <CloudinaryUploadWidget folder="combos" restaurantId={restaurantId} aspectRatio={4 / 3} tags={["combo"]} label="Upload combo image" onUpload={(url) => setComboDraft({ ...comboDraft, image: url })} />
               <div className="grid gap-2 sm:grid-cols-2">
                 <Input placeholder="Combo price" inputMode="decimal" value={comboDraft.price} onChange={(event) => setComboDraft({ ...comboDraft, price: event.target.value })} />
                 <Input placeholder="Discount amount" inputMode="decimal" value={comboDraft.discount} onChange={(event) => setComboDraft({ ...comboDraft, discount: event.target.value })} />

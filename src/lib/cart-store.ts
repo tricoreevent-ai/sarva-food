@@ -9,7 +9,7 @@ export type CartLine = MenuItem & {
   quantity: number;
 };
 
-type CartState = {
+export type CartState = {
   items: CartLine[];
   offerCode: string;
   addItem: (item: MenuItem) => void;

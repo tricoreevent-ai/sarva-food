@@ -552,6 +552,11 @@ const thanisandraRestaurantSeeds = [
   },
 ];
 
+const launchRestaurantSeedIds = new Set([
+  "falak-leela-bhartiya",
+]);
+const launchRestaurantSeeds = thanisandraRestaurantSeeds.filter((restaurant) => launchRestaurantSeedIds.has(restaurant.id));
+
 const requiredCollections = [
   "tenants", "branches", "users", "roles", "permissions", "restaurants", "menus", "menuCategories",
   "orders", "orderItems", "kitchenOrders", "tables", "customers", "loyaltyAccounts",
@@ -1290,7 +1295,6 @@ for (const collectionName of requiredCollections) {
   }, { merge: true });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Legacy demo seed kept inactive; production seed now creates only Cafe Al Arab.
 function seedThanisandraRestaurants(batchRef, ownerId) {
   batchRef.set(db.collection("customerAddresses").doc("demo-customer-thanisandra"), {
     id: "demo-customer-thanisandra",
@@ -1330,8 +1334,9 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
     updatedAt: now,
   }, { merge: true });
 
-  thanisandraRestaurantSeeds.forEach((restaurant, restaurantIndex) => {
+  launchRestaurantSeeds.forEach((restaurant, restaurantIndex) => {
     const branchIdForRestaurant = `br-${restaurant.id}`;
+    const restaurantOwnerId = restaurant.id === "cafe-al-arab-thanisandra" ? ownerId : "owner-falak-leela";
     const categories = Array.from(new Set(restaurant.menus.map((item) => item[2])));
     const popularItems = restaurant.menus.map((item) => item[1]);
     const prices = restaurant.menus.map((item) => Number(item[3]));
@@ -1343,7 +1348,7 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       name: `${restaurant.name} Tenant`,
       slug: restaurant.id,
       status: "active",
-      ownerIds: [ownerId],
+      ownerIds: [restaurantOwnerId],
       primaryBranchId: branchIdForRestaurant,
       createdAt: now,
       updatedAt: now,
@@ -1354,8 +1359,8 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       tenantId: restaurant.id,
       name: restaurant.name,
       slug: restaurant.id,
-      ownerIds: [ownerId],
-      ownerId,
+      ownerIds: [restaurantOwnerId],
+      ownerId: restaurantOwnerId,
       branchId: branchIdForRestaurant,
       primaryBranchId: branchIdForRestaurant,
       active: true,
@@ -1483,7 +1488,7 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
         tenantId: restaurant.id,
         restaurantId: restaurant.id,
         branchId: branchIdForRestaurant,
-        ownerId,
+        ownerId: restaurantOwnerId,
         name: categoryName,
         sortOrder: categoryIndex + 1,
         enabled: true,
@@ -1503,7 +1508,7 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
         tenantId: restaurant.id,
         restaurantId: restaurant.id,
         branchId: branchIdForRestaurant,
-        ownerId,
+        ownerId: restaurantOwnerId,
         categoryId,
         category: categoryName,
         cuisineIds: restaurant.cuisine.map(safeSeedId),
@@ -1662,6 +1667,8 @@ function reviewCopyFor(cuisine, itemName, deliveryTime) {
   return `${itemName} was well packed, hot on arrival, and matched the restaurant rating.`;
 }
 
+seedThanisandraRestaurants(batch, resolvedUsers.find((user) => user.role === "owner")?.uid ?? "test-owner");
+
 await batch.commit();
-console.log(`Firebase production backend seeded for ${restaurantId}.`);
+console.log("Firebase production backend seeded for Cafe Al Arab and Falak - The Leela Bhartiya City.");
 console.log(`Bootstrap owner mapped: ${resolvedUsers[0].email} (${resolvedUsers[0].uid})`);

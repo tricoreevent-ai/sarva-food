@@ -13,7 +13,7 @@ export function OwnerAccessGate({ children }: { children: React.ReactNode }) {
   const profile = useAppStore((state) => state.ownerBusinessProfile);
   const unlocked = profile?.completed;
 
-  if (unlocked || pathname === "/owner/profile" || pathname === "/owner/onboarding") {
+  if (unlocked || pathname === "/owner/settings" || pathname === "/owner/profile" || pathname === "/owner/onboarding") {
     return children;
   }
 
@@ -31,7 +31,7 @@ export function OwnerAccessGate({ children }: { children: React.ReactNode }) {
             hours, delivery radius, and service type are saved.
           </p>
           <Button asChild>
-            <Link href="/owner/profile?tab=onboarding">
+            <Link href="/owner/settings?tab=profile">
               <Store className="size-4" />
               Finish onboarding
             </Link>

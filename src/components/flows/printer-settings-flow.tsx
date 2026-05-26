@@ -19,6 +19,7 @@ export function PrinterSettingsFlow() {
   const settings = useAppStore((state) => state.printerSettings);
   const updatePrinterSettings = useAppStore((state) => state.updatePrinterSettings);
   const latestOrder = useAppStore((state) => state.tableOrders[0]);
+  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
   const bill = useAppStore((state) => state.posBill);
   const branch = useAppStore((state) => state.branches[0]);
   const taxSettings = useAppStore((state) => state.taxSettings);
@@ -37,12 +38,12 @@ export function PrinterSettingsFlow() {
           title="No branch configured"
           description="Printer profiles are branch-scoped. Complete onboarding or create a branch to continue."
           actionLabel="Open onboarding"
-          actionHref="/owner/profile?tab=onboarding"
+          actionHref="/owner/settings?tab=profile"
         />
       </div>
     );
   }
-  const billContext = buildBillContext({ bill: bill.lines.length ? bill : { ...bill, lines: latestOrder?.lines ?? [] }, branch, taxSettings, createdAt: latestOrder ? new Date(latestOrder.createdAt) : new Date(0) });
+  const billContext = buildBillContext({ bill: bill.lines.length ? bill : { ...bill, lines: latestOrder?.lines ?? [] }, branch, taxSettings, restaurantName: ownerBusinessProfile?.hotelName, createdAt: latestOrder ? new Date(latestOrder.createdAt) : new Date(0) });
   const kotContext = latestOrder
     ? { kotNumber: `KIT-${latestOrder.id}`, orderNumber: latestOrder.id, orderType: latestOrder.source === "POS" ? "POS" as const : "Dine-in" as const, tableNumber: latestOrder.tableNumber, waiterName: latestOrder.waiterName ?? "Waiter", priority: latestOrder.priority, lines: latestOrder.lines, createdAt: new Date(latestOrder.createdAt) }
     : buildKotContext(billContext);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
+import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,18 +84,11 @@ export default function AdminCmsPage() {
     setSettings((current) => ({ ...current, [surface]: next }));
   }
 
-  function readDraftImage(file: File | undefined, field: "imageUrl" | "mobileImageUrl") {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setDraft((current) => ({ ...current, [field]: String(reader.result) }));
-    reader.readAsDataURL(file);
-  }
-
   return (
     <div className="space-y-6">
       <SectionHeader
-        title="CMS"
-        description="Configure homepage content, banners, footer, legal copy, announcements, and sponsored placements."
+        title="System Settings"
+        description="Configure application name, homepage content, banners, footer, legal copy, announcements, and sponsored placements."
         action={<Button onClick={saveCms}><Save className="size-4" />Save CMS</Button>}
       />
 
@@ -102,6 +96,7 @@ export default function AdminCmsPage() {
         <Card>
           <CardContent className="space-y-4 p-5">
             <h2 className="text-lg font-black">Platform copy</h2>
+            <Field label="Application name" value={settings.appName ?? "Sarva Food"} onChange={(appName) => setSettings({ ...settings, appName })} />
             <Field label="Homepage title" value={settings.homepage.title} onChange={(title) => setSettings({ ...settings, homepage: { ...settings.homepage, title } })} />
             <Field label="Homepage subtitle" value={settings.homepage.subtitle} onChange={(subtitle) => setSettings({ ...settings, homepage: { ...settings.homepage, subtitle } })} />
             <Toggle label="Homepage CMS visible" checked={settings.homepage.visible} onChange={(visible) => setSettings({ ...settings, homepage: { ...settings.homepage, visible } })} />
@@ -143,14 +138,8 @@ export default function AdminCmsPage() {
                 <Field label="Subtitle" value={draft.subtitle ?? ""} onChange={(subtitle) => setDraft({ ...draft, subtitle })} />
                 <Field label="Desktop image URL" value={draft.imageUrl} onChange={(imageUrl) => setDraft({ ...draft, imageUrl })} />
                 <Field label="Mobile image URL" value={draft.mobileImageUrl ?? ""} onChange={(mobileImageUrl) => setDraft({ ...draft, mobileImageUrl })} />
-                <label className="grid gap-2">
-                  <Label>Upload desktop image</Label>
-                  <Input type="file" accept="image/*" onChange={(event) => readDraftImage(event.target.files?.[0], "imageUrl")} />
-                </label>
-                <label className="grid gap-2">
-                  <Label>Upload mobile image</Label>
-                  <Input type="file" accept="image/*" onChange={(event) => readDraftImage(event.target.files?.[0], "mobileImageUrl")} />
-                </label>
+                <CloudinaryUploadWidget folder="cms" aspectRatio={16 / 9} tags={["cms-desktop", surface]} label="Upload desktop image" onUpload={(imageUrl) => setDraft((current) => ({ ...current, imageUrl }))} />
+                <CloudinaryUploadWidget folder="cms" aspectRatio={4 / 5} tags={["cms-mobile", surface]} label="Upload mobile image" onUpload={(mobileImageUrl) => setDraft((current) => ({ ...current, mobileImageUrl }))} />
                 <Field label="CTA label" value={draft.ctaLabel ?? ""} onChange={(ctaLabel) => setDraft({ ...draft, ctaLabel })} />
                 <Field label="CTA link" value={draft.ctaHref ?? ""} onChange={(ctaHref) => setDraft({ ...draft, ctaHref })} />
                 <Field label="Publish from" type="datetime-local" value={draft.publishFrom ?? ""} onChange={(publishFrom) => setDraft({ ...draft, publishFrom })} />

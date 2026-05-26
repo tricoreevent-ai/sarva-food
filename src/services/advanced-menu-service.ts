@@ -1,11 +1,10 @@
 import { addDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Unsubscribe } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getFirebaseDb, getFirebaseStorage, isFirebaseConfigured } from "@/firebase/client";
+import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { refs, typedDoc } from "@/firebase/collections";
 import { shouldUseFirebase } from "@/lib/env";
-import { compressImageFile } from "@/lib/image-optimization";
 import { resolveTenantId, withTenantId } from "@/lib/tenant";
 import { comboSchema, cuisineSchema, inventorySchema, menuCategorySchema, taxSettingsSchema, type MenuItemFormValues } from "@/lib/schemas/menu";
+import { uploadImageToCloudinary } from "@/services/cloudinary-upload-service";
 import { createMetadata, softDeleteMetadata, updateMetadata } from "@/services/firestore-metadata";
 import type { ComboOfferDoc, CuisineDoc, InventoryDoc, MenuCategoryDoc, MenuDoc, ModifierGroupDoc, TaxSettingsDoc } from "@/types/firebase";
 
@@ -38,19 +37,16 @@ export async function safeUpsertMenuItem(item: MenuDoc) {
 }
 
 export async function uploadMenuItemImage(restaurantId: string, file: File) {
-  if (!canUseMenuFirestore()) return null;
-  const optimizedFile = await compressImageFile(file, {
+  return uploadImageToCloudinary(file, {
+    folder: "menu",
+    restaurantId,
     maxWidth: 1200,
     maxHeight: 900,
     aspectRatio: 4 / 3,
     quality: 0.82,
     type: "image/webp",
+    tags: ["menu-item"],
   });
-  const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9.-]/g, "-");
-  const imagePath = `restaurants/${restaurantId}/menu/${crypto.randomUUID()}-${safeName}`;
-  const imageRef = ref(getFirebaseStorage(), imagePath);
-  await uploadBytes(imageRef, optimizedFile, { contentType: optimizedFile.type });
-  return { imagePath, downloadUrl: await getDownloadURL(imageRef) };
 }
 
 export async function safeCreateCategory(input: Omit<MenuCategoryDoc, "id" | "createdAt" | "updatedAt">) {

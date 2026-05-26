@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,8 @@ export function StatCard({
   tone?: "orange" | "green" | "blue" | "purple";
   points: number[];
 }) {
+  const negative = delta.trim().startsWith("-");
+  const TrendIcon = negative ? ArrowDown : ArrowUp;
   return (
     <DashboardCard className="min-h-36">
       <div className="flex items-start justify-between gap-3">
@@ -30,8 +32,8 @@ export function StatCard({
         </span>
       </div>
       <div className="mt-5 flex items-end justify-between gap-3">
-        <p className="flex items-center gap-1 text-sm font-semibold text-emerald-600">
-          <ArrowUp className="size-4" />
+        <p className={cn("flex items-center gap-1 text-sm font-semibold", negative ? "text-red-600" : "text-emerald-600")}>
+          <TrendIcon className="size-4" />
           {delta}
         </p>
         <Sparkline points={points} className={toneClass[tone].stroke} />

@@ -38,6 +38,7 @@ export default function AccountingPage() {
   const expenses = useAppStore((state) => state.expenses);
   const transactions = useAppStore((state) => state.transactions);
   const branches = useAppStore((state) => state.branches);
+  const staffMembers = useAppStore((state) => state.staffMembers);
   const authUser = useAppStore((state) => state.authUser);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
   const [entries, setEntries] = useState<AccountingEntry[]>(() => [
@@ -88,6 +89,43 @@ export default function AccountingPage() {
     });
     return Array.from(grouped.values());
   }, [entries]);
+  const payrollRows = useMemo(
+    () => staffMembers
+      .filter((member) => member.role !== "owner" && member.role !== "admin")
+      .map((member) => ({
+        id: member.id,
+        employee: member.name,
+        role: member.role,
+        branch: branches.find((branch) => branch.id === member.branchId)?.name ?? member.branchId,
+        employmentType: member.employmentType ?? "fixed",
+        gross: member.payrollEstimate?.grossMonthly ?? member.monthlySalary ?? member.contractRate ?? 0,
+        tds: member.payrollEstimate?.tdsMonthly ?? 0,
+        pt: member.payrollEstimate?.professionalTaxMonthly ?? 0,
+        pf: member.payrollEstimate?.pfEmployee ?? 0,
+        esi: member.payrollEstimate?.esiEmployee ?? 0,
+        net: member.payrollEstimate?.netMonthly ?? 0,
+      })),
+    [branches, staffMembers],
+  );
+  const taxRows = useMemo(() => [
+    { id: "gst", tax: "GST", collected: entries.filter((entry) => entry.type === "income").reduce((sum, entry) => sum + entry.gst, 0), payable: Math.max(0, gst), period: "Current selection" },
+    { id: "tds", tax: "TDS salary/contract", collected: payrollRows.reduce((sum, row) => sum + row.tds, 0), payable: payrollRows.reduce((sum, row) => sum + row.tds, 0), period: "Monthly estimate" },
+    { id: "pt", tax: "Professional Tax", collected: payrollRows.reduce((sum, row) => sum + row.pt, 0), payable: payrollRows.reduce((sum, row) => sum + row.pt, 0), period: "Monthly estimate" },
+    { id: "pf", tax: "PF employee", collected: payrollRows.reduce((sum, row) => sum + row.pf, 0), payable: payrollRows.reduce((sum, row) => sum + row.pf, 0), period: "Monthly estimate" },
+    { id: "esi", tax: "ESI employee", collected: payrollRows.reduce((sum, row) => sum + row.esi, 0), payable: payrollRows.reduce((sum, row) => sum + row.esi, 0), period: "Monthly estimate" },
+  ], [entries, gst, payrollRows]);
+  const reportRows = [
+    { id: "pnl", report: "Profit & Loss Statement", filters: "Date range, branch", export: "PDF / CSV" },
+    { id: "balance-sheet", report: "Balance Sheet", filters: "As of date, branch", export: "PDF / CSV" },
+    { id: "cash-flow", report: "Cash Flow Statement", filters: "Date range, branch", export: "PDF / CSV" },
+    { id: "trial-balance", report: "Trial Balance", filters: "Date range", export: "CSV" },
+    { id: "general-ledger", report: "General Ledger", filters: "Date range, account, branch", export: "CSV" },
+    { id: "sales-summary", report: "Sales Summary Report", filters: "Date range, payment mode", export: "CSV" },
+    { id: "expense-report", report: "Expense Report", filters: "Date range, category, branch", export: "CSV" },
+    { id: "inventory-usage", report: "Inventory Usage Report", filters: "Date range, item category", export: "CSV" },
+    { id: "tax-summary", report: "Tax Summary Report", filters: "FY, quarter, month, tax type", export: "PDF / CSV" },
+    { id: "payroll-report", report: "Employee Payroll Report", filters: "Month, employee, branch", export: "PDF / CSV" },
+  ];
   const columns: AdvancedColumn<AccountingEntry>[] = [
     { key: "createdAt", label: "Date", render: (row) => new Date(row.createdAt).toLocaleDateString() },
     { key: "type", label: "Type", render: (row) => <Badge variant={row.type === "income" ? "success" : "warning"}>{row.type}</Badge> },
@@ -195,15 +233,24 @@ export default function AccountingPage() {
       </Card>
       <Tabs defaultValue="journal">
         <TabsList className="customer-scroll w-full justify-start overflow-x-auto">
-          {["journal", "ledger", "transactions", "cashbook", "gst", "expenses", "income"].map((tab) => <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>)}
+          {["transactions", "reports", "journal", "ledger", "cashbook", "gst", "tax-summary", "payroll", "expenses", "income"].map((tab) => <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>)}
         </TabsList>
+        <TabsContent value="transactions" className="mt-4"><AdvancedDataTable title="Daily transactions" columns={columns} rows={entries} /></TabsContent>
+        <TabsContent value="reports" className="mt-4"><AdvancedDataTable title="Accounting reports" columns={[
+          { key: "report", label: "Report" }, { key: "filters", label: "Filters" }, { key: "export", label: "Export" },
+        ]} rows={reportRows} exportFilename="accounting-reports.csv" /></TabsContent>
         <TabsContent value="journal" className="mt-4"><AdvancedDataTable title="Journal entries" columns={columns} rows={entries} exportFilename="journal-entries.csv" /></TabsContent>
         <TabsContent value="ledger" className="mt-4"><AdvancedDataTable title="Ledger view" columns={[
           { key: "category", label: "Ledger" }, { key: "count", label: "Entries", align: "right" }, { key: "debit", label: "Debit", align: "right", render: (row) => formatCurrency(Number(row.debit)) }, { key: "credit", label: "Credit", align: "right", render: (row) => formatCurrency(Number(row.credit)) }, { key: "gst", label: "GST", align: "right", render: (row) => formatCurrency(Number(row.gst)) },
         ]} rows={ledgerRows} /></TabsContent>
-        <TabsContent value="transactions" className="mt-4"><AdvancedDataTable title="Transaction history" columns={columns} rows={entries} /></TabsContent>
         <TabsContent value="cashbook" className="mt-4"><AdvancedDataTable title="Cashbook" columns={columns} rows={cashbookRows} /></TabsContent>
         <TabsContent value="gst" className="mt-4"><AdvancedDataTable title="GST summary" columns={columns.filter((column) => ["createdAt", "type", "category", "gst", "approvalStatus"].includes(column.key))} rows={entries.filter((entry) => entry.gst > 0)} /></TabsContent>
+        <TabsContent value="tax-summary" className="mt-4"><AdvancedDataTable title="Tax summary" columns={[
+          { key: "tax", label: "Tax type" }, { key: "period", label: "Period" }, { key: "collected", label: "Collected / deducted", align: "right", render: (row) => formatCurrency(Number(row.collected)) }, { key: "payable", label: "Payable", align: "right", render: (row) => formatCurrency(Number(row.payable)) },
+        ]} rows={taxRows} exportFilename="tax-summary.csv" /></TabsContent>
+        <TabsContent value="payroll" className="mt-4"><AdvancedDataTable title="Employee payroll report" columns={[
+          { key: "employee", label: "Employee" }, { key: "role", label: "Role" }, { key: "branch", label: "Branch" }, { key: "employmentType", label: "Type" }, { key: "gross", label: "Gross", align: "right", render: (row) => formatCurrency(Number(row.gross)) }, { key: "tds", label: "TDS", align: "right", render: (row) => formatCurrency(Number(row.tds)) }, { key: "pt", label: "PT", align: "right", render: (row) => formatCurrency(Number(row.pt)) }, { key: "net", label: "Net", align: "right", render: (row) => formatCurrency(Number(row.net)) },
+        ]} rows={payrollRows} exportFilename="employee-payroll-report.csv" /></TabsContent>
         <TabsContent value="expenses" className="mt-4"><AdvancedDataTable title="Expense analytics" columns={columns} rows={entries.filter((entry) => entry.type === "expense")} /></TabsContent>
         <TabsContent value="income" className="mt-4"><AdvancedDataTable title="Income analytics" columns={columns} rows={entries.filter((entry) => entry.type === "income")} /></TabsContent>
       </Tabs>

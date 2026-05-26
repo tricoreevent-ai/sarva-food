@@ -1,14 +1,8 @@
 import "server-only";
 
 import { adminDb } from "@/firebase/admin";
-import {
-  createSingleMenuDocs,
-  createSingleOfferDocs,
-  createSingleRestaurantDoc,
-  SINGLE_RESTAURANT_SLUG,
-} from "@/lib/single-restaurant-data";
 import { resolveTenantId } from "@/lib/tenant";
-import type { MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
+import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
 
 const PUBLIC_RESTAURANT_LIMIT = 100;
 const PUBLIC_MENU_LIMIT = 200;
@@ -73,14 +67,10 @@ export async function getPublicRestaurantDocs(slug?: string) {
     }
 
     const snapshot = await restaurantsQuery.limit(slug ? 1 : PUBLIC_RESTAURANT_LIMIT).get();
-    const docs = toPublicRestaurantDocs(snapshot.docs, slug);
-    return docs.length ? docs : singleRestaurantFallback(slug);
+    return toPublicRestaurantDocs(snapshot.docs, slug);
   } catch (error) {
-    if (!isMissingIndexError(error)) {
-      return singleRestaurantFallback(slug);
-    }
-
-    return getPublicRestaurantDocsWithoutCompositeIndex(slug);
+    if (isMissingIndexError(error)) return getPublicRestaurantDocsWithoutCompositeIndex(slug);
+    throw error;
   }
 }
 
@@ -90,13 +80,7 @@ async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
     : adminDb().collection("restaurants").where("active", "==", true).limit(PUBLIC_RESTAURANT_LIMIT);
 
   const snapshot = await restaurantsQuery.get();
-  const docs = toPublicRestaurantDocs(snapshot.docs, slug);
-  return docs.length ? docs : singleRestaurantFallback(slug);
-}
-
-function singleRestaurantFallback(slug?: string) {
-  if (slug && slug !== SINGLE_RESTAURANT_SLUG) return [];
-  return [toPublicRestaurantDoc(createSingleRestaurantDoc())];
+  return toPublicRestaurantDocs(snapshot.docs, slug);
 }
 
 function toPublicRestaurantDocs(
@@ -131,14 +115,10 @@ export async function getPublicMenuDocs(restaurantId: string) {
         .get(),
     ]);
 
-    const docs = toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs]);
-    return docs.length ? docs : singleMenuFallback(restaurantId);
+    return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs]);
   } catch (error) {
-    if (!isMissingIndexError(error)) {
-      return singleMenuFallback(restaurantId);
-    }
-
-    return getPublicMenuDocsWithoutCompositeIndex(tenantId);
+    if (isMissingIndexError(error)) return getPublicMenuDocsWithoutCompositeIndex(tenantId);
+    throw error;
   }
 }
 
@@ -156,13 +136,7 @@ async function getPublicMenuDocsWithoutCompositeIndex(tenantId: string) {
       .get(),
   ]);
 
-  const docs = toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs]);
-  return docs.length ? docs : singleMenuFallback(tenantId);
-}
-
-function singleMenuFallback(restaurantId: string) {
-  if (restaurantId !== SINGLE_RESTAURANT_SLUG && resolveTenantId(restaurantId) !== resolveTenantId(SINGLE_RESTAURANT_SLUG)) return [];
-  return createSingleMenuDocs().map(toPublicMenuDoc);
+  return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs]);
 }
 
 function toPublicMenuDocs(
@@ -203,9 +177,31 @@ export async function getPublicOfferDocs(restaurantId?: string) {
       .map((item) => docToJson<OfferDoc>(item))
       .filter((item) => item.active && !item.isDeleted && isOfferCurrentlyVisible(item))
       .map(toPublicOfferDoc);
-    return docs.length ? docs : createSingleOfferDocs().map(toPublicOfferDoc);
+    return docs;
   } catch {
-    return createSingleOfferDocs().map(toPublicOfferDoc);
+    throw new Error("Unable to load public offers.");
+  }
+}
+
+export async function getPublicCategoryDocs() {
+  try {
+    const snapshot = await adminDb()
+      .collection("appCategories")
+      .where("active", "==", true)
+      .orderBy("sortOrder", "asc")
+      .limit(100)
+      .get();
+    return snapshot.docs.map((item) => toPublicCategoryDoc(docToJson<AppCategoryDoc>(item)));
+  } catch (error) {
+    if (!isMissingIndexError(error)) throw error;
+    const snapshot = await adminDb()
+      .collection("appCategories")
+      .where("active", "==", true)
+      .limit(100)
+      .get();
+    return snapshot.docs
+      .map((item) => toPublicCategoryDoc(docToJson<AppCategoryDoc>(item)))
+      .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
   }
 }
 
@@ -276,6 +272,18 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     cuisine: doc.cuisine,
     active: doc.active,
     imagePath: doc.imagePath,
+    logoPath: doc.logoPath,
+    coverImagePath: doc.coverImagePath,
+    coverImagePaths: doc.coverImagePaths,
+    googleMapLocation: doc.googleMapLocation,
+    operatingHours: doc.operatingHours,
+    operatingHoursSchedule: doc.operatingHoursSchedule,
+    operatingHoursPreference: doc.operatingHoursPreference,
+    gstDetails: doc.gstDetails,
+    fssaiLicense: doc.fssaiLicense,
+    diningAvailable: doc.diningAvailable,
+    cloudKitchen: doc.cloudKitchen,
+    minPrice: extra.minPrice,
     subscriptionId: undefined,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -305,12 +313,12 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
 
 function toPublicMenuDoc(doc: MenuDoc): MenuDoc {
   const deliveryConfig = doc.channelConfig?.delivery;
-  const category = (doc as MenuDoc & { category?: string }).category;
   return {
     id: doc.id,
     restaurantId: doc.restaurantId,
     categoryId: doc.categoryId,
-    ...(category ? { category } : {}),
+    ...(doc.category ? { category: doc.category } : {}),
+    ...(doc.subcategory ? { subcategory: doc.subcategory } : {}),
     cuisineIds: doc.cuisineIds,
     name: doc.name,
     translations: doc.translations,
@@ -326,6 +334,8 @@ function toPublicMenuDoc(doc: MenuDoc): MenuDoc {
     foodType: doc.foodType,
     available: doc.available,
     tags: doc.tags,
+    badges: doc.badges,
+    searchKeywords: doc.searchKeywords,
     dietaryLabels: doc.dietaryLabels,
     allergenLabels: doc.allergenLabels,
     scheduleIds: doc.scheduleIds,
@@ -333,6 +343,21 @@ function toPublicMenuDoc(doc: MenuDoc): MenuDoc {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   } as MenuDoc;
+}
+
+function toPublicCategoryDoc(doc: AppCategoryDoc): AppCategoryDoc {
+  return {
+    id: doc.id,
+    name: doc.name,
+    slug: doc.slug,
+    imagePath: doc.imagePath,
+    icon: doc.icon,
+    sortOrder: doc.sortOrder,
+    active: doc.active,
+    colorTheme: doc.colorTheme,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
 }
 
 function toPublicOfferDoc(doc: OfferDoc): OfferDoc {

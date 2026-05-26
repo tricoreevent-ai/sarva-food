@@ -77,12 +77,56 @@ export type RestaurantDoc = BaseDoc & {
   cuisine: string;
   active: boolean;
   imagePath?: string;
+  logoPath?: string;
+  coverImagePath?: string;
+  coverImagePaths?: string[];
+  googleMapLocation?: string;
+  operatingHours?: string;
+  operatingHoursSchedule?: OperatingHoursDay[];
+  operatingHoursPreference?: "specified" | "not-specified";
+  gstDetails?: string;
+  fssaiLicense?: string;
+  diningAvailable?: boolean;
+  cloudKitchen?: boolean;
+  minPrice?: number;
   subscriptionId?: string;
   contact?: RestaurantContactSettings;
   ownerProfile?: OwnerContactSettings;
   deliverySettings?: DeliverySettings;
   scheduling?: RestaurantSchedulingSettings;
   advancedFeatures?: AdvancedRestaurantFeatures;
+};
+
+export type OperatingHoursSlot = {
+  start: string;
+  end: string;
+};
+
+export type OperatingHoursDay = {
+  day: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+  open: boolean;
+  slots: OperatingHoursSlot[];
+};
+
+export type AppCategoryDoc = BaseDoc & {
+  name: string;
+  slug: string;
+  imagePath?: string;
+  icon?: string;
+  sortOrder: number;
+  active: boolean;
+  colorTheme?: string;
+};
+
+export type AppCuisineDoc = BaseDoc & {
+  name: string;
+  slug: string;
+  imagePath?: string;
+  icon?: string;
+  color?: string;
+  sortOrder: number;
+  active: boolean;
+  description?: string;
 };
 
 export type RestaurantContactSettings = {
@@ -159,6 +203,8 @@ export type MenuDoc = TenantScopedDoc & {
   restaurantId: string;
   branchId?: string;
   categoryId: string;
+  category?: string;
+  subcategory?: string;
   cuisineIds?: string[];
   name: string;
   translations?: Partial<Record<"hi" | "ml" | "ta" | "kn" | "ar", { name?: string; description?: string }>>;
@@ -178,6 +224,8 @@ export type MenuDoc = TenantScopedDoc & {
   menuVisibility?: Record<"dine-in" | "parcel" | "delivery", boolean>;
   channelConfig?: Record<"dine-in" | "parcel" | "delivery", { visible: boolean; available: boolean; price: number; taxRate: 5 | 18; packingCharge: number; offerCode?: string; startTime?: string; endTime?: string; offerIds?: string[] }>;
   tags?: string[];
+  badges?: string[];
+  searchKeywords?: string[];
   dietaryLabels?: string[];
   allergenLabels?: string[];
   modifierGroupIds?: string[];

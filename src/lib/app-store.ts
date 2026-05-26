@@ -8,24 +8,9 @@ import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { enqueueOfflineOperation, isOnline, syncQueuedOperations, type OfflineWrite } from "@/lib/offline";
 import { readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
-import {
-  singleBranch,
-  singleCuisines,
-  singleInventoryItems,
-  singleMenuCategories,
-  singleMenuItems,
-  singleOffers,
-  singleOwnerBusinessProfile,
-  SINGLE_OWNER_ID,
-  SINGLE_OWNER_NAME,
-  singlePosTables,
-  singleRestaurant,
-  singleStaffMembers,
-  singleTaxSettings,
-} from "@/lib/single-restaurant-data";
 import { createOrderWithRetry, updateOrderStatus as updateFirestoreOrderStatus } from "@/services/order-service";
 import { safeCreateCategory, safeDeleteMenuItem, safeUpdateCategory, safeUpsertMenuItem } from "@/services/advanced-menu-service";
-import { safeUpsertEmployeeUser } from "@/services/production-data-service";
+import { deleteOwnerOffer, safeDeleteEmployeeUser, safeUpsertEmployeeUser, saveOwnerOffer, saveOwnerRestaurantProfile } from "@/services/production-data-service";
 import type {
   BusinessListingApplication,
   CateringPackage,
@@ -78,12 +63,16 @@ import {
   safeUpdateKitchenOrderStatus,
   safeUpsertCustomerFromBill,
 } from "@/services/restaurant-ops-service";
+
+function persistenceErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Save failed. Please check your connection and access permissions.";
+}
 import { saveInventoryItem } from "@/services/production-data-service";
 import type { MenuCategoryDoc, MenuDoc } from "@/types/firebase";
 
 type ApiPhase = "idle" | "loading" | "success" | "error";
 
-type AppStore = {
+export type AppStore = {
   authUser: MockUser;
   restaurants: Restaurant[];
   businessApplications: BusinessListingApplication[];
@@ -193,6 +182,7 @@ type AppStore = {
   updatePrinterSettings: (settings: PrinterSettings) => void;
   createStaffMember: (member: Omit<StaffMember, "id" | "lastActivity">) => Promise<void>;
   updateStaffMember: (member: StaffMember) => Promise<void>;
+  deleteStaffMember: (id: string) => Promise<void>;
   upsertPosTable: (table: PosTable) => void;
   deletePosTable: (table: string) => void;
   updateInventoryItem: (item: InventoryItem) => Promise<void>;
@@ -204,6 +194,13 @@ type AppStore = {
   reviewBusinessApplication: (
     applicationId: string,
     status: "approved" | "rejected",
+  ) => Promise<void>;
+  updateRestaurantAdminState: (
+    restaurantSlug: string,
+    patch: Partial<Pick<
+      Restaurant,
+      "adminStatus" | "subscriptionPlan" | "subscriptionStatus" | "trialEndsAt" | "nextBillingAt" | "orderingEnabled" | "frozen" | "approved" | "isOpen" | "adminNote"
+    >>,
   ) => Promise<void>;
   createCateringQuote: (input: {
     name: string;
@@ -224,7 +221,7 @@ type AppStore = {
   convertCateringInquiryToOrder: (quoteId: string) => Promise<void>;
 };
 
-type PersistedAppStoreState = Pick<
+export type PersistedAppStoreState = Pick<
   AppStore,
   | "authUser"
   | "restaurants"
@@ -272,6 +269,16 @@ function createLocalId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
+function slugifyIdentifier(value: string, fallback: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return slug || fallback;
+}
+
 function createInvoiceNumber() {
   return `INV-POS-${Date.now()}`;
 }
@@ -304,6 +311,8 @@ function toMenuDoc(item: MenuItem): MenuDoc {
     ownerId: item.ownerId ?? "owner-local",
     branchId: DEFAULT_BRANCH_ID,
     categoryId: item.categoryId ?? item.category,
+    category: item.category,
+    subcategory: item.subcategory,
     cuisineIds: item.cuisineIds,
     name: item.name,
     translations: item.translations,
@@ -345,6 +354,8 @@ function toMenuDoc(item: MenuItem): MenuDoc {
       },
     },
     tags: item.tags,
+    badges: item.badges,
+    searchKeywords: item.searchKeywords,
     dietaryLabels: item.dietaryLabels,
     allergenLabels: item.allergenLabels,
     modifierGroupIds: item.modifierGroups?.map((group) => group.id),
@@ -699,7 +710,20 @@ const initialPrinterSettings: PrinterSettings = {
   printLogs: [],
 };
 
-const initialTaxSettings: TaxSettings = singleTaxSettings;
+const initialTaxSettings: TaxSettings = {
+  id: `tax-${DEFAULT_RESTAURANT_ID}-${DEFAULT_BRANCH_ID}`,
+  restaurantSlug: DEFAULT_RESTAURANT_ID,
+  branchId: DEFAULT_BRANCH_ID,
+  gstEnabled: false,
+  pricingMode: "inclusive",
+  defaultGstRate: 5,
+  cgstRate: 2.5,
+  sgstRate: 2.5,
+  igstRate: 0,
+  serviceChargeRate: 0,
+  defaultPackingCharge: 0,
+  sac: "996331",
+};
 
 const initialLoyaltyCustomers: LoyaltyCustomer[] = [];
 
@@ -714,29 +738,29 @@ const initialAuthUser: MockUser = {
 function createPersistedDefaults(): PersistedAppStoreState {
   return {
     authUser: initialAuthUser,
-    restaurants: clone([singleRestaurant]),
+    restaurants: [],
     businessApplications: [],
-    menuItems: clone(singleMenuItems),
-    menuCategories: clone(singleMenuCategories),
-    cuisines: clone(singleCuisines),
+    menuItems: [],
+    menuCategories: [],
+    cuisines: [],
     comboOffers: [],
     menuSchedules: [],
     taxSettings: initialTaxSettings,
-    offers: clone(singleOffers),
+    offers: [],
     orders: [],
     deliveries: [],
     templates: [],
     cateringPackages: [],
     cateringInquiries: [],
-    posTables: clone(singlePosTables),
+    posTables: [],
     posBill: initialPosBill,
-    ownerBusinessProfile: clone(singleOwnerBusinessProfile),
+    ownerBusinessProfile: undefined,
     socialPosts: [],
     tableOrders: clone(initialTableOrders),
     printerSettings: initialPrinterSettings,
-    staffMembers: clone(singleStaffMembers),
-    branches: clone([singleBranch]),
-    inventoryItems: clone(singleInventoryItems),
+    staffMembers: [],
+    branches: [],
+    inventoryItems: [],
     purchases: [],
     suppliers: [],
     chartAccounts: [],
@@ -749,33 +773,60 @@ function createPersistedDefaults(): PersistedAppStoreState {
   };
 }
 
+function removeLegacySeedData(state: PersistedAppStoreState): PersistedAppStoreState {
+  const seededRestaurantIds = new Set(
+    (state.restaurants ?? [])
+      .filter((restaurant) => restaurant.ownerId === "test-owner" || restaurant.ownerIds?.includes("test-owner"))
+      .map((restaurant) => restaurant.slug || restaurant.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const hasSeededOwnerProfile = state.ownerBusinessProfile?.mapboxPlaceId === "sarva-test-owner-cafe-al-arab";
+  const isSeededRestaurantId = (restaurantSlug?: string) => Boolean(restaurantSlug && seededRestaurantIds.has(restaurantSlug));
+
+  if (!seededRestaurantIds.size && !hasSeededOwnerProfile) return state;
+
+  return {
+    ...state,
+    restaurants: (state.restaurants ?? []).filter((restaurant) => !seededRestaurantIds.has(restaurant.slug || restaurant.id)),
+    menuItems: (state.menuItems ?? []).filter((item) => !isSeededRestaurantId(item.restaurantSlug)),
+    menuCategories: (state.menuCategories ?? []).filter((item) => !isSeededRestaurantId(item.restaurantSlug)),
+    cuisines: (state.cuisines ?? []).filter((item) => !isSeededRestaurantId(item.restaurantSlug)),
+    offers: (state.offers ?? []).filter((item) => !isSeededRestaurantId(item.restaurantSlug)),
+    posTables: hasSeededOwnerProfile ? [] : state.posTables,
+    ownerBusinessProfile: hasSeededOwnerProfile ? undefined : state.ownerBusinessProfile,
+    staffMembers: (state.staffMembers ?? []).filter((item) => item.id !== "test-owner"),
+    branches: (state.branches ?? []).filter((item) => !seededRestaurantIds.has(item.restaurantSlug)),
+    inventoryItems: hasSeededOwnerProfile ? [] : state.inventoryItems,
+  };
+}
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       authUser: initialAuthUser,
-      restaurants: clone([singleRestaurant]),
+      restaurants: [],
       businessApplications: [],
-      menuItems: clone(singleMenuItems),
-      menuCategories: clone(singleMenuCategories),
-      cuisines: clone(singleCuisines),
+      menuItems: [],
+      menuCategories: [],
+      cuisines: [],
       comboOffers: [],
       menuSchedules: [],
       taxSettings: initialTaxSettings,
-      offers: clone(singleOffers),
+      offers: [],
       orders: [],
       deliveries: [],
       templates: [],
       cateringPackages: [],
       cateringInquiries: [],
-      posTables: clone(singlePosTables),
+      posTables: [],
       posBill: initialPosBill,
-      ownerBusinessProfile: clone(singleOwnerBusinessProfile),
+      ownerBusinessProfile: undefined,
       socialPosts: [],
       tableOrders: clone(initialTableOrders),
       printerSettings: initialPrinterSettings,
-      staffMembers: clone(singleStaffMembers),
-      branches: clone([singleBranch]),
-      inventoryItems: clone(singleInventoryItems),
+      staffMembers: [],
+      branches: [],
+      inventoryItems: [],
       purchases: [],
       suppliers: [],
       chartAccounts: [],
@@ -1091,18 +1142,25 @@ export const useAppStore = create<AppStore>()(
 
       createOffer: async (offer) => {
         const code = offer.code.trim().toUpperCase();
+        const normalizedOffer: Offer = {
+          ...offer,
+          code,
+          appliesTo: offer.appliesTo?.length ? offer.appliesTo : ["delivery"],
+          status: offer.status ?? "active",
+          showOnHomepage: offer.showOnHomepage ?? true,
+          showOnRestaurantPage: offer.showOnRestaurantPage ?? true,
+          priority: offer.priority ?? 0,
+          discountType: offer.discountType ?? (offer.offerType === "flat" ? "flat" : "percentage"),
+        };
+        try {
+          await saveOwnerOffer(normalizedOffer, normalizedOffer.restaurantSlug ?? get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
         set((state) => ({
           offers: [
-            {
-              ...offer,
-              code,
-              appliesTo: offer.appliesTo?.length ? offer.appliesTo : ["delivery"],
-              status: offer.status ?? "active",
-              showOnHomepage: offer.showOnHomepage ?? true,
-              showOnRestaurantPage: offer.showOnRestaurantPage ?? true,
-              priority: offer.priority ?? 0,
-              discountType: offer.discountType ?? (offer.offerType === "flat" ? "flat" : "percentage"),
-            },
+            normalizedOffer,
             ...state.offers.filter((item) => item.code !== code),
           ],
           apiPhase: "success",
@@ -1112,18 +1170,35 @@ export const useAppStore = create<AppStore>()(
 
       updateOffer: async (offer) => {
         const code = offer.code.trim().toUpperCase();
+        const normalizedOffer: Offer = { ...offer, code };
+        try {
+          await saveOwnerOffer(normalizedOffer, normalizedOffer.restaurantSlug ?? get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
         set((state) => ({
-          offers: state.offers.map((item) => (item.code === code ? { ...offer, code } : item)),
+          offers: [
+            normalizedOffer,
+            ...state.offers.filter((item) => item.code !== code),
+          ],
           apiPhase: "success",
           apiMessage: `${code} updated.`,
         }));
       },
 
       deleteOffer: async (code) => {
+        const normalizedCode = code.trim().toUpperCase();
+        try {
+          await deleteOwnerOffer(normalizedCode);
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
         set((state) => ({
-          offers: state.offers.filter((item) => item.code !== code),
+          offers: state.offers.filter((item) => item.code !== normalizedCode),
           apiPhase: "success",
-          apiMessage: `${code} deleted.`,
+          apiMessage: `${normalizedCode} deleted.`,
         }));
       },
 
@@ -1487,14 +1562,27 @@ export const useAppStore = create<AppStore>()(
           rating: existingRestaurant?.rating ?? 0,
           deliveryTime: profile.operatingHours,
           priceForTwo: existingRestaurant?.priceForTwo ?? 0,
-          image: profile.coverImage || profile.logo,
+          image: profile.coverImage || profile.coverImages?.[0] || profile.logo,
+          logo: profile.logo,
+          coverImage: profile.coverImage || profile.coverImages?.[0] || profile.logo,
+          coverImages: profile.coverImages?.length ? profile.coverImages : [profile.coverImage || profile.logo].filter(Boolean),
           isOpen: existingRestaurant?.isOpen ?? true,
           tags: profile.cuisineTypes?.length ? profile.cuisineTypes : [profile.cuisineType].filter(Boolean),
           instagramHandle: existingRestaurant?.instagramHandle ?? "",
           latitude: profile.latitude,
           longitude: profile.longitude,
           deliveryRadiusKm: profile.deliveryRadiusKm,
-          approved: existingRestaurant?.approved ?? true,
+          address: profile.businessAddress,
+          googleMapLocation: profile.googleMapLocation,
+          operatingHours: profile.operatingHours,
+          operatingHoursSchedule: profile.operatingHoursSchedule,
+          operatingHoursPreference: profile.operatingHoursPreference,
+          gstDetails: profile.gstDetails,
+          fssaiLicense: profile.fssaiLicense,
+          diningAvailable: profile.diningAvailable,
+          cloudKitchen: profile.cloudKitchen,
+          approved: existingRestaurant?.approved ?? Boolean(profile.completed),
+          minPrice: profile.minimumOrder ?? existingRestaurant?.minPrice,
           contact: {
             phone: profile.phoneNumber,
             whatsapp: profile.whatsappNumber || profile.phoneNumber,
@@ -1512,18 +1600,25 @@ export const useAppStore = create<AppStore>()(
           },
           deliverySettings: {
             radiusKm: profile.deliveryRadiusKm,
-            baseFee: existingRestaurant?.deliverySettings?.baseFee ?? 0,
-            freeDeliveryAbove: existingRestaurant?.deliverySettings?.freeDeliveryAbove,
+            baseFee: profile.deliveryCharge ?? existingRestaurant?.deliverySettings?.baseFee ?? 0,
+            freeDeliveryAbove: profile.freeDeliveryThreshold ?? existingRestaurant?.deliverySettings?.freeDeliveryAbove,
             maxOrdersPerSlot: existingRestaurant?.deliverySettings?.maxOrdersPerSlot,
             deliverySlotMinutes: existingRestaurant?.deliverySettings?.deliverySlotMinutes,
           },
           scheduling: existingRestaurant?.scheduling,
           advancedFeatures: existingRestaurant?.advancedFeatures,
         };
-        set(() => ({
-          ownerBusinessProfile: { ...profile, completed: true, reviewStatus: profile.reviewStatus ?? "pending_review" },
-          restaurants: [restaurant],
-          branches: [branch],
+        const savedProfile = { ...profile, completed: profile.completed, reviewStatus: profile.reviewStatus ?? (profile.completed ? "pending_review" : "draft") };
+        try {
+          await saveOwnerRestaurantProfile({ profile: savedProfile, restaurant, branch });
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
+        set((state) => ({
+          ownerBusinessProfile: savedProfile,
+          restaurants: [restaurant, ...state.restaurants.filter((item) => item.slug !== restaurant.slug)],
+          branches: [branch, ...state.branches.filter((item) => item.id !== branch.id)],
           apiPhase: "success",
           apiMessage: "Business profile saved and sent for admin review.",
         }));
@@ -1693,7 +1788,7 @@ export const useAppStore = create<AppStore>()(
         }),
 
       createStaffMember: async (member) => {
-        const nextMember = { ...member, id: createLocalId("staff"), roleId: member.role, lastActivity: "Created by owner" };
+        const nextMember = { ...member, id: createLocalId("staff"), roleId: member.roleId ?? member.role, lastActivity: member.role === "admin" ? "Created by Super Admin" : "Created by owner" };
         void safeUpsertEmployeeUser(nextMember).catch(() => undefined);
         set((state) => ({
           staffMembers: [nextMember, ...state.staffMembers],
@@ -1708,6 +1803,16 @@ export const useAppStore = create<AppStore>()(
           staffMembers: state.staffMembers.map((item) => (item.id === member.id ? member : item)),
           apiPhase: "success",
           apiMessage: `${member.name} permissions updated.`,
+        }));
+      },
+
+      deleteStaffMember: async (id) => {
+        const member = get().staffMembers.find((item) => item.id === id);
+        void safeDeleteEmployeeUser(id).catch(() => undefined);
+        set((state) => ({
+          staffMembers: state.staffMembers.filter((item) => item.id !== id),
+          apiPhase: "success",
+          apiMessage: `${member?.name ?? "Employee"} removed.`,
         }));
       },
 
@@ -1808,17 +1913,18 @@ export const useAppStore = create<AppStore>()(
 
         set({ apiPhase: "loading", apiMessage: "Updating listing review..." });
         const reviewedAt = new Date().toISOString();
-        const slug = DEFAULT_RESTAURANT_ID;
-        const ownerId = SINGLE_OWNER_ID;
-        const branchId = DEFAULT_BRANCH_ID;
+        const slug = slugifyIdentifier(application.tenantId || application.businessName || application.hotelName || DEFAULT_RESTAURANT_ID, DEFAULT_RESTAURANT_ID);
+        const ownerId = get().authUser.id !== "anonymous" ? get().authUser.id : `owner-${application.id}`;
+        const branchId = `${slug}-main`;
+        const restaurantName = application.hotelName || application.businessName;
         const approvedRestaurant: Restaurant = {
           id: slug,
           tenantId: DEFAULT_TENANT_ID,
           ownerId,
           ownerIds: [ownerId],
           branchId,
-          name: application.businessName || singleRestaurant.name,
-          displayName: application.hotelName || application.businessName || singleRestaurant.displayName,
+          name: restaurantName,
+          displayName: restaurantName,
           slug,
           cuisine: application.cuisine,
           location: application.area,
@@ -1828,12 +1934,18 @@ export const useAppStore = create<AppStore>()(
           image:
             application.restaurantImages[0] ||
             application.foodImages[0] ||
-            "/icons/sarva-icon.svg",
+            "",
           isOpen: true,
           tags: [`${application.deliveryRadiusKm} km delivery`],
           instagramHandle: "",
           deliveryRadiusKm: application.deliveryRadiusKm,
           approved: status === "approved",
+          adminStatus: status === "approved" ? "Active" : "Under Review",
+          subscriptionPlan: "Trial",
+          subscriptionStatus: "trialing",
+          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          orderingEnabled: status === "approved",
+          frozen: false,
           contact: {
             phone: application.phoneNumber ?? application.mobile ?? "",
             whatsapp: application.mobile ?? application.phoneNumber ?? "",
@@ -1882,7 +1994,7 @@ export const useAppStore = create<AppStore>()(
         const branch: RestaurantBranch = {
           id: branchId,
           tenantId: DEFAULT_TENANT_ID,
-          name: application.area || singleBranch.name,
+          name: application.area || restaurantName,
           restaurantSlug: slug,
           address: application.address,
           phone: application.phoneNumber ?? application.mobile ?? "",
@@ -1890,7 +2002,7 @@ export const useAppStore = create<AppStore>()(
         };
         const owner: StaffMember = {
           id: ownerId,
-          name: application.ownerName || SINGLE_OWNER_NAME,
+          name: application.ownerName || application.ownerEmail,
           role: "owner",
           roleId: "owner",
           status: "active",
@@ -1904,9 +2016,9 @@ export const useAppStore = create<AppStore>()(
             item.id === applicationId ? { ...item, status, reviewedAt } : item,
           ),
           restaurants:
-            status === "approved" ? [approvedRestaurant] : state.restaurants,
+            status === "approved" ? [approvedRestaurant, ...state.restaurants.filter((item) => item.slug !== approvedRestaurant.slug)] : state.restaurants,
           branches:
-            status === "approved" ? [branch] : state.branches,
+            status === "approved" ? [branch, ...state.branches.filter((item) => item.id !== branch.id)] : state.branches,
           staffMembers:
             status === "approved" ? [owner, ...state.staffMembers.filter((item) => item.id !== owner.id)] : state.staffMembers,
           authUser:
@@ -1925,6 +2037,23 @@ export const useAppStore = create<AppStore>()(
             status === "approved"
               ? `${application.businessName} is approved and visible.`
               : `${application.businessName} was rejected.`,
+        }));
+      },
+
+      updateRestaurantAdminState: async (restaurantSlug, patch) => {
+        set((state) => ({
+          restaurants: state.restaurants.map((restaurant) =>
+            restaurant.slug === restaurantSlug || restaurant.id === restaurantSlug
+              ? {
+                  ...restaurant,
+                  ...patch,
+                  approved: patch.adminStatus === "Suspended" || patch.adminStatus === "Expired" ? false : patch.approved ?? restaurant.approved,
+                  isOpen: patch.orderingEnabled === false || patch.frozen ? false : patch.isOpen ?? restaurant.isOpen,
+                }
+              : restaurant,
+          ),
+          apiPhase: "success",
+          apiMessage: "Restaurant subscription state updated.",
         }));
       },
 
@@ -2002,12 +2131,16 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: "sarva-production-state",
-      version: 6,
+      version: 7,
       migrate: (persistedState, persistedVersion): PersistedAppStoreState => {
         if (persistedVersion < 6) {
           return createPersistedDefaults();
         }
-        return persistedState as PersistedAppStoreState;
+        const migrated = persistedState as PersistedAppStoreState;
+        if (persistedVersion < 7) {
+          return removeLegacySeedData(migrated);
+        }
+        return migrated;
       },
       partialize: (state): PersistedAppStoreState => ({
         authUser: state.authUser,

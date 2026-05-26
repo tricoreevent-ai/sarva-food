@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  listenPublicCategories,
   listenPublicMenu,
   listenPublicOffers,
   listenPublicRestaurant,
@@ -10,7 +11,7 @@ import {
   type PublicDataStatus,
 } from "@/services/public-data-service";
 import { cacheReport, getCachedReport } from "@/lib/offline/offline-storage";
-import type { MenuItem, Offer, Restaurant, Review } from "@/lib/types";
+import type { AppCategory, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 
 const PUBLIC_LOAD_TIMEOUT_MS = 1500;
@@ -106,6 +107,43 @@ export function usePublicRestaurants() {
   }, [version]);
 
   return { restaurants, status, error, retry, loadingForMs };
+}
+
+export function usePublicCategories() {
+  const [categories, setCategories] = useState<AppCategory[]>([]);
+  const [status, setStatus] = useState<PublicDataStatus>("loading");
+  const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  const retry = useCallback(() => {
+    setStatus("loading");
+    setError(null);
+    setVersion((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return;
+      setStatus("error");
+      setError("Categories are taking longer than expected.");
+    }, PUBLIC_LOAD_TIMEOUT_MS);
+
+    const unsubscribe = listenPublicCategories((items) => {
+      if (!active) return;
+      window.clearTimeout(timeoutId);
+      setCategories(items);
+      setError(null);
+      setStatus("success");
+    });
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+      unsubscribe();
+    };
+  }, [version]);
+
+  return { categories, status, error, retry };
 }
 
 export function usePublicRestaurant(slug: string) {

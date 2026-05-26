@@ -13,25 +13,23 @@ export function ChartCard({
   const max = Math.max(...safeValues, 1);
   const chartPoints = safeValues.map((value, index) => {
     const x = 38 + (index / Math.max(1, safeValues.length - 1)) * 520;
-    const y = 216 - (value / max) * 176;
+    const y = 176 - (value / max) * 136;
     return { x, y, value };
   });
   const line = chartPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
-  const area = `${line} L ${chartPoints.at(-1)?.x ?? 558} 232 L 38 232 Z`;
+  const area = `${line} L ${chartPoints.at(-1)?.x ?? 558} 192 L 38 192 Z`;
 
   return (
     <DashboardCard
       title={title}
       action={
-        <button className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-slate-700">
-          Today
-        </button>
+        <span className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-slate-700">7-day trend</span>
       }
     >
       <div className="overflow-x-auto">
-        <svg viewBox="0 0 600 280" className="min-h-72 min-w-[560px] w-full" role="img" aria-label={`${title} chart`}>
+        <svg viewBox="0 0 600 236" className="min-h-56 min-w-[520px] w-full" role="img" aria-label={`${title} chart`}>
           {[50, 40, 30, 20, 10, 0].map((tick, index) => {
-            const y = 40 + index * 38;
+            const y = 40 + index * 30;
             return (
               <g key={tick}>
                 <text x="0" y={y + 4} className="fill-slate-600 text-[12px] font-semibold">₹{tick}K</text>
@@ -42,10 +40,12 @@ export function ChartCard({
           <path d={area} fill="url(#salesGradient)" />
           <path d={line} fill="none" stroke="#ff6b2c" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
           {chartPoints.map((point) => (
-            <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r="6" fill="#ff6b2c" stroke="#fff" strokeWidth="3" />
+            <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r="6" fill="#ff6b2c" stroke="#fff" strokeWidth="3">
+              <title>{`₹${Math.round(point.value).toLocaleString("en-IN")}`}</title>
+            </circle>
           ))}
           {labels.map((label, index) => (
-            <text key={label} x={38 + (index / Math.max(1, labels.length - 1)) * 520} y="262" textAnchor="middle" className="fill-slate-600 text-[12px] font-semibold">
+            <text key={label} x={38 + (index / Math.max(1, labels.length - 1)) * 520} y="220" textAnchor="middle" className="fill-slate-600 text-[12px] font-semibold">
               {label}
             </text>
           ))}

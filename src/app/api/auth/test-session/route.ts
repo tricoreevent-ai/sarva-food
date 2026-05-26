@@ -48,6 +48,11 @@ export async function POST(request: NextRequest) {
     response.cookies.set("sarva_tenants", DEFAULT_TENANT_ID, cookieOptions);
     response.cookies.set("sarva_branch_ids", DEFAULT_BRANCH_ID, cookieOptions);
     response.cookies.set("sarva_restaurants", DEFAULT_TENANT_ID, cookieOptions);
+  } else {
+    response.cookies.delete("sarva_tenant");
+    response.cookies.delete("sarva_tenants");
+    response.cookies.delete("sarva_branch_ids");
+    response.cookies.delete("sarva_restaurants");
   }
   return response;
 }

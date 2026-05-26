@@ -27,7 +27,7 @@ export function ProductGrid({
   }
 
   return (
-    <div className={compact ? "grid gap-3 p-4 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" : "grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"}>
+    <div className={compact ? "grid grid-cols-2 gap-3 p-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6" : "grid grid-cols-2 gap-3 p-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"}>
       {items.map((item) => (
         <ProductCard
           key={`${item.source}-${item.id}`}

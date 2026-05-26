@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, limit, query, where, orderBy } from "firebase/firestore";
+import { collection, getCountFromServer, getDocs, limit, query, where, orderBy } from "firebase/firestore";
 import { ref } from "firebase/storage";
 import {
   getFirebaseApp,
@@ -19,6 +19,7 @@ export type FirebaseDiagnosticItem = {
   label: string;
   status: FirebaseDiagnosticStatus;
   detail: string;
+  metric?: number;
 };
 
 export type FirebaseDiagnostics = {
@@ -132,11 +133,17 @@ export async function runFirebaseDiagnostics(): Promise<FirebaseDiagnostics> {
 
   for (const collectionName of REQUIRED_FIRESTORE_COLLECTIONS) {
     try {
-      const snapshot = await getDocs(query(collection(getFirebaseDb(), collectionName), limit(1)));
+      const collectionRef = collection(getFirebaseDb(), collectionName);
+      const [snapshot, countSnapshot] = await Promise.all([
+        getDocs(query(collectionRef, limit(1))),
+        getCountFromServer(query(collectionRef, limit(5000))).catch(() => null),
+      ]);
+      const count = countSnapshot?.data().count;
       collections.push({
         label: collectionName,
         status: snapshot.empty ? "warn" : "pass",
-        detail: snapshot.empty ? "Reachable but empty. Run seed initializer." : "Reachable.",
+        detail: snapshot.empty ? "Reachable but empty. Run seed initializer." : `${typeof count === "number" ? `${count} documents sampled. ` : ""}Reachable.`,
+        metric: typeof count === "number" ? count : undefined,
       });
     } catch (error) {
       collections.push({ label: collectionName, status: "fail", detail: messageFor(error) });

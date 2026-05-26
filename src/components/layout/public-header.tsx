@@ -18,6 +18,7 @@ export function PublicHeader() {
   const router = useRouter();
   const auth = useAuthUser();
   const localAuthUser = useAppStore((state) => state.authUser);
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,16 +38,13 @@ export function PublicHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-background/92 backdrop-blur-xl">
       <div className="container-page flex h-16 items-center justify-between gap-3 md:h-20">
-        <Link href="/" className="flex items-center gap-3" aria-label="Sarva Food home">
+        <Link href="/" className="flex items-center gap-3" aria-label={`${productName} home`}>
           <span className="grid size-10 place-items-center rounded-full food-gradient text-sm font-black text-white shadow-sm md:size-12">
             <span className="hidden md:inline">SF</span>
             <span className="md:hidden">SF</span>
           </span>
           <span>
-            <span className="block text-sm font-black leading-tight md:text-xl">Sarva Food</span>
-            <span className="hidden text-[11px] font-bold text-muted-foreground sm:block">
-              Fresh food, delivered fast
-            </span>
+            <span className="block text-sm font-black leading-tight md:text-xl">{productName}</span>
           </span>
         </Link>
 
@@ -54,7 +52,7 @@ export function PublicHeader() {
           <Button asChild variant="outline" size="sm" className="h-11 max-w-56 rounded-lg bg-white px-4 shadow-sm">
             <Link href="/restaurants" className="min-w-0">
               <MapPin className="size-4 shrink-0 text-primary" />
-              <span className="truncate">Bengaluru, Karnataka</span>
+              <span className="truncate">Choose location</span>
             </Link>
           </Button>
           <form
@@ -155,7 +153,7 @@ export function PublicHeader() {
             </SheetTrigger>
             <SheetContent side="right">
               <SheetHeader>
-                <SheetTitle>Sarva Food</SheetTitle>
+                <SheetTitle>{productName}</SheetTitle>
               </SheetHeader>
               <div className="mt-6 grid gap-2">
                 {customerNav.map((item) => {

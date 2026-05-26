@@ -10,6 +10,8 @@ import {
 } from "firebase/firestore";
 import type {
   CampaignDoc,
+  AppCategoryDoc,
+  AppCuisineDoc,
   BillTemplateDoc,
   BranchDoc,
   CateringRequestDoc,
@@ -58,6 +60,8 @@ export const COLLECTIONS = {
   userSessions: "userSessions",
   auditLogs: "auditLogs",
   restaurants: "restaurants",
+  appCategories: "appCategories",
+  appCuisines: "appCuisines",
   roles: "roles",
   branches: "branches",
   tables: "tables",
@@ -160,6 +164,10 @@ export const refs = {
   tenants: (db: Firestore) => typedCollection<TenantDoc>(db, COLLECTIONS.tenants),
   restaurants: (db: Firestore) =>
     typedCollection<RestaurantDoc>(db, COLLECTIONS.restaurants),
+  appCategories: (db: Firestore) =>
+    typedCollection<AppCategoryDoc>(db, COLLECTIONS.appCategories),
+  appCuisines: (db: Firestore) =>
+    typedCollection<AppCuisineDoc>(db, COLLECTIONS.appCuisines),
   branches: (db: Firestore) => typedCollection<BranchDoc>(db, COLLECTIONS.branches),
   menus: (db: Firestore) => typedCollection<MenuDoc>(db, COLLECTIONS.menus),
   menuCategories: (db: Firestore) =>

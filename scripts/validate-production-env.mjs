@@ -27,17 +27,17 @@ const required = [
   "SMTP_PASS",
   "SMTP_FROM",
   "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
-  "NEXT_PUBLIC_RAZORPAY_KEY_ID",
-  "RAZORPAY_KEY_ID",
-  "RAZORPAY_KEY_SECRET",
-  "RAZORPAY_WEBHOOK_SECRET",
+  "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
 ];
 
 const missing = required.filter((key) => !process.env[key]);
 const invalid = [];
 
 if (process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production") {
-  invalid.push("NEXT_PUBLIC_APP_ENV must be production for Vercel production deployments.");
+  invalid.push("NEXT_PUBLIC_APP_ENV must be production for production deployments.");
 }
 
 if (process.env.NEXT_PUBLIC_USE_FIREBASE && process.env.NEXT_PUBLIC_USE_FIREBASE !== "true") {
@@ -77,6 +77,11 @@ if (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && /\s/.test(process.env.NEXT_PU
 
 if (process.env.FIREBASE_ADMIN_PRIVATE_KEY && !process.env.FIREBASE_ADMIN_PRIVATE_KEY.includes("BEGIN PRIVATE KEY")) {
   invalid.push("FIREBASE_ADMIN_PRIVATE_KEY must contain the full service account private key.");
+}
+
+const razorpayKeys = ["NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"];
+if (razorpayKeys.some((key) => process.env[key]) && razorpayKeys.some((key) => !process.env[key])) {
+  invalid.push("Razorpay variables are optional, but if one is set all Razorpay key and webhook variables must be set.");
 }
 
 if (missing.length || invalid.length) {

@@ -1,8 +1,10 @@
 "use client";
 
 import { Bell, Clock, Menu, RefreshCw, Search, UserSearch } from "lucide-react";
+import Link from "next/link";
 import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { Button } from "@/components/ui/button";
+import { useAppStore } from "@/lib/app-store";
 
 export function PosHeader({
   query,
@@ -17,6 +19,8 @@ export function PosHeader({
   notificationCount: number;
   profileName: string;
 }) {
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+
   return (
     <header className="grid gap-3 border-b border-slate-200 bg-white p-4 xl:grid-cols-[auto_1fr_auto] xl:items-center">
       <div className="xl:col-span-3">
@@ -66,12 +70,15 @@ export function PosHeader({
           <Bell className="size-5" />
           {notificationCount ? <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-red-500 text-[10px] font-black text-white">{notificationCount}</span> : null}
         </Button>
-        <Button variant="outline" className="h-11">
+        <span className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 2xl:inline-flex">{productName}</span>
+        <Button variant="outline" className="h-11" asChild>
+          <Link href="/owner/settings?tab=profile">
           <span className="grid size-7 place-items-center rounded-full bg-orange-500 text-xs font-black text-white">{profileName.slice(0, 1)}</span>
           <span className="text-left text-xs leading-4">
             <span className="block font-black">{profileName}</span>
             <span className="text-slate-500">Waiter</span>
           </span>
+          </Link>
         </Button>
       </div>
     </header>

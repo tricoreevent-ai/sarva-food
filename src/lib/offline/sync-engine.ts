@@ -1,19 +1,14 @@
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { shouldUseFirebase } from "@/lib/env";
 import { isOnline, subscribeConnectivity } from "@/lib/offline/connectivity-monitor";
 import { cleanupStaleOfflineCache } from "@/lib/offline/offline-storage";
-import { assertCanSyncTenant, resolveOperationalAccess } from "@/lib/operational-access";
 import {
   deleteOfflineQueueEntry,
   getOfflineQueue,
   type OfflineQueueEntry,
-  type OfflineWrite,
   requestServiceWorkerSync,
   updateOfflineQueueEntry,
 } from "@/lib/offline/offline-queue";
 import { getNextRetryAt, shouldRetry } from "@/lib/offline/retry-manager";
-import { createMetadata, softDeleteMetadata, updateMetadata } from "@/services/firestore-metadata";
 
 let syncInFlight: Promise<void> | null = null;
 let started = false;
@@ -25,9 +20,7 @@ function canSync() {
   return (
     typeof window !== "undefined" &&
     isOnline() &&
-    shouldUseFirebase() &&
-    isFirebaseConfigured &&
-    Boolean(getFirebaseAuth().currentUser)
+    shouldUseFirebase()
   );
 }
 
@@ -76,9 +69,6 @@ async function runSync(options: { forceConflicts?: boolean }) {
   const entries = (await getOfflineQueue()).filter(shouldProcess);
   if (!entries.length) return;
 
-  const access = await resolveOperationalAccess().catch(() => null);
-  if (!access?.allowed) return;
-
   for (const entry of entries) {
     await syncEntry(entry, options);
   }
@@ -96,9 +86,7 @@ async function syncEntry(
   });
 
   try {
-    for (const write of entry.writes) {
-      await applyWrite(write, options.forceConflicts ?? false);
-    }
+    await syncEntryThroughBackend(entry, options.forceConflicts ?? false);
 
     await updateOfflineQueueEntry(entry.id, {
       status: "synced",
@@ -127,99 +115,28 @@ async function syncEntry(
   }
 }
 
-async function applyWrite(write: OfflineWrite, forceConflict: boolean) {
-  await assertCanSyncTenant({
-    tenantId: typeof (write.tenantId ?? write.data?.tenantId) === "string" ? (write.tenantId ?? write.data?.tenantId) as string : undefined,
-    branchId: typeof (write.branchId ?? write.data?.branchId) === "string" ? (write.branchId ?? write.data?.branchId) as string : undefined,
+async function syncEntryThroughBackend(entry: OfflineQueueEntry, forceConflict: boolean) {
+  const response = await fetch("/api/owner/sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      entryId: entry.id,
+      writes: entry.writes,
+      forceConflict,
+    }),
   });
-
-  const db = getFirebaseDb();
-  const target = write.docId
-    ? doc(db, write.collectionName, write.docId)
-    : doc(db, write.collectionName);
-
-  if (!forceConflict && write.docId && write.baseUpdatedAt) {
-    const snapshot = await getDoc(target);
-    const remote = snapshot.exists() ? snapshot.data() : null;
-    const remoteUpdatedAt = timestampToComparable(remote?.updatedAt);
-    if (remote && remoteUpdatedAt && remoteUpdatedAt !== write.baseUpdatedAt) {
-      throw new ConflictError({
-        collectionName: write.collectionName,
-        docId: write.docId,
-        local: write.data ?? {},
-        remote,
-      });
-    }
-  }
-
-  if (write.operation === "delete") {
-    await setDoc(target, sanitizeFirestoreData(softDeleteMetadata({
-      tenantId: write.tenantId,
-      branchId: write.branchId,
-      restaurantId: typeof write.data?.restaurantId === "string" ? write.data.restaurantId : undefined,
-    })), { merge: true });
-    return;
-  }
-
-  const metadataInput = {
-    tenantId: typeof (write.tenantId ?? write.data?.tenantId) === "string" ? (write.tenantId ?? write.data?.tenantId) as string : undefined,
-    branchId: typeof (write.branchId ?? write.data?.branchId) === "string" ? (write.branchId ?? write.data?.branchId) as string : undefined,
-    restaurantId: typeof write.data?.restaurantId === "string" ? write.data.restaurantId : undefined,
+  const data = await response.json().catch(() => ({})) as {
+    error?: string;
+    conflict?: NonNullable<OfflineQueueEntry["conflict"]>;
   };
-  const payload = sanitizeFirestoreData({
-    ...(write.operation === "set" ? createMetadata(metadataInput) : {}),
-    ...(write.data ?? {}),
-    tenantId: write.tenantId ?? write.data?.tenantId,
-    branchId: write.branchId ?? write.data?.branchId,
-    ...updateMetadata(metadataInput),
-  });
 
-  if (write.operation === "update") {
-    await updateDoc(target, payload);
-    return;
+  if (response.status === 409 && data.conflict) {
+    throw new ConflictError(data.conflict);
   }
 
-  await setDoc(target, payload, { merge: write.merge ?? true });
-}
-
-function sanitizeFirestoreData(input: Record<string, unknown>) {
-  return sanitizeFirestoreValue(input) as Record<string, unknown>;
-}
-
-function sanitizeFirestoreValue(value: unknown): unknown {
-  if (value === undefined) return undefined;
-
-  if (Array.isArray(value)) {
-    return value
-      .map(sanitizeFirestoreValue)
-      .filter((item) => item !== undefined);
+  if (!response.ok) {
+    throw new Error(data.error ?? "Owner sync failed.");
   }
-
-  if (isPlainObject(value)) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .map(([key, entry]) => [key, sanitizeFirestoreValue(entry)] as const)
-        .filter(([, entry]) => entry !== undefined),
-    );
-  }
-
-  return value;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object") return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-function timestampToComparable(value: unknown) {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  return null;
 }
 
 class ConflictError extends Error {

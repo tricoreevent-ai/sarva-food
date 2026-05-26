@@ -15,27 +15,22 @@ import { formatCurrency } from "@/lib/utils";
 export default function LoyaltyPage() {
   const { user, loading } = useAuthUser();
   const customer = useCustomerData(user?.uid);
-  const points = customer.loyalty?.points ?? 260;
-  const totalOrders = customer.loyalty?.totalOrders ?? Math.max(customer.orders.length, 12);
+  const points = customer.loyalty?.points ?? 0;
+  const totalOrders = customer.loyalty?.totalOrders ?? customer.orders.length;
   const rewardValue = Math.floor(points / 10);
   const tier = tierForPoints(points);
   const nextTier = nextTierForPoints(points);
   const progress = nextTier ? Math.min(100, Math.round((points / nextTier.min) * 100)) : 100;
   const coupons = customer.coupons.filter((coupon) => coupon.active !== false && coupon.status !== "expired" && coupon.status !== "used");
-  const activeCoupons = coupons.length || 3;
-  const savings = Math.max(179, activeCoupons * 50 + rewardValue);
-  const recentRows = customer.orders.length ? customer.orders.slice(0, 4).map((order) => ({
+  const activeCoupons = coupons.length;
+  const savings = activeCoupons * 50 + rewardValue;
+  const recentRows = customer.orders.slice(0, 4).map((order) => ({
     id: order.id,
     restaurant: "restaurantName" in order && typeof order.restaurantName === "string" ? order.restaurantName : "Sarva restaurant",
     amount: order.total,
     points: Math.max(10, Math.floor(order.total / 10)),
     status: order.status === "delivered" || order.status === "completed" ? "Delivered" : order.status,
-  })) : [
-    { id: "SF12456", restaurant: "La Pino'z Pizza", amount: 498, points: 50, status: "Delivered" },
-    { id: "SF12421", restaurant: "Burger Barn", amount: 249, points: 20, status: "Delivered" },
-    { id: "SF12389", restaurant: "Meghana Foods", amount: 698, points: 69, status: "Delivered" },
-    { id: "SF12345", restaurant: "Ramesh South Zone", amount: 399, points: 39, status: "Delivered" },
-  ];
+  }));
 
   if (loading || customer.status === "loading") {
     return (

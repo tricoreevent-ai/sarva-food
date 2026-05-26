@@ -35,6 +35,41 @@ export function PageLoading() {
   );
 }
 
+export function ModuleLoading({ module = "customer" }: { module?: "customer" | "owner" | "admin" }) {
+  if (module === "admin") {
+    return (
+      <main className="admin-premium min-h-screen p-5" aria-busy="true" aria-label="Loading admin console">
+        <div className="mx-auto max-w-7xl space-y-5">
+          <div className="h-14 w-72 shimmer rounded-lg bg-muted" />
+          <div className="grid gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="shimmer h-28 rounded-lg" />)}
+          </div>
+          <Skeleton className="shimmer h-[420px] rounded-lg" />
+        </div>
+      </main>
+    );
+  }
+
+  if (module === "owner") {
+    return (
+      <main className="owner-premium min-h-screen p-5" aria-busy="true" aria-label="Loading owner dashboard">
+        <div className="space-y-5">
+          <div className="h-14 w-80 shimmer rounded-lg bg-muted" />
+          <div className="dashboard-grid">
+            {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="shimmer h-32 rounded-lg" />)}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+            <Skeleton className="shimmer h-96 rounded-lg" />
+            <Skeleton className="shimmer h-96 rounded-lg" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <PageLoading />;
+}
+
 export function InlineLoading({ label = "Loading" }: { label?: string }) {
   return (
     <Card>

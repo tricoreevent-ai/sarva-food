@@ -279,6 +279,8 @@ body {
   color: var(--foreground);
   font-family: ui-sans-serif, system-ui, sans-serif;
   text-rendering: optimizeLegibility;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 button,
@@ -288,6 +290,72 @@ select,
 textarea {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+input,
+select,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  pointer-events: auto;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+[role="textbox"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+}
+
+input,
+select,
+textarea {
+  background-color: var(--card);
+  color: var(--foreground);
+  caret-color: var(--primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.82;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  box-shadow: 0 0 0 1000px var(--card) inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+:where(.owner-premium, .customer-theme, .admin-premium) :where(.bg-white) {
+  background-color: var(--card);
+}
+
+:where(.owner-premium, .customer-theme, .admin-premium) :where(.text-slate-950, .text-neutral-950, .text-slate-900, .text-neutral-900) {
+  color: var(--foreground);
+}
+
+:where(.owner-premium, .customer-theme, .admin-premium) :where(.text-slate-700, .text-neutral-700, .text-slate-600, .text-neutral-600, .text-slate-500, .text-neutral-500) {
+  color: var(--muted-foreground);
+}
+
+:where(.owner-premium, .customer-theme, .admin-premium) :where(.border-slate-200, .border-neutral-200) {
+  border-color: var(--border);
+}
+
+:where(.owner-premium, .customer-theme, .admin-premium) :where(.bg-slate-50, .bg-slate-100, .bg-neutral-50, .bg-neutral-100) {
+  background-color: var(--muted);
 }
 
 ::selection {
@@ -332,28 +400,38 @@ textarea {
 }
 
 .admin-premium {
-  --background: #11140f;
-  --foreground: #f8f4ea;
-  --card: #191d16;
-  --card-foreground: #f8f4ea;
-  --primary: #d6b766;
-  --primary-foreground: #17130a;
-  --secondary: #24594f;
-  --secondary-foreground: #f8f4ea;
-  --muted: #22271f;
-  --muted-foreground: #b8b09f;
-  --accent: #c86b4d;
-  --accent-foreground: #fff8ef;
-  --border: #33382d;
-  --input: #33382d;
-  --ring: #d6b766;
+  --background: var(--admin-console-bg, #080b1a);
+  --foreground: #f8fafc;
+  --card: var(--admin-console-card, #11162e);
+  --card-foreground: #f8fafc;
+  --popover: #11162e;
+  --popover-foreground: #f8fafc;
+  --primary: var(--admin-console-primary, #6366f1);
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #151b33;
+  --muted-foreground: #a5b4fc;
+  --accent: #f97316;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #818cf8;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --info: #38bdf8;
   background:
-    radial-gradient(circle at top left, rgba(214, 183, 102, 0.16), transparent 34rem),
-    linear-gradient(180deg, #11140f 0%, #171a14 100%);
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.22), transparent 34rem),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 30rem),
+    linear-gradient(180deg, #080b1a 0%, #0d1024 100%);
 }
 
 .admin-premium aside {
-  background: color-mix(in srgb, var(--card) 92%, black);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--card) 94%, black);
+  box-shadow: 16px 0 45px rgba(0, 0, 0, 0.24);
 }
 
 .admin-premium main {

@@ -1,5 +1,4 @@
 import { calculateRestaurantTax } from "@/lib/menu-engine";
-import { SINGLE_RESTAURANT_DISPLAY_NAME } from "@/lib/single-restaurant-data";
 import { DEFAULT_BRANCH_ID } from "@/lib/tenant";
 import type { OrderLine, PaymentBreakdown, PaymentOption, PosBill, PrintTemplate, PrinterProfile, RestaurantBranch, TaxSettings } from "@/lib/types";
 
@@ -74,7 +73,7 @@ export function buildBillContext(input: {
   const splitTotal = input.bill.splitPayments?.reduce((sum, payment) => sum + payment.amount, 0) ?? 0;
   const tenderedAmount = splitTotal > 0 ? splitTotal : input.bill.tenderedAmount && input.bill.tenderedAmount > 0 ? input.bill.tenderedAmount : subtotal;
   return {
-    restaurantName: input.restaurantName ?? SINGLE_RESTAURANT_DISPLAY_NAME,
+    restaurantName: input.restaurantName ?? input.branch.name,
     branch: input.branch,
     gstin: input.taxSettings.gstin,
     invoiceNumber,

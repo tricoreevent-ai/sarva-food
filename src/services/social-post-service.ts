@@ -1,18 +1,20 @@
 import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getFirebaseDb, getFirebaseStorage } from "@/firebase/client";
+import { getFirebaseDb } from "@/firebase/client";
 import { refs, typedDoc } from "@/firebase/collections";
-import { compressImageFile } from "@/lib/image-optimization";
 import { withTenantId } from "@/lib/tenant";
+import { uploadImageToCloudinary } from "@/services/cloudinary-upload-service";
 import type { SocialPostDoc, SocialTemplateDoc } from "@/types/firebase";
 
 export async function uploadFoodPostImage(restaurantId: string, file: File) {
-  const optimizedFile = await compressImageFile(file, { maxWidth: 1920, maxHeight: 1920 });
-  const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9.-]/g, "-");
-  const imagePath = `restaurants/${restaurantId}/social/${crypto.randomUUID()}-${safeName}`;
-  const imageRef = ref(getFirebaseStorage(), imagePath);
-  await uploadBytes(imageRef, optimizedFile, { contentType: optimizedFile.type });
-  return { imagePath, downloadUrl: await getDownloadURL(imageRef) };
+  return uploadImageToCloudinary(file, {
+    folder: "social",
+    restaurantId,
+    maxWidth: 1920,
+    maxHeight: 1920,
+    quality: 0.9,
+    type: "image/webp",
+    tags: ["social-post"],
+  });
 }
 
 export async function saveSocialTemplate(

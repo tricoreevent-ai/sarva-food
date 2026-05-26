@@ -15,6 +15,9 @@ export type Restaurant = {
   deliveryTime: string;
   priceForTwo: number;
   image: string;
+  logo?: string;
+  coverImage?: string;
+  coverImages?: string[];
   isOpen: boolean;
   tags: string[];
   instagramHandle: string;
@@ -25,6 +28,14 @@ export type Restaurant = {
   etaMinutes?: number;
   deliveryEligible?: boolean;
   approved?: boolean;
+  adminStatus?: "Pending Approval" | "Active" | "Suspended" | "Expired" | "Under Review";
+  subscriptionPlan?: "Trial" | "Starter" | "Professional" | "Enterprise";
+  subscriptionStatus?: "trialing" | "active" | "suspended" | "expired" | "under-review";
+  trialEndsAt?: string;
+  nextBillingAt?: string;
+  orderingEnabled?: boolean;
+  frozen?: boolean;
+  adminNote?: string;
   reviewCount?: number;
   deliveryFee?: number;
   minPrice?: number;
@@ -34,11 +45,47 @@ export type Restaurant = {
   categoryTags?: string[];
   offerCodes?: string[];
   searchKeywords?: string[];
+  address?: string;
+  googleMapLocation?: string;
+  operatingHours?: string;
+  operatingHoursSchedule?: OperatingHoursDay[];
+  operatingHoursPreference?: "specified" | "not-specified";
+  gstDetails?: string;
+  fssaiLicense?: string;
+  diningAvailable?: boolean;
+  cloudKitchen?: boolean;
   contact?: RestaurantContactSettings;
   ownerProfile?: OwnerContactSettings;
   deliverySettings?: DeliverySettings;
   scheduling?: RestaurantSchedulingSettings;
   advancedFeatures?: AdvancedRestaurantFeatures;
+};
+
+export type AppCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  icon?: string;
+  sortOrder: number;
+  active: boolean;
+  colorTheme?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AppCuisine = {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  icon?: string;
+  color?: string;
+  sortOrder: number;
+  active: boolean;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type RestaurantContactSettings = {
@@ -129,6 +176,7 @@ export type MenuItem = {
   translations?: Partial<Record<"hi" | "ml" | "ta" | "kn" | "ar", { name?: string; description?: string }>>;
   category: string;
   categoryId?: string;
+  subcategory?: string;
   cuisineIds?: string[];
   description: string;
   longDescription?: string;
@@ -149,6 +197,8 @@ export type MenuItem = {
   dietaryLabels?: string[];
   allergenLabels?: string[];
   tags?: string[];
+  badges?: string[];
+  searchKeywords?: string[];
   soldOut?: boolean;
   modifiers?: Array<{ name: string; price: number }>;
   addOns?: Array<{ name: string; price: number }>;
@@ -301,6 +351,7 @@ export type CmsBanner = {
 };
 
 export type CmsSettings = {
+  appName?: string;
   disclaimer: string;
   homepage: {
     title: string;
@@ -595,9 +646,11 @@ export type OperatingHoursDay = {
 };
 
 export type OwnerBusinessProfile = {
+  ownerName?: string;
   hotelName: string;
   logo: string;
   coverImage?: string;
+  coverImages?: string[];
   businessAddress: string;
   googleMapLocation: string;
   latitude?: number;
@@ -618,11 +671,27 @@ export type OwnerBusinessProfile = {
   operatingHoursSchedule?: OperatingHoursDay[];
   operatingHoursPreference?: "specified" | "not-specified";
   deliveryRadiusKm: number;
+  deliveryCharge?: number;
+  minimumOrder?: number;
+  freeDeliveryThreshold?: number;
   fssaiLicense?: string;
   diningAvailable: boolean;
   cloudKitchen: boolean;
+  paymentConfig?: OwnerPaymentConfig;
   reviewStatus?: "draft" | "pending_review" | "approved" | "rejected";
   completed: boolean;
+};
+
+export type OwnerPaymentConfig = {
+  upiId?: string;
+  codEnabled: boolean;
+  methods: Array<"upi" | "cod" | "cash" | "card">;
+  razorpayEnabled?: boolean;
+  razorpayKeyId?: string;
+  phonePeEnabled?: boolean;
+  phonePeMerchantId?: string;
+  paytmEnabled?: boolean;
+  paytmMerchantId?: string;
 };
 
 export type SocialPostStatus = "pending" | "approved" | "rejected" | "published";
@@ -693,12 +762,32 @@ export type StaffRole = "owner" | "manager" | "cashier" | "waiter" | "chef" | "k
 export type StaffMember = {
   id: string;
   name: string;
+  email?: string;
+  phone?: string;
   role: StaffRole;
   roleId?: string;
   status: "active" | "invited" | "off-duty";
   branchId: string;
   permissions: string[];
   lastActivity: string;
+  requiresLogin?: boolean;
+  employmentType?: "fixed" | "contract";
+  monthlySalary?: number;
+  contractRate?: number;
+  panNumber?: string;
+  pfNumber?: string;
+  esiNumber?: string;
+  professionalTaxState?: string;
+  tdsSection?: "salary" | "194C" | "194J";
+  payrollEstimate?: {
+    grossMonthly: number;
+    estimatedAnnualIncome: number;
+    tdsMonthly: number;
+    professionalTaxMonthly: number;
+    pfEmployee: number;
+    esiEmployee: number;
+    netMonthly: number;
+  };
 };
 
 export type ActivityLog = {

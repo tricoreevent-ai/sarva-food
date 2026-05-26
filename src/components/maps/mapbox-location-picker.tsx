@@ -215,7 +215,7 @@ export function AddressAutocomplete({
             placeholder={placeholder}
           />
         </label>
-        <Button type="button" onClick={() => void search()} disabled={loading || !mapbox.enabled}>
+        <Button type="button" onClick={() => void search()} disabled={loading}>
           {loading ? <Loader2 className="size-4 animate-spin" /> : <MapPin className="size-4" />}
           Search
         </Button>
@@ -229,7 +229,7 @@ export function AddressAutocomplete({
               type="button"
               role="option"
               aria-selected="false"
-              className="rounded-md border p-3 text-left text-sm font-semibold hover:border-primary"
+              className="rounded-md border border-border bg-card p-3 text-left text-sm font-semibold text-foreground hover:border-primary hover:bg-muted"
               onClick={() => selectFeature(feature)}
             >
               <span className="block font-black">{feature.text ?? feature.place_name}</span>
@@ -361,23 +361,23 @@ export function MapLocationPicker({
       <AddressAutocomplete value={value.address} proximity={value} onSelect={(location) => onChange({ ...value, ...location })} />
       <DeliveryRadiusMap location={value} onChange={onChange} />
       <div className="grid gap-3 md:grid-cols-4">
-        <label className="grid gap-1 text-sm font-bold md:col-span-2">
+        <label className="grid gap-1 text-sm font-bold text-muted-foreground md:col-span-2">
           Formatted address
           <Input value={value.address} onChange={(event) => onChange({ ...value, address: event.target.value })} />
         </label>
-        <label className="grid gap-1 text-sm font-bold">
+        <label className="grid gap-1 text-sm font-bold text-muted-foreground">
           Latitude
           <Input type="number" value={value.latitude} onChange={(event) => onChange({ ...value, latitude: Number(event.target.value) })} />
         </label>
-        <label className="grid gap-1 text-sm font-bold">
+        <label className="grid gap-1 text-sm font-bold text-muted-foreground">
           Longitude
           <Input type="number" value={value.longitude} onChange={(event) => onChange({ ...value, longitude: Number(event.target.value) })} />
         </label>
-        <label className="grid gap-1 text-sm font-bold md:col-span-4">
+        <label className="grid gap-1 text-sm font-bold text-muted-foreground md:col-span-4">
           Delivery radius: {value.deliveryRadiusKm} km
           <input type="range" min={1} max={30} value={value.deliveryRadiusKm} onChange={(event) => onChange({ ...value, deliveryRadiusKm: Number(event.target.value) })} />
         </label>
-        <label className="grid gap-1 text-sm font-bold md:col-span-4">
+        <label className="grid gap-1 text-sm font-bold text-muted-foreground md:col-span-4">
           Place ID
           <Input value={value.placeId ?? ""} onChange={(event) => onChange({ ...value, placeId: event.target.value || undefined })} />
         </label>

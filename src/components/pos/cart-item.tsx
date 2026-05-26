@@ -15,15 +15,12 @@ export function CartItem({
   onRemove: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-      <div className="grid grid-cols-[1fr_auto] items-start gap-2">
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
         <div className="min-w-0">
           <p className="line-clamp-1 text-sm font-black text-slate-950">{line.name}</p>
-          <p className="text-xs font-semibold text-slate-500">{formatCurrency(line.price)} each{line.notes ? ` · ${line.notes}` : ""}</p>
+          <p className="line-clamp-1 text-xs font-semibold text-slate-500">{formatCurrency(line.price)} each{line.notes ? ` · ${line.notes}` : ""}</p>
         </div>
-        <p className="text-sm font-black text-slate-950">{formatCurrency(line.quantity * line.price)}</p>
-      </div>
-      <div className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-2">
         <div className="flex h-8 items-center rounded-lg border border-slate-200">
           <Button size="icon-sm" variant="ghost" onClick={() => onQuantity(line.quantity - 1)} aria-label={`Decrease ${line.name}`}>
             <Minus className="size-3.5" />
@@ -33,11 +30,11 @@ export function CartItem({
             <Plus className="size-3.5" />
           </Button>
         </div>
-        <span className="text-xs font-semibold text-slate-400">Qty editable before billing</span>
-        <Button size="icon-sm" variant="outline" className="border-red-200 text-red-600" onClick={onRemove} aria-label={`Remove ${line.name}`}>
+        <Button size="icon-sm" variant="outline" className="h-8 w-8 border-red-200 text-red-600" onClick={onRemove} aria-label={`Remove ${line.name}`}>
           <Trash2 className="size-3.5" />
         </Button>
       </div>
+      <p className="mt-1 text-right text-sm font-black text-slate-950">{formatCurrency(line.quantity * line.price)}</p>
     </div>
   );
 }

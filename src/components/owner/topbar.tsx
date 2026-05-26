@@ -49,9 +49,6 @@ export function OwnerTopbar({
             <Volume2 className="size-5" />
           </Link>
         </Button>
-        <div className="grid size-11 place-items-center rounded-full bg-gradient-to-br from-orange-500 to-orange-300 text-sm font-black text-white shadow-sm">
-          {ownerName.slice(0, 2).toUpperCase()}
-        </div>
       </div>
     </header>
   );

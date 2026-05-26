@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CircleHelp, ClipboardList, Clock, LogOut, ReceiptText, Settings, UserSearch, Utensils, type LucideIcon } from "lucide-react";
+import { useAppStore } from "@/lib/app-store";
 import { cn } from "@/lib/utils";
 
 export type PosPanel = "new" | "active" | "held" | "past" | "customers";
@@ -31,12 +32,15 @@ export function PosSidebar({
   onPastOrders,
   onCustomers,
 }: PosSidebarProps) {
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const initials = productName.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "SF";
+
   return (
     <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
       <Link href="/owner" className="flex h-20 items-center gap-3 border-b border-slate-100 px-5 transition hover:bg-slate-50" aria-label="Go to owner dashboard">
-        <span className="grid size-10 place-items-center rounded-xl bg-emerald-700 text-sm font-black text-white">SF</span>
+        <span className="grid size-10 place-items-center rounded-xl bg-emerald-700 text-sm font-black text-white">{initials}</span>
         <div>
-          <p className="font-black text-slate-950">SARVA FOOD</p>
+          <p className="font-black text-slate-950">{productName}</p>
           <p className="text-sm font-medium text-slate-500">POS</p>
         </div>
       </Link>
@@ -73,7 +77,7 @@ export function PosSidebar({
         </Link>
       </nav>
       <div className="space-y-2 border-t border-slate-100 p-4">
-        <Link href="/owner/profile" className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+        <Link href="/owner/settings?tab=profile" className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
           <CircleHelp className="size-5" />
           Help & Support
         </Link>

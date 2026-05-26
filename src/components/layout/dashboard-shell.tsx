@@ -1,12 +1,13 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-status";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
-import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
+import { DashboardTopbar } from "@/components/layout/dashboard-topbar";
 import { DashboardQuickActions, MobileOfflineBanner } from "@/components/mobile/mobile-experience";
 import { cn } from "@/lib/utils";
+import { adminTheme } from "@/themes/admin-theme";
 import {
   adminNav,
   cateringNav,
@@ -41,24 +42,34 @@ export function DashboardShell({
 
   const config = appConfig[app];
   const isPosWorkspace = pathname.startsWith("/owner/pos") || pathname.startsWith("/pos");
+  const adminStyle = app === "admin"
+    ? ({
+        "--admin-console-bg": adminTheme.colors.background,
+        "--admin-console-card": adminTheme.colors.card,
+        "--admin-console-primary": adminTheme.colors.primary,
+      } as CSSProperties)
+    : undefined;
 
   return (
     <div
       className={cn(
-        "min-h-screen lg:flex",
+        "min-h-screen",
         app === "admin" && "admin-premium",
         (app === "owner" || app === "pos") && "owner-premium",
       )}
+      style={adminStyle}
       >
-      <MobileOfflineBanner />
-      {isPosWorkspace ? null : <DashboardSidebar appName={config.name} items={config.nav} homeHref={config.homeHref} />}
-      <main className={cn("min-w-0 flex-1 pb-24 lg:pb-8", isPosWorkspace ? "p-0" : "px-4 pt-5 sm:px-5 2xl:px-8")}>
-        <div className={cn("w-full", isPosWorkspace || app === "owner" ? "max-w-none" : "mx-auto max-w-7xl")}>
-          {app === "admin" ? <FirebaseStartupStatus /> : null}
-          {app === "owner" && !isPosWorkspace ? <OwnerBreadcrumbs className="mb-4" /> : null}
-          {children}
-        </div>
-      </main>
+      {app === "owner" || app === "pos" ? <MobileOfflineBanner /> : null}
+      <DashboardTopbar app={app} appName={config.name} navItems={config.nav} homeHref={config.homeHref} />
+      <div className={cn(isPosWorkspace ? "" : "lg:flex")}>
+        {isPosWorkspace ? null : <DashboardSidebar appName={config.name} items={config.nav} homeHref={config.homeHref} />}
+        <main className={cn("min-w-0 flex-1 pb-24 lg:pb-8", isPosWorkspace ? "p-0" : "px-4 py-5 sm:px-5 2xl:px-8")}>
+          <div className={cn("w-full", isPosWorkspace || app === "owner" ? "max-w-none" : "mx-auto max-w-7xl")}>
+            {app === "admin" ? <FirebaseStartupStatus /> : null}
+            {children}
+          </div>
+        </main>
+      </div>
       {isPosWorkspace ? null : <DashboardQuickActions app={app} />}
     </div>
   );

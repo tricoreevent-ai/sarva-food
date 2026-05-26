@@ -16,12 +16,13 @@ export function QuickActionButton({
   return (
     <Link
       href={href}
-      className="group flex min-h-14 items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+      title={label}
+      className="group flex min-h-20 min-w-24 flex-col items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 text-center text-xs font-black text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500"
     >
       <span className={cn("grid size-9 place-items-center rounded-xl transition group-hover:scale-105", toneClass[tone])}>
         <Icon className="size-5" />
       </span>
-      {label}
+      <span className="max-w-full truncate whitespace-nowrap">{label}</span>
     </Link>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import type { MenuItem, Offer, Restaurant, Review } from "@/lib/types";
-import type { MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
-import { useAppStore } from "@/lib/app-store";
-import { isOfferActive, sortOffers } from "@/lib/offer-engine";
+import type { AppCategory, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
+import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
+import { sortOffers } from "@/lib/offer-engine";
 
 export type PublicDataStatus = "idle" | "loading" | "success" | "error";
 type Unsubscribe = () => void;
@@ -58,6 +57,14 @@ async function fetchPublicRestaurants(slug?: string) {
     .filter((item) => item.approved !== false);
 }
 
+async function fetchPublicCategories() {
+  const docs = await fetchPublicDocs<AppCategoryDoc>("/api/public/categories");
+  return docs
+    .filter((item) => item.active && !item.isDeleted)
+    .map(categoryDocToUi)
+    .sort((first, second) => first.sortOrder - second.sortOrder);
+}
+
 async function fetchPublicMenu(restaurantId: string) {
   const docs = await fetchPublicDocs<MenuDoc>("/api/public/menu", { restaurantId });
   return docs
@@ -71,7 +78,7 @@ async function fetchPublicOffers(restaurantId?: string) {
   const remoteOffers = docs
     .filter((item) => item.active && !item.isDeleted)
     .map(offerDocToUi);
-  return mergeLocalOffers(remoteOffers, restaurantId);
+  return sortOffers(remoteOffers.filter((offer) => !restaurantId || offer.restaurantSlug === restaurantId));
 }
 
 async function fetchPublicReviews(restaurantId: string, menuItemId?: string): Promise<PublicReviewsPayload> {
@@ -144,13 +151,6 @@ function preloadPrimaryMenu(restaurants: Restaurant[]) {
   void fetchPublicOffers(primary.slug).catch(() => undefined);
 }
 
-function mergeLocalOffers(remoteOffers: Offer[], restaurantId?: string) {
-  const localOffers = useAppStore.getState().offers
-    .filter((offer) => !restaurantId || offer.restaurantSlug === restaurantId)
-    .filter((offer) => isOfferActive(offer));
-  return sortOffers(Array.from(new Map([...remoteOffers, ...localOffers].map((offer) => [offer.code, offer])).values()));
-}
-
 export function listenPublicRestaurants(
   onData: (restaurants: Restaurant[]) => void,
 ): Unsubscribe {
@@ -167,6 +167,27 @@ export function listenPublicRestaurants(
     })
     .catch((error) => {
       warnPublicFallbackFailure("restaurants", error);
+      deliver([]);
+    });
+
+  return () => {
+    active = false;
+  };
+}
+
+export function listenPublicCategories(
+  onData: (categories: AppCategory[]) => void,
+): Unsubscribe {
+  let active = true;
+  const deliver = (items: AppCategory[]) => {
+    if (!active) return;
+    onData(items);
+  };
+
+  void fetchPublicCategories()
+    .then(deliver)
+    .catch((error) => {
+      warnPublicFallbackFailure("categories", error);
       deliver([]);
     });
 
@@ -296,7 +317,10 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     rating: typeof extra.rating === "number" ? extra.rating : 0,
     deliveryTime: extra.deliveryTime || (etaMinutes ? `${etaMinutes}-${etaMinutes + 8} min` : ""),
     priceForTwo: typeof extra.priceForTwo === "number" ? extra.priceForTwo : 0,
-    image: doc.imagePath || FALLBACK_IMAGE,
+    image: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || FALLBACK_IMAGE),
+    logo: withCloudinaryAuto(doc.logoPath || ""),
+    coverImage: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || ""),
+    coverImages: (doc.coverImagePaths ?? [doc.coverImagePath || doc.imagePath || ""]).map(withCloudinaryAuto).filter(Boolean),
     isOpen: doc.active,
     tags: extra.tags?.length ? extra.tags : (doc.deliveryRadiusKm ? [`${doc.deliveryRadiusKm} km delivery`] : []),
     instagramHandle: extra.instagramHandle ?? "",
@@ -313,6 +337,15 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     categoryTags: extra.categoryTags,
     offerCodes: extra.offerCodes,
     searchKeywords: extra.searchKeywords,
+    address: doc.address || doc.location || "",
+    googleMapLocation: doc.googleMapLocation,
+    operatingHours: doc.operatingHours,
+    operatingHoursSchedule: doc.operatingHoursSchedule,
+    operatingHoursPreference: doc.operatingHoursPreference,
+    gstDetails: doc.gstDetails,
+    fssaiLicense: doc.fssaiLicense,
+    diningAvailable: doc.diningAvailable,
+    cloudKitchen: doc.cloudKitchen,
     contact: doc.contact,
     ownerProfile: doc.ownerProfile,
     deliverySettings: doc.deliverySettings,
@@ -329,8 +362,9 @@ export function menuDocToUi(id: string, doc: MenuDoc): MenuItem {
     ownerId: doc.ownerId,
     name: doc.name,
     translations: doc.translations,
-    category: doc.categoryId || (doc as MenuDoc & { category?: string }).category || "Menu",
+    category: (doc as MenuDoc & { category?: string }).category || doc.categoryId || "Menu",
     categoryId: doc.categoryId,
+    subcategory: doc.subcategory,
     cuisineIds: doc.cuisineIds,
     description: doc.description || "",
     longDescription: doc.longDescription,
@@ -340,20 +374,43 @@ export function menuDocToUi(id: string, doc: MenuDoc): MenuItem {
     deliveryPrice,
     taxRate: doc.taxRate,
     packingCharge: doc.packingCharge,
-    image: doc.imagePath || doc.imagePaths?.[0] || FALLBACK_IMAGE,
-    images: doc.imagePaths,
+    image: withCloudinaryAuto(doc.imagePath || doc.imagePaths?.[0] || FALLBACK_IMAGE),
+    images: doc.imagePaths?.map(withCloudinaryAuto),
     isVeg: doc.isVeg,
     foodType: doc.foodType,
-    isPopular: doc.tags?.includes("popular") || doc.tags?.includes("bestseller"),
+    isPopular: (doc.tags ?? []).some((tag) => ["popular", "bestseller"].includes(tag.toLowerCase())),
     prepTime: "",
     dietaryLabels: doc.dietaryLabels,
     allergenLabels: doc.allergenLabels,
     tags: doc.tags,
+    badges: doc.badges,
+    searchKeywords: doc.searchKeywords,
     soldOut: !doc.available || doc.isDeleted || doc.channelConfig?.delivery?.available === false,
     menuVisibility: doc.menuVisibility,
     scheduleIds: doc.scheduleIds,
     recipeLinks: doc.recipeLinks,
   };
+}
+
+export function categoryDocToUi(doc: AppCategoryDoc): AppCategory {
+  return {
+    id: doc.id,
+    name: doc.name,
+    slug: doc.slug,
+    image: withCloudinaryAuto(doc.imagePath || (doc as AppCategoryDoc & { image?: string }).image || ""),
+    icon: doc.icon,
+    sortOrder: doc.sortOrder,
+    active: doc.active,
+    colorTheme: doc.colorTheme,
+    createdAt: firestoreDateToIso(doc.createdAt),
+    updatedAt: firestoreDateToIso(doc.updatedAt),
+  };
+}
+
+function withCloudinaryAuto(url: string) {
+  if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+  if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(url)) return url;
+  return url.replace("/upload/", "/upload/f_auto,q_auto/");
 }
 
 export function offerDocToUi(doc: OfferDoc): Offer {

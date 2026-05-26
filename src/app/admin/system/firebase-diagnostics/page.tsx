@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Activity, DatabaseZap, RefreshCw, ShieldCheck } from "lucide-react";
+import { Activity, DatabaseZap, Download, HardDrive, RefreshCw, ShieldCheck } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -47,10 +47,15 @@ export default function FirebaseDiagnosticsPage() {
 
   const totals = useMemo(() => {
     const all = [...(diagnostics?.items ?? []), ...(diagnostics?.collections ?? [])];
+    const documentCount = (diagnostics?.collections ?? []).reduce((sum, item) => sum + (item.metric ?? 0), 0);
+    const estimatedReads = all.length + documentCount;
     return {
       pass: all.filter((item) => item.status === "pass").length,
       warn: all.filter((item) => item.status === "warn").length,
       fail: all.filter((item) => item.status === "fail").length,
+      documentCount,
+      estimatedReads,
+      estimatedCost: Math.max(0.01, estimatedReads * 0.0000006),
     };
   }, [diagnostics]);
 
@@ -77,11 +82,22 @@ export default function FirebaseDiagnosticsPage() {
         <Metric icon={<ShieldCheck className="size-4" />} label="Passed" value={totals.pass} tone="success" />
         <Metric icon={<Activity className="size-4" />} label="Warnings" value={totals.warn} tone="warning" />
         <Metric icon={<Activity className="size-4" />} label="Failures" value={totals.fail} tone="destructive" />
+        <Metric icon={<HardDrive className="size-4" />} label="Documents" value={totals.documentCount} tone="success" />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <InfoCard label="Read usage estimate" value={totals.estimatedReads.toLocaleString("en-IN")} detail="Diagnostics reads plus sampled collection counts." />
+        <InfoCard label="Cost estimate" value={`$${totals.estimatedCost.toFixed(4)}`} detail="Approximate diagnostic read cost only." />
+        <InfoCard label="Storage usage" value={formatBytes(totals.documentCount * 2048)} detail="Estimated from sampled document count." />
         <Card>
           <CardContent className="flex h-full flex-col justify-center gap-2 p-4">
             <Button onClick={() => void refresh()}>
               <RefreshCw className="size-4" />
               Refresh
+            </Button>
+            <Button variant="secondary" onClick={() => createBackup(diagnostics)}>
+              <Download className="size-4" />
+              Create Backup
             </Button>
             <Button variant="outline" onClick={() => void seed()}>
               <DatabaseZap className="size-4" />
@@ -123,6 +139,18 @@ export default function FirebaseDiagnosticsPage() {
   );
 }
 
+function InfoCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <Card>
+      <CardContent className="space-y-2 p-4">
+        <p className="text-sm font-bold text-muted-foreground">{label}</p>
+        <p className="text-2xl font-black">{value}</p>
+        <p className="text-xs font-semibold text-muted-foreground">{detail}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function Metric({
   icon,
   label,
@@ -145,4 +173,26 @@ function Metric({
       </CardContent>
     </Card>
   );
+}
+
+function createBackup(diagnostics: FirebaseDiagnostics | null) {
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    diagnostics,
+    collections: diagnostics?.collections ?? [],
+    checks: diagnostics?.items ?? [],
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `firebase-diagnostics-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }

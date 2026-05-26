@@ -8,12 +8,11 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getFirebaseDb, getFirebaseStorage } from "@/firebase/client";
+import { getFirebaseDb } from "@/firebase/client";
 import { refs, typedDoc } from "@/firebase/collections";
 import { CACHE_TTL, FIRESTORE_LIMITS } from "@/lib/constants";
-import { compressImageFile } from "@/lib/image-optimization";
 import { resolveTenantId, withTenantId } from "@/lib/tenant";
+import { uploadImageToCloudinary } from "@/services/cloudinary-upload-service";
 import { createMetadata, softDeleteMetadata, updateMetadata } from "@/services/firestore-metadata";
 import { getCachedQuery } from "@/services/firestore-query";
 import type { MenuDoc } from "@/types/firebase";
@@ -61,12 +60,14 @@ export async function setMenuAvailability(itemId: string, available: boolean) {
 }
 
 export async function uploadMenuImage(restaurantId: string, file: File) {
-  const optimizedFile = await compressImageFile(file);
-  const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9.-]/g, "-");
-  const imagePath = `restaurants/${restaurantId}/menu/${crypto.randomUUID()}-${safeName}`;
-  const imageRef = ref(getFirebaseStorage(), imagePath);
-  await uploadBytes(imageRef, optimizedFile, { contentType: optimizedFile.type });
-  const downloadUrl = await getDownloadURL(imageRef);
-
-  return { imagePath, downloadUrl };
+  return uploadImageToCloudinary(file, {
+    folder: "menu",
+    restaurantId,
+    maxWidth: 1200,
+    maxHeight: 900,
+    aspectRatio: 4 / 3,
+    quality: 0.82,
+    type: "image/webp",
+    tags: ["menu-item"],
+  });
 }

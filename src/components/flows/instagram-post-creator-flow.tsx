@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { CalendarClock, ImagePlus, Loader2, Send, Wand2 } from "lucide-react";
+import { CalendarClock, Loader2, Send, Wand2 } from "lucide-react";
 import { SocialTemplateCard } from "@/components/studio/social-template-card";
 import { SectionHeader } from "@/components/layout/section-header";
+import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppStore } from "@/lib/app-store";
-import { compressImageFile } from "@/lib/image-optimization";
 import { buildInstagramDeepLink } from "@/lib/social-commerce";
 import {
   buildTemplateExport,
@@ -61,17 +61,6 @@ export function InstagramPostCreatorFlow() {
   );
   const exportHref = `data:application/json;charset=utf-8,${encodeURIComponent(exportPayload)}`;
 
-  async function handleImageFile(file?: File) {
-    if (!file) return;
-    const optimized = await compressImageFile(file, {
-      maxWidth: selectedFormat.width,
-      maxHeight: selectedFormat.height,
-    });
-    const reader = new FileReader();
-    reader.onload = () => setImage(String(reader.result));
-    reader.readAsDataURL(optimized);
-  }
-
   async function generatePreview() {
     if (!selectedTemplate) return;
     setPhase("generating");
@@ -98,8 +87,8 @@ export function InstagramPostCreatorFlow() {
     setPhase("exported");
   }
 
-  // Flow note: visual generation is frontend-only. Future Firebase integration
-  // can upload images to Storage, save post drafts, and call a publisher function.
+  // Flow note: visual generation is frontend-only. Images are uploaded to Cloudinary,
+  // while post drafts and publisher workflow stay in the existing data layer.
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
       <section className="space-y-5">
@@ -109,19 +98,21 @@ export function InstagramPostCreatorFlow() {
           />
         <Card>
           <CardContent className="grid gap-5 p-5">
-            <label className="grid min-h-40 cursor-pointer place-items-center rounded-lg border border-dashed bg-muted/40 p-6 text-center">
+            <div className="grid min-h-40 place-items-center rounded-lg border border-dashed bg-muted/40 p-6 text-center">
               <div>
-                <ImagePlus className="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
-                <p className="mt-3 font-bold">Upload food image</p>
-                <p className="text-sm text-muted-foreground">Auto-fit preview uses object-cover.</p>
+                <p className="font-bold">Upload food image</p>
+                <p className="mt-1 text-sm text-muted-foreground">Crop and optimize with Cloudinary.</p>
+                <CloudinaryUploadWidget
+                  folder="social"
+                  restaurantId={menuItems[0]?.restaurantSlug}
+                  aspectRatio={selectedFormat.width / selectedFormat.height}
+                  tags={["social-post"]}
+                  label="Upload and crop"
+                  className="mt-4"
+                  onUpload={(url) => setImage(url)}
+                />
               </div>
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => handleImageFile(event.target.files?.[0])}
-              />
-            </label>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="post-format">Output format</Label>
               <select

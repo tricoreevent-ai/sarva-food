@@ -11,7 +11,9 @@ import { customerNav } from "@/lib/navigation";
 
 export function CustomerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const showFloatingCart = !["/checkout", "/cart", "/order-success", "/profile"].some((path) => pathname.startsWith(path));
+  const showFloatingCart =
+    !pathname.startsWith("/restaurant/") &&
+    !["/checkout", "/cart", "/order-success", "/profile"].some((path) => pathname.startsWith(path));
   const homeRoute = pathname === "/";
 
   return (

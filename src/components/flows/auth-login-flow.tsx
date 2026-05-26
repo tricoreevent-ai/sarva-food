@@ -22,8 +22,8 @@ import {
   signInAdminWithEmail,
   signInCustomerWithEmail,
   signInOperationalWithEmail,
-  signInWithEmail,
   signInWithGoogle,
+  signOutUser,
   startEmailLinkLogin,
   startPhoneLogin,
 } from "@/services/auth-service";
@@ -395,20 +395,8 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       setEmail(devUser.email);
       setPassword(devUser.password);
       setName(devUser.name);
-
-      if (firebaseEnabled) {
-        const signIn =
-          devUser.role === "admin"
-            ? signInAdminWithEmail
-            : portalRoles.includes(devUser.role)
-              ? signInOperationalWithEmail
-              : signInWithEmail;
-        const firebaseSignIn = signIn(devUser.email, devUser.password).catch(() => undefined);
-        await Promise.race([
-          firebaseSignIn,
-          new Promise((resolve) => window.setTimeout(resolve, 2500)),
-        ]);
-      }
+      await signOutUser().catch(() => undefined);
+      await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
 
       const sessionResponse = await fetch("/api/auth/test-session", {
         method: "POST",
@@ -416,16 +404,18 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
         body: JSON.stringify({ uid: devUser.id, role: devUser.role }),
       }).catch(() => null);
 
+      const savedOwnerName = devUser.role === "owner" ? useAppStore.getState().ownerBusinessProfile?.ownerName : undefined;
+      const displayName = savedOwnerName || devUser.name;
       setAuthUser({
         id: devUser.id,
-        name: devUser.name,
+        name: displayName,
         role: devUser.role,
         restaurantSlug: devUser.restaurantSlug,
       });
       setMessage(
         sessionResponse?.ok === false
-          ? `Signed in locally as ${devUser.name}. Restart the dev server if this page does not open.`
-          : `Signed in as ${devUser.name}.`,
+          ? `Signed in locally as ${displayName}. Restart the dev server if this page does not open.`
+          : `Signed in as ${displayName}.`,
       );
       await finishWithFallback();
     } finally {

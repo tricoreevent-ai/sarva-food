@@ -11,13 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppStore } from "@/lib/app-store";
-import {
-  formatOperatingHours,
-  singleCuisineOptions,
-  singleOperatingHours,
-  SINGLE_OWNER_EMAIL,
-  SINGLE_OWNER_NAME,
-} from "@/lib/single-restaurant-data";
+import { createEmptyOperatingHours, formatOperatingHours } from "@/lib/operating-hours";
 import type { OperatingHoursDay, OperatingHoursSlot } from "@/lib/types";
 
 type OnboardingErrors = Partial<Record<string, string>>;
@@ -28,21 +22,21 @@ export function RestaurantOnboardingFlow() {
   const saveOwnerBusinessProfile = useAppStore((state) => state.saveOwnerBusinessProfile);
   const profile = useAppStore((state) => state.ownerBusinessProfile);
   const apiMessage = useAppStore((state) => state.apiMessage);
-  const [cuisineOptions, setCuisineOptions] = useState<string[]>(singleCuisineOptions);
+  const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
   const [errors, setErrors] = useState<OnboardingErrors>({});
   const [preferNoHours, setPreferNoHours] = useState(profile?.operatingHoursPreference === "not-specified");
-  const [hours, setHours] = useState<OperatingHoursDay[]>(profile?.operatingHoursSchedule ?? singleOperatingHours);
+  const [hours, setHours] = useState<OperatingHoursDay[]>(profile?.operatingHoursSchedule ?? createEmptyOperatingHours());
   const [form, setForm] = useState({
     businessName: profile?.hotelName ?? "",
-    ownerName: authUser.name !== "Anonymous" ? authUser.name : SINGLE_OWNER_NAME,
-    ownerEmail: SINGLE_OWNER_EMAIL,
+    ownerName: authUser.name !== "Anonymous" ? authUser.name : "",
+    ownerEmail: profile?.supportEmail ?? "",
     mobile: profile?.phoneNumber ?? "",
-    area: "Frazer Town",
+    area: "",
     address: profile?.businessAddress ?? "",
-    latitude: profile?.latitude ?? 12.9984,
-    longitude: profile?.longitude ?? 77.615,
+    latitude: profile?.latitude ?? 0,
+    longitude: profile?.longitude ?? 0,
     mapboxPlaceId: profile?.mapboxPlaceId ?? "",
-    logo: profile?.logo ?? "/icons/sarva-icon.svg",
+    logo: profile?.logo ?? "",
     googleMapLocation: profile?.googleMapLocation ?? "",
     gstDetails: profile?.gstDetails ?? "",
     supportEmail: profile?.supportEmail ?? "",
@@ -58,15 +52,15 @@ export function RestaurantOnboardingFlow() {
     restaurantImages: profile?.coverImage ?? profile?.logo ?? "",
     foodImages: "",
   });
-  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(profile?.cuisineTypes?.length ? profile.cuisineTypes : singleCuisineOptions.slice(0, 3));
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(profile?.cuisineTypes?.length ? profile.cuisineTypes : []);
 
   useEffect(() => {
     let active = true;
     void fetch("/api/admin/cuisines", { cache: "no-store" })
       .then((response) => response.json())
-      .then((payload: { cuisines?: Array<{ name?: string; enabled?: boolean }> }) => {
+      .then((payload: { cuisines?: Array<{ name?: string; active?: boolean; enabled?: boolean }> }) => {
         const names = (payload.cuisines ?? [])
-          .filter((item) => item.enabled !== false && item.name)
+          .filter((item) => item.active !== false && item.enabled !== false && item.name)
           .map((item) => item.name as string);
         if (active && names.length) setCuisineOptions(names);
       })
@@ -226,7 +220,7 @@ export function RestaurantOnboardingFlow() {
     <div className="space-y-6">
       <SectionHeader
         title="Apply for listing"
-        description="Submit Cafe Al Arab details for admin review before the restaurant appears to customers."
+        description="Submit restaurant details for admin review before the restaurant appears to customers."
         action={<Badge variant={profile?.reviewStatus === "approved" ? "success" : "warning"}>{profile?.reviewStatus === "approved" ? "Approved" : "Pending review"}</Badge>}
       />
       <form className="space-y-5" onSubmit={(event) => void handleSubmit(event)}>

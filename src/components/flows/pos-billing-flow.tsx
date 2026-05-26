@@ -1,15 +1,17 @@
 "use client";
 
-import { ChefHat, Download, Grid2X2, PackageCheck, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, Utensils, type LucideIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Grid2X2, Loader2, MapPin, PackageCheck, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { PosSidebar, type PosPanel } from "@/components/pos/pos-sidebar";
-import { PosHeader } from "@/components/pos/pos-header";
 import { CategoryList, type PosCategory } from "@/components/pos/category-list";
 import { ProductGrid } from "@/components/pos/product-grid";
 import type { PosProduct } from "@/components/pos/product-card";
-import { CartPanel } from "@/components/pos/cart-panel";
+import { CartPanel, type CompletedPosOrder, type PosProcessingState, type PosWizardStep } from "@/components/pos/cart-panel";
+import { CustomerSelector } from "@/components/pos/customer-selector";
+import { TableSelector } from "@/components/pos/table-selector";
 import { RestaurantBill, KotTicket } from "@/components/printing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,7 @@ import { useAppStore } from "@/lib/app-store";
 import { subscribeOfflineQueue, type OfflineQueueEntry } from "@/lib/offline";
 import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
-import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuItem, PosBill, TableOrder, TaxSettings } from "@/lib/types";
+import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuItem, PosBill, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { normalizePhone, safeFindCustomerByPhone } from "@/services/restaurant-ops-service";
@@ -37,6 +39,12 @@ export function PosBillingFlow() {
   const [activeTab, setActiveTab] = useState<(typeof posTabs)[number]>("menu");
   const [activeCategory, setActiveCategory] = useState("");
   const [panel, setPanel] = useState<PosPanel>("new");
+  const [wizardStep, setWizardStep] = useState<PosWizardStep>(1);
+  const [processingState, setProcessingState] = useState<PosProcessingState>("idle");
+  const [completedOrder, setCompletedOrder] = useState<CompletedPosOrder | null>(null);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [orderNote, setOrderNote] = useState("");
   const [foodFilter, setFoodFilter] = useState<"all" | "veg" | "nonveg">("all");
   const [sortMode, setSortMode] = useState<"popular" | "name" | "price-low" | "price-high">("popular");
   const [availableOnly, setAvailableOnly] = useState(true);
@@ -51,6 +59,7 @@ export function PosBillingFlow() {
   const inventoryItems = useAppStore((state) => state.inventoryItems);
   const orders = useAppStore((state) => state.orders);
   const authUser = useAppStore((state) => state.authUser);
+  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
   const branch = useAppStore((state) => state.branches[0]);
   const taxSettings = useAppStore((state) => state.taxSettings);
   const printerSettings = useAppStore((state) => state.printerSettings);
@@ -58,6 +67,7 @@ export function PosBillingFlow() {
   const bill = useAppStore((state) => state.posBill);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
   const tableOrders = useAppStore((state) => state.tableOrders);
+  const staffMembers = useAppStore((state) => state.staffMembers);
   const addPosItem = useAppStore((state) => state.addPosItem);
   const addPosProduct = useAppStore((state) => state.addPosProduct);
   const updatePosQuantity = useAppStore((state) => state.updatePosQuantity);
@@ -90,6 +100,15 @@ export function PosBillingFlow() {
   useEffect(() => {
     window.localStorage.setItem(heldOrdersKey, JSON.stringify(heldOrders));
   }, [heldOrders]);
+  useEffect(() => {
+    if (panel !== "new" || wizardStep <= 1 || wizardStep >= 4) return;
+    window.history.pushState({ sarvaPosWizardStep: wizardStep }, "");
+    const onPopState = () => {
+      setWizardStep((current) => (current > 1 ? ((current - 1) as PosWizardStep) : current));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [panel, wizardStep]);
   useEffect(() => {
     const openPastOrders = () => setPanel("past");
     const openCustomers = () => setPanel("customers");
@@ -163,6 +182,10 @@ export function PosBillingFlow() {
     })),
     [loyaltyCustomers],
   );
+  const activeWaiters = useMemo(
+    () => staffMembers.filter((member) => member.role === "waiter" && member.status === "active"),
+    [staffMembers],
+  );
   const effectiveTaxSettings = useMemo(
     () => ({
       ...taxSettings,
@@ -183,7 +206,7 @@ export function PosBillingFlow() {
           title="No branch configured"
           description="POS, kitchen tickets, billing, receipt, and inventory deductions are branch-scoped."
           actionLabel="Open profile setup"
-          actionHref="/owner/profile?tab=onboarding"
+          actionHref="/owner/settings?tab=profile"
         />
       </div>
     );
@@ -193,6 +216,7 @@ export function PosBillingFlow() {
     bill,
     branch,
     taxSettings: effectiveTaxSettings,
+    restaurantName: ownerBusinessProfile?.hotelName,
     createdAt: ticketCreatedAt ?? new Date(),
   });
   const kotContext = buildKotContext(billContext);
@@ -239,11 +263,11 @@ export function PosBillingFlow() {
   async function sendKot() {
     if (!bill.lines.length) {
       toast.error("Add at least one item before sending to kitchen.");
-      return;
+      return undefined;
     }
     if (bill.orderType === "dine-in" && (!bill.table || bill.table === "DIRECT")) {
       toast.error("Select a table before sending this dine-in order to kitchen.");
-      return;
+      return undefined;
     }
     const tableNumber = bill.orderType === "dine-in" ? bill.table : bill.orderType === "delivery" ? "Online" : bill.orderType === "takeaway" ? "Quick Bill" : "Parcel";
     const kitchenSource: TableOrder["source"] = bill.orderType === "delivery" ? "Delivery" : bill.orderType === "parcel" ? "Parcel" : bill.orderType === "takeaway" ? "Takeaway" : "Waiter";
@@ -254,9 +278,10 @@ export function PosBillingFlow() {
       guestName: bill.customerName || undefined,
       customerName: bill.customerName || undefined,
       customerPhone: bill.customerPhone || undefined,
+      deliveryAddress: bill.orderType === "delivery" ? [deliveryAddress, landmark].filter(Boolean).join(", ") || undefined : undefined,
       lines: bill.lines,
       priority: "normal" as const,
-      waiterName: authUser.name,
+      waiterName: bill.waiterName || authUser.name,
       branchId: branch.id,
       etaMinutes: bill.orderType === "delivery" ? 30 : 12,
       total: totals.total,
@@ -265,7 +290,12 @@ export function PosBillingFlow() {
       await updateTableOrder(bill.linkedKitchenOrderId, kitchenPayload);
       setShowKot(true);
       toast.success("Kitchen ticket updated with the latest items.");
-      return;
+      return {
+        ...kitchenPayload,
+        id: bill.linkedKitchenOrderId,
+        status: activeKitchenOrder?.status ?? "new",
+        createdAt: activeKitchenOrder?.createdAt ?? new Date().toISOString(),
+      } satisfies TableOrder;
     }
     const order = await createTableOrder({
       ...kitchenPayload,
@@ -274,19 +304,104 @@ export function PosBillingFlow() {
     setPosBill({ ...bill, linkedKitchenOrderId: order.id, applyGst, waiveParcelCharge });
     setShowKot(true);
     toast.success(`Kitchen ticket sent for ${order.tableNumber}.`);
+    return order;
   }
 
   async function checkout() {
     if (bill.orderType === "dine-in" && (!bill.table || bill.table === "DIRECT")) {
       toast.error("Select a table before checkout.");
-      return;
+      return false;
     }
     if (!bill.lines.length) {
       toast.error("Add at least one item before checkout.");
-      return;
+      return false;
     }
     await payPosBill();
     toast.success("Payment captured and bill is ready.");
+    return true;
+  }
+
+  function goToDetails() {
+    if (!bill.lines.length) {
+      toast.error("Add at least one item before continuing.");
+      return;
+    }
+    setWizardStep(2);
+  }
+
+  function goToReview() {
+    if (bill.orderType === "dine-in" && (!bill.table || bill.table === "DIRECT")) {
+      toast.error("Select a table for this dine-in order.");
+      return;
+    }
+    if (bill.orderType === "delivery" && !deliveryAddress.trim()) {
+      toast.error("Delivery address is required for delivery orders.");
+      return;
+    }
+    setWizardStep(3);
+  }
+
+  async function processOrder(capturePayment = false) {
+    if (!bill.lines.length) {
+      toast.error("Add at least one item before placing the order.");
+      setWizardStep(1);
+      return;
+    }
+    if (bill.orderType === "dine-in" && (!bill.table || bill.table === "DIRECT")) {
+      toast.error("Select a table before placing this dine-in order.");
+      setWizardStep(2);
+      return;
+    }
+    if (bill.orderType === "delivery" && !deliveryAddress.trim()) {
+      toast.error("Delivery address is required before placing this order.");
+      setWizardStep(2);
+      return;
+    }
+
+    setWizardStep(4);
+    setProcessingState("saving");
+    await wait(420);
+    setProcessingState("kitchen");
+    const kitchenOrder = await sendKot();
+    if (!kitchenOrder) {
+      setProcessingState("idle");
+      setWizardStep(3);
+      return;
+    }
+    if (capturePayment) {
+      const paid = await checkout();
+      if (!paid) {
+        setProcessingState("idle");
+        setWizardStep(3);
+        return;
+      }
+    }
+    setProcessingState("syncing");
+    await wait(420);
+    setProcessingState("done");
+    setCompletedOrder({
+      orderId: readableTableOrderId(kitchenOrder, tableOrders.length + 1),
+      kotId: readableTableOrderId(kitchenOrder, tableOrders.length + 1),
+      total: totals.total,
+      table: bill.orderType === "dine-in" ? bill.table : undefined,
+      customer: bill.customerName,
+      payment: bill.payment,
+      orderType: bill.orderType,
+    });
+    await wait(220);
+    setWizardStep(5);
+    toast.success("Order placed. Kitchen Queue has been updated.");
+  }
+
+  function startNewOrder() {
+    resetPosBill();
+    setDeliveryAddress("");
+    setLandmark("");
+    setOrderNote("");
+    setCompletedOrder(null);
+    setProcessingState("idle");
+    setWizardStep(1);
+    setPanel("new");
   }
 
   function holdOrder() {
@@ -300,6 +415,7 @@ export function PosBillingFlow() {
       ...current,
     ]);
     resetPosBill();
+    setWizardStep(1);
     setPanel("held");
     toast.success(`Order for ${label} moved to Hold Orders.`);
   }
@@ -324,6 +440,7 @@ export function PosBillingFlow() {
     setPosBill(order.bill);
     setHeldOrders((current) => current.filter((item) => item.id !== order.id));
     setPanel("new");
+    setWizardStep(1);
     toast.success(`Resumed order for ${order.label}.`);
   }
 
@@ -337,30 +454,141 @@ export function PosBillingFlow() {
     }, 80);
   }
 
+  function renderWizardMain() {
+    const key = `pos-step-${wizardStep}`;
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div key={key} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18 }} className="min-h-0">
+          {wizardStep === 1 ? (
+            <WizardShell step={wizardStep} onStep={setWizardStep} title="Select items" subtitle="Browse, filter, and add items. Payment and billing stay out of this step.">
+              <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-3">
+                {posTabs.map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => { setActiveTab(tab); setActiveCategory(""); }}
+                    className={cn("h-10 rounded-xl px-5 text-sm font-black capitalize text-slate-600", activeTab === tab && "bg-emerald-50 text-emerald-700")}
+                  >
+                    {tab === "menu" ? "Menu Items" : tab === "custom" ? "Custom Items" : "Combos"}
+                  </button>
+                ))}
+              </div>
+              <div className="grid min-h-0 lg:grid-cols-[auto_1fr]">
+                <CategoryList categories={activeTab === "menu" ? categories : productCategories(products)} active={activeCategory} onSelect={setActiveCategory} />
+                <div className="min-w-0">
+                  <div className="customer-scroll flex items-center gap-3 overflow-x-auto border-b border-slate-100 p-3">
+                    <label className="relative min-w-64 shrink-0">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                        placeholder="Search menu or SKU"
+                        aria-label="Search POS items"
+                      />
+                    </label>
+                    <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600" value={foodFilter} onChange={(event) => setFoodFilter(event.target.value as typeof foodFilter)} title="Filter by food type">
+                      <option value="all">Veg & Non-Veg</option>
+                      <option value="veg">Veg only</option>
+                      <option value="nonveg">Non-veg only</option>
+                    </select>
+                    <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600" value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)} title="Sort menu items">
+                      <option value="popular">Sort: Popular</option>
+                      <option value="name">Sort: Name</option>
+                      <option value="price-low">Price: Low to high</option>
+                      <option value="price-high">Price: High to low</option>
+                    </select>
+                    <button className={cn("h-10 shrink-0 rounded-xl border px-4 text-sm font-semibold", availableOnly ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600")} onClick={() => setAvailableOnly((value) => !value)} title="Show only available items">
+                      Available
+                    </button>
+                    <Button variant={compactGrid ? "default" : "outline"} size="icon" aria-label="Toggle compact product grid" title="Switch between compact and comfortable grid" onClick={() => setCompactGrid((value) => !value)}>
+                      <Grid2X2 className="size-4" />
+                    </Button>
+                    <Button variant={filtersOpen ? "default" : "outline"} size="icon" aria-label="More filters" title="Open advanced filters" onClick={() => setFiltersOpen((value) => !value)}>
+                      <SlidersHorizontal className="size-4" />
+                    </Button>
+                  </div>
+                  {filtersOpen ? (
+                    <div className="grid gap-3 border-b border-slate-100 bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                      <button className="rounded-xl border bg-white px-4 py-3 font-bold text-slate-700" onClick={() => { setFoodFilter("all"); setSortMode("popular"); setAvailableOnly(true); setActiveCategory(""); }}>
+                        Reset filters
+                      </button>
+                      <div className="rounded-xl border bg-white px-4 py-3 font-semibold text-slate-600">{displayedItems.length} items visible</div>
+                      <div className="rounded-xl border bg-white px-4 py-3 font-semibold text-slate-600">Inventory products appear in Custom Items</div>
+                    </div>
+                  ) : null}
+                  <ProductGrid items={displayedItems} quantities={quantities} onAdd={handleAdd} onQuantity={handleQuantity} compact={compactGrid} />
+                </div>
+              </div>
+            </WizardShell>
+          ) : null}
+
+          {wizardStep === 2 ? (
+            <CustomerOrderDetailsStep
+              bill={bill}
+              tables={tables}
+              lookupItems={customerLookupItems}
+              activeWaiters={activeWaiters}
+              deliveryAddress={deliveryAddress}
+              landmark={landmark}
+              orderNote={orderNote}
+              onOrderType={setPosOrderType}
+              onTable={setPosTable}
+              onCustomer={setPosCustomer}
+              onLookup={() => void searchCustomerByPhone()}
+              onWaiter={(waiterName) => setPosBill({ ...bill, waiterName, paid: false })}
+              onAddress={setDeliveryAddress}
+              onLandmark={setLandmark}
+              onNote={setOrderNote}
+              onBack={() => setWizardStep(1)}
+              onNext={goToReview}
+            />
+          ) : null}
+
+          {wizardStep === 3 ? (
+            <ReviewOrderStep
+              bill={bill}
+              totals={totals}
+              deliveryAddress={deliveryAddress}
+              landmark={landmark}
+              orderNote={orderNote}
+              onQuantity={updatePosQuantity}
+              onRemove={removePosItem}
+              onBack={() => setWizardStep(2)}
+              onProcess={() => void processOrder(false)}
+            />
+          ) : null}
+
+          {wizardStep === 4 ? <ProcessingOrderStep state={processingState} /> : null}
+          {wizardStep === 5 ? <OrderSuccessStep order={completedOrder} onNewOrder={startNewOrder} onViewActive={() => setPanel("active")} onPrint={() => printTicket("bill")} /> : null}
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-950">
+    <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50 text-slate-950">
       <PosSidebar
         activePanel={panel}
         activeOrders={activeOrderCount}
         kotTickets={activeKotCount}
         heldOrders={heldOrders.length}
         pastOrders={pastOrderCount}
-        onNewOrder={() => setPanel("new")}
+        onNewOrder={startNewOrder}
         onActiveOrders={() => setPanel("active")}
         onHeldOrders={() => setPanel("held")}
         onPastOrders={() => setPanel("past")}
         onCustomers={() => setPanel("customers")}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <PosHeader query={query} onQuery={setQuery} pendingSync={pendingSync} notificationCount={activeOrderCount} profileName={authUser.name || "Test Owner"} />
-        <main className="grid min-h-0 flex-1 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_430px]">
+        <main className="grid min-h-0 flex-1 gap-4 p-3 md:p-4 xl:grid-cols-[minmax(0,1fr)_430px]">
           {panel === "held" ? (
             <HeldOrdersPanel orders={heldOrders} onResume={resumeHeldOrder} onDelete={(id) => setHeldOrders((current) => current.filter((item) => item.id !== id))} />
           ) : panel === "active" ? (
             <ActiveOrdersPanel
               orders={orders}
               tableOrders={tableOrders}
-              onOpenNew={() => setPanel("new")}
+              onOpenNew={startNewOrder}
               onEditKitchenOrder={(order) => {
                 setPosBill({
                   ...bill,
@@ -377,6 +605,7 @@ export function PosBillingFlow() {
                   waiveParcelCharge,
                 });
                 setPanel("new");
+                setWizardStep(1);
                 toast.success("Active order loaded. You can edit items before billing.");
               }}
             />
@@ -386,78 +615,32 @@ export function PosBillingFlow() {
             <CustomersPanel customers={loyaltyCustomers} onSelect={(customer) => {
               setPosCustomer({ id: customer.id, name: customer.name, phone: customer.phone });
               setPanel("new");
+              setWizardStep(2);
               toast.success(`${customer.name} selected.`);
             }} />
           ) : (
-          <section className="min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
-              {posTabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => { setActiveTab(tab); setActiveCategory(""); }}
-                  className={cn("h-10 rounded-xl px-5 text-sm font-black capitalize text-slate-600", activeTab === tab && "bg-emerald-50 text-emerald-700")}
-                >
-                  {tab === "menu" ? "Menu Items" : tab === "custom" ? "Custom Items" : "Combos"}
-                </button>
-              ))}
-            </div>
-            <div className="grid min-h-0 lg:grid-cols-[auto_1fr]">
-              <CategoryList categories={activeTab === "menu" ? categories : productCategories(products)} active={activeCategory} onSelect={setActiveCategory} />
-              <div className="min-w-0">
-                <div className="customer-scroll flex items-center gap-3 overflow-x-auto border-b border-slate-100 p-4">
-                  <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600" value={foodFilter} onChange={(event) => setFoodFilter(event.target.value as typeof foodFilter)}>
-                    <option value="all">Veg & Non-Veg</option>
-                    <option value="veg">Veg only</option>
-                    <option value="nonveg">Non-veg only</option>
-                  </select>
-                  <select className="h-10 shrink-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600" value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}>
-                    <option value="popular">Sort: Popular</option>
-                    <option value="name">Sort: Name</option>
-                    <option value="price-low">Price: Low to high</option>
-                    <option value="price-high">Price: High to low</option>
-                  </select>
-                  <button className={cn("h-10 shrink-0 rounded-xl border px-4 text-sm font-semibold", availableOnly ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600")} onClick={() => setAvailableOnly((value) => !value)}>
-                    Available
-                  </button>
-                  <Button variant={compactGrid ? "default" : "outline"} size="icon" aria-label="Toggle compact product grid" onClick={() => setCompactGrid((value) => !value)}>
-                    <Grid2X2 className="size-4" />
-                  </Button>
-                  <Button variant={filtersOpen ? "default" : "outline"} size="icon" aria-label="More filters" onClick={() => setFiltersOpen((value) => !value)}>
-                    <SlidersHorizontal className="size-4" />
-                  </Button>
-                </div>
-                {filtersOpen ? (
-                  <div className="grid gap-3 border-b border-slate-100 bg-slate-50 p-4 text-sm sm:grid-cols-3">
-                    <button className="rounded-xl border bg-white px-4 py-3 font-bold text-slate-700" onClick={() => { setFoodFilter("all"); setSortMode("popular"); setAvailableOnly(true); setActiveCategory(""); }}>
-                      Reset filters
-                    </button>
-                    <div className="rounded-xl border bg-white px-4 py-3 font-semibold text-slate-600">{displayedItems.length} items visible</div>
-                    <div className="rounded-xl border bg-white px-4 py-3 font-semibold text-slate-600">Stock items appear in Custom Items</div>
-                  </div>
-                ) : null}
-                <ProductGrid items={displayedItems} quantities={quantities} onAdd={handleAdd} onQuantity={handleQuantity} compact={compactGrid} />
-              </div>
-            </div>
-          </section>
+            renderWizardMain()
           )}
 
           {panel === "new" ? <CartPanel
+            step={wizardStep}
+            processingState={processingState}
+            completedOrder={completedOrder}
             bill={bill}
             totals={totals}
-            tables={tables}
-            lookupItems={customerLookupItems}
+            onStep={setWizardStep}
             onOrderType={(value) => setPosOrderType(value)}
-            onTable={setPosTable}
-            onCustomer={setPosCustomer}
-            onLookup={() => void searchCustomerByPhone()}
             onQuantity={updatePosQuantity}
             onRemove={removePosItem}
-            onSendKot={() => void sendKot()}
-            onCheckout={() => void checkout()}
+            onNextDetails={goToDetails}
+            onNextReview={goToReview}
+            onProcessOrder={(capturePayment) => void processOrder(capturePayment)}
             onClear={resetPosBill}
             onHold={holdOrder}
             onSave={saveOrder}
+            onNewOrder={startNewOrder}
+            onViewActiveOrders={() => setPanel("active")}
+            onPrintBill={() => printTicket("bill")}
             onPayment={setPosPayment}
             onDiscount={(amount) => {
               setPosBill({ ...bill, discount: amount, paid: false });
@@ -537,6 +720,335 @@ function productCategories(items: InventoryItem[]): PosCategory[] {
   const counts = new Map<string, number>();
   items.forEach((item) => counts.set(item.category, (counts.get(item.category) ?? 0) + 1));
   return Array.from(counts.entries()).map(([name, count]) => ({ id: name, name, count }));
+}
+
+function WizardShell({
+  step,
+  title,
+  subtitle,
+  onStep,
+  children,
+}: {
+  step: PosWizardStep;
+  title: string;
+  subtitle: string;
+  onStep: (step: PosWizardStep) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black text-slate-950">{title}</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p>
+          </div>
+          <WizardRail step={step} onStep={onStep} />
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function WizardRail({ step, onStep }: { step: PosWizardStep; onStep: (step: PosWizardStep) => void }) {
+  const steps = ["Items", "Details", "Review", "Payment", "Done"] as const;
+  return (
+    <div className="customer-scroll flex max-w-full gap-2 overflow-x-auto pb-1">
+      {steps.map((label, index) => {
+        const value = (index + 1) as PosWizardStep;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => value < 4 && onStep(value)}
+            disabled={value >= 4}
+            className={cn(
+              "flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border px-3 text-xs font-black transition",
+              value === step ? "border-emerald-300 bg-emerald-50 text-emerald-800" : value < step ? "border-emerald-100 bg-white text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500",
+            )}
+          >
+            <span className="grid size-5 place-items-center rounded-full bg-white text-[11px] shadow-sm">{index + 1}</span>
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type CustomerLookupItem = {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  subtitle?: string;
+  meta?: string;
+};
+
+function CustomerOrderDetailsStep({
+  bill,
+  tables,
+  lookupItems,
+  activeWaiters,
+  deliveryAddress,
+  landmark,
+  orderNote,
+  onOrderType,
+  onTable,
+  onCustomer,
+  onLookup,
+  onWaiter,
+  onAddress,
+  onLandmark,
+  onNote,
+  onBack,
+  onNext,
+}: {
+  bill: PosBill;
+  tables: ReturnType<typeof useAppStore.getState>["posTables"];
+  lookupItems: CustomerLookupItem[];
+  activeWaiters: StaffMember[];
+  deliveryAddress: string;
+  landmark: string;
+  orderNote: string;
+  onOrderType: (value: PosBill["orderType"]) => void;
+  onTable: (value: string) => void;
+  onCustomer: (customer: { id?: string; name?: string; phone?: string }) => void;
+  onLookup: () => void;
+  onWaiter: (name: string) => void;
+  onAddress: (value: string) => void;
+  onLandmark: (value: string) => void;
+  onNote: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const orderTypes = ["dine-in", "parcel", "delivery", "takeaway"] as const;
+  return (
+    <WizardShell step={2} onStep={(value) => value <= 2 && (value === 1 ? onBack() : null)} title="Customer & order details" subtitle="Set table, customer, address and waiter. Address is required only for delivery.">
+      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-slate-200 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <ClipboardList className="size-5 text-orange-500" />
+              <h3 className="font-black text-slate-950">Order mode</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              {orderTypes.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => onOrderType(type)}
+                  className={cn("rounded-xl border px-3 py-3 text-sm font-black", bill.orderType === type ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600")}
+                >
+                  {readablePosOrderType(type)}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <UsersRound className="size-5 text-emerald-600" />
+              <h3 className="font-black text-slate-950">Customer</h3>
+            </div>
+            <CustomerSelector customerName={bill.customerName} customerPhone={bill.customerPhone} lookupItems={lookupItems} onCustomer={onCustomer} onLookup={onLookup} />
+          </section>
+
+          {bill.orderType === "delivery" ? (
+            <section className="rounded-2xl border border-slate-200 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MapPin className="size-5 text-blue-600" />
+                <h3 className="font-black text-slate-950">Delivery address</h3>
+              </div>
+              <div className="grid gap-3">
+                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-emerald-500" value={deliveryAddress} onChange={(event) => onAddress(event.target.value)} placeholder="Full address" />
+                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-emerald-500" value={landmark} onChange={(event) => onLandmark(event.target.value)} placeholder="Landmark / delivery instructions" />
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-slate-200 p-4">
+            <h3 className="font-black text-slate-950">{bill.orderType === "dine-in" ? "Table selection" : "Location"}</h3>
+            <div className="mt-3">
+              <TableSelector orderType={bill.orderType} table={bill.table} tables={tables} onTable={onTable} />
+            </div>
+            <p className="mt-2 text-xs font-semibold text-slate-500">{bill.orderType === "dine-in" ? "A table is mandatory before sending KOT." : "No table required for parcel, delivery, or quick bill."}</p>
+          </section>
+          <section className="rounded-2xl border border-slate-200 p-4">
+            <h3 className="font-black text-slate-950">Waiter assignment</h3>
+            <select className="mt-3 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none focus:border-emerald-500" value={bill.waiterName ?? ""} onChange={(event) => onWaiter(event.target.value)}>
+              <option value="">Use signed-in waiter</option>
+              {activeWaiters.map((waiter) => <option key={waiter.id} value={waiter.name}>{waiter.name} · active</option>)}
+            </select>
+          </section>
+          <section className="rounded-2xl border border-slate-200 p-4">
+            <h3 className="font-black text-slate-950">Order note</h3>
+            <textarea className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3 text-sm font-semibold outline-none focus:border-emerald-500" value={orderNote} onChange={(event) => onNote(event.target.value)} placeholder="Kitchen notes, allergies, parcel instructions..." />
+          </section>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" onClick={onBack}>
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+            <Button className="bg-emerald-700 text-white hover:bg-emerald-800" onClick={onNext}>Next: Review</Button>
+          </div>
+        </div>
+      </div>
+    </WizardShell>
+  );
+}
+
+function ReviewOrderStep({
+  bill,
+  totals,
+  deliveryAddress,
+  landmark,
+  orderNote,
+  onQuantity,
+  onRemove,
+  onBack,
+  onProcess,
+}: {
+  bill: PosBill;
+  totals: { subtotal: number; discount: number; cgst: number; sgst: number; packingCharge: number; serviceCharge: number; total: number };
+  deliveryAddress: string;
+  landmark: string;
+  orderNote: string;
+  onQuantity: (itemId: string, quantity: number) => void;
+  onRemove: (itemId: string) => void;
+  onBack: () => void;
+  onProcess: () => void;
+}) {
+  return (
+    <WizardShell step={3} onStep={(value) => value === 1 ? onBack() : null} title="Review order" subtitle="Confirm food, quantities, customer, taxes and payment before placing the order.">
+      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="rounded-2xl border border-slate-200">
+          <div className="flex items-center justify-between border-b border-slate-100 p-4">
+            <div>
+              <h3 className="font-black text-slate-950">Selected food</h3>
+              <p className="text-sm font-semibold text-slate-500">Every active item is editable before billing.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={onBack}>Edit items</Button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {bill.lines.map((line) => (
+              <div key={line.itemId} className="grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                <div>
+                  <p className="font-black text-slate-950">{line.name}</p>
+                  <p className="text-sm font-semibold text-slate-500">{formatCurrency(line.price)} each</p>
+                </div>
+                <div className="flex h-9 items-center rounded-xl border border-slate-200">
+                  <button className="px-3 text-lg font-black" onClick={() => onQuantity(line.itemId, line.quantity - 1)}>-</button>
+                  <span className="min-w-8 text-center text-sm font-black">{line.quantity}</span>
+                  <button className="px-3 text-lg font-black" onClick={() => onQuantity(line.itemId, line.quantity + 1)}>+</button>
+                </div>
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                  <p className="font-black">{formatCurrency(line.price * line.quantity)}</p>
+                  <Button variant="ghost" size="sm" className="text-red-600" onClick={() => onRemove(line.itemId)}>Remove</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <aside className="space-y-3 rounded-2xl border border-slate-200 p-4">
+          <h3 className="font-black text-slate-950">Order summary</h3>
+          <SummaryLine label="Type" value={readablePosOrderType(bill.orderType)} />
+          <SummaryLine label="Table" value={bill.orderType === "dine-in" ? bill.table : "Not required"} />
+          <SummaryLine label="Customer" value={bill.customerName || "Guest customer"} />
+          <SummaryLine label="Phone" value={bill.customerPhone || "Not added"} />
+          {bill.orderType === "delivery" ? <SummaryLine label="Address" value={[deliveryAddress, landmark].filter(Boolean).join(", ") || "Required"} /> : null}
+          {orderNote ? <SummaryLine label="Note" value={orderNote} /> : null}
+          <div className="border-t border-slate-100 pt-3">
+            <SummaryLine label="Subtotal" value={formatCurrency(totals.subtotal)} />
+            <SummaryLine label="Tax" value={formatCurrency(totals.cgst + totals.sgst)} />
+            <SummaryLine label="Packing" value={formatCurrency(totals.packingCharge + totals.serviceCharge)} />
+            <SummaryLine label="Discount" value={`-${formatCurrency(totals.discount)}`} />
+            <div className="mt-3 flex justify-between text-lg font-black">
+              <span>Total</span>
+              <span>{formatCurrency(totals.total)}</span>
+            </div>
+          </div>
+          <Button className="h-12 w-full bg-emerald-700 text-white hover:bg-emerald-800" onClick={onProcess}>
+            <ChefHat className="size-4" />
+            Continue to payment
+          </Button>
+        </aside>
+      </div>
+    </WizardShell>
+  );
+}
+
+function ProcessingOrderStep({ state }: { state: PosProcessingState }) {
+  const label = state === "saving" ? "Saving order" : state === "kitchen" ? "Creating KOT" : state === "syncing" ? "Syncing screens" : "Finalizing";
+  return (
+    <WizardShell step={4} onStep={() => undefined} title="Processing order" subtitle="Please keep this screen open while POS updates kitchen and live order views.">
+      <div className="grid min-h-[520px] place-items-center p-6">
+        <div className="max-w-md text-center">
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }} className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+            <Loader2 className="size-10" />
+          </motion.div>
+          <h3 className="mt-5 text-2xl font-black text-slate-950">{label}</h3>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Order details, KOT, billing state and sync queue are being updated through the existing POS workflow.</p>
+        </div>
+      </div>
+    </WizardShell>
+  );
+}
+
+function OrderSuccessStep({ order, onNewOrder, onViewActive, onPrint }: { order: CompletedPosOrder | null; onNewOrder: () => void; onViewActive: () => void; onPrint: () => void }) {
+  return (
+    <WizardShell step={5} onStep={() => undefined} title="Order confirmed" subtitle="The kitchen has received the order. Print the bill or start the next order.">
+      <div className="grid min-h-[520px] place-items-center p-6">
+        <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <motion.div initial={{ scale: 0.4 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 220, damping: 14 }} className="mx-auto grid size-24 place-items-center rounded-full bg-emerald-700 text-white">
+            <CheckCircle2 className="size-12" />
+          </motion.div>
+          <h3 className="mt-5 text-2xl font-black text-slate-950">Order placed successfully</h3>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Estimated preparation time: 12-30 minutes based on order type.</p>
+          <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-left text-sm">
+            <SummaryLine label="Order ID" value={order?.orderId ?? "New order"} />
+            <SummaryLine label="KOT ID" value={order?.kotId ?? "Kitchen Queue"} />
+            <SummaryLine label="Total" value={formatCurrency(order?.total ?? 0)} />
+            <SummaryLine label="Payment" value={(order?.payment ?? "cash").toUpperCase()} />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <Button variant="outline" onClick={onPrint}>
+              <Printer className="size-4" />
+              Print bill
+            </Button>
+            <Button variant="outline" onClick={onViewActive}>
+              <ChefHat className="size-4" />
+              Active orders
+            </Button>
+          </div>
+          <Button className="mt-3 h-12 w-full bg-emerald-700 text-white hover:bg-emerald-800" onClick={onNewOrder}>New order</Button>
+        </div>
+      </div>
+    </WizardShell>
+  );
+}
+
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 py-1.5">
+      <span className="font-semibold text-slate-500">{label}</span>
+      <span className="text-right font-black text-slate-950">{value}</span>
+    </div>
+  );
+}
+
+function readablePosOrderType(type: PosBill["orderType"]) {
+  if (type === "dine-in") return "Dine-in";
+  if (type === "takeaway") return "Quick Bill";
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function HeldOrdersPanel({

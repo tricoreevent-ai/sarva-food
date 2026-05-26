@@ -79,7 +79,7 @@ export function SyncCenter() {
   if (!visible) return null;
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={setOpen} modal={false}>
       <div className="fixed bottom-3 right-3 z-50">
         <SheetTrigger asChild>
           <Button type="button" variant="outline" className="h-11 rounded-full bg-card px-3 shadow-xl">
@@ -89,7 +89,7 @@ export function SyncCenter() {
           </Button>
         </SheetTrigger>
       </div>
-      <SheetContent side="right" className="flex max-h-dvh flex-col overflow-hidden">
+      <SheetContent side="right" hideOverlay className="flex max-h-dvh flex-col overflow-hidden border-l bg-white shadow-2xl">
         <SheetHeader>
           <SheetTitle>Sync center</SheetTitle>
           <SheetDescription>

@@ -1,222 +1,733 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   ArrowUpRight,
   BarChart3,
+  CalendarPlus,
   ChefHat,
   CreditCard,
-  Gift,
+  GripVertical,
   IndianRupee,
   PackageCheck,
+  Printer,
   ReceiptText,
   Settings2,
   Table2,
   TrendingUp,
+  UserPlus,
   UserRound,
   Users,
   Utensils,
+  Wifi,
+  X,
+  type LucideIcon,
 } from "lucide-react";
-import { ChartCard } from "@/components/owner/chart-card";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
-import { OrderList, type OwnerOrderRow } from "@/components/owner/order-list";
-import { OwnerTopbar } from "@/components/owner/topbar";
 import { QuickActionButton } from "@/components/owner/quick-action";
-import { StatCard } from "@/components/owner/stat-card";
 import { StatusBadge } from "@/components/owner/status-badge";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
-import type { DemoOrder, OrderLine, TableOrder } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
+import type { DemoOrder, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
+import { cn, formatCurrency } from "@/lib/utils";
+
+const dashboardPrefsKey = "sarva-owner-dashboard-prefs:v2";
+const widgetIds = ["live", "kitchen", "alerts", "sales", "trend", "type", "top", "actions", "system", "staff"] as const;
+type WidgetId = (typeof widgetIds)[number];
+
+const widgetLabels: Record<WidgetId, string> = {
+  live: "Live orders",
+  kitchen: "Kitchen queue",
+  alerts: "Alerts",
+  sales: "Sales today",
+  trend: "Order trend",
+  type: "Orders by type",
+  top: "Top selling items",
+  actions: "Quick actions",
+  system: "System status",
+  staff: "Staff activity",
+};
 
 export default function OwnerDashboardPage() {
   const authUser = useAppStore((state) => state.authUser);
-  const restaurants = useAppStore((state) => state.restaurants);
-  const branches = useAppStore((state) => state.branches);
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
-  const metrics = buildDashboardMetrics(orders, tableOrders, loyaltyCustomers.length);
-  const restaurant = restaurants.find((item) => item.slug === authUser.restaurantSlug) ?? restaurants[0];
-  const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Rajesh";
-  const branchName = branches[0]?.name ?? restaurant?.name ?? "Main Branch";
+  const staffMembers = useAppStore((state) => state.staffMembers);
+  const posTables = useAppStore((state) => state.posTables);
+  const offlineQueue = useAppStore((state) => state.offlineQueue);
+  const printerSettings = useAppStore((state) => state.printerSettings);
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [hiddenWidgets, setHiddenWidgets] = useState<Set<WidgetId>>(new Set());
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([...widgetIds]);
+  const [prefsReady, setPrefsReady] = useState(false);
+  const [updatedSeconds, setUpdatedSeconds] = useState(0);
+
+  const metrics = useMemo(
+    () => buildDashboardMetrics({
+      orders,
+      tableOrders,
+      customerCount: loyaltyCustomers.length,
+      staffMembers,
+      posTables,
+      offlineQueue,
+      printerSettings,
+    }),
+    [loyaltyCustomers.length, offlineQueue, orders, posTables, printerSettings, staffMembers, tableOrders],
+  );
+  const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = JSON.parse(window.localStorage.getItem(dashboardPrefsKey) ?? "{}") as { hidden?: WidgetId[]; order?: WidgetId[] };
+        setHiddenWidgets(new Set((stored.hidden ?? []).filter((item): item is WidgetId => widgetIds.includes(item as WidgetId))));
+        const validOrder = (stored.order ?? []).filter((item): item is WidgetId => widgetIds.includes(item as WidgetId));
+        setWidgetOrder(validOrder.length ? [...validOrder, ...widgetIds.filter((item) => !validOrder.includes(item))] : [...widgetIds]);
+      } catch {
+        setHiddenWidgets(new Set());
+        setWidgetOrder([...widgetIds]);
+      } finally {
+        setPrefsReady(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsReady) return;
+    window.localStorage.setItem(dashboardPrefsKey, JSON.stringify({ hidden: Array.from(hiddenWidgets), order: widgetOrder }));
+  }, [hiddenWidgets, prefsReady, widgetOrder]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setUpdatedSeconds((value) => value + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  function toggleWidget(id: WidgetId) {
+    setHiddenWidgets((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function moveWidget(id: WidgetId, direction: -1 | 1) {
+    setWidgetOrder((current) => {
+      const index = current.indexOf(id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  const renderWidget = (id: WidgetId) => {
+    switch (id) {
+      case "live":
+        return <LiveOrdersPanel orders={metrics.liveRows} />;
+      case "kitchen":
+        return <KitchenPanel metrics={metrics} />;
+      case "alerts":
+        return <AlertsPanel alerts={metrics.alerts} />;
+      case "sales":
+        return <SalesTodayPanel metrics={metrics} />;
+      case "trend":
+        return <OrderTrendPanel metrics={metrics} />;
+      case "type":
+        return <OrderTypePanel metrics={metrics} />;
+      case "top":
+        return <TopItemsPanel items={metrics.topItems} />;
+      case "actions":
+        return <QuickActionsPanel />;
+      case "system":
+        return <SystemPanel metrics={metrics} />;
+      case "staff":
+        return <StaffPanel metrics={metrics} />;
+      default:
+        return null;
+    }
+  };
+
+  const visibleWidgets = widgetOrder.filter((item) => !hiddenWidgets.has(item));
+  const liveWidgets = visibleWidgets.filter((item) => ["live", "kitchen", "alerts"].includes(item));
+  const analyticsWidgets = visibleWidgets.filter((item) => ["sales", "trend", "type", "top"].includes(item));
+  const bottomWidgets = visibleWidgets.filter((item) => ["actions", "system", "staff"].includes(item));
 
   return (
-    <div className="space-y-6">
-      <OwnerTopbar ownerName={ownerName} branchName={branchName} liveOrders={metrics.liveOrders} />
-
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Revenue" value={formatCurrency(metrics.revenueToday)} delta={`${metrics.revenueDelta} vs yesterday`} icon={IndianRupee} tone="orange" points={metrics.revenueSpark} />
-        <StatCard label="Orders" value={String(metrics.ordersToday)} delta={`${metrics.ordersDelta} vs yesterday`} icon={ReceiptText} tone="green" points={metrics.orderSpark} />
-        <StatCard label="Avg. Order Value" value={formatCurrency(metrics.avgOrderValue)} delta={`${metrics.avgDelta} vs yesterday`} icon={TrendingUp} tone="purple" points={metrics.avgSpark} />
-        <StatCard label="New Customers" value={String(metrics.newCustomers)} delta={`${metrics.customerDelta} vs yesterday`} icon={UserRound} tone="blue" points={metrics.customerSpark} />
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1.45fr_0.75fr_0.95fr]">
-        <div className="xl:col-span-2">
-          <ChartCard title="Sales Overview" values={metrics.weekRevenue} labels={metrics.weekLabels} />
-        </div>
-        <div className="space-y-5">
-          <DashboardCard>
-            <div className="flex items-start gap-4">
-              <span className="grid size-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
-                <ReceiptText className="size-7" />
+    <div className="space-y-4">
+      <section className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-3xl">Good morning, {ownerName}! 👋</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-600">
+            <span className="inline-flex items-center gap-2">
+              <span className="relative flex size-2.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
               </span>
-              <div>
-                <h2 className="text-lg font-black text-neutral-950">Take Orders & Manage Kitchen</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">View and manage incoming orders from dine-in, delivery and online channels.</p>
-              </div>
-            </div>
-            <Button asChild className="mt-5 h-12 w-full justify-between bg-emerald-600 text-white hover:bg-emerald-700">
-              <Link href="/owner/pos">
-                Open POS
-                <ArrowUpRight className="size-5" />
-              </Link>
-            </Button>
-          </DashboardCard>
-          <DashboardCard title="Notification & Sound">
-            <p className="text-sm font-semibold leading-6 text-slate-600">Loud order alerts, kitchen sounds, repeat rules, and volume controls are managed from Settings.</p>
-            <Button asChild variant="outline" className="mt-4 w-full">
-              <Link href="/owner/settings">Open Sound Settings</Link>
-            </Button>
-          </DashboardCard>
+              Restaurant operational
+            </span>
+            <span className="text-slate-300">•</span>
+            <span>{updatedSeconds < 2 ? "Updated just now" : `Updated ${updatedSeconds} sec ago`}</span>
+            <span className="text-slate-300">•</span>
+            <button type="button" className="font-black text-orange-600" onClick={() => window.dispatchEvent(new CustomEvent("sarva-open-sync-center"))}>
+              Sync {metrics.sync.failed ? `${metrics.sync.failed} failed` : "healthy"}
+            </button>
+          </p>
+        </div>
+        <div className="relative">
+          <Button variant="outline" className="w-full justify-center lg:w-auto" onClick={() => setPrefsOpen((value) => !value)} title="Hide, show, or reorder dashboard widgets">
+            <Settings2 className="size-4" />
+            Customize
+          </Button>
+          {prefsOpen ? (
+            <CustomizePanel
+              hiddenWidgets={hiddenWidgets}
+              widgetOrder={widgetOrder}
+              onToggle={toggleWidget}
+              onMove={moveWidget}
+              onClose={() => setPrefsOpen(false)}
+            />
+          ) : null}
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[0.82fr_1.35fr_0.95fr]">
-        <DashboardCard title="Order Status">
-          <div className="grid gap-5 sm:grid-cols-[160px_1fr] sm:items-center">
-            <DonutChart total={metrics.statusTotal} values={metrics.statusCounts} />
-            <div className="space-y-3">
-              {metrics.statusCounts.map((item) => (
-                <div key={item.label} className="flex items-center justify-between gap-4 text-sm">
-                  <span className="flex items-center gap-2 font-medium text-slate-700">
-                    <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                    {item.label}
-                  </span>
-                  <span className="font-black text-neutral-950">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DashboardCard>
-
-        <OrderList orders={metrics.recentOrders} />
-
-        <DashboardCard className="overflow-hidden border-orange-200 bg-gradient-to-br from-orange-500 to-orange-400 text-white">
-          <div className="flex min-h-48 flex-col justify-between gap-5">
-            <div>
-              <h2 className="text-xl font-black">Boost your sales</h2>
-              <p className="mt-3 max-w-64 text-sm font-medium leading-6 text-white/90">Create offers and attract new customers.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {metrics.boostAmounts.length ? metrics.boostAmounts.map((amount) => (
-                <Link key={amount} href="/owner/profile?tab=offers" className="rounded-xl bg-white px-4 py-2 text-sm font-black text-orange-600">
-                  {formatCurrency(amount)}
-                </Link>
-              )) : (
-                <Link href="/owner/profile?tab=offers" className="rounded-xl bg-white px-4 py-2 text-sm font-black text-orange-600">
-                  Create Offer
-                </Link>
-              )}
-            </div>
-            <Gift className="absolute right-8 top-10 size-24 text-white/30" aria-hidden="true" />
-          </div>
-        </DashboardCard>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <KpiCard title="Today's Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Gross sales recorded today from POS and online orders." />
+        <KpiCard title="Active Orders" value={metrics.activeOrdersCount} delta={`${metrics.ordersToday} today`} icon={ReceiptText} tone="orange" spark={metrics.orderSpark} tooltip="Orders currently being processed." />
+        <KpiCard title="Kitchen Queue" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
+        <KpiCard title="Waiters Active" value={metrics.staff.waitersActive} delta={`${metrics.staff.idleWaiters} idle`} icon={Users} tone="green" spark={metrics.staff.spark} tooltip="Active waiter accounts for the current restaurant." />
+        <KpiCard title="Avg. Order Value" value={metrics.avgOrderValue} format={formatCurrency} delta={metrics.avgDelta} icon={TrendingUp} tone="purple" spark={metrics.avgSpark} tooltip="Average value of today's completed and active orders." />
+        <KpiCard title="New Customers" value={metrics.newCustomers} delta={metrics.customerDelta} icon={UserRound} tone="amber" spark={metrics.customerSpark} tooltip="Customer records available to this restaurant." />
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_0.95fr]">
-        <DashboardCard
-          title="Top Selling Items"
-          action={<Link href="/owner/reports" className="text-sm font-bold text-orange-600">View all</Link>}
-        >
-          {metrics.topItems.length ? (
-            <div className="space-y-4">
-              {metrics.topItems.map((item, index) => (
-                <div key={item.name} className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                  <span className="w-5 text-sm font-black">{index + 1}</span>
-                  <div className="min-w-0">
-                    <p className="truncate font-bold text-neutral-950">{item.name}</p>
-                    <p className="text-sm text-slate-500">({item.quantity})</p>
-                  </div>
-                  <p className="font-black text-neutral-950">{formatCurrency(item.revenue)}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No top sellers yet" text="Menu and POS sales will populate this list automatically." />
-          )}
-        </DashboardCard>
+      {liveWidgets.length ? (
+        <section className="grid gap-4 xl:grid-cols-3">
+          {liveWidgets.map((id) => (
+            <AnimatedWidget key={id}>{renderWidget(id)}</AnimatedWidget>
+          ))}
+        </section>
+      ) : null}
 
-        <DashboardCard title="Live Orders">
-          <div className="space-y-3">
-            {metrics.liveRows.length ? metrics.liveRows.map((order) => (
-              <div key={order.id} className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 p-3">
-                <div>
-                  <p className="font-black text-neutral-950">{order.id}</p>
-                  <p className="text-sm text-slate-500">{order.time}</p>
-                </div>
-                <StatusBadge status={order.status} />
-              </div>
-            )) : <EmptyState title="No live orders" text="The current operations queue is clear." />}
-          </div>
-        </DashboardCard>
-      </section>
+      {analyticsWidgets.length ? (
+        <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
+          {analyticsWidgets.map((id) => (
+            <AnimatedWidget key={id}>{renderWidget(id)}</AnimatedWidget>
+          ))}
+        </section>
+      ) : null}
 
-      <DashboardCard title="Quick Access">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-          <QuickActionButton href="/owner/kitchen" icon={ChefHat} label="Kitchen Queue" tone="green" />
-          <QuickActionButton href="/owner/tables" icon={Table2} label="Tables" tone="blue" />
-          <QuickActionButton href="/owner/menu" icon={Utensils} label="Menu" tone="orange" />
-          <QuickActionButton href="/owner/inventory" icon={PackageCheck} label="Inventory" tone="purple" />
-          <QuickActionButton href="/owner/reports" icon={BarChart3} label="Reports" tone="cyan" />
-          <QuickActionButton href="/owner/loyalty" icon={Users} label="Customers" tone="blue" />
-          <QuickActionButton href="/owner/employees" icon={Users} label="Employees" tone="orange" />
-          <QuickActionButton href="/owner/accounting" icon={CreditCard} label="Accounting" tone="red" />
+      {bottomWidgets.length ? (
+        <section className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr_0.8fr]">
+          {bottomWidgets.map((id) => (
+            <AnimatedWidget key={id}>{renderWidget(id)}</AnimatedWidget>
+          ))}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function AnimatedWidget({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
+      {children}
+    </motion.div>
+  );
+}
+
+function KpiCard({
+  title,
+  value,
+  format = (input: number) => String(Math.round(input)),
+  delta,
+  icon: Icon,
+  tone,
+  spark,
+  tooltip,
+}: {
+  title: string;
+  value: number;
+  format?: (input: number) => string;
+  delta: string;
+  icon: LucideIcon;
+  tone: "green" | "orange" | "blue" | "purple" | "red" | "amber";
+  spark: number[];
+  tooltip: string;
+}) {
+  const positive = !delta.trim().startsWith("-");
+  return (
+    <motion.article
+      layout
+      whileHover={{ y: -2 }}
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      title={tooltip}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-black text-slate-500">{title}</p>
+          <AnimatedNumber value={value} format={format} className="mt-2 block text-2xl font-black text-slate-950" />
         </div>
-        <Link href="/owner/profile" className="mt-4 flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-          <div>
-            <p className="font-black text-neutral-950">{ownerName}</p>
-            <p className="text-sm text-slate-600">Owner</p>
-          </div>
-          <Settings2 className="size-5 text-slate-600" />
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", toneClass[tone].bg, toneClass[tone].text)}>
+          <Icon className="size-5" />
+        </span>
+      </div>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <span className={cn("text-xs font-black", positive ? "text-emerald-600" : "text-red-600")}>
+          {positive ? "↑" : "↓"} {delta.replace(/^[-+]/, "")}
+        </span>
+        <Sparkline values={spark} color={toneClass[tone].stroke} className="h-8 w-24" />
+      </div>
+    </motion.article>
+  );
+}
+
+function AnimatedNumber({ value, format, className }: { value: number; format: (input: number) => string; className?: string }) {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    let frame = 0;
+    const start = display;
+    const delta = value - start;
+    const startedAt = performance.now();
+    const duration = 480;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      setDisplay(start + delta * easeOutCubic(progress));
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return <span className={className}>{format(display)}</span>;
+}
+
+function LiveOrdersPanel({ orders }: { orders: DashboardOrder[] }) {
+  return (
+    <DashboardCard
+      title="Live Orders"
+      action={<Link href="/owner/orders" className="text-xs font-black text-orange-600">View all</Link>}
+      className="h-full"
+    >
+      <div className="space-y-2" title="Orders currently being processed.">
+        <AnimatePresence initial={false}>
+          {orders.length ? orders.map((order) => (
+            <motion.div key={order.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
+              <LiveOrderRow order={order} />
+            </motion.div>
+          )) : <EmptyState title="No active orders" text="The current operations queue is clear." />}
+        </AnimatePresence>
+      </div>
+    </DashboardCard>
+  );
+}
+
+function KitchenPanel({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <DashboardCard title="Kitchen Queue" className="h-full">
+      <div className="grid grid-cols-2 gap-3" title="Orders waiting in kitchen workflow.">
+        <MiniMetric label="Pending KOT" value={metrics.kitchen.pending} tone="orange" />
+        <MiniMetric label="Preparing" value={metrics.kitchen.preparing} tone="blue" />
+        <MiniMetric label="Ready" value={metrics.kitchen.ready} tone="green" />
+        <MiniMetric label="Delayed" value={metrics.kitchen.delayed} tone="red" pulse={metrics.kitchen.delayed > 0} />
+      </div>
+      <Button asChild variant="outline" className="mt-4 w-full">
+        <Link href="/owner/kitchen">
+          Open Kitchen Queue
+          <ArrowUpRight className="size-4" />
         </Link>
-      </DashboardCard>
+      </Button>
+    </DashboardCard>
+  );
+}
+
+function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
+  return (
+    <DashboardCard
+      title="Alerts & Notifications"
+      action={<button type="button" className="text-xs font-black text-orange-600" onClick={() => window.dispatchEvent(new CustomEvent("sarva-open-sync-center"))}>Sync</button>}
+      className="h-full"
+    >
+      <div className="space-y-2" title="Critical operational alerts stay visible here.">
+        {alerts.map((alert) => (
+          <AlertRow key={alert.id} alert={alert} />
+        ))}
+      </div>
+    </DashboardCard>
+  );
+}
+
+function AlertRow({ alert }: { alert: DashboardAlert }) {
+  const className = cn(
+    "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition hover:bg-slate-50",
+    alert.priority === "critical" ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white",
+    alert.priority === "critical" && "animate-pulse",
+  );
+  const body = (
+    <>
+      <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", priorityTone[alert.priority].bg, priorityTone[alert.priority].text)}>
+        <alert.icon className="size-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-black text-slate-950">{alert.title}</span>
+        <span className="mt-0.5 block text-xs font-semibold leading-5 text-slate-600">{alert.description}</span>
+      </span>
+    </>
+  );
+  if (alert.href === "#sync") {
+    return (
+      <button type="button" className={className} onClick={() => window.dispatchEvent(new CustomEvent("sarva-open-sync-center"))}>
+        {body}
+      </button>
+    );
+  }
+  return (
+    <Link href={alert.href} className={className}>
+      {body}
+    </Link>
+  );
+}
+
+function SalesTodayPanel({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <DashboardCard title="Sales Today" className="h-full">
+      <div title="Revenue trend for the last seven days, with today's value emphasized.">
+        <div className="flex items-start justify-between">
+          <div>
+            <AnimatedNumber value={metrics.revenueToday} format={formatCurrency} className="text-2xl font-black text-slate-950" />
+            <p className="mt-1 text-xs font-semibold text-slate-500">vs yesterday {metrics.revenueDelta}</p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{metrics.revenueDelta}</span>
+        </div>
+        <Sparkline values={metrics.revenueSpark} color="#ff6b2c" className="mt-5 h-24 w-full" filled />
+      </div>
+    </DashboardCard>
+  );
+}
+
+function OrderTrendPanel({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <DashboardCard title="Order Trend" className="h-full">
+      <MiniBarChart values={metrics.orderSpark} labels={metrics.weekLabels} />
+    </DashboardCard>
+  );
+}
+
+function OrderTypePanel({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <DashboardCard title="Orders by Type" className="h-full">
+      <div className="grid gap-4 sm:grid-cols-[130px_1fr] sm:items-center">
+        <DonutChart total={metrics.typeTotal} values={metrics.typeCounts} />
+        <div className="space-y-3">
+          {metrics.typeCounts.map((item) => (
+            <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex items-center gap-2 font-bold text-slate-700">
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                {item.label}
+              </span>
+              <span className="font-black text-slate-950">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DashboardCard>
+  );
+}
+
+function TopItemsPanel({ items }: { items: Array<{ name: string; quantity: number; revenue: number }> }) {
+  return (
+    <DashboardCard
+      title="Top Selling Items"
+      action={<Link href="/owner/reports" className="text-xs font-black text-orange-600">View report</Link>}
+      className="h-full"
+    >
+      {items.length ? (
+        <div className="space-y-3" title="Best-selling items from current order data.">
+          {items.map((item, index) => (
+            <div key={item.name} className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+              <span className="grid size-7 place-items-center rounded-full bg-orange-50 text-xs font-black text-orange-600">{index + 1}</span>
+              <div className="min-w-0">
+                <p className="truncate font-black text-slate-950">{item.name}</p>
+                <p className="text-xs font-semibold text-slate-500">{item.quantity} orders</p>
+              </div>
+              <p className="font-black text-slate-950">{formatCurrency(item.revenue)}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No top sellers yet" text="Menu and POS sales will populate this list automatically." />
+      )}
+    </DashboardCard>
+  );
+}
+
+function QuickActionsPanel() {
+  return (
+    <DashboardCard title="Quick Actions" className="h-full">
+      <div className="customer-scroll grid grid-flow-col auto-cols-[104px] gap-3 overflow-x-auto pb-1 sm:grid-flow-row sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8">
+        <QuickActionButton href="/owner/pos" icon={ReceiptText} label="Open POS" tone="green" />
+        <QuickActionButton href="/owner/orders?new=1" icon={CalendarPlus} label="New Order" tone="orange" />
+        <QuickActionButton href="/owner/tables?tab=reservations" icon={CalendarPlus} label="Reservation" tone="blue" />
+        <QuickActionButton href="/owner/loyalty" icon={UserPlus} label="Customer" tone="orange" />
+        <QuickActionButton href="/owner/kitchen" icon={ChefHat} label="Kitchen" tone="green" />
+        <QuickActionButton href="/owner/tables" icon={Table2} label="Tables" tone="blue" />
+        <QuickActionButton href="/owner/menu" icon={Utensils} label="Menu" tone="orange" />
+        <QuickActionButton href="/owner/reports" icon={BarChart3} label="Reports" tone="cyan" />
+        <QuickActionButton href="/owner/inventory" icon={PackageCheck} label="Inventory" tone="purple" />
+        <QuickActionButton href="/owner/accounting" icon={CreditCard} label="Accounting" tone="red" />
+      </div>
+    </DashboardCard>
+  );
+}
+
+function SystemPanel({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <DashboardCard title="System Status" className="h-full">
+      <div className="space-y-3">
+        <HealthRow icon={Wifi} label="Internet" value="Connected" tone="green" />
+        <HealthRow icon={AlertTriangle} label="Sync Status" value={metrics.sync.failed ? `${metrics.sync.failed} failed` : metrics.sync.pending ? `${metrics.sync.pending} pending` : "All good"} tone={metrics.sync.failed ? "red" : metrics.sync.pending ? "orange" : "green"} />
+        <HealthRow icon={Printer} label="Printer" value={metrics.printerLabel} tone={metrics.printerTone} />
+      </div>
+    </DashboardCard>
+  );
+}
+
+function StaffPanel({ metrics }: { metrics: DashboardMetrics }) {
+  return (
+    <DashboardCard title="Staff Activity" className="h-full">
+      <div className="space-y-3">
+        <StaffRow label="Waiters active" value={metrics.staff.waitersActive} detail={`${metrics.staff.serving} serving`} />
+        <StaffRow label="Cashiers online" value={metrics.staff.cashiersActive} detail="Billing ready" />
+        <StaffRow label="Kitchen staff online" value={metrics.staff.kitchenActive} detail={metrics.kitchen.delayed ? `${metrics.kitchen.delayed} delayed` : "Queue healthy"} />
+      </div>
+      <Button asChild variant="outline" className="mt-4 w-full">
+        <Link href="/owner/employees">View All Staff</Link>
+      </Button>
+    </DashboardCard>
+  );
+}
+
+function CustomizePanel({
+  hiddenWidgets,
+  widgetOrder,
+  onToggle,
+  onMove,
+  onClose,
+}: {
+  hiddenWidgets: Set<WidgetId>;
+  widgetOrder: WidgetId[];
+  onToggle: (id: WidgetId) => void;
+  onMove: (id: WidgetId, direction: -1 | 1) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute right-0 top-12 z-30 w-[min(92vw,380px)] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-black text-slate-950">Customize dashboard</p>
+          <p className="text-xs font-semibold text-slate-500">Saved locally on this device.</p>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close customize panel">
+          <X className="size-4" />
+        </Button>
+      </div>
+      <div className="mt-4 space-y-2">
+        {widgetOrder.map((id, index) => (
+          <div key={id} className="flex items-center gap-2 rounded-xl border border-slate-200 p-2">
+            <GripVertical className="size-4 text-slate-400" />
+            <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-black text-slate-800">
+              <input type="checkbox" checked={!hiddenWidgets.has(id)} onChange={() => onToggle(id)} className="size-4 accent-orange-600" />
+              <span className="truncate">{widgetLabels[id]}</span>
+            </label>
+            <button type="button" className="rounded-lg border p-1 disabled:opacity-30" onClick={() => onMove(id, -1)} disabled={index === 0} aria-label={`Move ${widgetLabels[id]} up`}>
+              <ArrowUp className="size-3.5" />
+            </button>
+            <button type="button" className="rounded-lg border p-1 disabled:opacity-30" onClick={() => onMove(id, 1)} disabled={index === widgetOrder.length - 1} aria-label={`Move ${widgetLabels[id]} down`}>
+              <ArrowDown className="size-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 type StatusValue = { label: string; value: number; color: string };
+type DashboardAlert = {
+  id: string;
+  title: string;
+  description: string;
+  priority: "critical" | "medium" | "normal" | "success";
+  icon: LucideIcon;
+  href: string;
+};
+type DashboardOrder = {
+  id: string;
+  createdAt: string;
+  status: string;
+  amount: number;
+  customer: string;
+  source: string;
+  table?: string;
+  lines: OrderLine[];
+  type: string;
+};
+type DashboardMetrics = ReturnType<typeof buildDashboardMetrics>;
+
+function LiveOrderRow({ order }: { order: DashboardOrder }) {
+  const delayed = elapsedMinutes(order.createdAt) >= 15 && !isTerminal(order.status);
+  return (
+    <Link
+      href={`/owner/orders?search=${encodeURIComponent(order.id)}`}
+      className={cn(
+        "grid grid-cols-[1fr_auto] gap-3 rounded-xl border p-3 transition hover:border-orange-200 hover:bg-orange-50/40",
+        delayed ? "border-red-200 bg-red-50/50 shadow-[0_0_0_1px_rgba(239,68,68,0.08)]" : "border-neutral-200 bg-white",
+      )}
+      title="Open this order in the owner orders module."
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cn("size-2.5 rounded-full", delayed ? "animate-pulse bg-red-500" : "bg-orange-500")} />
+          <p className="truncate font-black text-neutral-950">{order.id}</p>
+          <StatusBadge status={order.status} />
+        </div>
+        <p className="mt-1 truncate text-sm font-semibold text-slate-600">{order.table ?? order.source} · {order.customer}</p>
+        <p className="mt-1 text-xs font-bold text-slate-400">{relativeOrderTime(order.createdAt)} · {actualOrderTime(order.createdAt)}</p>
+      </div>
+      <div className="self-center text-right">
+        <p className="font-black text-neutral-950">{formatCurrency(order.amount)}</p>
+        <p className={cn("text-xs font-black", delayed ? "text-red-600" : "text-slate-400")}>{elapsedMinutes(order.createdAt)} min</p>
+      </div>
+    </Link>
+  );
+}
+
+function MiniMetric({ label, value, tone, pulse = false }: { label: string; value: number; tone: "green" | "orange" | "blue" | "red"; pulse?: boolean }) {
+  return (
+    <motion.div layout className={cn("rounded-2xl p-4", toneClass[tone].soft, pulse && "animate-pulse")} title={label === "Delayed" ? "Orders exceeding configured preparation time." : `${label} kitchen tickets.`}>
+      <p className="text-xs font-black uppercase tracking-wide opacity-70">{label}</p>
+      <AnimatedNumber value={value} format={(input) => String(Math.round(input))} className="mt-2 block text-2xl font-black" />
+    </motion.div>
+  );
+}
+
+function StaffRow({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-3" title={`${label}: ${detail}`}>
+      <div>
+        <p className="font-black text-neutral-950">{label}</p>
+        <p className="text-sm text-slate-500">{detail}</p>
+      </div>
+      <span className="grid size-10 place-items-center rounded-full bg-emerald-50 font-black text-emerald-700">{value}</span>
+    </div>
+  );
+}
+
+function HealthRow({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: string; tone: "green" | "orange" | "red" }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (label === "Sync Status") window.dispatchEvent(new CustomEvent("sarva-open-sync-center"));
+      }}
+      className="flex w-full items-center justify-between rounded-xl border border-neutral-200 p-3 text-left transition hover:bg-slate-50"
+      title={label === "Sync Status" ? "Open sync center and retry failed actions." : `${label}: ${value}`}
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", toneClass[tone].bg, toneClass[tone].text)}>
+          <Icon className="size-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-black text-neutral-950">{label}</span>
+          <span className="block truncate text-sm text-slate-500">{value}</span>
+        </span>
+      </span>
+      <ArrowUpRight className="size-4 text-slate-400" />
+    </button>
+  );
+}
 
 function DonutChart({ total, values }: { total: number; values: StatusValue[] }) {
-  const radius = 52;
+  const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const segments = values.reduce<Array<StatusValue & { length: number; offset: number }>>((items, item) => {
     const previousOffset = items.at(-1) ? items.at(-1)!.offset + items.at(-1)!.length : 0;
     return [...items, { ...item, length: total ? (item.value / total) * circumference : 0, offset: previousOffset }];
   }, []);
   return (
-    <div className="relative grid size-40 place-items-center">
-      <svg viewBox="0 0 140 140" className="-rotate-90">
-        <circle cx="70" cy="70" r={radius} fill="none" stroke="#eef2f7" strokeWidth="18" />
+    <div className="relative grid size-32 place-items-center">
+      <svg viewBox="0 0 120 120" className="-rotate-90">
+        <circle cx="60" cy="60" r={radius} fill="none" stroke="#eef2f7" strokeWidth="14" />
         {segments.map((item) => (
-            <circle
-              key={item.label}
-              cx="70"
-              cy="70"
-              r={radius}
-              fill="none"
-              stroke={item.color}
-              strokeWidth="18"
-              strokeDasharray={`${item.length} ${circumference - item.length}`}
-              strokeDashoffset={-item.offset}
-            />
+          <motion.circle
+            key={item.label}
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke={item.color}
+            strokeWidth="14"
+            strokeDasharray={`${item.length} ${circumference - item.length}`}
+            strokeDashoffset={-item.offset}
+            initial={{ strokeDasharray: `0 ${circumference}` }}
+            animate={{ strokeDasharray: `${item.length} ${circumference - item.length}` }}
+          />
         ))}
       </svg>
       <div className="absolute text-center">
-        <p className="text-3xl font-black text-neutral-950">{total}</p>
+        <p className="text-2xl font-black text-neutral-950">{total}</p>
         <p className="text-xs font-semibold text-slate-500">Total</p>
       </div>
+    </div>
+  );
+}
+
+function Sparkline({ values, color, className, filled = false }: { values: number[]; color: string; className?: string; filled?: boolean }) {
+  const points = buildPoints(values, 100, 36);
+  const area = points ? `M ${points} L 100 36 L 0 36 Z` : "";
+  return (
+    <svg viewBox="0 0 100 36" className={className} aria-hidden="true">
+      {filled && area ? <path d={area} fill={color} opacity="0.12" /> : null}
+      <motion.polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.55 }}
+      />
+    </svg>
+  );
+}
+
+function MiniBarChart({ values, labels }: { values: number[]; labels: string[] }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex h-40 items-end gap-2" title="Seven day order volume.">
+      {values.map((value, index) => (
+        <div key={`${labels[index]}-${index}`} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+          <motion.div
+            className="w-full rounded-t-xl bg-emerald-500/85"
+            initial={{ height: 0 }}
+            animate={{ height: `${Math.max(8, (value / max) * 112)}px` }}
+            transition={{ duration: 0.35, delay: index * 0.04 }}
+          />
+          <span className="text-[11px] font-black text-slate-500">{labels[index]}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -230,25 +741,47 @@ function EmptyState({ title, text }: { title: string; text: string }) {
   );
 }
 
-function buildDashboardMetrics(orders: DemoOrder[], tableOrders: TableOrder[], customerCount: number) {
-  const combined = [
+function buildDashboardMetrics({
+  orders,
+  tableOrders,
+  customerCount,
+  staffMembers,
+  posTables,
+  offlineQueue,
+  printerSettings,
+}: {
+  orders: DemoOrder[];
+  tableOrders: TableOrder[];
+  customerCount: number;
+  staffMembers: StaffMember[];
+  posTables: PosTable[];
+  offlineQueue: OfflineQueueItem[];
+  printerSettings: PrinterSettings;
+}) {
+  const combined: DashboardOrder[] = [
     ...orders.map((order) => ({
-      id: order.id,
+      id: readableOrderId(order),
       createdAt: order.createdAt,
       status: order.status,
       amount: order.totals.total,
       customer: order.customer.name,
+      source: `${order.fulfillmentType ?? order.channel}`,
       lines: order.lines,
+      type: order.fulfillmentType ?? order.channel,
     })),
-    ...tableOrders.map((order) => ({
-      id: order.id,
+    ...tableOrders.map((order, index) => ({
+      id: readableTableOrderId(order, index + 1),
       createdAt: order.createdAt,
       status: order.status,
       amount: orderTotal(order),
-      customer: order.customerName ?? order.guestName ?? order.tableNumber,
+      customer: order.customerName ?? order.guestName ?? order.customerPhone ?? "Guest",
+      source: order.source,
+      table: order.tableNumber,
       lines: order.lines,
+      type: order.orderType ?? order.source,
     })),
   ];
+  const sorted = [...combined].sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
   const today = new Date();
   const yesterday = addDays(today, -1);
   const todayOrders = combined.filter((order) => isSameDay(order.createdAt, today));
@@ -262,28 +795,27 @@ function buildDashboardMetrics(orders: DemoOrder[], tableOrders: TableOrder[], c
   const week = Array.from({ length: 7 }, (_, index) => addDays(today, index - 6));
   const weekRevenue = week.map((date) => sum(combined.filter((order) => isSameDay(order.createdAt, date)).map((order) => order.amount)));
   const weekOrders = week.map((date) => combined.filter((order) => isSameDay(order.createdAt, date)).length);
-  const topItems = buildTopItems(combined.flatMap((order) => order.lines));
-  const recentOrders: OwnerOrderRow[] = combined
-    .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
-    .slice(0, 4)
-    .map((order) => ({
-      id: order.id,
-      time: relativeTime(order.createdAt),
-      customer: order.customer,
-      status: order.status,
-      amount: order.amount,
-    }));
-  const statusCounts = [
-    { label: "New", value: countStatus(combined, ["new", "accepted"]), color: "#8b5cf6" },
-    { label: "Preparing", value: countStatus(combined, ["preparing", "occupied"]), color: "#ff7a1a" },
-    { label: "Ready", value: countStatus(combined, ["ready"]), color: "#16a34a" },
-    { label: "On the way", value: countStatus(combined, ["picked-up", "served"]), color: "#3b82f6" },
-  ];
+  const activeOrders = sorted.filter((order) => !isTerminal(order.status));
+  const kitchenOrders = tableOrders.filter((order) => !isTerminal(order.status));
+  const preparing = kitchenOrders.filter((order) => order.status === "preparing" || order.status === "occupied").length;
+  const ready = kitchenOrders.filter((order) => order.status === "ready").length;
+  const pending = kitchenOrders.filter((order) => order.status === "new").length;
+  const delayed = kitchenOrders.filter((order) => elapsedMinutes(order.createdAt) >= 15 && !isTerminal(order.status)).length;
+  const waitersActive = staffMembers.filter((member) => member.role === "waiter" && member.status === "active").length;
+  const serving = new Set(tableOrders.filter((order) => !isTerminal(order.status) && order.waiterId).map((order) => order.waiterId)).size;
+  const syncFailed = offlineQueue.filter((item) => item.status === "failed" || item.status === "conflict").length;
+  const syncPending = offlineQueue.filter((item) => item.status === "queued" || item.status === "retrying").length;
+  const printerLabel = printerSettings.connectionStatus === "connected" ? "Connected" : printerSettings.connectionStatus === "browser-preview" ? "Browser preview" : "Offline";
+  const printerTone = printerSettings.connectionStatus === "offline" ? "red" : "green";
+  const typeCounts = buildTypeCounts(combined);
+  const alerts = buildAlerts({ activeOrders, delayed, syncFailed, syncPending, printerOffline: printerTone === "red" });
+
   return {
     revenueToday,
     revenueDelta: percentDelta(revenueToday, revenueYesterday),
     ordersToday,
     ordersDelta: percentDelta(ordersToday, ordersYesterday),
+    activeOrdersCount: activeOrders.length,
     avgOrderValue,
     avgDelta: percentDelta(avgOrderValue, avgYesterday),
     newCustomers: customerCount,
@@ -295,16 +827,119 @@ function buildDashboardMetrics(orders: DemoOrder[], tableOrders: TableOrder[], c
       return dayOrders.length ? sum(dayOrders.map((order) => order.amount)) / dayOrders.length : 0;
     }),
     customerSpark: week.map(() => customerCount),
-    weekRevenue,
     weekLabels: week.map((date) => date.toLocaleDateString("en-IN", { weekday: "short" })),
-    topItems,
-    recentOrders,
-    liveRows: recentOrders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status)).slice(0, 4),
-    liveOrders: combined.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status)).length,
-    statusCounts,
-    statusTotal: sum(statusCounts.map((item) => item.value)),
-    boostAmounts: recentOrders.map((order) => order.amount).filter(Boolean).slice(0, 4),
+    topItems: buildTopItems(combined.flatMap((order) => order.lines)),
+    liveRows: activeOrders.slice(0, 5),
+    typeCounts,
+    typeTotal: sum(typeCounts.map((item) => item.value)),
+    kitchen: {
+      total: kitchenOrders.length,
+      pending,
+      preparing,
+      ready,
+      delayed,
+      spark: week.map((date) => tableOrders.filter((order) => isSameDay(order.createdAt, date) && !isTerminal(order.status)).length),
+    },
+    staff: {
+      waitersActive,
+      serving,
+      idleWaiters: Math.max(0, waitersActive - serving),
+      cashiersActive: staffMembers.filter((member) => member.role === "cashier" && member.status === "active").length,
+      kitchenActive: staffMembers.filter((member) => ["chef", "kitchen-manager"].includes(member.role) && member.status === "active").length,
+      spark: week.map(() => waitersActive),
+    },
+    sync: { failed: syncFailed, pending: syncPending },
+    printerLabel,
+    printerTone: printerTone as "green" | "red",
+    activeTables: posTables.filter((table) => table.status === "Dining" || table.status === "Bill requested").length,
+    alerts,
   };
+}
+
+function buildAlerts({ activeOrders, delayed, syncFailed, syncPending, printerOffline }: { activeOrders: DashboardOrder[]; delayed: number; syncFailed: number; syncPending: number; printerOffline: boolean }) {
+  const alerts: DashboardAlert[] = [];
+  if (delayed) {
+    alerts.push({
+      id: "delayed",
+      title: `${delayed} delayed kitchen order${delayed === 1 ? "" : "s"}`,
+      description: "Review tickets exceeding configured preparation time.",
+      priority: "critical",
+      icon: AlertTriangle,
+      href: "/owner/kitchen",
+    });
+  }
+  const online = activeOrders.find((order) => ["delivery", "web", "online", "swiggy", "zomato"].includes(order.type.toLowerCase()));
+  if (online) {
+    alerts.push({
+      id: `online-${online.id}`,
+      title: "New online order",
+      description: `${online.id} · ${online.customer} · ${formatCurrency(online.amount)}`,
+      priority: "medium",
+      icon: ReceiptText,
+      href: `/owner/orders?search=${encodeURIComponent(online.id)}`,
+    });
+  }
+  if (syncFailed) {
+    alerts.push({
+      id: "sync-failed",
+      title: "Sync needs attention",
+      description: `${syncFailed} failed offline action${syncFailed === 1 ? "" : "s"}. Retry from sync center.`,
+      priority: "critical",
+      icon: AlertTriangle,
+      href: "#sync",
+    });
+  } else if (syncPending) {
+    alerts.push({
+      id: "sync-pending",
+      title: "Sync in progress",
+      description: `${syncPending} action${syncPending === 1 ? "" : "s"} waiting for backend confirmation.`,
+      priority: "normal",
+      icon: Wifi,
+      href: "#sync",
+    });
+  }
+  if (printerOffline) {
+    alerts.push({
+      id: "printer-offline",
+      title: "Printer offline",
+      description: "Kitchen or billing printer is not connected.",
+      priority: "medium",
+      icon: Printer,
+      href: "/owner/settings?tab=printer",
+    });
+  }
+  if (!alerts.length) {
+    alerts.push({
+      id: "all-good",
+      title: "Operations normal",
+      description: "No critical kitchen, order, or sync alerts right now.",
+      priority: "success",
+      icon: Wifi,
+      href: "/owner/orders",
+    });
+  }
+  return alerts;
+}
+
+function buildTypeCounts(orders: DashboardOrder[]) {
+  const entries = [
+    { label: "Dine-in", match: ["dine-in", "waiter"], color: "#3b82f6" },
+    { label: "Online", match: ["delivery", "web", "online", "swiggy", "zomato"], color: "#10b981" },
+    { label: "Parcel", match: ["parcel", "takeaway"], color: "#f97316" },
+    { label: "Others", match: [], color: "#8b5cf6" },
+  ];
+  const lowerTypes = orders.map((order) => order.type.toLowerCase());
+  const used = new Set<number>();
+  const counts = entries.slice(0, 3).map((entry) => {
+    const value = lowerTypes.filter((type, index) => {
+      const matched = entry.match.some((item) => type.includes(item));
+      if (matched) used.add(index);
+      return matched;
+    }).length;
+    return { label: entry.label, value, color: entry.color };
+  });
+  counts.push({ label: "Others", value: Math.max(0, orders.length - used.size), color: "#8b5cf6" });
+  return counts;
 }
 
 function buildTopItems(lines: OrderLine[]) {
@@ -322,10 +957,6 @@ function orderTotal(order: TableOrder) {
   return order.total ?? order.lines.reduce((total, line) => total + line.price * line.quantity, 0);
 }
 
-function countStatus(orders: Array<{ status: string }>, statuses: string[]) {
-  return orders.filter((order) => statuses.includes(order.status)).length;
-}
-
 function sum(values: number[]) {
   return values.reduce((total, value) => total + value, 0);
 }
@@ -341,6 +972,16 @@ function isSameDay(value: string, date: Date) {
   return Number.isFinite(parsed.getTime()) && parsed.toDateString() === date.toDateString();
 }
 
+function isTerminal(status: string) {
+  return ["delivered", "completed", "cancelled", "rejected", "billed"].includes(status);
+}
+
+function elapsedMinutes(value: string) {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return 0;
+  return Math.max(0, Math.round((Date.now() - time) / 60000));
+}
+
 function percentDelta(current: number, previous: number) {
   if (!previous && current) return "+100%";
   if (!previous) return "+0%";
@@ -348,12 +989,36 @@ function percentDelta(current: number, previous: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function relativeTime(value: string) {
-  const diff = Date.now() - Date.parse(value);
-  if (!Number.isFinite(diff)) return "now";
-  const minutes = Math.max(0, Math.round(diff / 60000));
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  return `${Math.round(hours / 24)} days ago`;
+function buildPoints(values: number[], width: number, height: number) {
+  if (!values.length) return "";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  return values
+    .map((value, index) => {
+      const x = values.length === 1 ? width : (index / (values.length - 1)) * width;
+      const y = height - ((value - min) / range) * (height - 6) - 3;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
 }
+
+function easeOutCubic(value: number) {
+  return 1 - Math.pow(1 - value, 3);
+}
+
+const toneClass = {
+  green: { bg: "bg-emerald-50", soft: "bg-emerald-50 text-emerald-700", text: "text-emerald-600", stroke: "#10b981" },
+  orange: { bg: "bg-orange-50", soft: "bg-orange-50 text-orange-700", text: "text-orange-600", stroke: "#ff6b2c" },
+  blue: { bg: "bg-blue-50", soft: "bg-blue-50 text-blue-700", text: "text-blue-600", stroke: "#3b82f6" },
+  purple: { bg: "bg-violet-50", soft: "bg-violet-50 text-violet-700", text: "text-violet-600", stroke: "#8b5cf6" },
+  red: { bg: "bg-red-50", soft: "bg-red-50 text-red-700", text: "text-red-600", stroke: "#ef4444" },
+  amber: { bg: "bg-amber-50", soft: "bg-amber-50 text-amber-700", text: "text-amber-600", stroke: "#f59e0b" },
+};
+
+const priorityTone = {
+  critical: { bg: "bg-red-100", text: "text-red-700" },
+  medium: { bg: "bg-orange-100", text: "text-orange-700" },
+  normal: { bg: "bg-blue-100", text: "text-blue-700" },
+  success: { bg: "bg-emerald-100", text: "text-emerald-700" },
+};
