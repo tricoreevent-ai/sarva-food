@@ -5,6 +5,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Z_INDEX } from "@/lib/z-index";
 
 const Sheet = SheetPrimitive.Root;
 const SheetTrigger = SheetPrimitive.Trigger;
@@ -14,9 +15,10 @@ const SheetPortal = SheetPrimitive.Portal;
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+>(({ className, style, ...props }, ref) => (
   <SheetPrimitive.Overlay
-    className={cn("fixed inset-0 z-50 bg-foreground/45 backdrop-blur-sm", className)}
+    className={cn("fixed inset-0 bg-foreground/45 backdrop-blur-sm", className)}
+    style={{ zIndex: Z_INDEX.overlay, ...style }}
     {...props}
     ref={ref}
   />
@@ -24,7 +26,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-card p-5 shadow-lg outline-none transition ease-in-out",
+  "fixed gap-4 bg-card p-5 shadow-lg outline-none transition ease-in-out",
   {
     variants: {
       side: {
@@ -49,12 +51,13 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, hideOverlay = false, ...props }, ref) => (
+>(({ side = "right", className, children, hideOverlay = false, style, ...props }, ref) => (
   <SheetPortal>
     {hideOverlay ? null : <SheetOverlay />}
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
+      style={{ zIndex: Z_INDEX.modal, ...style }}
       {...props}
     >
       {children}

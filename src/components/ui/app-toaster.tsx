@@ -2,6 +2,7 @@
 
 import { ToastBar, Toaster, toast } from "react-hot-toast";
 import { X } from "lucide-react";
+import { Z_INDEX } from "@/lib/z-index";
 
 export function AppToaster() {
   return (
@@ -11,6 +12,7 @@ export function AppToaster() {
         top: "50%",
         right: "1rem",
         transform: "translateY(-50%)",
+        zIndex: Z_INDEX.toast,
       }}
       toastOptions={{
         duration: 30000,

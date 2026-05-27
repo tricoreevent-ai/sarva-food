@@ -31,7 +31,9 @@ import { useAppStore } from "@/lib/app-store";
 import { getCartSubtotal, useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { isOfferForSurface } from "@/lib/offer-engine";
-import type { CmsBanner, MenuItem, Offer, Restaurant } from "@/lib/types";
+import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
+import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
+import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export function CustomerDiscoveryHome() {
@@ -54,7 +56,8 @@ export function CustomerDiscoveryHome() {
   const [locationResultsOpen, setLocationResultsOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
   const cartItems = useCartStore((state) => state.items);
-  const cmsSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
+  const rawCmsSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
+  const cmsSettings = useMemo(() => resolveCmsSettings(rawCmsSettings), [rawCmsSettings]);
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const cartSubtotal = getCartSubtotal(cartItems);
   const heroRestaurant = nearbyRestaurants[0] ?? restaurants[0];
@@ -65,7 +68,10 @@ export function CustomerDiscoveryHome() {
     [nearbyOffers],
   );
   const cmsBanners = useMemo(
-    () => visibleCmsItems([...(cmsSettings.sponsoredAds ?? []), ...(cmsSettings.banners ?? []), ...(cmsSettings.announcements ?? [])]).slice(0, 6),
+    () => {
+      const homepage = getHomepageCmsItems(cmsSettings);
+      return [...homepage.sponsoredAds, ...homepage.banners, ...homepage.announcements].slice(0, 6);
+    },
     [cmsSettings],
   );
 
@@ -81,10 +87,15 @@ export function CustomerDiscoveryHome() {
   }, [locationQuery, recentLocations, suggestions]);
 
   const recommendedRestaurants = useMemo(
-    () => [...(nearbyRestaurants.length ? nearbyRestaurants : restaurants)]
-      .sort((first, second) => (second.rating ?? 0) - (first.rating ?? 0))
-      .slice(0, 8),
-    [nearbyRestaurants, restaurants],
+    () => {
+      const source = [...(nearbyRestaurants.length ? nearbyRestaurants : restaurants)];
+      if (cmsSettings.featuredRestaurants?.sortLogic === "manual" && cmsSettings.featuredRestaurants.pinnedRestaurantSlugs.length) {
+        const priority = new Map(cmsSettings.featuredRestaurants.pinnedRestaurantSlugs.map((slug, index) => [slug, index]));
+        return source.sort((first, second) => (priority.get(first.slug) ?? 999) - (priority.get(second.slug) ?? 999)).slice(0, 8);
+      }
+      return source.sort((first, second) => (second.rating ?? 0) - (first.rating ?? 0)).slice(0, 8);
+    },
+    [cmsSettings.featuredRestaurants, nearbyRestaurants, restaurants],
   );
 
   const popularItems = useMemo(() => {
@@ -96,7 +107,7 @@ export function CustomerDiscoveryHome() {
   }, [menuItems, recommendedRestaurants]);
 
   const categoryChips = useMemo(
-    () => appCategories.filter((category) => category.active).sort((first, second) => first.sortOrder - second.sortOrder),
+    () => resolveHomepageCategories(appCategories),
     [appCategories],
   );
   const categoryImages = useMemo(() => {
@@ -154,6 +165,15 @@ export function CustomerDiscoveryHome() {
 
   return (
     <main className="min-h-screen overflow-hidden pb-8 md:pb-16">
+      {cmsSettings.announcementBar?.visible && cmsSettings.announcementBar.message ? (
+        <Link
+          href={cmsSettings.announcementBar.redirectUrl || "/offers"}
+          className="block px-4 py-2 text-center text-sm font-black"
+          style={{ backgroundColor: cmsSettings.announcementBar.backgroundColor || "#fff7ed" }}
+        >
+          {cmsSettings.announcementBar.message}
+        </Link>
+      ) : null}
       <section className="relative overflow-hidden px-4 pb-4 pt-4 md:hidden">
         <div className="pointer-events-none absolute -right-20 top-0 size-64 rounded-full bg-primary/8 blur-2xl" />
         <div className="relative flex items-center justify-between gap-3">
@@ -275,7 +295,7 @@ export function CustomerDiscoveryHome() {
                   <span className="text-xs font-black text-primary">Change</span>
                 </button>
                 <Button asChild size="lg" className="h-14 rounded-lg px-8 shadow-xl shadow-primary/20">
-                  <Link href="/restaurants">Find Food</Link>
+                  <Link href={cmsSettings.homepage.ctaLink || "/restaurants"}>{cmsSettings.homepage.ctaText || "Find Food"}</Link>
                 </Button>
               </div>
             </div>
@@ -283,7 +303,7 @@ export function CustomerDiscoveryHome() {
               <div className="absolute inset-16 rounded-full bg-primary/10" />
               <div className="absolute right-14 top-20 size-[24rem] overflow-hidden rounded-full bg-white shadow-2xl ring-8 ring-white/60 xl:size-[27rem]">
                 <SafeImage
-                  src={heroItem?.image ?? heroRestaurant.image}
+                  src={cmsSettings.homepage.backgroundImage || heroItem?.image || heroRestaurant.image}
                   alt={heroItem?.name ?? heroRestaurant.name}
                   fill
                   priority
@@ -300,7 +320,7 @@ export function CustomerDiscoveryHome() {
         </div>
       </section>
 
-      {categoryChips.length ? (
+      {cmsSettings.sections?.categoriesVisible !== false && categoryChips.length ? (
       <section className="customer-scroll flex gap-3 overflow-x-auto px-4 pb-4 md:hidden">
         <Link
           href="/restaurants"
@@ -333,7 +353,7 @@ export function CustomerDiscoveryHome() {
       </section>
       ) : null}
 
-      {categoryChips.length ? (
+      {cmsSettings.sections?.categoriesVisible !== false && categoryChips.length ? (
       <section className="container-page hidden gap-4 py-5 md:flex">
         <Link
           href="/restaurants"
@@ -387,11 +407,11 @@ export function CustomerDiscoveryHome() {
         </section>
       ) : null}
 
-      {offer ? (
+      {cmsSettings.sections?.offersVisible !== false && offer ? (
       <section className="px-4 md:hidden">
         <Link href={offer?.restaurantSlug ? `/restaurant/${offer.restaurantSlug}/menu?offer=${offer.code}` : "/offers"} className="relative block min-h-34 overflow-hidden rounded-[1.2rem] food-gradient p-4 text-white shadow-xl">
           <div className="relative z-10 max-w-[56%]">
-            <p className="text-xs font-black uppercase">Today&apos;s special</p>
+            <p className="text-xs font-black uppercase">{cmsSettings.sections?.offerTitle || "Today&apos;s special"}</p>
             <h2 className="mt-2 text-2xl font-black leading-none">
               {offerTitle(offer)}
             </h2>
@@ -413,7 +433,7 @@ export function CustomerDiscoveryHome() {
       </section>
       ) : null}
 
-      {homepageOffers.length ? (
+      {cmsSettings.sections?.offersVisible !== false && homepageOffers.length ? (
         <section className="customer-scroll container-page hidden gap-5 overflow-x-auto pb-6 md:flex">
           {homepageOffers.map((item, index) => (
             <DesktopPromoCard
@@ -429,16 +449,20 @@ export function CustomerDiscoveryHome() {
         </section>
       ) : null}
 
-      <MobileSectionHeader title="Recommended for you" href="/restaurants" />
-      <section className="customer-scroll mx-auto flex w-full max-w-[1180px] gap-4 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
-        {recommendedRestaurants.slice(0, 8).map((restaurant, index) => (
-          <MobileRestaurantCard key={restaurant.id} restaurant={restaurant} priority={index === 0} />
-        ))}
-      </section>
-
-      {popularItems.length ? (
+      {cmsSettings.sections?.featuredRestaurantsVisible !== false ? (
         <>
-          <MobileSectionHeader title="What's popular" href={`/restaurant/${heroRestaurant.slug}/menu`} />
+          <MobileSectionHeader title={cmsSettings.sections?.recommendedTitle || "Recommended for you"} href="/restaurants" />
+          <section className="customer-scroll mx-auto flex w-full max-w-[1180px] gap-4 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+            {recommendedRestaurants.slice(0, 8).map((restaurant, index) => (
+              <MobileRestaurantCard key={restaurant.id} restaurant={restaurant} priority={index === 0} />
+            ))}
+          </section>
+        </>
+      ) : null}
+
+      {cmsSettings.sections?.popularItemsVisible !== false && popularItems.length ? (
+        <>
+          <MobileSectionHeader title={cmsSettings.sections?.popularTitle || "What's popular"} href={`/restaurant/${heroRestaurant.slug}/menu`} />
           <section className="customer-scroll mx-auto flex w-full max-w-[1180px] gap-4 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-3">
             {popularItems.slice(0, 8).map((item) => (
               <PopularDishCard key={item.id} item={item} onAdd={() => addItem(item)} />
@@ -599,18 +623,6 @@ function offerTitle(offer: Offer) {
   if (offer.discountType === "free-delivery" || offer.offerType === "free-delivery") return "Free delivery";
   if (offer.discountType === "flat" || offer.offerType === "flat") return `${formatCurrency(offer.discount)} OFF`;
   return `${offer.discount}% OFF`;
-}
-
-function visibleCmsItems(items: CmsBanner[]) {
-  const now = Date.now();
-  return items
-    .filter((item) => item.visible)
-    .filter((item) => {
-      const from = item.publishFrom ? Date.parse(item.publishFrom) : 0;
-      const to = item.publishTo ? Date.parse(item.publishTo) : 0;
-      return (!from || from <= now) && (!to || to >= now);
-    })
-    .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
 function statusLabel(status: string, permission: string) {

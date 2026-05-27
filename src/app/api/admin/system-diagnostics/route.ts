@@ -1,0 +1,89 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { CMS_COLLECTIONS, CMS_VERSION, REQUIRED_CMS_FIELDS } from "@/config/environment/cms.config";
+import { getServerEnvironmentConfig } from "@/config/environment/env.server";
+import { adminDb } from "@/firebase/admin";
+import { getSessionFromRequest } from "@/lib/server-auth";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export async function GET(request: NextRequest) {
+  const session = await getSessionFromRequest(request);
+  if (!session || session.role !== "admin") {
+    return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
+  }
+
+  const env = getServerEnvironmentConfig();
+  const started = performance.now();
+  const db = adminDb();
+  const cmsSnapshot = await db.collection(CMS_COLLECTIONS.systemSettings).doc(CMS_COLLECTIONS.cmsDocumentId).get();
+  const cmsData = cmsSnapshot.exists ? cmsSnapshot.data() : undefined;
+  const latencyMs = Math.round(performance.now() - started);
+
+  const collectionChecks = await Promise.all(
+    [
+      CMS_COLLECTIONS.systemSettings,
+      CMS_COLLECTIONS.foodCategories,
+      CMS_COLLECTIONS.cuisineTypes,
+      CMS_COLLECTIONS.homepageBanners,
+      CMS_COLLECTIONS.legacyFoodCategories,
+      CMS_COLLECTIONS.legacyCuisineTypes,
+    ].map(async (collectionName) => {
+      const start = performance.now();
+      try {
+        const snapshot = await db.collection(collectionName).limit(1).get();
+        return {
+          collectionName,
+          exists: !snapshot.empty,
+          latencyMs: Math.round(performance.now() - start),
+        };
+      } catch (error) {
+        return {
+          collectionName,
+          exists: false,
+          latencyMs: Math.round(performance.now() - start),
+          error: error instanceof Error ? error.message : "Collection check failed.",
+        };
+      }
+    }),
+  );
+
+  return NextResponse.json({
+    data: {
+      firebaseProjectId: env.adminFirebaseProjectId || env.publicFirebaseProjectId || "not configured",
+      publicFirebaseProjectId: env.publicFirebaseProjectId,
+      activeEnvironment: env.appEnv,
+      cmsVersion: String(cmsData?.cmsVersion ?? CMS_VERSION),
+      lastSync: stringifyFirestoreDate(cmsData?.updatedAt) ?? stringifyFirestoreDate(cmsData?.modifiedAt) ?? cmsData?.lastPublishedAt ?? "not published",
+      missingFields: REQUIRED_CMS_FIELDS.filter((field) => !hasDeepValue(cmsData, field)),
+      missingCollections: collectionChecks.filter((check) => !check.exists).map((check) => check.collectionName),
+      collectionChecks,
+      firestoreLatencyMs: latencyMs,
+      firebaseAdminConfigured: env.firebaseAdminConfigured,
+      cloudinaryConfigured: env.cloudinaryConfigured,
+      smtpConfigured: env.smtpConfigured,
+      googleOAuthConfigured: env.googleOAuthConfigured,
+      buildVersion: process.env.NEXT_PUBLIC_BUILD_VERSION ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "local",
+      deploymentTimestamp: process.env.NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP ?? process.env.VERCEL_GIT_COMMIT_REF ?? "not provided",
+    },
+  });
+}
+
+function hasDeepValue(input: Record<string, unknown> | undefined, path: string) {
+  if (!input) return false;
+  let current: unknown = input;
+  for (const part of path.split(".")) {
+    if (!current || typeof current !== "object" || !(part in current)) return false;
+    current = (current as Record<string, unknown>)[part];
+  }
+  if (Array.isArray(current)) return current.length > 0;
+  return current !== undefined && current !== null && current !== "";
+}
+
+function stringifyFirestoreDate(value: unknown) {
+  if (!value) return undefined;
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString();
+  const timestamp = value as { toDate?: () => Date };
+  return typeof timestamp.toDate === "function" ? timestamp.toDate().toISOString() : undefined;
+}

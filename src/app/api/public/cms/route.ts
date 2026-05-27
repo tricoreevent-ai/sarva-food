@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { CMS_COLLECTIONS } from "@/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
+import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -8,9 +10,9 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const snapshot = await adminDb().collection("appSettings").doc("cms").get();
+    const snapshot = await adminDb().collection(CMS_COLLECTIONS.systemSettings).doc(CMS_COLLECTIONS.cmsDocumentId).get();
     const settings = snapshot.exists
-      ? { ...defaultCmsSettings, ...(snapshot.data() as Partial<CmsSettings>) }
+      ? resolveCmsSettings({ ...defaultCmsSettings, ...(snapshot.data() as Partial<CmsSettings>) })
       : defaultCmsSettings;
 
     return NextResponse.json(

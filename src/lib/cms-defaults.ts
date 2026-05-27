@@ -1,4 +1,5 @@
 import type { CmsSettings } from "@/lib/types";
+import { CMS_VERSION } from "@/config/environment/cms.config";
 
 export const RESPONSIBILITY_DISCLAIMER =
   "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.";
@@ -10,6 +11,11 @@ export const defaultCmsSettings: CmsSettings = {
     title: "Craving something delicious?",
     subtitle: "Order from verified nearby restaurants with live menus, quick delivery, and direct restaurant support.",
     visible: true,
+    ctaText: "Find Food",
+    ctaLink: "/restaurants",
+    backgroundImage: "",
+    overlayOpacity: 0.1,
+    animationStyle: "float",
   },
   banners: [
     {
@@ -38,7 +44,36 @@ export const defaultCmsSettings: CmsSettings = {
   footer: {
     visible: true,
     note: RESPONSIBILITY_DISCLAIMER,
+    supportEmail: "support@sarvafood.com",
+    copyright: "© Sarva Food. All rights reserved.",
+    socialLinks: [],
   },
+  announcementBar: {
+    visible: false,
+    message: "",
+    backgroundColor: "#fff7ed",
+    icon: "bell",
+    redirectUrl: "/offers",
+  },
+  sections: {
+    categoriesVisible: true,
+    offersVisible: true,
+    featuredRestaurantsVisible: true,
+    popularItemsVisible: true,
+    recommendedTitle: "Recommended for you",
+    popularTitle: "What's popular",
+    offerTitle: "Today's special",
+  },
+  featuredRestaurants: {
+    sortLogic: "rating",
+    pinnedRestaurantSlugs: [],
+  },
+  seo: {
+    title: "Sarva Food",
+    description: "Order from verified nearby restaurants.",
+    keywords: ["food delivery", "restaurants", "Kerala food", "Biryani"],
+  },
+  cmsVersion: CMS_VERSION,
   announcements: [
     {
       id: "homepage-location-ready",

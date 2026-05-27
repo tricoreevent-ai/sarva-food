@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
 import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { toastManager } from "@/lib/toast-manager";
 import type { MockUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -173,7 +174,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       .then((user) => {
         if (!user) return;
         setMessage("Email verified. Opening your account...");
-        toast.success("Signed in with magic link.");
+        toastManager.successOnce(`login-success-${user.uid}`, "Signed in with magic link.");
         void syncStoreUser(user.uid).then(finish);
       })
       .catch((error) => setMessage(friendlyAuthMessage(error)));
@@ -205,7 +206,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
         role: devUser.role,
         restaurantSlug: devUser.restaurantSlug,
       });
-      toast.success(`Signed in as ${devUser.name}.`);
+      toastManager.successOnce(`login-success-${devUser.id}`, `Signed in as ${devUser.name}.`);
       await finish();
     } finally {
       setIsSubmitting(false);
@@ -253,7 +254,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           const user = await signUpWithEmail(email.trim(), password, "customer", name.trim());
           await syncStoreUser(user.uid);
         }
-        toast.success("Account created.");
+        toastManager.successOnce(`signup-success-${email.trim().toLowerCase()}`, "Account created.");
         await finish();
         return;
       }
@@ -269,7 +270,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
             : await signInOperationalWithEmail(email.trim(), password);
         await syncStoreUser(user.uid);
       }
-      toast.success("Signed in.");
+      toastManager.successOnce(`login-success-${email.trim().toLowerCase()}`, "Signed in.");
       await finish();
     } catch (error) {
       const text = friendlyAuthMessage(error);
@@ -328,7 +329,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       if (!firebaseEnabled) throw new Error("Google sign-in is not configured.");
       const user = await signInWithGoogle("customer");
       await syncStoreUser(user.uid);
-      toast.success("Signed in with Google.");
+      toastManager.successOnce(`login-success-${user.uid}`, "Signed in with Google.");
       await finish();
     } catch (error) {
       const text = friendlyAuthMessage(error);

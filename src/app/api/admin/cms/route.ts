@@ -1,29 +1,46 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
+import { CMS_COLLECTIONS, CMS_VERSION } from "@/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { getSessionFromRequest } from "@/lib/server-auth";
-import type { CmsBanner, CmsSettings } from "@/lib/types";
+import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
+import type { CmsSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const snapshot = await adminDb().collection("appSettings").doc("cms").get();
+  const snapshot = await adminDb().collection(CMS_COLLECTIONS.systemSettings).doc(CMS_COLLECTIONS.cmsDocumentId).get();
   const settings = snapshot.exists
-    ? { ...defaultCmsSettings, ...(snapshot.data() as Partial<CmsSettings>) }
+    ? resolveCmsSettings({ ...defaultCmsSettings, ...(snapshot.data() as Partial<CmsSettings>) })
     : defaultCmsSettings;
   return NextResponse.json({ data: settings });
 }
 
 export async function POST(request: NextRequest) {
-  const forbidden = await requireAdmin(request);
-  if (forbidden) return forbidden;
+  const sessionOrResponse = await requireAdmin(request);
+  if (sessionOrResponse instanceof NextResponse) return sessionOrResponse;
+  const session = sessionOrResponse;
 
   const body = (await request.json().catch(() => ({}))) as { settings?: Partial<CmsSettings> };
-  const settings = normalizeCmsSettings(body.settings);
-  await adminDb().collection("appSettings").doc("cms").set({
+  const settings = resolveCmsSettings({
+    ...body.settings,
+    cmsVersion: CMS_VERSION,
+    lastPublishedBy: session.uid,
+    lastPublishedAt: new Date().toISOString(),
+  });
+  const docRef = adminDb().collection(CMS_COLLECTIONS.systemSettings).doc(CMS_COLLECTIONS.cmsDocumentId);
+  await docRef.collection("versions").add({
     ...settings,
+    modifiedBy: session.uid,
+    modifiedAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await docRef.set({
+    ...settings,
+    modifiedBy: session.uid,
+    modifiedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
@@ -35,45 +52,5 @@ async function requireAdmin(request: NextRequest) {
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
   }
-  return null;
-}
-
-function normalizeCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
-  const settings = { ...defaultCmsSettings, ...(input ?? {}) };
-  return {
-    ...settings,
-    homepage: {
-      title: settings.homepage?.title?.trim() || defaultCmsSettings.homepage.title,
-      subtitle: settings.homepage?.subtitle?.trim() || defaultCmsSettings.homepage.subtitle,
-      visible: settings.homepage?.visible !== false,
-    },
-    banners: normalizeBanners(settings.banners),
-    announcements: normalizeBanners(settings.announcements),
-    sponsoredAds: normalizeBanners(settings.sponsoredAds),
-    footer: {
-      visible: settings.footer?.visible !== false,
-      note: settings.footer?.note?.trim() || settings.disclaimer || defaultCmsSettings.disclaimer,
-    },
-    legalPages: {
-      terms: settings.legalPages?.terms?.trim() || settings.disclaimer || defaultCmsSettings.legalPages.terms,
-      privacy: settings.legalPages?.privacy?.trim() || defaultCmsSettings.legalPages.privacy,
-    },
-  };
-}
-
-function normalizeBanners(items?: CmsBanner[]) {
-  return (items ?? [])
-    .filter((item) => item.title?.trim() && item.imageUrl?.trim())
-    .map((item, index) => ({
-      ...item,
-      id: item.id || `cms-${Date.now()}-${index}`,
-      title: item.title.trim(),
-      subtitle: item.subtitle?.trim() ?? "",
-      imageUrl: item.imageUrl.trim(),
-      mobileImageUrl: item.mobileImageUrl?.trim() ?? "",
-      ctaLabel: item.ctaLabel?.trim() ?? "",
-      ctaHref: item.ctaHref?.trim() ?? "",
-      visible: item.visible !== false,
-      sortOrder: Number(item.sortOrder) || index + 1,
-    }));
+  return session;
 }

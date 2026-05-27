@@ -4,6 +4,7 @@ import type { AppCategory, CmsSettings, MenuItem, Offer, Restaurant, Review } fr
 import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { sortOffers } from "@/lib/offer-engine";
+import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
 export type PublicDataStatus = "idle" | "loading" | "success" | "error";
 type Unsubscribe = () => void;
@@ -75,7 +76,7 @@ async function fetchPublicCms() {
 
   const request = fetchJsonWithRetry<PublicSingleResponse<CmsSettings>>(url)
     .then((payload) => {
-      const settings = normalizeCmsSettings(payload.data);
+      const settings = resolveCmsSettings(payload.data);
       writeMemoryCache(url, settings, 5 * 60 * 1000);
       return settings;
     })
@@ -472,28 +473,6 @@ function withCloudinaryAuto(url: string) {
   if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
   if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(url)) return url;
   return url.replace("/upload/", "/upload/f_auto,q_auto/");
-}
-
-function normalizeCmsSettings(input?: CmsSettings): CmsSettings {
-  return {
-    ...defaultCmsSettings,
-    ...(input ?? {}),
-    homepage: {
-      ...defaultCmsSettings.homepage,
-      ...(input?.homepage ?? {}),
-    },
-    footer: {
-      ...defaultCmsSettings.footer,
-      ...(input?.footer ?? {}),
-    },
-    legalPages: {
-      ...defaultCmsSettings.legalPages,
-      ...(input?.legalPages ?? {}),
-    },
-    banners: input?.banners?.length ? input.banners : defaultCmsSettings.banners,
-    announcements: input?.announcements?.length ? input.announcements : defaultCmsSettings.announcements,
-    sponsoredAds: input?.sponsoredAds?.length ? input.sponsoredAds : defaultCmsSettings.sponsoredAds,
-  };
 }
 
 export function offerDocToUi(doc: OfferDoc): Offer {

@@ -369,14 +369,50 @@ export type CmsSettings = {
     title: string;
     subtitle: string;
     visible: boolean;
+    ctaText?: string;
+    ctaLink?: string;
+    backgroundImage?: string;
+    overlayOpacity?: number;
+    animationStyle?: "none" | "float" | "fade" | "slide";
   };
   banners: CmsBanner[];
   footer: {
     visible: boolean;
     note: string;
+    supportEmail?: string;
+    copyright?: string;
+    socialLinks?: Array<{ label: string; url: string }>;
   };
   announcements: CmsBanner[];
   sponsoredAds: CmsBanner[];
+  announcementBar?: {
+    visible: boolean;
+    message: string;
+    backgroundColor?: string;
+    icon?: string;
+    redirectUrl?: string;
+  };
+  sections?: {
+    categoriesVisible: boolean;
+    offersVisible: boolean;
+    featuredRestaurantsVisible: boolean;
+    popularItemsVisible: boolean;
+    recommendedTitle: string;
+    popularTitle: string;
+    offerTitle: string;
+  };
+  featuredRestaurants?: {
+    sortLogic: "rating" | "priority" | "manual";
+    pinnedRestaurantSlugs: string[];
+  };
+  seo?: {
+    title?: string;
+    description?: string;
+    keywords?: string[];
+  };
+  cmsVersion?: string;
+  lastPublishedAt?: string;
+  lastPublishedBy?: string;
   legalPages: {
     terms: string;
     privacy: string;
