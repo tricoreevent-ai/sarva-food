@@ -126,6 +126,33 @@ const menuCategories = [
   { id: "cat-desserts", name: "Desserts", sortOrder: 4 },
 ];
 
+const appCategorySeeds = [
+  ["Biryani", "rice-bowl", "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?auto=format&fit=crop&w=640&q=80", "#ef4444"],
+  ["Meals", "utensils", "https://images.unsplash.com/photo-1543352634-a1c51d9f1fa7?auto=format&fit=crop&w=640&q=80", "#f97316"],
+  ["Pizza", "pizza", "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=640&q=80", "#f59e0b"],
+  ["Burger", "sandwich", "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=640&q=80", "#84cc16"],
+  ["Shawarma", "wrap", "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=640&q=80", "#22c55e"],
+  ["Grill", "flame", "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=640&q=80", "#14b8a6"],
+  ["Chinese", "bowl", "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=640&q=80", "#06b6d4"],
+  ["South Indian", "dosa", "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=640&q=80", "#3b82f6"],
+  ["North Indian", "curry", "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=640&q=80", "#6366f1"],
+  ["Arabic", "kebab", "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=640&q=80", "#8b5cf6"],
+  ["Juices", "glass-water", "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=640&q=80", "#d946ef"],
+  ["Desserts", "cake-slice", "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=640&q=80", "#ec4899"],
+  ["Ice Cream", "ice-cream", "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?auto=format&fit=crop&w=640&q=80", "#ef4444"],
+  ["Cakes", "cake", "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=640&q=80", "#f97316"],
+  ["Tea & Coffee", "coffee", "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=640&q=80", "#f59e0b"],
+  ["Sandwich", "sandwich", "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=640&q=80", "#84cc16"],
+  ["Rolls", "wrap", "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=640&q=80", "#22c55e"],
+  ["Momos", "dumpling", "https://images.unsplash.com/photo-1625220194771-7ebdea0b70b9?auto=format&fit=crop&w=640&q=80", "#14b8a6"],
+  ["Tandoor", "flame-kindling", "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=640&q=80", "#06b6d4"],
+  ["Seafood", "fish", "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=640&q=80", "#3b82f6"],
+  ["Kebabs", "skewer", "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=640&q=80", "#6366f1"],
+  ["Healthy", "salad", "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=640&q=80", "#8b5cf6"],
+  ["Breakfast", "sunrise", "https://images.unsplash.com/photo-1493770348161-369560ae357d?auto=format&fit=crop&w=640&q=80", "#d946ef"],
+  ["Street Food", "store", "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=640&q=80", "#ec4899"],
+];
+
 const menuItems = [
   {
     id: "menu-paneer-tikka",
@@ -338,7 +365,7 @@ const thanisandraRestaurantSeeds = [
   },
   {
     id: "cafe-al-arab-thanisandra",
-    name: "Cafe Al Arab",
+    name: "Cafe Al Arab UL",
     location: "Avalahalli, Thanisandra Main Road",
     address: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",
     latitude: 13.064,
@@ -346,6 +373,11 @@ const thanisandraRestaurantSeeds = [
     deliveryRadiusKm: 6,
     cuisine: ["Arabic", "Shawarma", "Grills"],
     imagePath: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1200&q=80",
+    coverImages: [
+      "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1400&q=80",
+    ],
     rating: 4.1,
     reviewCount: 89,
     deliveryTime: "30-40 min",
@@ -471,6 +503,11 @@ const thanisandraRestaurantSeeds = [
     deliveryRadiusKm: 9,
     cuisine: ["Awadhi", "North Indian", "Kebab"],
     imagePath: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
+    coverImages: [
+      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=1400&q=80",
+    ],
     rating: 4.6,
     reviewCount: 332,
     deliveryTime: "38-50 min",
@@ -564,6 +601,7 @@ const thanisandraRestaurantSeeds = [
 ];
 
 const launchRestaurantSeedIds = new Set([
+  "cafe-al-arab-thanisandra",
   "falak-leela-bhartiya",
 ]);
 const launchRestaurantSeeds = thanisandraRestaurantSeeds.filter((restaurant) => launchRestaurantSeedIds.has(restaurant.id));
@@ -609,6 +647,93 @@ for (const user of resolvedUsers) {
     updatedAt: now,
   }, { merge: true });
 }
+
+for (const [name, icon, image, colorTheme] of appCategorySeeds) {
+  const id = safeSeedId(name);
+  batch.set(db.collection("appCategories").doc(id), {
+    id,
+    name,
+    slug: id,
+    imagePath: image,
+    image,
+    icon,
+    sortOrder: appCategorySeeds.findIndex((item) => item[0] === name) + 1,
+    active: true,
+    colorTheme,
+    isDeleted: false,
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
+}
+
+batch.set(db.collection("appSettings").doc("cms"), {
+  appName: "Sarva Food",
+  homepage: {
+    title: "Craving something delicious?",
+    subtitle: "Order Arabic grills, biryani, meals, pizza, burgers, juices, and desserts from verified nearby restaurants.",
+    visible: true,
+  },
+  banners: [
+    {
+      id: "homepage-arabic-grills",
+      title: "Authentic Arabic flavours, made with love",
+      subtitle: "Shawarma, mandi, Al Faham, grills, and family platters near Thanisandra.",
+      imageUrl: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1200&q=80",
+      mobileImageUrl: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=800&q=80",
+      ctaLabel: "Explore Arabic",
+      ctaHref: "/restaurants?query=arabic",
+      visible: true,
+      sortOrder: 1,
+    },
+    {
+      id: "homepage-biryani-meals",
+      title: "Biryani and meals for every mood",
+      subtitle: "Find dum biryani, Kerala meals, Andhra meals, and quick lunch combos.",
+      imageUrl: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?auto=format&fit=crop&w=1200&q=80",
+      mobileImageUrl: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?auto=format&fit=crop&w=800&q=80",
+      ctaLabel: "Order now",
+      ctaHref: "/restaurants?query=biryani",
+      visible: true,
+      sortOrder: 2,
+    },
+  ],
+  sponsoredAds: [
+    {
+      id: "homepage-falak-offer",
+      title: "Flat ₹300 off royal dinners",
+      subtitle: "Use FALAK300 on Falak favourites above the minimum order.",
+      imageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1200&q=80",
+      mobileImageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
+      ctaLabel: "Use FALAK300",
+      ctaHref: "/restaurant/falak-leela-bhartiya",
+      visible: true,
+      sortOrder: 1,
+    },
+  ],
+  announcements: [
+    {
+      id: "homepage-location-ready",
+      title: "Thanisandra delivery is live",
+      subtitle: "Cafe Al Arab UL and Falak are ready for online orders.",
+      imageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1200&q=80",
+      mobileImageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
+      ctaLabel: "See restaurants",
+      ctaHref: "/restaurants?query=thanisandra",
+      visible: true,
+      sortOrder: 1,
+    },
+  ],
+  disclaimer: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.",
+  footer: {
+    visible: true,
+    note: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.",
+  },
+  legalPages: {
+    terms: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.",
+    privacy: "Sarva Food uses account, location, cart, and order data only to operate food discovery, ordering, support, and safety workflows.",
+  },
+  updatedAt: now,
+}, { merge: true });
 
 batch.set(db.collection("users").doc(demoCustomerRecord.uid), {
   id: demoCustomerRecord.uid,
@@ -680,6 +805,12 @@ batch.set(db.collection("restaurants").doc(restaurantId), {
   deliveryRadiusKm: 7,
   cuisine: ["Arabic", "Shawarma", "Grills"],
   imagePath: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80",
+  coverImagePath: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80",
+  coverImagePaths: [
+    "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
+  ],
   rating: 4.7,
   deliveryTime: "24-32 min",
   etaMinutes: 24,
@@ -1384,6 +1515,8 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       deliveryRadiusKm: restaurant.deliveryRadiusKm,
       cuisine: restaurant.cuisine,
       imagePath: restaurant.imagePath,
+      coverImagePath: restaurant.coverImages?.[0] ?? restaurant.imagePath,
+      coverImagePaths: restaurant.coverImages ?? [restaurant.imagePath],
       rating: restaurant.rating,
       reviewCount: restaurant.reviewCount,
       deliveryTime: restaurant.deliveryTime,

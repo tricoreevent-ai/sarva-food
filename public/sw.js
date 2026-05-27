@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sarva-v8-20260526";
+const CACHE_VERSION = "sarva-v9-20260526";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const MENU_CACHE = `${CACHE_VERSION}-menus`;
@@ -55,7 +55,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") {
     if (["POST", "PUT", "PATCH"].includes(request.method)) {
-      event.waitUntil(notifyClients("SARVA_SYNC_QUEUE"));
+      event.respondWith(networkOnlyWithOptionalQueue(request));
     }
     return;
   }
@@ -131,6 +131,22 @@ async function staleWhileRevalidate(request, cacheName) {
     .catch(() => cached);
 
   return cached || fresh;
+}
+
+async function networkOnlyWithOptionalQueue(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    const url = new URL(request.url);
+    if (
+      url.origin === self.location.origin &&
+      !url.pathname.startsWith("/api/auth/") &&
+      !url.pathname.startsWith("/api/public/")
+    ) {
+      await notifyClients("SARVA_SYNC_QUEUE");
+    }
+    throw error;
+  }
 }
 
 function canCache(response) {

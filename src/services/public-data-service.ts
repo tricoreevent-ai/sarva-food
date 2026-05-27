@@ -1,7 +1,8 @@
 "use client";
 
-import type { AppCategory, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
+import type { AppCategory, CmsSettings, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
+import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { sortOffers } from "@/lib/offer-engine";
 
 export type PublicDataStatus = "idle" | "loading" | "success" | "error";
@@ -9,6 +10,7 @@ type Unsubscribe = () => void;
 
 const FALLBACK_IMAGE = "/icons/sarva-icon.svg";
 type PublicApiResponse<T> = { data?: T[]; error?: string };
+type PublicSingleResponse<T> = { data?: T; error?: string };
 type PublicReviewSummary = { averageRating: number; ratingCount: number };
 type PublicReviewsResponse = { data?: Review[]; summary?: PublicReviewSummary; error?: string };
 type PublicReviewsPayload = { data: Review[]; summary: PublicReviewSummary };
@@ -63,6 +65,28 @@ async function fetchPublicCategories() {
     .filter((item) => item.active && !item.isDeleted)
     .map(categoryDocToUi)
     .sort((first, second) => first.sortOrder - second.sortOrder);
+}
+
+async function fetchPublicCms() {
+  const url = publicApiUrl("/api/public/cms");
+  const existing = inflightPublicRequests.get(url) as Promise<CmsSettings> | undefined;
+  if (existing) return existing;
+
+  const request = fetchJsonWithRetry<PublicSingleResponse<CmsSettings>>(url)
+    .then((payload) => {
+      const settings = normalizeCmsSettings(payload.data);
+      publicResponseCache.set(url, settings);
+      return settings;
+    })
+    .catch((error) => {
+      const cached = publicResponseCache.get(url);
+      if (cached) return cached as CmsSettings;
+      throw error;
+    })
+    .finally(() => inflightPublicRequests.delete(url));
+
+  inflightPublicRequests.set(url, request);
+  return request;
 }
 
 async function fetchPublicMenu(restaurantId: string) {
@@ -189,6 +213,27 @@ export function listenPublicCategories(
     .catch((error) => {
       warnPublicFallbackFailure("categories", error);
       deliver([]);
+    });
+
+  return () => {
+    active = false;
+  };
+}
+
+export function listenPublicCms(
+  onData: (settings: CmsSettings) => void,
+): Unsubscribe {
+  let active = true;
+  const deliver = (settings: CmsSettings) => {
+    if (!active) return;
+    onData(settings);
+  };
+
+  void fetchPublicCms()
+    .then(deliver)
+    .catch((error) => {
+      warnPublicFallbackFailure("cms", error);
+      deliver(defaultCmsSettings);
     });
 
   return () => {
@@ -411,6 +456,28 @@ function withCloudinaryAuto(url: string) {
   if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
   if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(url)) return url;
   return url.replace("/upload/", "/upload/f_auto,q_auto/");
+}
+
+function normalizeCmsSettings(input?: CmsSettings): CmsSettings {
+  return {
+    ...defaultCmsSettings,
+    ...(input ?? {}),
+    homepage: {
+      ...defaultCmsSettings.homepage,
+      ...(input?.homepage ?? {}),
+    },
+    footer: {
+      ...defaultCmsSettings.footer,
+      ...(input?.footer ?? {}),
+    },
+    legalPages: {
+      ...defaultCmsSettings.legalPages,
+      ...(input?.legalPages ?? {}),
+    },
+    banners: input?.banners?.length ? input.banners : defaultCmsSettings.banners,
+    announcements: input?.announcements?.length ? input.announcements : defaultCmsSettings.announcements,
+    sponsoredAds: input?.sponsoredAds?.length ? input.sponsoredAds : defaultCmsSettings.sponsoredAds,
+  };
 }
 
 export function offerDocToUi(doc: OfferDoc): Offer {

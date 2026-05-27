@@ -79,7 +79,6 @@ export function MobilePullToRefresh({ children }: { children: ReactNode }) {
 export function MobileOfflineBanner() {
   const [mounted, setMounted] = useState(false);
   const [online, setOnline] = useState(true);
-  const [queued, setQueued] = useState(false);
 
   useEffect(() => {
     const initialStateTimer = window.setTimeout(() => {
@@ -87,22 +86,17 @@ export function MobileOfflineBanner() {
       setOnline(navigator.onLine);
     }, 0);
     const update = () => setOnline(navigator.onLine);
-    const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "SARVA_SYNC_QUEUE") setQueued(true);
-    };
 
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
-    navigator.serviceWorker?.addEventListener("message", onMessage);
     return () => {
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
-      navigator.serviceWorker?.removeEventListener("message", onMessage);
       window.clearTimeout(initialStateTimer);
     };
   }, []);
 
-  if (!mounted || (online && !queued)) return null;
+  if (!mounted || online) return null;
 
   return (
     <div className="fixed inset-x-3 top-3 z-50 md:left-auto md:right-5 md:w-96">
@@ -112,13 +106,13 @@ export function MobileOfflineBanner() {
             {online ? <Wifi className="size-5" /> : <WifiOff className="size-5" />}
           </div>
           <div>
-            <p className="text-sm font-black">{online ? "Sync pending" : "Offline mode"}</p>
+            <p className="text-sm font-black">Offline mode</p>
             <p className="text-xs font-semibold text-muted-foreground">
-              {online ? "Queued changes will retry in the background." : "Cart, POS, and kitchen actions stay queued locally."}
+              Cart and checkout data stay available locally. Reconnect to refresh live restaurant data.
             </p>
           </div>
         </div>
-        <Button type="button" size="sm" variant="outline" onClick={() => setQueued(false)}>
+        <Button type="button" size="sm" variant="outline" onClick={() => setMounted(false)}>
           OK
         </Button>
       </div>

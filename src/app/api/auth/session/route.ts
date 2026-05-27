@@ -15,7 +15,7 @@ export async function GET() {
   const session = await getSessionFromCookies();
 
   if (!session) {
-    return NextResponse.json({ ok: false, error: "No active session." }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "No active session." });
   }
 
   return NextResponse.json({

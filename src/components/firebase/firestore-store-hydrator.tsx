@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { listenPublicMenu, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
+import { listenPublicCms, listenPublicMenu, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
 import { listenKitchenOrders } from "@/services/restaurant-ops-service";
 import { listenInventory, listenLoyaltyCustomers } from "@/services/production-data-service";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
@@ -29,6 +29,9 @@ export function FirestoreStoreHydrator() {
           }),
           listenPublicOffers(DEFAULT_RESTAURANT_ID, (offers) => {
             useAppStore.setState({ offers });
+          }),
+          listenPublicCms((cmsSettings) => {
+            useAppStore.setState({ cmsSettings });
           }),
         ]
       : [];

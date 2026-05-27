@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -43,11 +43,55 @@ export default function AdminCmsPage() {
   const [settings, setSettings] = useState<CmsSettings>({ ...defaultCmsSettings, ...storedSettings });
   const [surface, setSurface] = useState<BannerSurface>("banners");
   const [draft, setDraft] = useState<CmsBanner>(emptyBanner);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const activeItems = [...(settings[surface] ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/admin/cms", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "Could not load CMS settings.");
+        return payload.data as CmsSettings;
+      })
+      .then((data) => {
+        if (!active) return;
+        const next = mergeCmsSettings(data);
+        setSettings(next);
+        void updateCmsSettings(next);
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : "Could not load CMS settings.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [updateCmsSettings]);
+
   async function saveCms() {
-    await updateCmsSettings(settings);
-    toast.success("CMS settings saved.");
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/cms", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Could not save CMS settings.");
+      const next = mergeCmsSettings(payload.data as CmsSettings);
+      setSettings(next);
+      await updateCmsSettings(next);
+      toast.success("CMS settings saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save CMS settings.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function addBanner() {
@@ -89,8 +133,9 @@ export default function AdminCmsPage() {
       <SectionHeader
         title="System Settings"
         description="Configure application name, homepage content, banners, footer, legal copy, announcements, and sponsored placements."
-        action={<Button onClick={saveCms}><Save className="size-4" />Save CMS</Button>}
+        action={<Button onClick={saveCms} disabled={saving}><Save className="size-4" />{saving ? "Saving..." : "Save CMS"}</Button>}
       />
+      {loading ? <div className="rounded-xl border bg-card p-4 text-sm font-semibold text-muted-foreground">Loading CMS content...</div> : null}
 
       <section className="grid gap-5 xl:grid-cols-[420px_1fr]">
         <Card>
@@ -205,4 +250,26 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       {label}
     </label>
   );
+}
+
+function mergeCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
+  return {
+    ...defaultCmsSettings,
+    ...(input ?? {}),
+    homepage: {
+      ...defaultCmsSettings.homepage,
+      ...(input?.homepage ?? {}),
+    },
+    footer: {
+      ...defaultCmsSettings.footer,
+      ...(input?.footer ?? {}),
+    },
+    legalPages: {
+      ...defaultCmsSettings.legalPages,
+      ...(input?.legalPages ?? {}),
+    },
+    banners: input?.banners?.length ? input.banners : defaultCmsSettings.banners,
+    announcements: input?.announcements?.length ? input.announcements : defaultCmsSettings.announcements,
+    sponsoredAds: input?.sponsoredAds?.length ? input.sponsoredAds : defaultCmsSettings.sponsoredAds,
+  };
 }

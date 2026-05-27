@@ -1,48 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, KeyRound, Mail, Phone, RefreshCw, ShieldCheck, Store, UserRound } from "lucide-react";
-import { type ConfirmationResult, type RecaptchaVerifier } from "firebase/auth";
-import { SectionHeader } from "@/components/layout/section-header";
+import Image from "next/image";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Mail,
+  Moon,
+  ShieldCheck,
+  Sparkles,
+  Store,
+  Sun,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
 import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import type { MockUser } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import {
-  confirmPhoneLogin,
   completeEmailLinkLogin,
-  createPhoneVerifier,
   getUserProfile,
+  resetPassword,
   signInAdminWithEmail,
   signInCustomerWithEmail,
   signInOperationalWithEmail,
   signInWithGoogle,
   signOutUser,
+  signUpWithEmail,
   startEmailLinkLogin,
-  startPhoneLogin,
 } from "@/services/auth-service";
+import {
+  getStackCustomer,
+  isStackAuthConfigured,
+  sendStackMagicLink,
+  sendStackPasswordReset,
+  signInWithStackEmail,
+  signInWithStackGoogle,
+  signUpWithStackEmail,
+} from "@/services/auth/stack-auth-client";
 import type { UserRole } from "@/types/firebase";
 
 type AuthSurface = "customer-login" | "customer-signup" | "portal-login" | "admin-login";
-type EmailOtpPurpose = "signup" | "reset";
-type EmailOtpStep = "email" | "verify" | "password" | "done";
-
-type EmailOtpResponse = {
-  ok?: boolean;
-  error?: string;
-  code?: string;
-  verificationToken?: string;
-  resendAfterSeconds?: number;
-  retryAfterSeconds?: number;
-  attemptsRemaining?: number;
-  workaround?: string;
-};
+type CustomerMode = "sign-in" | "sign-up" | "forgot";
 
 const DEV_USERS: Array<MockUser & { email: string; password: string }> = [
   { id: "demo-customer", name: "Demo Customer", role: "customer", restaurantSlug: DEFAULT_TENANT_ID, email: "demo@sarva.test", password: "password123" },
@@ -68,326 +77,86 @@ const portalRoles: UserRole[] = [
   "delivery",
 ];
 
-const surfaceCopy: Record<AuthSurface, {
-  eyebrow: string;
-  title: string;
-  description: string;
-  defaultNext: string;
-  icon: typeof UserRound;
-}> = {
-  "customer-login": {
-    eyebrow: "Customer access",
-    title: "Sign in to order",
-    description: "Use your customer account to manage addresses, order history, and loyalty across Sarva restaurants.",
-    defaultNext: "/profile",
-    icon: UserRound,
-  },
-  "customer-signup": {
-    eyebrow: "Customer signup",
-    title: "Create your customer account",
-    description: "Sign up with email and password. We will send a verification link before your profile is fully active.",
-    defaultNext: "/profile",
-    icon: UserRound,
-  },
+const operationalCopy = {
   "portal-login": {
     eyebrow: "Owner portal",
     title: "Owner portal login",
-    description: "For restaurant operations accounts only. Customer accounts use the public login.",
+    description: "Restaurant operations accounts only.",
     defaultNext: "/owner",
     icon: Store,
   },
   "admin-login": {
     eyebrow: "Platform admin",
     title: "Admin sign in",
-    description: "Platform-level access for tenant onboarding, approvals, audit, and subscription operations.",
+    description: "Platform controls, approvals, diagnostics, and subscriptions.",
     defaultNext: "/admin",
     icon: ShieldCheck,
   },
-};
+} as const;
 
 export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSurface }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? surfaceCopy[surface].defaultNext;
-  const resetRequested = searchParams.get("reset") === "true" || searchParams.get("mode") === "reset";
-  const verifier = useRef<RecaptchaVerifier | null>(null);
   const isCustomerSurface = surface === "customer-login" || surface === "customer-signup";
-  const isSignup = surface === "customer-signup";
+  const next = searchParams.get("next") ?? (isCustomerSurface ? "/profile" : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext);
+  const initialMode: CustomerMode = pathname.startsWith("/forgot-password") || searchParams.get("reset") === "true"
+    ? "forgot"
+    : surface === "customer-signup"
+      ? "sign-up"
+      : "sign-in";
+  const [mode, setMode] = useState<CustomerMode>(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailOtpPurpose, setEmailOtpPurpose] = useState<EmailOtpPurpose>(isSignup ? "signup" : "reset");
-  const [emailOtpStep, setEmailOtpStep] = useState<EmailOtpStep>(isSignup ? "email" : "email");
-  const [emailOtpToken, setEmailOtpToken] = useState("");
-  const [resendSeconds, setResendSeconds] = useState(0);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
-  const [showResetOtp, setShowResetOtp] = useState(resetRequested && isCustomerSurface && !isSignup);
+  const [authDark, setAuthDark] = useState(true);
   const [authCapabilities, setAuthCapabilities] = useState({
     ready: false,
     firebaseEnabled: false,
     devLoginEnabled: false,
+    stackEnabled: false,
   });
   const setAuthUser = useAppStore((state) => state.setAuthUser);
+  const { ready: authReady, firebaseEnabled, devLoginEnabled, stackEnabled } = authCapabilities;
 
-  const { ready: authCapabilitiesReady, firebaseEnabled, devLoginEnabled } = authCapabilities;
-  const copy = surfaceCopy[surface];
-  const Icon = copy.icon;
   const devUsers = useMemo(() => {
     if (surface === "admin-login") return DEV_USERS.filter((user) => user.role === "admin");
     if (surface === "portal-login") return DEV_USERS.filter((user) => portalRoles.includes(user.role));
     if (surface === "customer-login") return DEV_USERS.filter((user) => user.role === "customer");
     return [];
   }, [surface]);
+
   const matchingDevUser = useMemo(
     () => devUsers.find((user) => user.email.toLowerCase() === email.trim().toLowerCase() && user.password === password),
     [devUsers, email, password],
   );
-  const canUsePasswordAuth = firebaseEnabled || devLoginEnabled;
+  const passwordScore = getPasswordScore(password);
+  const canSubmitPassword = stackEnabled || firebaseEnabled || devLoginEnabled;
+
   useEffect(() => {
     const id = window.setTimeout(() => {
       setAuthCapabilities({
         ready: true,
         firebaseEnabled: shouldUseFirebase(),
         devLoginEnabled: shouldEnableDevLogin(),
+        stackEnabled: isStackAuthConfigured(),
       });
     }, 0);
 
     return () => window.clearTimeout(id);
   }, []);
 
-  useEffect(() => {
-    if (resendSeconds <= 0) return;
-    const id = window.setInterval(() => {
-      setResendSeconds((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [resendSeconds]);
-
   const finish = useCallback(async () => {
     router.replace(next);
     router.refresh();
   }, [next, router]);
 
-  const finishWithFallback = useCallback(async () => {
-    await finish();
-    window.setTimeout(() => {
-      const target = new URL(next, window.location.origin);
-      if (window.location.pathname.includes("/login") && target.pathname !== window.location.pathname) {
-        window.location.assign(target.href);
-      }
-    }, 300);
-  }, [finish, next]);
-
-  useEffect(() => {
-    if (!firebaseEnabled || !isCustomerSurface) return;
-    completeEmailLinkLogin("customer")
-      .then((user) => {
-        if (user) {
-          setMessage("Email verified. Completing sign in...");
-          void finish();
-        }
-      })
-      .catch((error) => {
-        setMessage(friendlyAuthMessage(error));
-      });
-  }, [firebaseEnabled, finish, isCustomerSurface]);
-
-  async function callEmailOtpApi(payload: {
-    action: "request" | "verify" | "complete";
-    purpose: EmailOtpPurpose;
-    email: string;
-    code?: string;
-    verificationToken?: string;
-    password?: string;
-    displayName?: string;
-  }) {
-    try {
-      const response = await fetch("/api/auth/email-otp", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({})) as EmailOtpResponse;
-      return response.ok && data.ok !== false
-        ? data
-        : { ok: false, error: data.error ?? safeEmailOtpMessage(payload.action), code: data.code, retryAfterSeconds: data.retryAfterSeconds, attemptsRemaining: data.attemptsRemaining };
-    } catch {
-      return { ok: false, error: safeEmailOtpMessage(payload.action), code: "network" };
-    }
-  }
-
-  async function sendEmailOtp(purpose: EmailOtpPurpose = emailOtpPurpose) {
-    if (!email.trim()) {
-      setMessage("Enter your email first.");
-      return;
-    }
-    if (purpose === "signup" && name.trim().length < 2) {
-      setMessage("Enter your name before creating an account.");
-      return;
-    }
-    setIsSubmitting(true);
-    setEmailOtpPurpose(purpose);
-    setMessage("Sending OTP...");
-    const data = await callEmailOtpApi({ action: "request", purpose, email });
-    if (data.ok === false) {
-      setAttemptsRemaining(data.attemptsRemaining ?? null);
-      setResendSeconds(data.retryAfterSeconds ?? 0);
-      setMessage(data.error ?? safeEmailOtpMessage("request"));
-      setIsSubmitting(false);
-      return;
-    }
-    setEmailOtpStep("verify");
-    setOtp("");
-    setAttemptsRemaining(data.attemptsRemaining ?? null);
-    setResendSeconds(data.resendAfterSeconds ?? 60);
-    setMessage(`OTP sent to ${email.trim().toLowerCase()}.`);
-    setIsSubmitting(false);
-  }
-
-  async function verifyEmailOtp() {
-    setIsSubmitting(true);
-    setMessage("Verifying OTP...");
-    const data = await callEmailOtpApi({
-      action: "verify",
-      purpose: emailOtpPurpose,
-      email,
-      code: otp,
-    });
-    if (data.ok === false) {
-      setAttemptsRemaining(data.attemptsRemaining ?? attemptsRemaining);
-      setMessage(data.error ?? safeEmailOtpMessage("verify"));
-      setIsSubmitting(false);
-      return;
-    }
-    setEmailOtpToken(data.verificationToken ?? "");
-    setEmailOtpStep("password");
-    setMessage("Email verified. Set your password to continue.");
-    setIsSubmitting(false);
-  }
-
-  async function completeEmailOtp() {
-    if (password.length < 8) {
-      setMessage("Password must be at least 8 characters.");
-      return;
-    }
-    setIsSubmitting(true);
-    setMessage(emailOtpPurpose === "signup" ? "Creating account..." : "Updating password...");
-    const data = await callEmailOtpApi({
-      action: "complete",
-      purpose: emailOtpPurpose,
-      email,
-      verificationToken: emailOtpToken,
-      password,
-      displayName: name,
-    });
-    if (data.ok === false) {
-      setMessage(data.error ?? safeEmailOtpMessage("complete"));
-      setIsSubmitting(false);
-      return;
-    }
-    setEmailOtpStep("done");
-    setMessage(emailOtpPurpose === "signup" ? "Account created. Signing you in..." : "Password updated. Signing you in...");
-    if (firebaseEnabled) {
-      try {
-        const user = await signInCustomerWithEmail(email, password);
-        await syncStoreUser(user.uid);
-        await finish();
-      } catch {
-        setMessage("Account updated. Please sign in with your new password.");
-      }
-    }
-    setIsSubmitting(false);
-  }
-
-  function friendlyAuthMessage(error: unknown) {
-    const raw = error instanceof Error ? error.message : "";
-    if (/auth\/invalid-credential|wrong-password|user-not-found|invalid-login-credentials/i.test(raw)) {
-      return "The email or password is incorrect.";
-    }
-    if (/auth\/too-many-requests/i.test(raw)) {
-      return "Too many attempts. Please wait a moment and try again.";
-    }
-    if (/auth\/unauthorized-domain/i.test(raw)) {
-      return "Google sign-in is not enabled for this domain. Add this domain in Firebase Authentication authorized domains.";
-    }
-    if (/auth\/popup-blocked|auth\/popup-closed-by-user/i.test(raw)) {
-      return "Google sign-in popup was blocked or closed. Allow popups for this site and try again.";
-    }
-    if (/auth\/operation-not-allowed/i.test(raw)) {
-      return "Google sign-in is not enabled in Firebase Authentication.";
-    }
-    if (/not available for your account type/i.test(raw)) {
-      return "Please use the correct login screen for this account.";
-    }
-    if (/inactive|approved/i.test(raw)) {
-      return "This account is inactive or waiting for approval.";
-    }
-    if (/network|offline/i.test(raw)) {
-      return "You appear to be offline. We will keep local work saved and retry when internet returns.";
-    }
-    return "Authentication failed. Please check your details and try again.";
-  }
-
-  function safeEmailOtpMessage(action: "request" | "verify" | "complete") {
-    if (action === "request") return "Unable to send OTP right now. Please try again later.";
-    if (action === "verify") return "Invalid or expired OTP. Please check the code and try again.";
-    return "Unable to complete this account update right now. Please try again later.";
-  }
-
-  async function withErrorBoundary(action: () => Promise<void>, success?: string, redirect = true) {
-    try {
-      if (isSubmitting) return;
-      setIsSubmitting(true);
-      setMessage(isSignup ? "Creating account..." : "Signing in...");
-      await action();
-      setMessage(success ?? (isSignup ? "Account created. Check your email for the verification link." : "Signed in."));
-      if (redirect) {
-        await finish();
-      }
-    } catch (error) {
-      if (devLoginEnabled && matchingDevUser) {
-        await signInAsDevUser(matchingDevUser);
-        return;
-      }
-      setMessage(friendlyAuthMessage(error));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function signInWithConfiguredSurface() {
-    if (devLoginEnabled && matchingDevUser) {
-      await signInAsDevUser(matchingDevUser);
-      return;
-    }
-
-    if (!firebaseEnabled) {
-      throw new Error("Secure sign-in is not configured. Use a local development account or enable Firebase.");
-    }
-
-    if (surface === "admin-login") {
-      const user = await signInAdminWithEmail(email, password);
-      await syncStoreUser(user.uid);
-      return;
-    }
-
-    if (surface === "portal-login") {
-      const user = await signInOperationalWithEmail(email, password);
-      await syncStoreUser(user.uid);
-      return;
-    }
-
-    const user = await signInCustomerWithEmail(email, password);
-    await syncStoreUser(user.uid);
-  }
-
-  async function syncStoreUser(uid: string) {
+  const syncStoreUser = useCallback(async (uid: string) => {
     const profile = await getUserProfile(uid).catch(() => null);
     if (!profile) return;
     setAuthUser({
@@ -396,358 +165,555 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       role: profile.role,
       restaurantSlug: profile.tenantId ?? profile.restaurantIds?.[0] ?? DEFAULT_TENANT_ID,
     });
+  }, [setAuthUser]);
+
+  useEffect(() => {
+    if (!firebaseEnabled || !isCustomerSurface) return;
+    completeEmailLinkLogin("customer")
+      .then((user) => {
+        if (!user) return;
+        setMessage("Email verified. Opening your account...");
+        toast.success("Signed in with magic link.");
+        void syncStoreUser(user.uid).then(finish);
+      })
+      .catch((error) => setMessage(friendlyAuthMessage(error)));
+  }, [firebaseEnabled, finish, isCustomerSurface, syncStoreUser]);
+
+  async function syncStackCustomer() {
+    const user = await getStackCustomer();
+    setAuthUser({
+      id: user?.id || email.trim().toLowerCase() || "stack-customer",
+      name: user?.displayName || name.trim() || user?.primaryEmail || "Sarva Customer",
+      role: "customer",
+      restaurantSlug: DEFAULT_TENANT_ID,
+    });
   }
 
   async function signInAsDevUser(devUser: (typeof DEV_USERS)[number]) {
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
-      setEmail(devUser.email);
-      setPassword(devUser.password);
-      setName(devUser.name);
       await signOutUser().catch(() => undefined);
       await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
-
-      const sessionResponse = await fetch("/api/auth/test-session", {
+      await fetch("/api/auth/test-session", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ uid: devUser.id, role: devUser.role }),
       }).catch(() => null);
-
-      const savedOwnerName = devUser.role === "owner" ? useAppStore.getState().ownerBusinessProfile?.ownerName : undefined;
-      const displayName = savedOwnerName || devUser.name;
       setAuthUser({
         id: devUser.id,
-        name: displayName,
+        name: devUser.name,
         role: devUser.role,
         restaurantSlug: devUser.restaurantSlug,
       });
-      setMessage(
-        sessionResponse?.ok === false
-          ? `Signed in locally as ${displayName}. Restart the dev server if this page does not open.`
-          : `Signed in as ${displayName}.`,
-      );
-      await finishWithFallback();
+      toast.success(`Signed in as ${devUser.name}.`);
+      await finish();
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function submitPasswordForm(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
-    if (!canUsePasswordAuth) {
-      setMessage("Secure sign-in is still preparing. Please try again in a moment.");
-      return;
+    setMessage("");
+
+    if (!isValidEmail(email)) {
+      return setMessage("Enter a valid email address.");
     }
-    if (!email.trim() || password.length < 6) {
-      setMessage("Enter a valid email and password.");
-      return;
+    if (mode !== "forgot" && password.length < 6) {
+      return setMessage("Password must be at least 6 characters.");
     }
-    if (isSignup && name.trim().length < 2) {
-      setMessage("Enter your name before creating an account.");
-      return;
+    if (mode === "sign-up" && name.trim().length < 2) {
+      return setMessage("Enter your full name.");
+    }
+    if (mode === "sign-up" && !termsAccepted) {
+      return setMessage("Accept the terms to create your account.");
+    }
+    if (!canSubmitPassword && mode !== "forgot") {
+      return setMessage("Secure sign-in is not configured yet.");
     }
 
-    await withErrorBoundary(signInWithConfiguredSurface);
+    setIsSubmitting(true);
+    try {
+      if (mode === "forgot") {
+        await sendPasswordReset();
+        return;
+      }
+
+      if (devLoginEnabled && matchingDevUser) {
+        await signInAsDevUser(matchingDevUser);
+        return;
+      }
+
+      if (mode === "sign-up") {
+        if (stackEnabled) {
+          await signUpWithStackEmail(email.trim(), password);
+          await syncStackCustomer();
+        } else {
+          const user = await signUpWithEmail(email.trim(), password, "customer", name.trim());
+          await syncStoreUser(user.uid);
+        }
+        toast.success("Account created.");
+        await finish();
+        return;
+      }
+
+      if (stackEnabled) {
+        await signInWithStackEmail(email.trim(), password);
+        await syncStackCustomer();
+      } else {
+        const user = isCustomerSurface
+          ? await signInCustomerWithEmail(email.trim(), password)
+          : surface === "admin-login"
+            ? await signInAdminWithEmail(email.trim(), password)
+            : await signInOperationalWithEmail(email.trim(), password);
+        await syncStoreUser(user.uid);
+      }
+      toast.success("Signed in.");
+      await finish();
+    } catch (error) {
+      const text = friendlyAuthMessage(error);
+      setMessage(text);
+      toast.error(text);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function sendPasswordReset() {
+    setMessage("Sending reset email...");
+    if (stackEnabled) {
+      await sendStackPasswordReset(email.trim(), `${window.location.origin}/handler/password-reset`);
+    } else {
+      await resetPassword(email.trim());
+    }
+    toast.success("Password reset email sent.");
+    setMessage("Check your email for the password reset link.");
+  }
+
+  async function sendMagicLink() {
+    if (!isValidEmail(email)) {
+      setMessage("Enter your email first.");
+      return;
+    }
+    setIsSubmitting(true);
+    setMessage("Sending secure magic link...");
+    try {
+      if (stackEnabled) {
+        await sendStackMagicLink(email.trim(), `${window.location.origin}/handler/magic-link`);
+      } else if (firebaseEnabled) {
+        await startEmailLinkLogin(email.trim());
+      } else {
+        throw new Error("Magic link is not configured.");
+      }
+      toast.success("Magic link sent.");
+      setMessage("Check your email for the secure sign-in link.");
+    } catch (error) {
+      const text = friendlyAuthMessage(error);
+      setMessage(text);
+      toast.error(text);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function continueWithGoogle() {
+    setIsSubmitting(true);
+    setMessage("Opening Google sign in...");
+    try {
+      if (stackEnabled) {
+        await signInWithStackGoogle(`${window.location.origin}${next}`);
+        return;
+      }
+      if (!firebaseEnabled) throw new Error("Google sign-in is not configured.");
+      const user = await signInWithGoogle("customer");
+      await syncStoreUser(user.uid);
+      toast.success("Signed in with Google.");
+      await finish();
+    } catch (error) {
+      const text = friendlyAuthMessage(error);
+      setMessage(text);
+      toast.error(text);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (!isCustomerSurface) {
+    return (
+      <OperationalLogin
+        surface={surface}
+        email={email}
+        password={password}
+        showPassword={showPassword}
+        message={message}
+        isSubmitting={isSubmitting}
+        authReady={authReady}
+        canSubmit={canSubmitPassword}
+        devUsers={devUsers}
+        setEmail={setEmail}
+        setPassword={setPassword}
+        setShowPassword={setShowPassword}
+        submit={handleSubmit}
+        signInAsDevUser={signInAsDevUser}
+      />
+    );
   }
 
   return (
-    <main className="container-page grid min-h-screen place-items-center py-8">
-      <Card className="w-full max-w-md">
-        <CardContent className="space-y-5 p-5">
-          <div className="grid size-12 place-items-center rounded-md bg-primary/10 text-primary">
-            <Icon className="size-6" aria-hidden="true" />
-          </div>
-          <SectionHeader
-            eyebrow={copy.eyebrow}
-            title={copy.title}
-            description={copy.description}
-          />
-
-          {!authCapabilitiesReady ? (
-            <div className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
-              Preparing secure sign-in...
-            </div>
-          ) : null}
-
-          {authCapabilitiesReady && devLoginEnabled && devUsers.length ? (
-            <div className="grid gap-2 rounded-md bg-primary/10 p-3 text-sm">
-              <p className="font-bold text-primary">Development login</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {devUsers.map((devUser) => (
-                  <Button
-                    key={devUser.email}
-                    variant="outline"
-                    size="sm"
-                    className="justify-start bg-background"
-                    onClick={() => void signInAsDevUser(devUser)}
-                  >
-                    <KeyRound className="size-3" />
-                    {devUser.role}
-                  </Button>
+    <main className={cn(
+      "min-h-screen overflow-hidden px-4 py-5 transition-colors md:px-6 md:py-8",
+      authDark ? "bg-[#071610] text-white" : "bg-[#fff8f1] text-[#1f130d]",
+    )}>
+      <div className="mx-auto grid min-h-[calc(100vh-2.5rem)] w-full max-w-6xl overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/10 shadow-2xl backdrop-blur-xl lg:grid-cols-[0.95fr_1.05fr]">
+        <section className="relative hidden overflow-hidden bg-[#032d22] p-8 lg:block">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-emerald-900 to-orange-950/60" />
+          <div className="relative z-10 flex h-full flex-col justify-between">
+            <div>
+              <Link href="/" className="inline-flex items-center gap-3">
+                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 to-emerald-500 text-base font-black text-white shadow-xl">SF</span>
+                <span>
+                  <span className="block text-lg font-black">SARVA FOOD</span>
+                  <span className="text-xs font-semibold text-emerald-100">Good food, great moments</span>
+                </span>
+              </Link>
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-14 max-w-sm">
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Customer app</p>
+                <h1 className="mt-4 text-5xl font-black leading-[1.03] tracking-normal">
+                  Craving something <span className="text-emerald-300">delicious?</span>
+                </h1>
+                <p className="mt-5 text-base font-semibold leading-7 text-emerald-50/80">
+                  Sign in to reorder favourites, save addresses, unlock offers, and track every meal from restaurant to doorstep.
+                </p>
+              </motion.div>
+              <div className="mt-8 grid gap-3">
+                {[
+                  ["Top restaurants", "Verified partners near you"],
+                  ["Fast delivery", "Live menus and clear delivery rules"],
+                  ["Secure account", "Magic link, Google, or password sign in"],
+                ].map(([title, copy]) => (
+                  <div key={title} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+                    <span className="grid size-10 place-items-center rounded-xl bg-emerald-400/15 text-emerald-200">
+                      <ShieldCheck className="size-5" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-black">{title}</span>
+                      <span className="text-xs font-semibold text-emerald-50/70">{copy}</span>
+                    </span>
+                  </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Local development only. Password for all accounts is password123.
+            </div>
+            <div className="relative mt-10 h-64 overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/10 shadow-2xl">
+              <Image
+                src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80"
+                alt="Fresh plated food"
+                fill
+                priority
+                sizes="(min-width: 1024px) 420px, 100vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-black/50 p-4 backdrop-blur">
+                <p className="text-sm font-black">New here? Get started in under a minute.</p>
+                <p className="mt-1 text-xs font-semibold text-white/75">Save favourites, offers, and addresses for faster ordering.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className={cn("relative grid place-items-center p-4 sm:p-6 lg:p-8", authDark ? "bg-white/5" : "bg-white/70")}>
+          <button
+            type="button"
+            onClick={() => setAuthDark((value) => !value)}
+            className={cn("absolute right-4 top-4 grid size-10 place-items-center rounded-full border backdrop-blur", authDark ? "border-white/10 bg-white/10 text-white" : "border-orange-200 bg-white text-orange-700")}
+            aria-label="Toggle login theme"
+          >
+            {authDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
+
+          <motion.div layout className={cn("w-full max-w-md rounded-[1.35rem] border p-4 shadow-2xl backdrop-blur-2xl sm:p-5", authDark ? "border-white/10 bg-white/10" : "border-orange-100 bg-white/90")}>
+            <div className="mb-4 flex rounded-2xl bg-black/5 p-1 text-sm font-black">
+              <TabButton active={mode === "sign-in"} onClick={() => setMode("sign-in")}>Sign In</TabButton>
+              <TabButton active={mode === "sign-up"} onClick={() => setMode("sign-up")}>Create Account</TabButton>
+            </div>
+
+            <div className="mb-5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-300">
+                <Sparkles className="size-3.5" />
+                Secure customer login
+              </div>
+              <h2 className="mt-3 text-2xl font-black tracking-normal sm:text-3xl">
+                {mode === "forgot" ? "Reset your password" : mode === "sign-up" ? "Create your account" : "Welcome back"}
+              </h2>
+              <p className={cn("mt-2 text-sm font-semibold", authDark ? "text-white/60" : "text-muted-foreground")}>
+                {mode === "forgot"
+                  ? "We will send a password reset link to your email."
+                  : mode === "sign-up"
+                    ? "Save addresses, reorder faster, and keep your offers in one account."
+                    : "Continue your food journey with password, Google, or magic link."}
               </p>
             </div>
-          ) : null}
 
-          {authCapabilitiesReady && !firebaseEnabled && !devLoginEnabled ? (
-            <div className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
-              Secure sign-in is temporarily unavailable. Please try again soon.
-            </div>
-          ) : null}
-
-          {isSignup || showResetOtp ? (
-            <div className="grid gap-3">
-              {isSignup ? (
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" />
-                </div>
-              ) : null}
+            {mode !== "forgot" ? (
               <div className="grid gap-2">
-                <Label htmlFor="email-otp-email">Email</Label>
-                <Input
-                  id="email-otp-email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
-                  disabled={emailOtpStep !== "email"}
-                />
-              </div>
-              {emailOtpStep === "email" ? (
-                <Button
-                  type="button"
-                  disabled={!firebaseEnabled || isSubmitting || !email.trim() || (isSignup && name.trim().length < 2)}
-                  onClick={() => void sendEmailOtp(isSignup ? "signup" : "reset")}
-                >
-                  <Mail className="size-4" />
-                  {isSubmitting ? "Sending OTP..." : "Send email OTP"}
-                </Button>
-              ) : null}
-              {emailOtpStep === "verify" ? (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email-otp">Email OTP</Label>
-                    <Input
-                      id="email-otp"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otp}
-                      onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="6 digit code"
-                    />
-                    {attemptsRemaining !== null ? (
-                      <p className="text-xs font-semibold text-muted-foreground">{attemptsRemaining} attempts remaining</p>
-                    ) : null}
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" disabled={isSubmitting || otp.length !== 6} onClick={() => void verifyEmailOtp()}>
-                      {isSubmitting ? "Verifying..." : "Verify OTP"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isSubmitting || resendSeconds > 0}
-                      onClick={() => void sendEmailOtp(emailOtpPurpose)}
-                    >
-                      <RefreshCw className="size-4" />
-                      {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend OTP"}
-                    </Button>
-                  </div>
-                </>
-              ) : null}
-              {emailOtpStep === "password" ? (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email-otp-password">{emailOtpPurpose === "signup" ? "Set password" : "New password"}</Label>
-                    <div className="relative">
-                      <Input
-                        id="email-otp-password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        autoComplete="new-password"
-                        className="pr-11"
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-                        onClick={() => setShowPassword((value) => !value)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <Button type="button" disabled={isSubmitting || password.length < 8} onClick={() => void completeEmailOtp()}>
-                    {emailOtpPurpose === "signup" ? "Create account" : "Set new password"}
-                  </Button>
-                </>
-              ) : null}
-              {emailOtpStep === "done" ? (
-                <div className="rounded-md border bg-muted p-3 text-sm font-semibold">
-                  {emailOtpPurpose === "signup" ? "Account created." : "Password updated."}
-                </div>
-              ) : null}
-              {showResetOtp ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowResetOtp(false);
-                    setEmailOtpStep("email");
-                    setEmailOtpToken("");
-                    setOtp("");
-                    setPassword("");
-                    setMessage("");
-                  }}
-                >
-                  Back to sign in
-                </Button>
-              ) : null}
-            </div>
-          ) : (
-            <form className="grid gap-3" onSubmit={submitPasswordForm} noValidate>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    autoComplete="current-password"
-                    className="pr-11"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-                    onClick={() => setShowPassword((value) => !value)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-              <Button
-                type="submit"
-                disabled={isSubmitting || !canUsePasswordAuth}
-              >
-                {isSubmitting ? "Signing in..." : "Sign In"}
-              </Button>
-              {isCustomerSurface ? (
-                <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!firebaseEnabled}
-                  onClick={async () => {
-                    try {
-                      setMessage("Sending secure link...");
-                      await startEmailLinkLogin(email);
-                      setMessage("Check your email for the secure sign-in link.");
-                    } catch {
-                      setMessage("Unable to send the secure link right now. Please try again later.");
-                    }
-                  }}
-                >
-                  <Mail className="size-4" />
-                  Email magic link
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!firebaseEnabled || !email.trim()}
-                  onClick={() => {
-                    setEmailOtpPurpose("reset");
-                    setEmailOtpStep("email");
-                    setShowResetOtp(true);
-                    setPassword("");
-                    setOtp("");
-                    setMessage("Enter your email to receive a reset OTP.");
-                  }}
-                >
-                  Forgot password
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={!firebaseEnabled}
-                  onClick={() => withErrorBoundary(async () => {
-                    const user = await signInWithGoogle("customer");
-                    await syncStoreUser(user.uid);
-                  })}
-                >
-                  <ShieldCheck className="size-4" />
+                <Button type="button" variant="outline" className={authDark ? "border-white/10 bg-white/10 text-white hover:bg-white/15" : ""} disabled={isSubmitting || (!stackEnabled && !firebaseEnabled)} onClick={() => void continueWithGoogle()}>
+                  <span className="font-black text-[#4285f4]">G</span>
                   Continue with Google
                 </Button>
-                </>
-              ) : null}
-            </form>
-          )}
-
-          {isCustomerSurface && !isSignup && !showResetOtp ? (
-            <div className="grid gap-3">
-              <div id="sarva-phone-recaptcha" />
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Phone optional</Label>
-                <Input
-                  id="phone"
-                  placeholder="+919876543210"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                />
+                <Button type="button" variant="outline" className={authDark ? "border-white/10 bg-white/10 text-white hover:bg-white/15" : ""} disabled={isSubmitting || (!stackEnabled && !firebaseEnabled)} onClick={() => void sendMagicLink()}>
+                  <Mail className="size-4" />
+                  Send magic link
+                </Button>
               </div>
-              {confirmation ? (
-                <div className="grid gap-2">
-                  <Label htmlFor="otp">OTP</Label>
-                  <Input id="otp" value={otp} onChange={(event) => setOtp(event.target.value)} />
-                </div>
-              ) : null}
-              <Button
-                variant="secondary"
-                disabled={!firebaseEnabled}
-                onClick={() =>
-                  withErrorBoundary(async () => {
-                    if (!confirmation) {
-                      verifier.current ??= createPhoneVerifier("sarva-phone-recaptcha");
-                      setConfirmation(await startPhoneLogin(phone, verifier.current));
-                      setMessage("OTP sent.");
-                      return;
-                    }
-                    await confirmPhoneLogin(confirmation, otp, "customer");
-                  })
-                }
-              >
-                <Phone className="size-4" />
-                {confirmation ? "Verify OTP" : "Send OTP"}
-              </Button>
+            ) : null}
+
+            <div className={cn("my-4 flex items-center gap-3 text-xs font-bold", authDark ? "text-white/50" : "text-muted-foreground")}>
+              <span className="h-px flex-1 bg-current/20" />
+              {mode === "forgot" ? "reset by email" : "or continue with password"}
+              <span className="h-px flex-1 bg-current/20" />
             </div>
-          ) : null}
 
-          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-            {surface === "customer-login" ? (
-              <Link className="font-semibold text-primary" href="/signup">Create a customer account</Link>
-            ) : null}
-            {surface === "customer-signup" ? (
-              <Link className="font-semibold text-primary" href="/login">Already have an account?</Link>
-            ) : null}
-            {!isCustomerSurface ? (
-              <Link className="font-semibold text-primary" href="/login">Customer login</Link>
-            ) : null}
-          </div>
+            <form className="grid gap-3" onSubmit={handleSubmit} noValidate>
+              {mode === "sign-up" ? (
+                <AuthField label="Full name" htmlFor="customer-name" dark={authDark}>
+                  <Input id="customer-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" autoComplete="name" className={authInputClass(authDark)} />
+                </AuthField>
+              ) : null}
 
-          {message ? <p className="text-sm font-semibold text-muted-foreground">{message}</p> : null}
-        </CardContent>
-      </Card>
+              <AuthField label="Email address" htmlFor="customer-email" dark={authDark}>
+                <Input id="customer-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" className={authInputClass(authDark)} />
+              </AuthField>
+
+              {mode !== "forgot" ? (
+                <AuthField label="Password" htmlFor="customer-password" dark={authDark} trailing={mode === "sign-in" ? <button type="button" className="text-xs font-black text-emerald-300" onClick={() => setMode("forgot")}>Forgot password?</button> : null}>
+                  <div className="relative">
+                    <Input id="customer-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "sign-up" ? "Create a password" : "Enter password"} autoComplete={mode === "sign-up" ? "new-password" : "current-password"} className={cn(authInputClass(authDark), "pr-11")} />
+                    <button type="button" className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-white/10" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  {mode === "sign-up" ? <PasswordStrength score={passwordScore} dark={authDark} /> : null}
+                </AuthField>
+              ) : null}
+
+              {mode === "sign-in" ? (
+                <label className={cn("flex items-center gap-2 text-sm font-semibold", authDark ? "text-white/70" : "text-muted-foreground")}>
+                  <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+                  Remember me on this device
+                </label>
+              ) : null}
+
+              {mode === "sign-up" ? (
+                <label className={cn("flex items-start gap-2 text-xs font-semibold leading-5", authDark ? "text-white/70" : "text-muted-foreground")}>
+                  <input className="mt-1" type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
+                  I agree to Sarva Food terms, privacy, restaurant responsibility, and account security rules.
+                </label>
+              ) : null}
+
+              <Button type="submit" size="lg" className="mt-1 w-full rounded-xl bg-gradient-to-r from-[#ff5b2e] to-[#ff7a1a] text-white shadow-xl shadow-orange-950/20" disabled={isSubmitting || !authReady}>
+                {isSubmitting ? "Please wait..." : mode === "forgot" ? "Send reset email" : mode === "sign-up" ? "Create account" : "Sign in"}
+                <ArrowRight className="size-5" />
+              </Button>
+            </form>
+
+            {mode === "forgot" ? (
+              <Button type="button" variant="ghost" className={cn("mt-3 w-full", authDark ? "text-white hover:bg-white/10" : "")} onClick={() => setMode("sign-in")}>
+                Back to sign in
+              </Button>
+            ) : null}
+
+            {devLoginEnabled && devUsers.length ? (
+              <div className="mt-4 grid gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-3">
+                <p className="text-xs font-black uppercase text-amber-300">Development login</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {devUsers.map((devUser) => (
+                    <Button key={devUser.email} type="button" size="sm" variant="outline" className={authDark ? "border-white/10 bg-white/10 text-white" : ""} onClick={() => void signInAsDevUser(devUser)}>
+                      <KeyRound className="size-3.5" />
+                      {devUser.role}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <SecurityBadge dark={authDark} label={stackEnabled ? "Stack Auth ready" : "Firebase session"} />
+              <SecurityBadge dark={authDark} label={remember ? "Session persists" : "Session only"} />
+            </div>
+
+            {message ? (
+              <div className={cn("mt-4 rounded-2xl border p-3 text-sm font-semibold", authDark ? "border-white/10 bg-white/10 text-white/80" : "bg-orange-50 text-orange-900")}>
+                {message}
+              </div>
+            ) : null}
+          </motion.div>
+        </section>
+      </div>
     </main>
   );
+}
+
+function OperationalLogin({
+  surface,
+  email,
+  password,
+  showPassword,
+  message,
+  isSubmitting,
+  authReady,
+  canSubmit,
+  devUsers,
+  setEmail,
+  setPassword,
+  setShowPassword,
+  submit,
+  signInAsDevUser,
+}: {
+  surface: AuthSurface;
+  email: string;
+  password: string;
+  showPassword: boolean;
+  message: string;
+  isSubmitting: boolean;
+  authReady: boolean;
+  canSubmit: boolean;
+  devUsers: Array<MockUser & { email: string; password: string }>;
+  setEmail: (value: string) => void;
+  setPassword: (value: string) => void;
+  setShowPassword: (value: boolean) => void;
+  submit: (event: FormEvent<HTMLFormElement>) => void;
+  signInAsDevUser: (user: (typeof DEV_USERS)[number]) => Promise<void>;
+}) {
+  const copy = operationalCopy[surface as "portal-login" | "admin-login"];
+  const Icon = copy.icon;
+
+  return (
+    <main className="container-page grid min-h-screen place-items-center py-8">
+      <section className="w-full max-w-md rounded-2xl border bg-card p-5 shadow-xl">
+        <div className="grid size-12 place-items-center rounded-md bg-primary/10 text-primary">
+          <Icon className="size-6" aria-hidden="true" />
+        </div>
+        <p className="mt-4 text-xs font-black uppercase text-primary">{copy.eyebrow}</p>
+        <h1 className="mt-2 text-2xl font-black">{copy.title}</h1>
+        <p className="mt-2 text-sm font-semibold text-muted-foreground">{copy.description}</p>
+
+        <form className="mt-5 grid gap-3" onSubmit={submit} noValidate>
+          <AuthField label="Email" htmlFor="ops-email" dark={false}>
+            <Input id="ops-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+          </AuthField>
+          <AuthField label="Password" htmlFor="ops-password" dark={false}>
+            <div className="relative">
+              <Input id="ops-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" className="pr-11" />
+              <button type="button" className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </AuthField>
+          <Button type="submit" disabled={isSubmitting || !authReady || !canSubmit}>
+            {isSubmitting ? "Signing in..." : "Sign in"}
+          </Button>
+        </form>
+
+        {devUsers.length ? (
+          <div className="mt-4 grid gap-2 rounded-md bg-primary/10 p-3 text-sm">
+            <p className="font-bold text-primary">Development login</p>
+            <div className="grid grid-cols-2 gap-2">
+              {devUsers.map((devUser) => (
+                <Button key={devUser.email} variant="outline" size="sm" className="justify-start bg-background" onClick={() => void signInAsDevUser(devUser)}>
+                  <KeyRound className="size-3" />
+                  {devUser.role}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <Link className="mt-4 inline-flex text-sm font-semibold text-primary" href="/login">
+          Customer login
+        </Link>
+        {message ? <p className="mt-3 text-sm font-semibold text-muted-foreground">{message}</p> : null}
+      </section>
+    </main>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn("h-10 flex-1 rounded-xl transition", active ? "bg-white text-[#053026] shadow-sm" : "text-white/60 hover:text-white")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function AuthField({ label, htmlFor, dark, trailing, children }: { label: string; htmlFor: string; dark: boolean; trailing?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={htmlFor} className={dark ? "text-white/80" : ""}>{label}</Label>
+        {trailing}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function PasswordStrength({ score, dark }: { score: number; dark: boolean }) {
+  const labels = ["Weak", "Weak", "Fair", "Good", "Strong"];
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="grid grid-cols-4 gap-1">
+        {[1, 2, 3, 4].map((step) => (
+          <span key={step} className={cn("h-1.5 rounded-full", score >= step ? "bg-emerald-400" : dark ? "bg-white/10" : "bg-muted")} />
+        ))}
+      </div>
+      <p className={cn("text-xs font-bold", dark ? "text-white/50" : "text-muted-foreground")}>{labels[score]} password</p>
+    </div>
+  );
+}
+
+function SecurityBadge({ label, dark }: { label: string; dark: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-2 rounded-xl border p-2 text-xs font-black", dark ? "border-white/10 bg-white/10 text-white/70" : "bg-white text-muted-foreground")}>
+      <CheckCircle2 className="size-4 text-emerald-400" />
+      {label}
+    </div>
+  );
+}
+
+function authInputClass(dark: boolean) {
+  return dark
+    ? "border-white/10 bg-white/10 text-white placeholder:text-white/30 focus-visible:ring-emerald-400"
+    : "bg-white";
+}
+
+function getPasswordScore(password: string) {
+  if (!password) return 0;
+  return [
+    password.length >= 8,
+    /[A-Z]/.test(password),
+    /[0-9]/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function friendlyAuthMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/auth\/invalid-credential|wrong-password|user-not-found|invalid-login-credentials|mismatch/i.test(raw)) {
+    return "The email or password is incorrect.";
+  }
+  if (/auth\/too-many-requests/i.test(raw)) return "Too many attempts. Please wait a moment and try again.";
+  if (/auth\/unauthorized-domain/i.test(raw)) return "Google sign-in is not enabled for this domain.";
+  if (/popup-blocked|popup-closed-by-user/i.test(raw)) return "Google sign-in popup was blocked or closed.";
+  if (/operation-not-allowed/i.test(raw)) return "This sign-in method is not enabled yet.";
+  if (/not available for your account type/i.test(raw)) return "Please use the correct login screen for this account.";
+  if (/network|offline|fetch/i.test(raw)) return "Connection failed. Please check internet and try again.";
+  return raw && raw.length < 140 ? raw : "Authentication failed. Please check your details and try again.";
 }
