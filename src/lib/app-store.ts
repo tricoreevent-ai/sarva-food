@@ -197,10 +197,7 @@ export type AppStore = {
   ) => Promise<void>;
   updateRestaurantAdminState: (
     restaurantSlug: string,
-    patch: Partial<Pick<
-      Restaurant,
-      "adminStatus" | "subscriptionPlan" | "subscriptionStatus" | "trialEndsAt" | "nextBillingAt" | "orderingEnabled" | "frozen" | "approved" | "isOpen" | "adminNote"
-    >>,
+    patch: Partial<Restaurant>,
   ) => Promise<void>;
   createCateringQuote: (input: {
     name: string;
@@ -1943,9 +1940,12 @@ export const useAppStore = create<AppStore>()(
           adminStatus: status === "approved" ? "Active" : "Under Review",
           subscriptionPlan: "Trial",
           subscriptionStatus: "trialing",
+          billingStatus: "current",
           trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
           orderingEnabled: status === "approved",
           frozen: false,
+          onboardingStatus: "profile",
+          ownerLoginEnabled: true,
           contact: {
             phone: application.phoneNumber ?? application.mobile ?? "",
             whatsapp: application.mobile ?? application.phoneNumber ?? "",

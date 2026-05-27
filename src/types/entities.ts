@@ -29,13 +29,25 @@ export type Restaurant = {
   deliveryEligible?: boolean;
   approved?: boolean;
   adminStatus?: "Pending Approval" | "Active" | "Suspended" | "Expired" | "Under Review";
-  subscriptionPlan?: "Trial" | "Starter" | "Professional" | "Enterprise";
+  subscriptionPlan?: "Trial" | "Starter" | "Growth" | "Professional" | "Pro" | "Enterprise";
   subscriptionStatus?: "trialing" | "active" | "suspended" | "expired" | "under-review";
+  billingStatus?: "current" | "past-due" | "failed" | "manual" | "custom";
   trialEndsAt?: string;
   nextBillingAt?: string;
   orderingEnabled?: boolean;
   frozen?: boolean;
   adminNote?: string;
+  onboardingStatus?: "not-started" | "profile" | "menu" | "payments" | "training" | "completed";
+  enabledModules?: string[];
+  hiddenOwnerNavItems?: string[];
+  featureAccess?: Record<string, boolean>;
+  roleAccess?: Record<string, string[]>;
+  integrationAccess?: Record<string, boolean>;
+  branchLimit?: number;
+  employeeLimit?: number;
+  ownerLoginEnabled?: boolean;
+  forcePasswordReset?: boolean;
+  lastCredentialsSentAt?: string;
   reviewCount?: number;
   deliveryFee?: number;
   minPrice?: number;
@@ -407,6 +419,9 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  featureKey?: string;
+  minimumPlan?: Restaurant["subscriptionPlan"];
+  roles?: Array<StaffRole | "admin">;
 };
 
 export type Stat = {

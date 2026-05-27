@@ -6,6 +6,8 @@ import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-st
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { DashboardTopbar } from "@/components/layout/dashboard-topbar";
 import { DashboardQuickActions, MobileOfflineBanner } from "@/components/mobile/mobile-experience";
+import { useAppStore } from "@/lib/app-store";
+import { filterOwnerNavigationForRestaurant } from "@/lib/access-control";
 import { cn } from "@/lib/utils";
 import { adminTheme } from "@/themes/admin-theme";
 import {
@@ -36,11 +38,17 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const authUser = useAppStore((state) => state.authUser);
+  const restaurants = useAppStore((state) => state.restaurants);
   if (pathname === "/admin/login" || pathname === "/owner/login") {
     return children;
   }
 
   const config = appConfig[app];
+  const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
+  const navItems = app === "owner" || app === "pos"
+    ? filterOwnerNavigationForRestaurant(config.nav, currentRestaurant, authUser.role)
+    : config.nav;
   const isPosWorkspace = pathname.startsWith("/owner/pos") || pathname.startsWith("/pos");
   const adminStyle = app === "admin"
     ? ({
@@ -60,9 +68,9 @@ export function DashboardShell({
       style={adminStyle}
       >
       {app === "owner" || app === "pos" ? <MobileOfflineBanner /> : null}
-      <DashboardTopbar app={app} appName={config.name} navItems={config.nav} homeHref={config.homeHref} />
+      <DashboardTopbar app={app} appName={config.name} navItems={navItems} homeHref={config.homeHref} />
       <div className={cn(isPosWorkspace ? "" : "lg:flex")}>
-        {isPosWorkspace ? null : <DashboardSidebar appName={config.name} items={config.nav} homeHref={config.homeHref} />}
+        {isPosWorkspace ? null : <DashboardSidebar appName={config.name} items={navItems} homeHref={config.homeHref} />}
         <main className={cn("min-w-0 flex-1 pb-24 lg:pb-8", isPosWorkspace ? "p-0" : "px-4 py-5 sm:px-5 2xl:px-8")}>
           <div className={cn("w-full", isPosWorkspace || app === "owner" ? "max-w-none" : "mx-auto max-w-7xl")}>
             {app === "admin" ? <FirebaseStartupStatus /> : null}

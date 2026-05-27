@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/lib/app-store";
+import { normalizePlan, planDefinitions } from "@/lib/access-control";
 import type { Restaurant } from "@/lib/types";
 
 type Plan = NonNullable<Restaurant["subscriptionPlan"]>;
 type AdminStatus = NonNullable<Restaurant["adminStatus"]>;
 
-const plans: Plan[] = ["Trial", "Starter", "Professional", "Enterprise"];
+const plans: Plan[] = ["Trial", ...planDefinitions.map((plan) => plan.key)] as Plan[];
 const statuses: AdminStatus[] = ["Pending Approval", "Active", "Suspended", "Expired", "Under Review"];
 
 type SubscriptionRow = Restaurant & {
@@ -39,12 +40,12 @@ export default function AdminSubscriptionsPage() {
         const ownerId = restaurant.ownerId ?? restaurant.ownerIds?.[0] ?? "";
         const owner = staff.find((member) => member.id === ownerId)?.name ?? (ownerId || "Unassigned");
         const status = deriveAdminStatus(restaurant);
-        const plan = restaurant.subscriptionPlan ?? (restaurant.approved === false ? "Trial" : "Professional");
+        const plan = restaurant.subscriptionPlan ?? (restaurant.approved === false ? "Trial" : "Growth");
         return {
           ...restaurant,
           owner,
-          subscriptionPlan: plan,
-          planLabel: plan,
+          subscriptionPlan: normalizePlan(plan),
+          planLabel: normalizePlan(plan),
           statusLabel: status,
           trialLabel: restaurant.trialEndsAt ? formatDate(restaurant.trialEndsAt) : plan === "Trial" ? "Set trial date" : "Not on trial",
           nextBillingLabel: restaurant.nextBillingAt ? formatDate(restaurant.nextBillingAt) : "Not scheduled",
