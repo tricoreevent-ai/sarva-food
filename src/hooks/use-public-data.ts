@@ -48,7 +48,8 @@ async function readIndexedCache<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
-export function usePublicRestaurants() {
+export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } = {}) {
+  const preloadPrimaryMenu = options.preloadPrimaryMenu ?? false;
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [status, setStatus] = useState<PublicDataStatus>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +97,7 @@ export function usePublicRestaurants() {
       setLoadingForMs(Math.round(performance.now() - startedAt));
       setError(null);
       setStatus("success");
-    });
+    }, { preloadPrimaryMenu });
 
     return () => {
       active = false;
@@ -104,7 +105,7 @@ export function usePublicRestaurants() {
       window.clearTimeout(cachedTimerId);
       unsubscribe();
     };
-  }, [version]);
+  }, [preloadPrimaryMenu, version]);
 
   return { restaurants, status, error, retry, loadingForMs };
 }

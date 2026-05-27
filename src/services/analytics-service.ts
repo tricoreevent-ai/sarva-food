@@ -6,6 +6,7 @@ export type AnalyticsEvent =
   | "order_failed"
   | "payment_failed"
   | "route_performance"
+  | "web_vital"
   | "whatsapp_cta_clicked";
 
 export type AnalyticsPayload = {
@@ -17,6 +18,10 @@ export type AnalyticsPayload = {
   source?: "web" | "instagram" | "whatsapp" | "pwa";
   route?: string;
   durationMs?: number;
+  metricName?: string;
+  metricValue?: number;
+  metricRating?: "good" | "needs-improvement" | "poor";
+  navigationType?: string;
   error?: string;
 };
 

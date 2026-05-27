@@ -15,12 +15,12 @@ export async function GET() {
 
     return NextResponse.json(
       { data: settings },
-      { headers: { "Cache-Control": "no-store, max-age=0" } },
+      { headers: { "Cache-Control": "public, max-age=120, s-maxage=120, stale-while-revalidate=600" } },
     );
   } catch {
     return NextResponse.json(
       { data: defaultCmsSettings },
-      { headers: { "Cache-Control": "no-store, max-age=0" } },
+      { headers: { "Cache-Control": "public, max-age=30, s-maxage=30, stale-while-revalidate=120" } },
     );
   }
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
@@ -113,6 +112,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     () => (restaurant ? cartItems.filter((item) => item.restaurantSlug === restaurant.slug) : []),
     [cartItems, restaurant],
   );
+  const restaurantCartQuantities = useMemo(
+    () => new Map(restaurantCart.map((item) => [item.id, item.quantity])),
+    [restaurantCart],
+  );
 
   const visibleOffers = useMemo(
     () => sortOffers(offers.filter((offer) => isOfferForSurface(offer, "restaurant") && isOfferActive(offer))),
@@ -152,24 +155,28 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       return;
     }
     let active = true;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        if (!active) return;
-        setCustomerDistance({
-          key: restaurantLocationKey,
-          value: calculateDistanceKm(
-            { latitude: position.coords.latitude, longitude: position.coords.longitude },
-            { latitude: restaurant.latitude, longitude: restaurant.longitude },
-          ),
-        });
-      },
-      () => {
-        if (active) setCustomerDistance({ key: restaurantLocationKey, value: null });
-      },
-      { enableHighAccuracy: false, maximumAge: 300000, timeout: 6000 },
-    );
+    const id = window.setTimeout(() => {
+      if (!active) return;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (!active) return;
+          setCustomerDistance({
+            key: restaurantLocationKey,
+            value: calculateDistanceKm(
+              { latitude: position.coords.latitude, longitude: position.coords.longitude },
+              { latitude: restaurant.latitude, longitude: restaurant.longitude },
+            ),
+          });
+        },
+        () => {
+          if (active) setCustomerDistance({ key: restaurantLocationKey, value: null });
+        },
+        { enableHighAccuracy: false, maximumAge: 300000, timeout: 4500 },
+      );
+    }, 1200);
     return () => {
       active = false;
+      window.clearTimeout(id);
     };
   }, [restaurant, restaurantLocationKey]);
 
@@ -390,7 +397,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                             key={item.id}
                             item={item}
                             fulfillmentType={fulfillmentType}
-                            quantity={restaurantCart.find((line) => line.id === item.id)?.quantity ?? 0}
+                            quantity={restaurantCartQuantities.get(item.id) ?? 0}
                             viewMode={viewMode}
                             onAdd={() => {
                               addItem(item);
@@ -910,7 +917,7 @@ function MenuCard({
   const price = itemPrice(item, fulfillmentType);
   if (viewMode === "list") {
     return (
-      <motion.div layout className="flex gap-3 rounded-2xl border bg-white p-2 shadow-sm">
+      <div className="flex gap-3 rounded-2xl border bg-white p-2 shadow-sm transition-transform duration-200">
         <MenuImage item={item} className="size-20 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="line-clamp-1 font-black">{item.name}</p>
@@ -918,11 +925,11 @@ function MenuCard({
           <p className="mt-1 font-black">{formatCurrency(price)}</p>
         </div>
         <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
-      </motion.div>
+      </div>
     );
   }
   return (
-    <motion.article layout className="group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="relative aspect-[1.18/1] overflow-hidden bg-orange-50">
         <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="(max-width: 768px) 50vw, 260px" className="object-cover transition duration-300 group-hover:scale-105" />
         <span className={`absolute left-2 top-2 grid size-5 place-items-center rounded-md border bg-white ${item.isVeg ? "text-emerald-600" : "text-red-600"}`}>
@@ -943,7 +950,7 @@ function MenuCard({
           <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
 
@@ -1401,7 +1408,7 @@ function formatTime(value: string) {
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {
   if (disabled) return null;
   return (
-    <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="fixed inset-x-3 bottom-20 z-40 rounded-3xl border bg-white p-3 shadow-2xl md:bottom-5 xl:hidden">
+    <div className="fixed inset-x-3 bottom-20 z-40 animate-[fadeIn_220ms_ease-out] rounded-3xl border bg-white p-3 shadow-2xl md:bottom-5 xl:hidden">
       <button type="button" onClick={onClick} className="flex w-full items-center gap-3">
         <span className="grid size-11 place-items-center rounded-2xl bg-orange-50 text-orange-600">
           <ShoppingBag className="size-5" />
@@ -1412,7 +1419,7 @@ function FloatingCart({ count, total, step, disabled, onClick }: { count: number
         </span>
         <span className="rounded-2xl bg-orange-600 px-4 py-3 text-sm font-black text-white">Continue</span>
       </button>
-    </motion.div>
+    </div>
   );
 }
 

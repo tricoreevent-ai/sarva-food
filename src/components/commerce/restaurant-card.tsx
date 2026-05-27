@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { memo } from "react";
 import { Bike, Clock, MapPin, Star, TicketPercent } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import type { Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
-export function RestaurantCard({ restaurant }: { restaurant: Restaurant & { distanceKm?: number } }) {
+function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { distanceKm?: number } }) {
   return (
     <Link
       href={`/restaurant/${restaurant.slug}`}
@@ -92,3 +93,5 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant & { dist
     </Link>
   );
 }
+
+export const RestaurantCard = memo(RestaurantCardComponent);

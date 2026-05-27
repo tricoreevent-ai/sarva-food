@@ -15,8 +15,9 @@ type PublicReviewSummary = { averageRating: number; ratingCount: number };
 type PublicReviewsResponse = { data?: Review[]; summary?: PublicReviewSummary; error?: string };
 type PublicReviewsPayload = { data: Review[]; summary: PublicReviewSummary };
 const inflightPublicRequests = new Map<string, Promise<unknown>>();
-const publicResponseCache = new Map<string, unknown>();
+const publicResponseCache = new Map<string, { value: unknown; expiresAt: number }>();
 const PUBLIC_FETCH_RETRIES = 2;
+const PUBLIC_RESPONSE_CACHE_TTL_MS = 60 * 1000;
 
 function publicApiUrl(path: string, params?: Record<string, string | undefined>) {
   const url = new URL(path, window.location.origin);
@@ -37,12 +38,12 @@ async function fetchPublicDocs<T>(
   const request = fetchJsonWithRetry<PublicApiResponse<T>>(url)
     .then((payload) => Array.isArray(payload.data) ? payload.data : [])
     .then((items) => {
-      publicResponseCache.set(url, items);
+      writeMemoryCache(url, items);
       return items;
     })
     .catch((error) => {
-      const cached = publicResponseCache.get(url);
-      if (Array.isArray(cached)) return cached as T[];
+      const cached = readMemoryCache<T[]>(url);
+      if (Array.isArray(cached)) return cached;
       throw error;
     })
     .finally(() => inflightPublicRequests.delete(url));
@@ -75,11 +76,11 @@ async function fetchPublicCms() {
   const request = fetchJsonWithRetry<PublicSingleResponse<CmsSettings>>(url)
     .then((payload) => {
       const settings = normalizeCmsSettings(payload.data);
-      publicResponseCache.set(url, settings);
+      writeMemoryCache(url, settings, 5 * 60 * 1000);
       return settings;
     })
     .catch((error) => {
-      const cached = publicResponseCache.get(url);
+      const cached = readMemoryCache<CmsSettings>(url);
       if (cached) return cached as CmsSettings;
       throw error;
     })
@@ -116,11 +117,11 @@ async function fetchPublicReviews(restaurantId: string, menuItemId?: string): Pr
         data: Array.isArray(payload.data) ? payload.data : [],
         summary: payload.summary ?? { averageRating: 0, ratingCount: 0 },
       };
-      publicResponseCache.set(url, next);
+      writeMemoryCache(url, next);
       return next;
     })
     .catch((error) => {
-      const cached = publicResponseCache.get(url);
+      const cached = readMemoryCache<PublicReviewsPayload>(url);
       if (cached) return cached as PublicReviewsPayload;
       throw error;
     })
@@ -177,6 +178,7 @@ function preloadPrimaryMenu(restaurants: Restaurant[]) {
 
 export function listenPublicRestaurants(
   onData: (restaurants: Restaurant[]) => void,
+  options: { preloadPrimaryMenu?: boolean } = {},
 ): Unsubscribe {
   let active = true;
   const deliver = (items: Restaurant[]) => {
@@ -187,7 +189,7 @@ export function listenPublicRestaurants(
   void fetchPublicRestaurants()
     .then((items) => {
       deliver(items);
-      preloadPrimaryMenu(items);
+      if (options.preloadPrimaryMenu) preloadPrimaryMenu(items);
     })
     .catch((error) => {
       warnPublicFallbackFailure("restaurants", error);
@@ -197,6 +199,20 @@ export function listenPublicRestaurants(
   return () => {
     active = false;
   };
+}
+
+function readMemoryCache<T>(key: string): T | undefined {
+  const cached = publicResponseCache.get(key);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    publicResponseCache.delete(key);
+    return undefined;
+  }
+  return cached.value as T;
+}
+
+function writeMemoryCache(key: string, value: unknown, ttlMs = PUBLIC_RESPONSE_CACHE_TTL_MS) {
+  publicResponseCache.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
 export function listenPublicCategories(

@@ -34,7 +34,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { AppPreferences } from "@/components/settings/app-preferences";
-import { AddressAutocomplete, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
+import { AddressAutocomplete, type MapboxPickedLocation } from "@/components/maps/address-autocomplete";
 import { useMapbox } from "@/components/maps/mapbox-provider";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { EmptyStateCard } from "@/components/layout/empty-state";

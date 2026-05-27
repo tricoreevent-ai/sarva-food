@@ -243,7 +243,7 @@ export function useLocationCommerce(restaurants: Restaurant[]) {
         );
         setDetecting(false);
       },
-      { enableHighAccuracy: true, maximumAge: 300000, timeout: 6000 },
+      { enableHighAccuracy: reason === "refresh", maximumAge: 300000, timeout: reason === "initial" ? 4500 : 6000 },
     );
   }, [reverseGeocode, selectLocation]);
 
@@ -259,7 +259,7 @@ export function useLocationCommerce(restaurants: Restaurant[]) {
 
     if (!("permissions" in navigator)) {
       if (!promptedForGps) {
-        const id = window.setTimeout(() => requestCurrentPosition("initial"), 0);
+        const id = window.setTimeout(() => requestCurrentPosition("initial"), 1800);
         return () => window.clearTimeout(id);
       }
       return;
@@ -285,19 +285,24 @@ export function useLocationCommerce(restaurants: Restaurant[]) {
           }
         };
         if (result.state === "granted") {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              if (active) void reverseGeocode(position.coords.latitude, position.coords.longitude);
-            },
-            () => {
-              if (active) setStatus("Location unavailable. Choose a delivery area.");
-            },
-            { enableHighAccuracy: false, maximumAge: 600000, timeout: 5000 },
-          );
+          window.setTimeout(() => {
+            if (!active) return;
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                if (active) void reverseGeocode(position.coords.latitude, position.coords.longitude);
+              },
+              () => {
+                if (active) setStatus("Location unavailable. Choose a delivery area.");
+              },
+              { enableHighAccuracy: false, maximumAge: 600000, timeout: 5000 },
+            );
+          }, 500);
           return;
         }
         if (result.state === "prompt" && !promptedForGps) {
-          requestCurrentPosition("initial");
+          window.setTimeout(() => {
+            if (active) requestCurrentPosition("initial");
+          }, 1800);
           return;
         }
         if (result.state === "denied") {
@@ -307,7 +312,11 @@ export function useLocationCommerce(restaurants: Restaurant[]) {
       .catch(() => {
         if (!active) return;
         setPermission("unsupported");
-        if (!promptedForGps) requestCurrentPosition("initial");
+        if (!promptedForGps) {
+          window.setTimeout(() => {
+            if (active) requestCurrentPosition("initial");
+          }, 1800);
+        }
       });
 
     return () => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Database, Wifi, WifiOff } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { getFirebaseApp, isFirebaseConfigured } from "@/firebase/client";
@@ -61,52 +60,31 @@ export function AppStartupGate() {
     };
   }, [operationalPath]);
 
+  if (!visible) return null;
+
   return (
-    <AnimatePresence>
-      {visible ? (
-        <motion.div
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.28 }}
-          className="customer-theme fixed inset-0 z-[100] grid place-items-center bg-background px-6"
-        >
-          <motion.div
-            initial={{ scale: 0.94, y: 12 }}
-            animate={{ scale: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-            className="grid w-full max-w-xs justify-items-center gap-5 text-center"
-          >
-            <motion.div
-              animate={{ scale: [1, 1.06, 1], rotate: [0, -2, 2, 0] }}
-              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-              className="food-gradient grid size-24 place-items-center rounded-lg text-3xl font-black text-white shadow-2xl"
-            >
-              {getInitials(productName)}
-            </motion.div>
-            <div>
-              <h1 className="text-3xl font-black">{productName}</h1>
-              <p className="mt-2 text-sm font-semibold text-muted-foreground">{label}</p>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <motion.div
-                className="h-full rounded-full food-gradient"
-                initial={{ width: "12%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 1.15, ease: "easeOut" }}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-muted-foreground">
-              <CheckCircle2 className="size-5 text-primary" aria-hidden="true" />
-              <Database className="size-5 text-primary" aria-hidden="true" />
-              {online ? (
-                <Wifi className="size-5 text-primary" aria-hidden="true" />
-              ) : (
-                <WifiOff className="size-5 text-primary" aria-hidden="true" />
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <div className="customer-theme fixed inset-0 z-[100] grid place-items-center bg-background px-6 transition-opacity duration-300">
+      <div className="grid w-full max-w-xs animate-[fadeIn_280ms_ease-out] justify-items-center gap-5 text-center">
+        <div className="food-gradient grid size-24 animate-pulse place-items-center rounded-lg text-3xl font-black text-white shadow-2xl">
+          {getInitials(productName)}
+        </div>
+        <div>
+          <h1 className="text-3xl font-black">{productName}</h1>
+          <p className="mt-2 text-sm font-semibold text-muted-foreground">{label}</p>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full animate-[sarvaProgress_1150ms_ease-out_forwards] rounded-full food-gradient" />
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+          <CheckCircle2 className="size-5 text-primary" aria-hidden="true" />
+          <Database className="size-5 text-primary" aria-hidden="true" />
+          {online ? (
+            <Wifi className="size-5 text-primary" aria-hidden="true" />
+          ) : (
+            <WifiOff className="size-5 text-primary" aria-hidden="true" />
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

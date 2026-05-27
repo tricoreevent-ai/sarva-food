@@ -35,7 +35,7 @@ import type { CmsBanner, MenuItem, Offer, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export function CustomerDiscoveryHome() {
-  const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants();
+  const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants({ preloadPrimaryMenu: true });
   const { categories: appCategories } = usePublicCategories();
   const {
     location,
@@ -81,7 +81,7 @@ export function CustomerDiscoveryHome() {
   }, [locationQuery, recentLocations, suggestions]);
 
   const recommendedRestaurants = useMemo(
-    () => (nearbyRestaurants.length ? nearbyRestaurants : restaurants)
+    () => [...(nearbyRestaurants.length ? nearbyRestaurants : restaurants)]
       .sort((first, second) => (second.rating ?? 0) - (first.rating ?? 0))
       .slice(0, 8),
     [nearbyRestaurants, restaurants],

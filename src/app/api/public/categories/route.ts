@@ -9,7 +9,7 @@ export async function GET() {
     const data = await getPublicCategoryDocs();
     return NextResponse.json(
       { data },
-      { headers: { "Cache-Control": "no-store, max-age=0" } },
+      { headers: { "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=900" } },
     );
   } catch (error) {
     logPublicDataError("categories", error);
