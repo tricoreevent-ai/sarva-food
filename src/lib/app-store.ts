@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { calculateRestaurantTax } from "@/lib/menu-engine";
 import { shouldUseFirebase } from "@/lib/env";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
+import { applyInventoryMovements, buildRecipeMovements, calculateRecipeCost } from "@/lib/inventory-engine";
 import { enqueueOfflineOperation, isOnline, syncQueuedOperations, type OfflineWrite } from "@/lib/offline";
 import { readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
@@ -24,7 +25,10 @@ import type {
   DeliveryStatus,
   DemoOrder,
   ExpenseEntry,
+  AuditLogEntry,
+  InventoryMovement,
   InventoryItem,
+  KitchenStation,
   LoyaltyCustomer,
   MenuCategory,
   MenuItem,
@@ -41,7 +45,9 @@ import type {
   PosBill,
   PosTable,
   PrinterSettings,
+  PurchaseOrder,
   PurchasePlaceholder,
+  Recipe,
   Restaurant,
   RestaurantBranch,
   RestaurantTransaction,
@@ -50,6 +56,7 @@ import type {
   SocialTemplate,
   StaffMember,
   Supplier,
+  SupplierPayment,
   TableOrder,
   TableOrderStatus,
   TaxSettings,
@@ -98,7 +105,13 @@ export type AppStore = {
   branches: RestaurantBranch[];
   inventoryItems: InventoryItem[];
   purchases: PurchasePlaceholder[];
+  purchaseOrders: PurchaseOrder[];
   suppliers: Supplier[];
+  supplierPayments: SupplierPayment[];
+  recipes: Recipe[];
+  inventoryMovements: InventoryMovement[];
+  kitchenStations: KitchenStation[];
+  auditLogs: AuditLogEntry[];
   chartAccounts: ChartAccount[];
   expenses: ExpenseEntry[];
   loyaltyCustomers: LoyaltyCustomer[];
@@ -187,6 +200,13 @@ export type AppStore = {
   deletePosTable: (table: string) => void;
   updateInventoryItem: (item: InventoryItem) => Promise<void>;
   deleteInventoryItem: (itemId: string) => Promise<void>;
+  adjustInventoryStock: (itemId: string, quantityDelta: number, reason: string) => Promise<void>;
+  upsertRecipe: (recipe: Recipe) => Promise<void>;
+  deleteRecipe: (recipeId: string) => Promise<void>;
+  upsertSupplier: (supplier: Supplier) => Promise<void>;
+  upsertPurchaseOrder: (order: PurchaseOrder) => Promise<void>;
+  receivePurchaseOrder: (orderId: string) => Promise<void>;
+  recordAuditLog: (entry: Omit<AuditLogEntry, "id" | "createdAt" | "userId" | "userName" | "role">) => void;
   queueOfflineAction: (item: Omit<OfflineQueueItem, "id" | "createdAt" | "status">) => void;
   submitBusinessApplication: (
     input: Omit<BusinessListingApplication, "id" | "status" | "submittedAt">,
@@ -245,7 +265,13 @@ export type PersistedAppStoreState = Pick<
   | "branches"
   | "inventoryItems"
   | "purchases"
+  | "purchaseOrders"
   | "suppliers"
+  | "supplierPayments"
+  | "recipes"
+  | "inventoryMovements"
+  | "kitchenStations"
+  | "auditLogs"
   | "chartAccounts"
   | "expenses"
   | "loyaltyCustomers"
@@ -264,6 +290,20 @@ function createLocalId(prefix: string) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
+function createAuditLogEntry(
+  state: Pick<AppStore, "authUser">,
+  entry: Omit<AuditLogEntry, "id" | "createdAt" | "userId" | "userName" | "role">,
+): AuditLogEntry {
+  return {
+    id: createLocalId("audit"),
+    userId: state.authUser.id,
+    userName: state.authUser.name,
+    role: state.authUser.role,
+    createdAt: new Date().toISOString(),
+    ...entry,
+  };
 }
 
 function slugifyIdentifier(value: string, fallback: string) {
@@ -726,6 +766,13 @@ const initialLoyaltyCustomers: LoyaltyCustomer[] = [];
 
 const initialOfflineQueue: OfflineQueueItem[] = [];
 
+const initialKitchenStations: KitchenStation[] = [
+  { id: "station-grill", name: "Grill station", branchId: DEFAULT_BRANCH_ID, categories: ["Grill", "Kebabs", "Tandoor"], active: true, loadScore: 0 },
+  { id: "station-beverage", name: "Beverage station", branchId: DEFAULT_BRANCH_ID, categories: ["Juices", "Drinks", "Tea & Coffee"], active: true, loadScore: 0 },
+  { id: "station-shawarma", name: "Shawarma station", branchId: DEFAULT_BRANCH_ID, categories: ["Shawarma", "Arabic"], active: true, loadScore: 0 },
+  { id: "station-dessert", name: "Dessert station", branchId: DEFAULT_BRANCH_ID, categories: ["Desserts", "Ice Cream", "Cakes"], active: true, loadScore: 0 },
+];
+
 const initialAuthUser: MockUser = {
   id: "anonymous",
   name: "Anonymous",
@@ -759,7 +806,13 @@ function createPersistedDefaults(): PersistedAppStoreState {
     branches: [],
     inventoryItems: [],
     purchases: [],
+    purchaseOrders: [],
     suppliers: [],
+    supplierPayments: [],
+    recipes: [],
+    inventoryMovements: [],
+    kitchenStations: clone(initialKitchenStations),
+    auditLogs: [],
     chartAccounts: [],
     expenses: [],
     loyaltyCustomers: clone(initialLoyaltyCustomers),
@@ -794,6 +847,20 @@ function removeLegacySeedData(state: PersistedAppStoreState): PersistedAppStoreS
     staffMembers: (state.staffMembers ?? []).filter((item) => item.id !== "test-owner"),
     branches: (state.branches ?? []).filter((item) => !seededRestaurantIds.has(item.restaurantSlug)),
     inventoryItems: hasSeededOwnerProfile ? [] : state.inventoryItems,
+    recipes: hasSeededOwnerProfile ? [] : state.recipes,
+    inventoryMovements: hasSeededOwnerProfile ? [] : state.inventoryMovements,
+  };
+}
+
+function withErpDefaults(state: PersistedAppStoreState): PersistedAppStoreState {
+  return {
+    ...state,
+    purchaseOrders: state.purchaseOrders ?? [],
+    supplierPayments: state.supplierPayments ?? [],
+    recipes: state.recipes ?? [],
+    inventoryMovements: state.inventoryMovements ?? [],
+    kitchenStations: state.kitchenStations?.length ? state.kitchenStations : clone(initialKitchenStations),
+    auditLogs: state.auditLogs ?? [],
   };
 }
 
@@ -825,7 +892,13 @@ export const useAppStore = create<AppStore>()(
       branches: [],
       inventoryItems: [],
       purchases: [],
+      purchaseOrders: [],
       suppliers: [],
+      supplierPayments: [],
+      recipes: [],
+      inventoryMovements: [],
+      kitchenStations: clone(initialKitchenStations),
+      auditLogs: [],
       chartAccounts: [],
       expenses: [],
       loyaltyCustomers: clone(initialLoyaltyCustomers),
@@ -1472,17 +1545,61 @@ export const useAppStore = create<AppStore>()(
           : [];
         const shouldQueue = shouldQueueOfflineSync()
           && (!canWriteNow || writeResults.some((result) => result.status === "rejected"));
+        const directInventoryMovements: InventoryMovement[] = paid.lines
+          .filter((line) => line.lineType === "inventory")
+          .flatMap((line) => {
+            const inventoryItem = get().inventoryItems.find((item) => item.id === line.itemId);
+            if (!inventoryItem) return [];
+            return [{
+              id: createLocalId("mov"),
+              inventoryItemId: inventoryItem.id,
+              inventoryItemName: inventoryItem.name,
+              branchId: inventoryItem.branchId,
+              movementType: "deduct" as const,
+              quantity: -line.quantity,
+              unit: inventoryItem.unit,
+              reason: `POS sale ${paid.invoiceNumber}`,
+              orderId: paid.invoiceNumber,
+              createdAt: new Date().toISOString(),
+              createdBy: get().authUser.id,
+            }];
+          });
+        const recipeMovements = buildRecipeMovements({
+          lines: paid.lines.filter((line) => line.lineType !== "inventory"),
+          recipes: get().recipes,
+          inventoryItems: get().inventoryItems,
+          branchId: branch.id,
+          orderId: paid.invoiceNumber ?? paid.table,
+          createdBy: get().authUser.id,
+        });
+        const stockMovements = [...directInventoryMovements, ...recipeMovements];
 
         set((state) => ({
           posBill: paid,
-          inventoryItems: state.inventoryItems.map((item) => {
-            const soldLine = paid.lines.find((line) => line.lineType === "inventory" && line.itemId === item.id);
-            if (!soldLine) return item;
-            return {
-              ...item,
-              currentStock: Math.max(0, item.currentStock - soldLine.quantity),
-            };
-          }),
+          inventoryItems: stockMovements.length ? applyInventoryMovements(state.inventoryItems, stockMovements) : state.inventoryItems,
+          inventoryMovements: stockMovements.length
+            ? [...stockMovements, ...state.inventoryMovements].slice(0, 500)
+            : state.inventoryMovements,
+          auditLogs: stockMovements.length
+            ? [
+                createAuditLogEntry(state, {
+                  module: "pos",
+                  action: "pos.stock-deducted",
+                  entityId: paid.invoiceNumber,
+                  entityName: paid.table,
+                  after: {
+                    movementCount: stockMovements.length,
+                    movements: stockMovements.map((movement) => ({
+                      inventoryItemId: movement.inventoryItemId,
+                      quantity: movement.quantity,
+                      unit: movement.unit,
+                      reason: movement.reason,
+                    })),
+                  },
+                }),
+                ...state.auditLogs,
+              ].slice(0, 250)
+            : state.auditLogs,
           tableOrders: paid.linkedKitchenOrderId
             ? state.tableOrders.map((order) => order.id === paid.linkedKitchenOrderId ? { ...order, status: "completed" } : order)
             : state.tableOrders,
@@ -1831,6 +1948,7 @@ export const useAppStore = create<AppStore>()(
 
       updateInventoryItem: async (item) => {
         const canWriteNow = canUseOperationalFirestore() && isOnline();
+        const existing = get().inventoryItems.find((entry) => entry.id === item.id);
         if (canWriteNow) {
           void saveInventoryItem({
             id: item.id,
@@ -1839,13 +1957,30 @@ export const useAppStore = create<AppStore>()(
             unit: item.unit,
             reorderLevel: item.reorderLevel,
             supplierId: item.supplier,
+            inventoryType: item.inventoryType,
+            category: item.category,
+            parentCategory: item.parentCategory,
+            subcategory: item.subcategory,
+            categoryPath: item.categoryPath,
+            barcode: item.barcode,
+            costPerUnit: item.costPerUnit,
+            purchaseUnit: item.purchaseUnit,
+            stockUnit: item.stockUnit,
+            unitConversionFactor: item.unitConversionFactor,
             sku: item.sku,
             price: item.price ?? 0,
             lowStockAlert: item.lowStockAlert ?? item.reorderLevel,
+            expiryDate: item.expiryDate,
+            averageDailyUsage: item.averageDailyUsage,
+            wastageQuantity: item.wastageQuantity,
+            equipmentSerial: item.equipmentSerial,
+            maintenanceDueAt: item.maintenanceDueAt,
+            centralKitchenBatchId: item.centralKitchenBatchId,
             gstApplicable: item.gstApplicable ?? false,
             gstRate: item.gstRate,
             hsnCode: item.hsnCode,
             sellable: item.sellable ?? true,
+            notes: item.notes,
             branchId: item.branchId,
             restaurantId: DEFAULT_RESTAURANT_ID,
           }).catch(() => {
@@ -1858,6 +1993,17 @@ export const useAppStore = create<AppStore>()(
           inventoryItems: state.inventoryItems.some((entry) => entry.id === item.id)
             ? state.inventoryItems.map((entry) => (entry.id === item.id ? item : entry))
             : [item, ...state.inventoryItems],
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "inventory",
+              action: existing ? "inventory.updated" : "inventory.created",
+              entityId: item.id,
+              entityName: item.name,
+              before: existing as unknown as Record<string, unknown> | undefined,
+              after: item as unknown as Record<string, unknown>,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
           apiPhase: "success",
           apiMessage: canWriteNow
             ? `${item.name} stock updated.`
@@ -1869,10 +2015,223 @@ export const useAppStore = create<AppStore>()(
         const item = get().inventoryItems.find((entry) => entry.id === itemId);
         set((state) => ({
           inventoryItems: state.inventoryItems.filter((entry) => entry.id !== itemId),
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "inventory",
+              action: "inventory.deleted",
+              entityId: itemId,
+              entityName: item?.name,
+              before: item as unknown as Record<string, unknown> | undefined,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
           apiPhase: "success",
           apiMessage: item ? `${item.name} deleted.` : "Inventory item deleted.",
         }));
       },
+
+      adjustInventoryStock: async (itemId, quantityDelta, reason) => {
+        const item = get().inventoryItems.find((entry) => entry.id === itemId);
+        if (!item) return;
+        const movement: InventoryMovement = {
+          id: createLocalId("mov"),
+          inventoryItemId: item.id,
+          inventoryItemName: item.name,
+          branchId: item.branchId,
+          movementType: quantityDelta < 0 ? "adjust" : "receive",
+          quantity: quantityDelta,
+          unit: item.unit,
+          reason,
+          createdAt: new Date().toISOString(),
+          createdBy: get().authUser.id,
+        };
+        const nextItem = {
+          ...item,
+          currentStock: Math.max(0, Math.round((item.currentStock + quantityDelta) * 1000) / 1000),
+          lastMovementAt: movement.createdAt,
+          updatedAt: movement.createdAt,
+        };
+        set((state) => ({
+          inventoryItems: state.inventoryItems.map((entry) => (entry.id === itemId ? nextItem : entry)),
+          inventoryMovements: [movement, ...state.inventoryMovements].slice(0, 500),
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "inventory",
+              action: "inventory.adjusted",
+              entityId: itemId,
+              entityName: item.name,
+              before: item as unknown as Record<string, unknown>,
+              after: nextItem as unknown as Record<string, unknown>,
+              note: reason,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
+          apiPhase: "success",
+          apiMessage: `${item.name} adjusted by ${quantityDelta} ${item.unit}.`,
+        }));
+      },
+
+      upsertRecipe: async (recipe) => {
+        const totalCost = calculateRecipeCost(recipe, get().inventoryItems);
+        const nextRecipe = { ...recipe, totalCost, updatedAt: new Date().toISOString() };
+        set((state) => ({
+          recipes: state.recipes.some((entry) => entry.id === recipe.id)
+            ? state.recipes.map((entry) => (entry.id === recipe.id ? nextRecipe : entry))
+            : [nextRecipe, ...state.recipes],
+          menuItems: state.menuItems.map((item) =>
+            item.id === recipe.menuItemId
+              ? {
+                  ...item,
+                  deductionHook: undefined,
+                  recipeLinks: recipe.ingredients.map((ingredient) => ({
+                    inventoryItemId: ingredient.inventoryItemId,
+                    quantity: ingredient.quantity,
+                    unit: ingredient.unit,
+                  })),
+                }
+              : item,
+          ),
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "recipe",
+              action: "recipe.upserted",
+              entityId: recipe.id,
+              entityName: recipe.menuItemName,
+              after: nextRecipe as unknown as Record<string, unknown>,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
+          apiPhase: "success",
+          apiMessage: `${recipe.menuItemName} recipe saved.`,
+        }));
+      },
+
+      deleteRecipe: async (recipeId) => {
+        const recipe = get().recipes.find((entry) => entry.id === recipeId);
+        set((state) => ({
+          recipes: state.recipes.filter((entry) => entry.id !== recipeId),
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "recipe",
+              action: "recipe.deleted",
+              entityId: recipeId,
+              entityName: recipe?.menuItemName,
+              before: recipe as unknown as Record<string, unknown> | undefined,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
+          apiPhase: "success",
+          apiMessage: recipe ? `${recipe.menuItemName} recipe deleted.` : "Recipe deleted.",
+        }));
+      },
+
+      upsertSupplier: async (supplier) => {
+        set((state) => ({
+          suppliers: state.suppliers.some((entry) => entry.id === supplier.id)
+            ? state.suppliers.map((entry) => (entry.id === supplier.id ? supplier : entry))
+            : [supplier, ...state.suppliers],
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "supplier",
+              action: "supplier.upserted",
+              entityId: supplier.id,
+              entityName: supplier.name,
+              after: supplier as unknown as Record<string, unknown>,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
+          apiPhase: "success",
+          apiMessage: `${supplier.name} supplier saved.`,
+        }));
+      },
+
+      upsertPurchaseOrder: async (order) => {
+        const duplicateInvoice = order.invoiceNumber
+          ? get().purchaseOrders.some((entry) => entry.id !== order.id && entry.invoiceNumber?.trim().toLowerCase() === order.invoiceNumber?.trim().toLowerCase())
+          : false;
+        if (duplicateInvoice) {
+          set({ apiPhase: "error", apiMessage: "Duplicate supplier invoice number detected." });
+          return;
+        }
+        set((state) => ({
+          purchaseOrders: state.purchaseOrders.some((entry) => entry.id === order.id)
+            ? state.purchaseOrders.map((entry) => (entry.id === order.id ? order : entry))
+            : [order, ...state.purchaseOrders],
+          purchases: state.purchases.some((entry) => entry.id === order.id)
+            ? state.purchases
+            : [
+                {
+                  id: order.id,
+                  supplier: order.supplierName,
+                  itemName: order.items[0]?.itemName ?? "Purchase order",
+                  quantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
+                  expectedAt: order.expectedAt ?? order.createdAt,
+                  status: order.status === "received" ? "received" : order.status === "ordered" ? "ordered" : "draft",
+                },
+                ...state.purchases,
+              ],
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "purchase",
+              action: "purchase.upserted",
+              entityId: order.id,
+              entityName: order.supplierName,
+              after: order as unknown as Record<string, unknown>,
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
+          apiPhase: "success",
+          apiMessage: `${order.id} purchase order saved.`,
+        }));
+      },
+
+      receivePurchaseOrder: async (orderId) => {
+        const order = get().purchaseOrders.find((entry) => entry.id === orderId);
+        if (!order) return;
+        const receivedAt = new Date().toISOString();
+        const movements: InventoryMovement[] = order.items
+          .filter((item) => item.inventoryItemId && item.quantity > 0)
+          .map((item) => ({
+            id: createLocalId("mov"),
+            inventoryItemId: item.inventoryItemId as string,
+            inventoryItemName: item.itemName,
+            branchId: get().branches[0]?.id ?? DEFAULT_BRANCH_ID,
+            movementType: "receive",
+            quantity: item.receivedQuantity ?? item.quantity,
+            unit: item.unit,
+            reason: `GRN ${order.id}`,
+            purchaseOrderId: order.id,
+            createdAt: receivedAt,
+            createdBy: get().authUser.id,
+          }));
+        set((state) => ({
+          purchaseOrders: state.purchaseOrders.map((entry) =>
+            entry.id === orderId
+              ? { ...entry, status: "received", receivedAt, updatedAt: receivedAt }
+              : entry,
+          ),
+          purchases: state.purchases.map((entry) => entry.id === orderId ? { ...entry, status: "received" } : entry),
+          inventoryItems: applyInventoryMovements(state.inventoryItems, movements),
+          inventoryMovements: [...movements, ...state.inventoryMovements].slice(0, 500),
+          auditLogs: [
+            createAuditLogEntry(state, {
+              module: "purchase",
+              action: "purchase.received",
+              entityId: orderId,
+              entityName: order.supplierName,
+              after: { status: "received", movements },
+            }),
+            ...state.auditLogs,
+          ].slice(0, 250),
+          apiPhase: "success",
+          apiMessage: `${order.id} received and stock updated.`,
+        }));
+      },
+
+      recordAuditLog: (entry) =>
+        set((state) => ({
+          auditLogs: [createAuditLogEntry(state, entry), ...state.auditLogs].slice(0, 250),
+        })),
 
       queueOfflineAction: (item) =>
         set((state) => {
@@ -2131,16 +2490,16 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: "sarva-production-state",
-      version: 7,
+      version: 8,
       migrate: (persistedState, persistedVersion): PersistedAppStoreState => {
         if (persistedVersion < 6) {
           return createPersistedDefaults();
         }
-        const migrated = persistedState as PersistedAppStoreState;
+        let migrated = persistedState as PersistedAppStoreState;
         if (persistedVersion < 7) {
-          return removeLegacySeedData(migrated);
+          migrated = removeLegacySeedData(migrated);
         }
-        return migrated;
+        return withErpDefaults(migrated);
       },
       partialize: (state): PersistedAppStoreState => ({
         authUser: state.authUser,
@@ -2168,7 +2527,13 @@ export const useAppStore = create<AppStore>()(
         branches: state.branches,
         inventoryItems: state.inventoryItems,
         purchases: state.purchases,
+        purchaseOrders: state.purchaseOrders,
         suppliers: state.suppliers,
+        supplierPayments: state.supplierPayments,
+        recipes: state.recipes,
+        inventoryMovements: state.inventoryMovements,
+        kitchenStations: state.kitchenStations,
+        auditLogs: state.auditLogs,
         chartAccounts: state.chartAccounts,
         expenses: state.expenses,
         loyaltyCustomers: state.loyaltyCustomers,

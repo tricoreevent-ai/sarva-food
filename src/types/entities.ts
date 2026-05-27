@@ -534,6 +534,13 @@ export type Supplier = {
   phone: string;
   category: string;
   paymentTerms: string;
+  email?: string;
+  address?: string;
+  gstNumber?: string;
+  contactPerson?: string;
+  active?: boolean;
+  outstandingAmount?: number;
+  lastOrderAt?: string;
 };
 
 export type ChartAccount = {
@@ -813,6 +820,21 @@ export type ActivityLog = {
   timestamp: string;
 };
 
+export type AuditLogEntry = {
+  id: string;
+  userId: string;
+  userName?: string;
+  role?: string;
+  module: "inventory" | "recipe" | "purchase" | "supplier" | "kitchen" | "pos" | "billing" | "permissions";
+  action: string;
+  entityId?: string;
+  entityName?: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  note?: string;
+  createdAt: string;
+};
+
 export type PrinterProfile = {
   id: string;
   name: string;
@@ -871,23 +893,53 @@ export type RestaurantBranch = {
   managerId?: string;
 };
 
+export type InventoryType =
+  | "sellable-products"
+  | "raw-ingredients"
+  | "kitchen-supplies"
+  | "housekeeping"
+  | "packaging"
+  | "equipment"
+  | "vendor-purchases"
+  | "central-kitchen-stock";
+
 export type InventoryItem = {
   id: string;
   name: string;
   category: string;
   branchId: string;
+  inventoryType?: InventoryType;
+  parentCategory?: string;
+  subcategory?: string;
+  categoryPath?: string[];
   sku?: string;
+  barcode?: string;
   price?: number;
+  costPerUnit?: number;
   currentStock: number;
   unit: string;
+  purchaseUnit?: string;
+  stockUnit?: string;
+  unitConversionFactor?: number;
   reorderLevel: number;
   lowStockAlert?: number;
+  expiryDate?: string;
+  averageDailyUsage?: number;
+  wastageQuantity?: number;
+  lastPurchasedAt?: string;
+  lastMovementAt?: string;
+  equipmentSerial?: string;
+  maintenanceDueAt?: string;
+  centralKitchenBatchId?: string;
   gstApplicable?: boolean;
   gstRate?: number;
   hsnCode?: string;
   sellable?: boolean;
   supplier?: string;
   deductionHook?: "recipe";
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PurchasePlaceholder = {
@@ -897,6 +949,95 @@ export type PurchasePlaceholder = {
   quantity: number;
   expectedAt: string;
   status: "draft" | "ordered" | "received";
+};
+
+export type RecipeIngredient = {
+  inventoryItemId: string;
+  inventoryItemName?: string;
+  quantity: number;
+  unit: string;
+  wastagePercent?: number;
+  sizeLabel?: string;
+};
+
+export type Recipe = {
+  id: string;
+  menuItemId: string;
+  menuItemName: string;
+  portionSize: number;
+  outputUnit: string;
+  sizeLabel?: string;
+  ingredients: RecipeIngredient[];
+  totalCost?: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryMovement = {
+  id: string;
+  inventoryItemId: string;
+  inventoryItemName?: string;
+  branchId: string;
+  movementType: "receive" | "deduct" | "recipe-deduction" | "adjust" | "waste" | "transfer" | "expiry";
+  quantity: number;
+  unit: string;
+  reason: string;
+  orderId?: string;
+  recipeId?: string;
+  purchaseOrderId?: string;
+  fromBranchId?: string;
+  toBranchId?: string;
+  createdAt: string;
+  createdBy?: string;
+};
+
+export type PurchaseOrderItem = {
+  inventoryItemId?: string;
+  itemName: string;
+  quantity: number;
+  receivedQuantity?: number;
+  unit: string;
+  costPerUnit: number;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  invoiceNumber?: string;
+  expectedAt?: string;
+  receivedAt?: string;
+  status: "draft" | "ordered" | "partial" | "received" | "cancelled";
+  paymentStatus: "unpaid" | "partial" | "paid";
+  paidAmount: number;
+  items: PurchaseOrderItem[];
+  subtotal: number;
+  taxAmount?: number;
+  total: number;
+  invoiceUrl?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SupplierPayment = {
+  id: string;
+  supplierId: string;
+  purchaseOrderId?: string;
+  amount: number;
+  paidBy: PaymentOption;
+  paidAt: string;
+  note?: string;
+};
+
+export type KitchenStation = {
+  id: string;
+  name: string;
+  branchId: string;
+  categories: string[];
+  active: boolean;
+  loadScore?: number;
 };
 
 export type RestaurantTransaction = {
