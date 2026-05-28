@@ -13,6 +13,7 @@ const allowedRoles: UserRole[] = [
   "inventory-manager",
   "delivery-staff",
   "admin",
+  "super_admin",
 ];
 
 const cookieOptions = {

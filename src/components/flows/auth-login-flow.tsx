@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
+import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { toastManager } from "@/lib/toast-manager";
@@ -56,13 +57,13 @@ type CustomerMode = "sign-in" | "sign-up" | "forgot";
 
 const DEV_USERS: Array<MockUser & { email: string; password: string }> = [
   { id: "demo-customer", name: "Demo Customer", role: "customer", restaurantSlug: DEFAULT_TENANT_ID, email: "demo@sarva.test", password: "password123" },
-  { id: "test-owner", name: "Test Owner", role: "owner", restaurantSlug: DEFAULT_TENANT_ID, email: "owner@sarva.test", password: "password123" },
+  { id: "divakdi@gmail.com", name: "Test Owner", role: "owner", restaurantSlug: DEFAULT_TENANT_ID, email: "divakdi@gmail.com", password: "password123" },
   { id: "test-manager", name: "Test Manager", role: "manager", restaurantSlug: DEFAULT_TENANT_ID, email: "manager@sarva.test", password: "password123" },
   { id: "test-cashier", name: "Test Cashier", role: "cashier", restaurantSlug: DEFAULT_TENANT_ID, email: "cashier@sarva.test", password: "password123" },
   { id: "test-chef", name: "Test Chef", role: "chef", restaurantSlug: DEFAULT_TENANT_ID, email: "chef@sarva.test", password: "password123" },
   { id: "test-waiter", name: "Test Waiter", role: "waiter", restaurantSlug: DEFAULT_TENANT_ID, email: "waiter@sarva.test", password: "password123" },
   { id: "test-delivery", name: "Test Delivery Partner", role: "delivery-staff", restaurantSlug: DEFAULT_TENANT_ID, email: "delivery@sarva.test", password: "password123" },
-  { id: "test-admin", name: "Platform Admin", role: "admin", restaurantSlug: DEFAULT_TENANT_ID, email: "admin@sarva.test", password: "password123" },
+  { id: "dinucd@gmail.com", name: "Platform Admin", role: "admin", restaurantSlug: DEFAULT_TENANT_ID, email: "dinucd@gmail.com", password: "password123" },
 ];
 
 const portalRoles: UserRole[] = [
@@ -100,7 +101,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isCustomerSurface = surface === "customer-login" || surface === "customer-signup";
-  const next = searchParams.get("next") ?? (isCustomerSurface ? "/profile" : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext);
+  const next = searchParams.get("redirect") ?? searchParams.get("next") ?? (isCustomerSurface ? "/account/profile" : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext);
   const initialMode: CustomerMode = pathname.startsWith("/forgot-password") || searchParams.get("reset") === "true"
     ? "forgot"
     : surface === "customer-signup"
@@ -123,6 +124,8 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     stackEnabled: false,
   });
   const setAuthUser = useAppStore((state) => state.setAuthUser);
+  const branding = useAppStore((state) => state.cmsSettings.branding) ?? defaultCmsSettings.branding!;
+  const brandInitials = (branding.shortName || branding.appName || "SF").slice(0, 2).toUpperCase();
   const { ready: authReady, firebaseEnabled, devLoginEnabled, stackEnabled } = authCapabilities;
 
   const devUsers = useMemo(() => {
@@ -282,14 +285,26 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   }
 
   async function sendPasswordReset() {
-    setMessage("Sending reset email...");
-    if (stackEnabled) {
-      await sendStackPasswordReset(email.trim(), `${window.location.origin}/handler/password-reset`);
-    } else {
-      await resetPassword(email.trim());
+    const emailKey = email.trim().toLowerCase();
+    const resetKey = `sarva-password-reset:${emailKey}`;
+    const lastReset = Number(window.localStorage.getItem(resetKey) ?? 0);
+    if (Date.now() - lastReset < 60_000) {
+      setMessage("If an account exists for this email, a reset link will arrive shortly.");
+      return;
     }
-    toast.success("Password reset email sent.");
-    setMessage("Check your email for the password reset link.");
+    setMessage("Sending reset email...");
+    try {
+      if (stackEnabled) {
+        await sendStackPasswordReset(email.trim(), `${window.location.origin}/handler/password-reset`);
+      } else {
+        await resetPassword(email.trim());
+      }
+      window.localStorage.setItem(resetKey, String(Date.now()));
+    } catch {
+      // Keep the response generic so the reset flow cannot be used to enumerate accounts.
+    }
+    toastManager.successOnce(`password-reset-${emailKey}`, "If an account exists, a reset email has been sent.");
+    setMessage("If an account exists for this email, a reset link will arrive shortly.");
   }
 
   async function sendMagicLink() {
@@ -372,10 +387,10 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 to-emerald-500 text-base font-black text-white shadow-xl">SF</span>
+                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 to-emerald-500 text-base font-black text-white shadow-xl">{brandInitials}</span>
                 <span>
-                  <span className="block text-lg font-black">SARVA FOOD</span>
-                  <span className="text-xs font-semibold text-emerald-100">Good food, great moments</span>
+                  <span className="block text-lg font-black">{branding.appName}</span>
+                  <span className="text-xs font-semibold text-emerald-100">{branding.appDescription || "Good food, great moments"}</span>
                 </span>
               </Link>
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-14 max-w-sm">

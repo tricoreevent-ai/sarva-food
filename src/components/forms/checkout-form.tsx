@@ -41,6 +41,7 @@ export function CheckoutForm({
   const applyOffer = useCartStore((state) => state.applyOffer);
   const clearCart = useCartStore((state) => state.clearCart);
   const createOrder = useAppStore((state) => state.createOrder);
+  const cmsVersion = useAppStore((state) => state.cmsSettings.cmsVersion);
   const { offers } = usePublicMenu(items[0]?.restaurantSlug);
   const {
     register,
@@ -55,6 +56,7 @@ export function CheckoutForm({
       scheduleMode: "now",
       guestCount: 2,
       payment: "upi",
+      acceptedTerms: false,
     },
   });
   const fulfillmentType = useWatch({ control, name: "fulfillmentType" });
@@ -148,6 +150,8 @@ export function CheckoutForm({
                 tax: totals.tax,
                 deliveryFee: totals.deliveryFee,
                 total: totals.total,
+                acceptedTermsVersion: cmsVersion ?? "default",
+                acceptedTermsAt: new Date().toISOString(),
               };
 
               if (isOnline()) {
@@ -194,6 +198,8 @@ export function CheckoutForm({
                 prepEstimateMinutes: estimatePrepMinutes(items.length),
                 cutoffAt: scheduledFor ? new Date(new Date(scheduledFor).getTime() - 45 * 60_000).toISOString() : undefined,
                 guestCount: values.fulfillmentType === "dine-in" ? values.guestCount : undefined,
+                acceptedTermsVersion: cmsVersion ?? "default",
+                acceptedTermsAt: new Date().toISOString(),
               });
               clearCart();
               await trackAnalyticsEvent("order_created", {
@@ -322,6 +328,17 @@ export function CheckoutForm({
               })}
             </div>
           </fieldset>
+
+          <label className="flex items-start gap-3 rounded-md border bg-orange-50/70 p-3 text-sm font-semibold leading-6">
+            <input type="checkbox" className="mt-1" {...register("acceptedTerms")} />
+            <span>
+              By placing this order, you agree to{" "}
+              <Link href="/terms" className="font-black text-primary">Terms & Conditions</Link>
+              {" "}and{" "}
+              <Link href="/privacy" className="font-black text-primary">Privacy Policy</Link>.
+              {errors.acceptedTerms ? <span className="mt-1 block text-xs text-destructive">{errors.acceptedTerms.message}</span> : null}
+            </span>
+          </label>
 
           <div className="grid gap-2 sm:grid-cols-2">
             <Button type="submit" size="lg" disabled={submitting || !items.length} className="shadow-lg">

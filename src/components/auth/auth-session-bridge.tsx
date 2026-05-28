@@ -61,8 +61,8 @@ async function hydrateCookieSession(setAuthUser: (user: MockUser) => void) {
 }
 
 function displayNameForSession(uid: string, role: UserRole) {
-  if (uid === "test-admin" || role === "admin") return "Platform Admin";
-  if (uid === "test-owner" || role === "owner") return "Test Owner";
+  if (uid === "dinucd@gmail.com" || role === "admin" || role === "super_admin") return "Platform Admin";
+  if (uid === "divakdi@gmail.com" || role === "owner") return "Test Owner";
   if (role === "customer") return "Demo Customer";
   return role
     .split("-")

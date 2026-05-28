@@ -42,6 +42,15 @@ type FirestoreRunQueryRow = {
   error?: { code?: number; message?: string; status?: string };
 };
 
+type RestaurantStatsDoc = {
+  id: string;
+  averageRating?: number;
+  totalReviews?: number;
+  ratingDistribution?: Record<string, number>;
+  totalOrders?: number;
+  repeatCustomers?: number;
+};
+
 function serializeFirestoreValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();
@@ -266,7 +275,7 @@ export async function getPublicRestaurantDocs(slug?: string) {
     }
 
     const snapshot = await restaurantsQuery.limit(slug ? 1 : PUBLIC_RESTAURANT_LIMIT).get();
-    return toPublicRestaurantDocs(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item)), slug);
+    return toPublicRestaurantDocs(await applyRestaurantStats(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item))), slug);
   } catch (error) {
     if (isMissingIndexError(error)) return getPublicRestaurantDocsWithoutCompositeIndex(slug);
     if (isAdminCredentialError(error)) return getPublicRestaurantDocsFromRest(slug);
@@ -278,7 +287,8 @@ async function getPublicRestaurantDocsFromRest(slug?: string) {
   const docs = (await Promise.all(
     publicRestaurantIds().map((id) => getPublicFirestoreDocument<RestaurantDoc>("restaurants", id)),
   )).filter((doc): doc is RestaurantDoc => Boolean(doc));
-  return toPublicRestaurantDocs(docs, slug);
+  const stats = await Promise.all(docs.map((doc) => getPublicFirestoreDocument<RestaurantStatsDoc>("restaurant_stats", doc.tenantId || doc.id).catch(() => null)));
+  return toPublicRestaurantDocs(mergeRestaurantStats(docs, stats.filter((item): item is RestaurantStatsDoc => Boolean(item))), slug);
 }
 
 async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
@@ -287,7 +297,34 @@ async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
     : adminDb().collection("restaurants").where("active", "==", true).limit(PUBLIC_RESTAURANT_LIMIT);
 
   const snapshot = await restaurantsQuery.get();
-  return toPublicRestaurantDocs(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item)), slug);
+  return toPublicRestaurantDocs(await applyRestaurantStats(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item))), slug);
+}
+
+async function applyRestaurantStats(docs: RestaurantDoc[]) {
+  if (!docs.length) return docs;
+  const ids = docs.map((doc) => doc.tenantId || doc.id).filter(Boolean);
+  const chunks = Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) => ids.slice(index * 30, index * 30 + 30));
+  const snapshots = await Promise.all(
+    chunks.map((chunk) => adminDb().collection("restaurant_stats").where("__name__", "in", chunk).get().catch(() => null)),
+  );
+  const stats = snapshots.flatMap((snapshot) => snapshot?.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as RestaurantStatsDoc) ?? []);
+  return mergeRestaurantStats(docs, stats);
+}
+
+function mergeRestaurantStats(docs: RestaurantDoc[], stats: RestaurantStatsDoc[]) {
+  const statsMap = new Map(stats.map((item) => [item.id, item]));
+  return docs.map((doc) => {
+    const stat = statsMap.get(doc.tenantId || doc.id);
+    if (!stat) return doc;
+    return {
+      ...doc,
+      rating: typeof stat.averageRating === "number" ? stat.averageRating : (doc as RestaurantDoc & { rating?: number }).rating,
+      reviewCount: typeof stat.totalReviews === "number" ? stat.totalReviews : (doc as RestaurantDoc & { reviewCount?: number }).reviewCount,
+      ratingDistribution: stat.ratingDistribution,
+      totalOrders: stat.totalOrders,
+      repeatCustomers: stat.repeatCustomers,
+    } as RestaurantDoc;
+  });
 }
 
 function toPublicRestaurantDocs(docs: RestaurantDoc[], slug?: string) {

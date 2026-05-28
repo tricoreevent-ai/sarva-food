@@ -40,7 +40,7 @@ const OPERATIONAL_ROLES: UserRole[] = [
   "delivery-staff",
   "delivery",
 ];
-const ADMIN_ROLES: UserRole[] = ["admin"];
+const ADMIN_ROLES: UserRole[] = ["admin", "super_admin"];
 const GOOGLE_IDENTITY_SCRIPT_ID = "sarva-google-identity-services";
 let googleIdentityScriptPromise: Promise<void> | null = null;
 

@@ -144,7 +144,29 @@ export default function AdminCmsPage() {
         <Card>
           <CardContent className="space-y-4 p-5">
             <h2 className="text-lg font-black">Platform copy</h2>
-            <Field label="Application name" value={settings.appName ?? "Sarva Food"} onChange={(appName) => setSettings({ ...settings, appName })} />
+            <Field
+              label="Application name"
+              value={settings.branding?.appName ?? settings.appName ?? "Sarva Food"}
+              onChange={(appName) => setSettings({
+                ...settings,
+                appName,
+                branding: { ...settings.branding!, appName },
+              })}
+            />
+            <div className="rounded-xl border bg-background/60 p-3">
+              <h3 className="font-black">Branding</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <Field label="Short name" value={settings.branding?.shortName ?? ""} onChange={(shortName) => setSettings({ ...settings, branding: { ...settings.branding!, shortName } })} />
+                <Field label="Logo URL" value={settings.branding?.logoUrl ?? ""} onChange={(logoUrl) => setSettings({ ...settings, branding: { ...settings.branding!, logoUrl } })} />
+                <Field label="Favicon URL" value={settings.branding?.faviconUrl ?? ""} onChange={(faviconUrl) => setSettings({ ...settings, branding: { ...settings.branding!, faviconUrl } })} />
+                <Field label="Support email" value={settings.branding?.supportEmail ?? ""} onChange={(supportEmail) => setSettings({ ...settings, branding: { ...settings.branding!, supportEmail } })} />
+                <Field label="Support phone" value={settings.branding?.supportPhone ?? ""} onChange={(supportPhone) => setSettings({ ...settings, branding: { ...settings.branding!, supportPhone } })} />
+                <Field label="Owner onboarding WhatsApp" value={settings.branding?.onboardingWhatsapp ?? ""} onChange={(onboardingWhatsapp) => setSettings({ ...settings, branding: { ...settings.branding!, onboardingWhatsapp } })} />
+              </div>
+              <div className="mt-3">
+                <CloudinaryUploadWidget folder="branding" aspectRatio={1} tags={["branding-logo"]} label="Upload logo" onUpload={(logoUrl) => setSettings((current) => ({ ...current, branding: { ...current.branding!, logoUrl } }))} />
+              </div>
+            </div>
             <Field label="Homepage title" value={settings.homepage.title} onChange={(title) => setSettings({ ...settings, homepage: { ...settings.homepage, title } })} />
             <Field label="Homepage subtitle" value={settings.homepage.subtitle} onChange={(subtitle) => setSettings({ ...settings, homepage: { ...settings.homepage, subtitle } })} />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
@@ -184,6 +206,15 @@ export default function AdminCmsPage() {
               </div>
             </div>
             <div className="rounded-xl border bg-background/60 p-3">
+              <h3 className="font-black">Restaurant listing</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <Field label="Section label" value={settings.restaurantListing?.eyebrow ?? ""} onChange={(eyebrow) => setSettings({ ...settings, restaurantListing: { ...settings.restaurantListing!, eyebrow } })} />
+                <Field label="Search placeholder" value={settings.restaurantListing?.searchPlaceholder ?? ""} onChange={(searchPlaceholder) => setSettings({ ...settings, restaurantListing: { ...settings.restaurantListing!, searchPlaceholder } })} />
+                <Field label="Nearby count text" value={settings.restaurantListing?.nearbyTitle ?? ""} onChange={(nearbyTitle) => setSettings({ ...settings, restaurantListing: { ...settings.restaurantListing!, nearbyTitle } })} />
+                <Field label="Area count text" value={settings.restaurantListing?.areaTitle ?? ""} onChange={(areaTitle) => setSettings({ ...settings, restaurantListing: { ...settings.restaurantListing!, areaTitle } })} />
+              </div>
+            </div>
+            <div className="rounded-xl border bg-background/60 p-3">
               <h3 className="font-black">Announcement bar</h3>
               <div className="mt-3 grid gap-3">
                 <Toggle label="Show announcement bar" checked={settings.announcementBar?.visible === true} onChange={(visible) => setSettings({ ...settings, announcementBar: { ...settings.announcementBar!, visible } })} />
@@ -212,6 +243,22 @@ export default function AdminCmsPage() {
             <div className="grid gap-2">
               <Label>Privacy copy</Label>
               <Textarea className="min-h-24" value={settings.legalPages.privacy} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, privacy: event.target.value } })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Refund policy</Label>
+              <Textarea className="min-h-20" value={settings.legalPages.refund ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, refund: event.target.value } })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Cancellation policy</Label>
+              <Textarea className="min-h-20" value={settings.legalPages.cancellation ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, cancellation: event.target.value } })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Delivery policy</Label>
+              <Textarea className="min-h-20" value={settings.legalPages.delivery ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, delivery: event.target.value } })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Cookie policy</Label>
+              <Textarea className="min-h-20" value={settings.legalPages.cookie ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, cookie: event.target.value } })} />
             </div>
           </CardContent>
         </Card>

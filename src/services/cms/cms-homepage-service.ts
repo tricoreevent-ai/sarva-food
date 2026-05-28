@@ -15,6 +15,11 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
       ...defaultCmsSettings.footer,
       ...(input?.footer ?? {}),
     },
+    branding: {
+      ...defaultCmsSettings.branding,
+      ...(input?.branding ?? {}),
+      appName: input?.branding?.appName ?? input?.appName ?? defaultCmsSettings.branding!.appName,
+    },
     legalPages: {
       ...defaultCmsSettings.legalPages,
       ...(input?.legalPages ?? {}),
@@ -24,6 +29,20 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
   return {
     ...settings,
     cmsVersion: settings.cmsVersion ?? CMS_VERSION,
+    appName: settings.branding?.appName?.trim() || settings.appName?.trim() || defaultCmsSettings.appName,
+    branding: {
+      ...defaultCmsSettings.branding!,
+      ...(settings.branding ?? {}),
+      appName: settings.branding?.appName?.trim() || settings.appName?.trim() || defaultCmsSettings.branding!.appName,
+      shortName: settings.branding?.shortName?.trim() || defaultCmsSettings.branding!.shortName,
+      logoUrl: settings.branding?.logoUrl?.trim() || defaultCmsSettings.branding!.logoUrl,
+      faviconUrl: settings.branding?.faviconUrl?.trim() || defaultCmsSettings.branding!.faviconUrl,
+      appDescription: settings.branding?.appDescription?.trim() || defaultCmsSettings.branding!.appDescription,
+      supportEmail: settings.branding?.supportEmail?.trim() || defaultCmsSettings.branding!.supportEmail,
+      supportPhone: settings.branding?.supportPhone?.trim() || defaultCmsSettings.branding!.supportPhone,
+      onboardingEmail: settings.branding?.onboardingEmail?.trim() || defaultCmsSettings.branding!.onboardingEmail,
+      onboardingWhatsapp: settings.branding?.onboardingWhatsapp?.trim() || defaultCmsSettings.branding!.onboardingWhatsapp,
+    },
     homepage: {
       ...settings.homepage,
       title: settings.homepage.title?.trim() || defaultCmsSettings.homepage.title,
@@ -45,6 +64,15 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
       recommendedTitle: settings.sections?.recommendedTitle?.trim() || defaultCmsSettings.sections!.recommendedTitle,
       popularTitle: settings.sections?.popularTitle?.trim() || defaultCmsSettings.sections!.popularTitle,
       offerTitle: settings.sections?.offerTitle?.trim() || defaultCmsSettings.sections!.offerTitle,
+    },
+    restaurantListing: {
+      ...defaultCmsSettings.restaurantListing!,
+      ...(settings.restaurantListing ?? {}),
+      eyebrow: settings.restaurantListing?.eyebrow?.trim() || defaultCmsSettings.restaurantListing!.eyebrow,
+      titleTemplate: settings.restaurantListing?.titleTemplate?.trim() || defaultCmsSettings.restaurantListing!.titleTemplate,
+      nearbyTitle: settings.restaurantListing?.nearbyTitle?.trim() || defaultCmsSettings.restaurantListing!.nearbyTitle,
+      areaTitle: settings.restaurantListing?.areaTitle?.trim() || defaultCmsSettings.restaurantListing!.areaTitle,
+      searchPlaceholder: settings.restaurantListing?.searchPlaceholder?.trim() || defaultCmsSettings.restaurantListing!.searchPlaceholder,
     },
     announcementBar: {
       ...defaultCmsSettings.announcementBar,

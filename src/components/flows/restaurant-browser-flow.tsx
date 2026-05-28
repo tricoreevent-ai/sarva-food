@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocationCommerce } from "@/hooks/use-location-commerce";
 import { usePublicRestaurants } from "@/hooks/use-public-data";
+import { useAppStore } from "@/lib/app-store";
+import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { formatCurrency } from "@/lib/utils";
 import type { Restaurant } from "@/lib/types";
 
@@ -41,6 +43,7 @@ type SortMode = "distance" | "rating" | "eta";
 
 export function RestaurantBrowserFlow() {
   const { restaurants, status: restaurantsStatus, retry } = usePublicRestaurants();
+  const listingCopy = useAppStore((state) => state.cmsSettings.restaurantListing) ?? defaultCmsSettings.restaurantListing!;
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("query") ?? "");
   const [locationQuery, setLocationQuery] = useState("");
@@ -224,7 +227,7 @@ export function RestaurantBrowserFlow() {
             <Search className="ml-2 size-5 text-muted-foreground" />
             <Input
               className="h-12 border-0 bg-transparent px-1 text-base shadow-none focus-visible:ring-0"
-              placeholder="Try coastal curry, kebab, coffee"
+              placeholder={listingCopy.searchPlaceholder}
               aria-label="Search restaurants"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -299,26 +302,29 @@ export function RestaurantBrowserFlow() {
               </div>
             </div>
           ) : null}
-          <div className="customer-scroll flex gap-2 overflow-x-auto">
-            {chips.map((chip) => (
-              <Button
-                key={chip}
-                type="button"
-                size="sm"
-                variant={activeChip === chip ? "secondary" : "outline"}
-                className="shrink-0 border-white/35 bg-white/12 text-white hover:bg-white hover:text-primary data-[active=true]:bg-white data-[active=true]:text-primary"
-                data-active={activeChip === chip}
-                onClick={() => {
-                  setActiveChip(chip);
-                  if (!["All", "Top rated", "Fast delivery", "Offers"].includes(chip)) {
-                    setQuery(chip);
-                  }
-                }}
-              >
-                <Filter className="size-4" />
-                {chip}
-              </Button>
-            ))}
+          <div className="relative">
+            <div className="customer-scroll flex gap-2 overflow-x-auto pr-10">
+              {chips.map((chip) => (
+                <Button
+                  key={chip}
+                  type="button"
+                  size="sm"
+                  variant={activeChip === chip ? "secondary" : "outline"}
+                  className="shrink-0 border-white/35 bg-white/12 text-white hover:bg-white hover:text-primary data-[active=true]:bg-white data-[active=true]:text-primary"
+                  data-active={activeChip === chip}
+                  onClick={() => {
+                    setActiveChip(chip);
+                    if (!["All", "Top rated", "Fast delivery", "Offers"].includes(chip)) {
+                      setQuery(chip);
+                    }
+                  }}
+                >
+                  <Filter className="size-4" />
+                  {chip}
+                </Button>
+              ))}
+            </div>
+            <span className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-green-700/70 to-transparent" aria-hidden="true" />
           </div>
         </div>
       </section>
@@ -326,9 +332,9 @@ export function RestaurantBrowserFlow() {
       <section className="container-page space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase text-primary">Delivery partners online</p>
+            <p className="text-xs font-black uppercase text-primary">{listingCopy.eyebrow}</p>
             <h2 className="mt-1 text-2xl font-black">
-              {results.length} {nearbyOnly ? "restaurants deliver here" : "restaurants around this area"}
+              {formatListingTitle(results.length, nearbyOnly ? listingCopy.nearbyTitle : listingCopy.areaTitle, listingCopy.titleTemplate)}
             </h2>
           </div>
           <Button variant="ghost" onClick={() => setSortMode("rating")}>
@@ -395,6 +401,14 @@ function hasOffer(restaurant: Restaurant) {
     restaurant.offerCodes?.length ||
     restaurant.tags.some((tag) => tag.toLowerCase().includes("offer")),
   );
+}
+
+function formatListingTitle(count: number, mode: string, template: string) {
+  const fallback = `${count} ${mode}`;
+  const next = template
+    .replace("{count}", count.toLocaleString("en-IN"))
+    .replace("{mode}", mode);
+  return next.trim() || fallback;
 }
 
 function etaMinutes(restaurant: Restaurant) {

@@ -364,6 +364,17 @@ export type CmsBanner = {
 
 export type CmsSettings = {
   appName?: string;
+  branding?: {
+    appName: string;
+    shortName: string;
+    logoUrl?: string;
+    faviconUrl?: string;
+    appDescription?: string;
+    supportEmail?: string;
+    supportPhone?: string;
+    onboardingEmail?: string;
+    onboardingWhatsapp?: string;
+  };
   disclaimer: string;
   homepage: {
     title: string;
@@ -401,6 +412,13 @@ export type CmsSettings = {
     popularTitle: string;
     offerTitle: string;
   };
+  restaurantListing?: {
+    eyebrow: string;
+    titleTemplate: string;
+    nearbyTitle: string;
+    areaTitle: string;
+    searchPlaceholder: string;
+  };
   featuredRestaurants?: {
     sortLogic: "rating" | "priority" | "manual";
     pinnedRestaurantSlugs: string[];
@@ -416,6 +434,10 @@ export type CmsSettings = {
   legalPages: {
     terms: string;
     privacy: string;
+    refund?: string;
+    cancellation?: string;
+    delivery?: string;
+    cookie?: string;
   };
   updatedAt?: string;
 };
@@ -538,12 +560,14 @@ export type DemoOrder = {
   guestCount?: number;
   groupOrderId?: string;
   splitPayment?: boolean;
+  acceptedTermsVersion?: string;
+  acceptedTermsAt?: string;
 };
 
 export type MockUser = {
   id: string;
   name: string;
-  role: StaffRole | "customer" | "admin" | "delivery";
+  role: StaffRole | "customer" | "admin" | "super_admin" | "delivery";
   tenantId?: string;
   branchIds?: string[];
   restaurantSlug?: string;

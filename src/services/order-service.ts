@@ -50,6 +50,8 @@ export type CreateOrderInput = {
   guestCount?: number;
   groupOrderId?: string;
   splitPayment?: boolean;
+  acceptedTermsVersion?: string;
+  acceptedTermsAt?: Date | string;
 };
 
 export async function createOrder(input: CreateOrderInput) {
@@ -75,6 +77,8 @@ export async function createOrder(input: CreateOrderInput) {
     guestCount: input.guestCount,
     groupOrderId: input.groupOrderId,
     splitPayment: input.splitPayment,
+    acceptedTermsVersion: input.acceptedTermsVersion,
+    acceptedTermsAt: normalizeOrderDate(input.acceptedTermsAt) as OrderDoc["acceptedTermsAt"],
     ...createMetadata(input),
     createdAt: serverTimestamp() as OrderDoc["createdAt"],
     updatedAt: serverTimestamp() as OrderDoc["updatedAt"],

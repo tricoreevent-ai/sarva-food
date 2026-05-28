@@ -26,6 +26,8 @@ type CreateOrderBody = {
   tax?: number;
   deliveryFee?: number;
   total?: number;
+  acceptedTermsVersion?: string;
+  acceptedTermsAt?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -142,6 +144,8 @@ export async function POST(request: NextRequest) {
       prepEstimateMinutes: schedule.prepEstimateMinutes,
       capacityCheck: schedule.capacityCheck,
       guestCount: body.guestCount,
+      acceptedTermsVersion: body.acceptedTermsVersion,
+      acceptedTermsAt: body.acceptedTermsAt ? new Date(body.acceptedTermsAt) : now,
       createdAt: now,
       updatedAt: now,
       ...(deliveryPlaceId ? { deliveryPlaceId } : {}),

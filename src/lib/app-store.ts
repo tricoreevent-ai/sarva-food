@@ -139,6 +139,8 @@ export type AppStore = {
     guestCount?: number;
     groupOrderId?: string;
     splitPayment?: boolean;
+    acceptedTermsVersion?: string;
+    acceptedTermsAt?: string;
   }) => Promise<DemoOrder>;
   updateOrderStatus: (
     orderId: string,

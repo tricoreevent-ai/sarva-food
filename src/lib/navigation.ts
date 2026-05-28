@@ -35,13 +35,14 @@ export const customerNav: NavItem[] = [
   { label: "Schedule", href: "/schedule", icon: CalendarClock },
   { label: "Cart", href: "/cart", icon: ShoppingBag },
   { label: "Deals", href: "/offers", icon: Percent },
-  { label: "Profile", href: "/profile", icon: UserRound },
+  { label: "Profile", href: "/account/profile", icon: UserRound },
 ];
 
 export const ownerNav: NavItem[] = [
   { label: "Overview", href: "/owner", icon: Home, featureKey: "overview" },
   { label: "Orders", href: "/owner/orders", icon: ClipboardList, featureKey: "orders" },
   { label: "Kitchen Queue", href: "/owner/kitchen", icon: ChefHat, featureKey: "kitchen" },
+  { label: "POS", href: "/owner/pos", icon: ReceiptText, featureKey: "pos" },
   { label: "Menu", href: "/owner/menu", icon: Utensils, featureKey: "menu" },
   { label: "Tables", href: "/owner/tables", icon: Table2, featureKey: "tables" },
   { label: "Customers", href: "/owner/loyalty", icon: Users, featureKey: "customers" },
@@ -56,6 +57,7 @@ export const ownerNav: NavItem[] = [
 export const adminNav: NavItem[] = [
   { label: "Overview", href: "/admin", icon: Home },
   { label: "Restaurants", href: "/admin/restaurants", icon: Store },
+  { label: "Restaurant Leads", href: "/admin/leads", icon: ClipboardList },
   { label: "Food Categories", href: "/admin/categories", icon: Utensils },
   { label: "Cuisine Types", href: "/admin/cuisines", icon: Soup },
   { label: "Owner Reviews", href: "/admin/reviews", icon: ClipboardCheck },

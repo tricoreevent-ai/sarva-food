@@ -4,6 +4,7 @@ export type UserRole =
   | "customer"
   | "owner"
   | "admin"
+  | "super_admin"
   | "manager"
   | "delivery"
   | "delivery-staff"
@@ -360,6 +361,8 @@ export type OrderDoc = TenantScopedDoc & {
   guestCount?: number;
   groupOrderId?: string;
   splitPayment?: boolean;
+  acceptedTermsVersion?: string;
+  acceptedTermsAt?: FirestoreDate;
 };
 
 export type KitchenOrderStatus = "new" | "preparing" | "ready" | "served" | "completed" | "cancelled";

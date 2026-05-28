@@ -7,7 +7,7 @@ import { PublicHeader } from "@/components/layout/public-header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileOfflineBanner, MobilePullToRefresh } from "@/components/mobile/mobile-shell-experience";
 import { CustomerAuthProvider } from "@/context/auth/customer-auth-provider";
-import { ResponsibilityDisclaimer } from "@/components/legal/responsibility-disclaimer";
+import { CustomerFooter } from "@/components/layout/customer-footer";
 import { customerNav } from "@/lib/navigation";
 
 const CustomerFloatingCartBar = dynamic(
@@ -36,7 +36,7 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
         </div>
         {children}
       </MobilePullToRefresh>
-      <ResponsibilityDisclaimer surface="footer" />
+      <CustomerFooter />
       <InstallPrompt />
       {showFloatingCart ? <CustomerFloatingCartBar /> : null}
       <MobileBottomNav items={customerNav} />

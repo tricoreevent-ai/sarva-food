@@ -9,6 +9,7 @@ export const checkoutSchema = z.object({
   scheduledFor: z.string().optional(),
   guestCount: z.coerce.number().int().min(1).max(500).optional(),
   payment: z.enum(["upi", "card", "cod"]),
+  acceptedTerms: z.boolean().refine(Boolean, "Accept the terms and privacy policy to place the order"),
 }).superRefine((value, context) => {
   if (value.fulfillmentType === "delivery" && (!value.address || value.address.trim().length < 8)) {
     context.addIssue({

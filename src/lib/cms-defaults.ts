@@ -4,8 +4,22 @@ import { CMS_VERSION } from "@/config/environment/cms.config";
 export const RESPONSIBILITY_DISCLAIMER =
   "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.";
 
+const LEGAL_TERMS =
+  "Sarva Food is a technology intermediary that connects customers with independent restaurants. Restaurants are solely responsible for food quality, ingredients, hygiene, allergens, preparation, packaging, pricing, safety compliance, delivery handling, and fulfilment. Sarva Food does not prepare, store, inspect, or physically handle food and is not liable for contamination, restaurant misconduct, kitchen standards, or restaurant-caused delays. Payments are processed through third-party providers; Sarva Food does not store card details and is not responsible for banking, UPI, gateway, or network downtime. Delivery estimates are approximate and may vary because of traffic, weather, restaurant load, rider availability, or serviceability. Refunds are reviewed after payment confirmation, restaurant validation, and issue verification, and are not automatic. Service may be affected by outages, cyber incidents, internet failures, strikes, floods, public emergencies, or other force majeure events.";
+
 export const defaultCmsSettings: CmsSettings = {
   appName: "Sarva Food",
+  branding: {
+    appName: "Sarva Food",
+    shortName: "Sarva",
+    logoUrl: "/icons/sarva-icon.svg",
+    faviconUrl: "/icons/sarva-icon.svg",
+    appDescription: "Order from verified nearby restaurants.",
+    supportEmail: "support@sarvafood.com",
+    supportPhone: "",
+    onboardingEmail: "partners@sarvafood.com",
+    onboardingWhatsapp: "",
+  },
   disclaimer: RESPONSIBILITY_DISCLAIMER,
   homepage: {
     title: "Craving something delicious?",
@@ -64,6 +78,13 @@ export const defaultCmsSettings: CmsSettings = {
     popularTitle: "What's popular",
     offerTitle: "Today's special",
   },
+  restaurantListing: {
+    eyebrow: "Restaurants delivering near you",
+    titleTemplate: "{count} {mode}",
+    nearbyTitle: "Restaurants delivering near you",
+    areaTitle: "Restaurants around this area",
+    searchPlaceholder: "Search restaurants, cuisines, offers, or dishes",
+  },
   featuredRestaurants: {
     sortLogic: "rating",
     pinnedRestaurantSlugs: [],
@@ -101,7 +122,11 @@ export const defaultCmsSettings: CmsSettings = {
     },
   ],
   legalPages: {
-    terms: RESPONSIBILITY_DISCLAIMER,
+    terms: LEGAL_TERMS,
     privacy: RESPONSIBILITY_DISCLAIMER,
+    refund: "Refunds are reviewed after payment confirmation, restaurant validation, and issue verification. Refunds are not automatic and may be declined when order fulfilment evidence is available.",
+    cancellation: "Cancellation eligibility depends on restaurant acceptance, preparation status, and dispatch status. Orders already prepared or dispatched may not be cancellable.",
+    delivery: "Delivery availability, fees, distance limits, and ETA are set by each restaurant and may change based on location, weather, traffic, and operational load.",
+    cookie: "Sarva Food uses cookies and local storage for sign-in, cart persistence, preferences, analytics, and secure application operation.",
   },
 };

@@ -70,11 +70,20 @@ export async function GET(request: NextRequest) {
     const averageRating = ratingCount
       ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount) * 10) / 10
       : 0;
+    const statsSnapshot = tenantId && !menuItemId
+      ? await adminDb().collection("restaurant_stats").doc(tenantId).get().catch(() => null)
+      : null;
+    const stats = statsSnapshot?.exists ? statsSnapshot.data() : null;
 
     return NextResponse.json(
       {
         data: reviews.map(toPublicReview),
-        summary: { averageRating, ratingCount },
+        summary: stats
+          ? {
+              averageRating: Number(stats.averageRating ?? averageRating),
+              ratingCount: Number(stats.totalReviews ?? ratingCount),
+            }
+          : { averageRating, ratingCount },
       },
       { headers: CACHE_HEADERS },
     );
@@ -131,11 +140,79 @@ export async function POST(request: NextRequest) {
     };
 
     await adminDb().collection("customerReviews").doc(reviewId).set(doc, { merge: true });
+    await persistRestaurantReviewAndStats(doc);
     return NextResponse.json({ ok: true, data: toPublicReview(doc) });
   } catch {
     return NextResponse.json({ ok: false, error: "Unable to save review right now." }, { status: 500 });
   }
 }
+
+async function persistRestaurantReviewAndStats(review: ReviewDoc) {
+  const db = adminDb();
+  const restaurantReviewRef = db
+    .collection("restaurants")
+    .doc(review.restaurantId)
+    .collection("reviews")
+    .doc(review.id);
+  const statsRef = db.collection("restaurant_stats").doc(review.restaurantId);
+
+  await db.runTransaction(async (transaction) => {
+    const [previousSnapshot, statsSnapshot] = await Promise.all([
+      transaction.get(restaurantReviewRef),
+      transaction.get(statsRef),
+    ]);
+    const previous = previousSnapshot.exists ? previousSnapshot.data() : null;
+    const previousRating = typeof previous?.rating === "number" ? previous.rating : undefined;
+    const currentStats = statsSnapshot.exists ? statsSnapshot.data() ?? {} : {};
+    const distribution = normalizeDistribution(currentStats.ratingDistribution);
+    let totalReviews = Number(currentStats.totalReviews ?? 0);
+    let ratingSum = Number(currentStats.ratingSum ?? (Number(currentStats.averageRating ?? 0) * totalReviews));
+
+    if (previousRating) {
+      const previousKey = String(previousRating) as RatingKey;
+      distribution[previousKey] = Math.max(0, (distribution[previousKey] ?? 0) - 1);
+      ratingSum -= previousRating;
+    } else {
+      totalReviews += 1;
+    }
+    const nextKey = String(review.rating) as RatingKey;
+    distribution[nextKey] = (distribution[nextKey] ?? 0) + 1;
+    ratingSum += review.rating;
+
+    const averageRating = totalReviews ? Math.round((ratingSum / totalReviews) * 10) / 10 : 0;
+    transaction.set(restaurantReviewRef, {
+      customerId: review.customerId,
+      customerName: review.customerName,
+      orderId: review.orderId,
+      rating: review.rating,
+      review: review.comment,
+      images: review.imageUrls ?? [],
+      verifiedPurchase: true,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+    }, { merge: true });
+    transaction.set(statsRef, {
+      averageRating,
+      totalReviews,
+      ratingDistribution: distribution,
+      ratingSum,
+      updatedAt: review.updatedAt,
+    }, { merge: true });
+  });
+}
+
+function normalizeDistribution(value: unknown) {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    "1": Number(input["1"] ?? 0),
+    "2": Number(input["2"] ?? 0),
+    "3": Number(input["3"] ?? 0),
+    "4": Number(input["4"] ?? 0),
+    "5": Number(input["5"] ?? 0),
+  } satisfies Record<RatingKey, number>;
+}
+
+type RatingKey = "1" | "2" | "3" | "4" | "5";
 
 export async function PATCH(request: NextRequest) {
   try {

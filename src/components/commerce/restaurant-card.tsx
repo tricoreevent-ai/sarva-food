@@ -81,12 +81,15 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
               {restaurant.reviewCount.toLocaleString("en-IN")} verified reviews
             </p>
           ) : null}
-          <div className="customer-scroll flex gap-2 overflow-x-auto">
-            {restaurant.tags.slice(0, 4).map((tag) => (
-              <Badge key={tag} variant="muted" className="shrink-0 rounded-full">
-                {tag}
-              </Badge>
-            ))}
+          <div className="relative">
+            <div className="customer-scroll flex gap-2 overflow-x-auto pr-8">
+              {restaurant.tags.slice(0, 8).map((tag) => (
+                <Badge key={tag} variant="muted" className="shrink-0 rounded-full">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+            {restaurant.tags.length > 3 ? <span className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent" aria-hidden="true" /> : null}
           </div>
         </div>
       </article>

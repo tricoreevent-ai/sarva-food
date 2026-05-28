@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
 async function requireAdmin(request: NextRequest) {
   const session = await getSessionFromRequest(request);
-  if (!session || session.role !== "admin") {
+  if (!session || !["admin", "super_admin"].includes(session.role)) {
     return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
   }
   return session;

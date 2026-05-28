@@ -84,6 +84,16 @@ const nextConfig: NextConfig = {
         destination: "/owner/login",
         permanent: false,
       },
+      {
+        source: "/pos",
+        destination: "/owner/pos",
+        permanent: false,
+      },
+      {
+        source: "/pos/:path*",
+        destination: "/owner/pos",
+        permanent: false,
+      },
     ];
   },
 };

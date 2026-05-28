@@ -13,7 +13,7 @@ const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null)
 
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const authUser = useAppStore((state) => state.authUser);
-  const signedIn = authUser.role === "customer" && authUser.id !== "guest";
+  const signedIn = authUser.role === "customer" && authUser.id !== "anonymous";
 
   return (
     <CustomerAuthContext.Provider value={{ userId: authUser.id, name: authUser.name, signedIn }}>

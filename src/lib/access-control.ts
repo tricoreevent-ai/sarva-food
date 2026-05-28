@@ -7,6 +7,7 @@ export type OwnerFeatureKey =
   | "overview"
   | "orders"
   | "kitchen"
+  | "pos"
   | "menu"
   | "tables"
   | "customers"
@@ -58,6 +59,7 @@ export const ownerModuleDefinitions: OwnerModuleDefinition[] = [
   { key: "overview", label: "Overview", description: "Restaurant command center and operations summary.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager"] },
   { key: "orders", label: "Orders", description: "Live online and POS order management.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager", "cashier", "waiter"] },
   { key: "kitchen", label: "Kitchen Queue", description: "Kitchen display system and production status.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager", "chef", "kitchen-manager"] },
+  { key: "pos", label: "POS", description: "Touch billing, KOT printing, split payments, and live checkout.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager", "cashier", "waiter"] },
   { key: "menu", label: "Menu", description: "Menu items, categories, pricing, and availability.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager", "cashier"] },
   { key: "tables", label: "Tables", description: "Table management, dine-in orders, and floor operations.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager", "cashier", "waiter"] },
   { key: "customers", label: "Customers", description: "Customer database, loyalty, and repeat order insight.", minimumPlan: "Starter", visibleByDefault: true, ownerRoles: ["owner", "manager", "cashier"] },
@@ -85,7 +87,7 @@ export const planDefinitions: PlanDefinition[] = [
     maxBranches: 1,
     maxEmployees: 5,
     trialDays: 14,
-    modules: ["overview", "orders", "kitchen", "menu", "tables", "customers", "reports", "inventory", "settings"],
+    modules: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "reports", "inventory", "settings"],
     restrictions: ["No Swiggy/Zomato", "No advanced accounting", "No marketing automation", "No API access"],
     highlights: ["1 branch", "Basic KDS", "GST invoice", "Email and Google login", "Basic loyalty"],
   },
@@ -99,7 +101,7 @@ export const planDefinitions: PlanDefinition[] = [
     maxBranches: 3,
     maxEmployees: 25,
     trialDays: 14,
-    modules: ["overview", "orders", "kitchen", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "integrations", "settings"],
+    modules: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "integrations", "settings"],
     restrictions: ["No API access", "No franchise analytics", "No white-label controls"],
     highlights: ["Swiggy/Zomato ready", "Advanced KDS", "Supplier management", "Coupons", "Split billing", "Multi-payment"],
   },
@@ -113,7 +115,7 @@ export const planDefinitions: PlanDefinition[] = [
     maxBranches: "unlimited",
     maxEmployees: "unlimited",
     trialDays: 7,
-    modules: ["overview", "orders", "kitchen", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "integrations", "api", "auditLogs", "franchise", "aiInsights", "settings"],
+    modules: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "integrations", "api", "auditLogs", "franchise", "aiInsights", "settings"],
     restrictions: ["No dedicated infrastructure", "No custom SLA by default"],
     highlights: ["Unlimited branches", "API access", "Webhooks", "Audit logs", "AI insights", "White-label invoices"],
   },
@@ -126,7 +128,7 @@ export const planDefinitions: PlanDefinition[] = [
     maxBranches: "unlimited",
     maxEmployees: "unlimited",
     trialDays: 0,
-    modules: ["overview", "orders", "kitchen", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "integrations", "api", "auditLogs", "franchise", "aiInsights", "settings"],
+    modules: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "integrations", "api", "auditLogs", "franchise", "aiInsights", "settings"],
     restrictions: [],
     highlights: ["Dedicated infrastructure", "SSO", "ERP integrations", "Custom APIs", "Fleet management", "SLA support"],
   },
@@ -181,8 +183,8 @@ export function planAllowsFeature(plan: Restaurant["subscriptionPlan"] | undefin
   return getPlanDefinition(plan).modules.includes(featureKey as OwnerFeatureKey);
 }
 
-export function roleAllowsFeature(role: StaffRole | "customer" | "admin" | "delivery" | undefined, featureKey?: string) {
-  if (!featureKey || role === "admin") return true;
+export function roleAllowsFeature(role: StaffRole | "customer" | "admin" | "super_admin" | "delivery" | undefined, featureKey?: string) {
+  if (!featureKey || role === "admin" || role === "super_admin") return true;
   if (!role || role === "customer" || role === "delivery") return false;
   const definition = ownerModuleDefinitions.find((item) => item.key === featureKey);
   return definition ? definition.ownerRoles.includes(role) : true;
@@ -193,7 +195,7 @@ export function planMeetsMinimum(plan: Restaurant["subscriptionPlan"] | undefine
   return planRank[normalizePlan(plan)] >= planRank[normalizePlan(minimumPlan)];
 }
 
-export function filterOwnerNavigation(items: NavItem[], plan: Restaurant["subscriptionPlan"] | undefined, role: StaffRole | "customer" | "admin" | "delivery" | undefined) {
+export function filterOwnerNavigation(items: NavItem[], plan: Restaurant["subscriptionPlan"] | undefined, role: StaffRole | "customer" | "admin" | "super_admin" | "delivery" | undefined) {
   return items.filter((item) =>
     planAllowsFeature(plan, item.featureKey) &&
     planMeetsMinimum(plan, item.minimumPlan) &&
@@ -202,7 +204,7 @@ export function filterOwnerNavigation(items: NavItem[], plan: Restaurant["subscr
   );
 }
 
-export function filterOwnerNavigationForRestaurant(items: NavItem[], restaurant: Restaurant | undefined, role: StaffRole | "customer" | "admin" | "delivery" | undefined) {
+export function filterOwnerNavigationForRestaurant(items: NavItem[], restaurant: Restaurant | undefined, role: StaffRole | "customer" | "admin" | "super_admin" | "delivery" | undefined) {
   const allowedByPlanAndRole = filterOwnerNavigation(items, restaurant?.subscriptionPlan, role);
   return allowedByPlanAndRole.filter((item) => {
     if (!item.featureKey) return true;
