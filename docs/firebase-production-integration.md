@@ -70,7 +70,7 @@ Enable these providers in Firebase Console:
 
 Development test users:
 
-- `owner@sarva.test`
+- `divakdi@gmail.com`
 - `manager@sarva.test`
 - `cashier@sarva.test`
 - `chef@sarva.test`

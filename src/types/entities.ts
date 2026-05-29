@@ -28,6 +28,8 @@ export type Restaurant = {
   etaMinutes?: number;
   deliveryEligible?: boolean;
   approved?: boolean;
+  profileComplete?: boolean;
+  publicListingEnabled?: boolean;
   adminStatus?: "Pending Approval" | "Active" | "Suspended" | "Expired" | "Under Review";
   subscriptionPlan?: "Trial" | "Starter" | "Growth" | "Professional" | "Pro" | "Enterprise";
   subscriptionStatus?: "trialing" | "active" | "suspended" | "expired" | "under-review";

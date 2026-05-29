@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, Home, ReceiptText, Settings2, Store, Table2, Users } from "lucide-react";
+import { ChefHat, ClipboardList, Home, ImagePlus, ReceiptText, Settings2, Store, Table2, Users } from "lucide-react";
 
 export const ownerConfig = {
   storageKey: "sarva-owner-auth",
@@ -9,6 +9,7 @@ export const ownerConfig = {
     { label: "Kitchen Queue", href: "/owner/kitchen", icon: ChefHat },
     { label: "POS", href: "/owner/pos", icon: ReceiptText },
     { label: "Menu", href: "/owner/menu", icon: Store },
+    { label: "Banners", href: "/owner/settings?tab=branding", icon: ImagePlus },
     { label: "Tables", href: "/owner/tables", icon: Table2 },
     { label: "Customers", href: "/owner/loyalty", icon: Users },
     { label: "Settings", href: "/owner/settings", icon: Settings2 },

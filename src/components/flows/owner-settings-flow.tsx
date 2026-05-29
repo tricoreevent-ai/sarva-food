@@ -223,7 +223,12 @@ export function OwnerSettingsFlow() {
     const coverImages = normalizeImageList(profileDraft.coverImages.length ? profileDraft.coverImages : [profileDraft.coverImage]);
     const primaryCoverImage = profileDraft.coverImage.trim() || coverImages[0] || "";
     const hoursSummary = hoursNotSpecified ? "Not specified" : formatOperatingHours(hours);
-    const completed = Boolean(hotelName && phoneNumber && businessAddress && !hoursNotSpecified);
+    const hasVerifiedLocation = Boolean(
+      profileDraft.googleMapLocation.trim() ||
+      (Number(profileDraft.latitude) && Number(profileDraft.longitude)) ||
+      profileDraft.mapboxPlaceId,
+    );
+    const completed = Boolean(hotelName && phoneNumber && businessAddress && cuisineTypes.length && coverImages.length && hasVerifiedLocation && !hoursNotSpecified);
     try {
       await saveOwnerBusinessProfile({
         ...currentProfile,
@@ -429,6 +434,13 @@ export function OwnerSettingsFlow() {
                   onChange={updateCoverImages}
                   onPrimary={(coverImage) => setProfileDraft((current) => ({ ...current, coverImage }))}
                   onAdd={addCoverImage}
+                />
+                <CustomerBannerPreview
+                  restaurantName={profileDraft.hotelName || "Restaurant name"}
+                  cuisine={profileDraft.cuisineTypes.join(", ") || profileDraft.cuisineType || "Cuisine not set"}
+                  address={profileDraft.businessAddress || "Address not set"}
+                  images={profileDraft.coverImages.length ? profileDraft.coverImages : [profileDraft.coverImage].filter(Boolean)}
+                  logo={profileDraft.logo}
                 />
               </div>
             </div>
@@ -943,6 +955,70 @@ function BannerManager({
           No banners added yet. Upload or paste a banner URL.
         </div>
       )}
+    </div>
+  );
+}
+
+function CustomerBannerPreview({
+  restaurantName,
+  cuisine,
+  address,
+  images,
+  logo,
+}: {
+  restaurantName: string;
+  cuisine: string;
+  address: string;
+  images: string[];
+  logo: string;
+}) {
+  const normalizedImages = normalizeImageList(images);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (normalizedImages.length <= 1) return;
+    const id = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % normalizedImages.length);
+    }, 3500);
+    return () => window.clearInterval(id);
+  }, [normalizedImages.length]);
+
+  const activeImage = normalizedImages[activeIndex] || IMAGE_FALLBACKS.restaurant;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-input bg-slate-950 text-white shadow-sm">
+      <div className="relative min-h-[280px]">
+        <SafeImage src={activeImage} alt={`${restaurantName} customer banner preview`} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="900px" className="object-cover opacity-70 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
+        <div className="relative z-10 flex min-h-[280px] flex-col justify-end gap-4 p-5">
+          <div className="flex items-end gap-3">
+            <span className="relative grid size-16 place-items-center overflow-hidden rounded-2xl border border-white/25 bg-white/15 text-lg font-black backdrop-blur">
+              {logo ? <SafeImage src={logo} alt={`${restaurantName} logo preview`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="64px" className="object-cover" /> : restaurantName.slice(0, 2).toUpperCase()}
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase text-emerald-200">Customer restaurant page preview</p>
+              <h3 className="mt-1 text-3xl font-black">{restaurantName}</h3>
+              <p className="mt-1 text-sm font-semibold text-white/80">{cuisine}</p>
+            </div>
+          </div>
+          <p className="max-w-xl text-sm font-semibold text-white/80">{address}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {normalizedImages.map((image, index) => (
+              <button
+                key={image}
+                type="button"
+                className={`h-2.5 rounded-full transition-all ${index === activeIndex ? "w-8 bg-white" : "w-2.5 bg-white/45"}`}
+                aria-label={`Preview banner ${index + 1}`}
+                onClick={() => setActiveIndex(index)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-white/5 p-3 text-xs font-semibold text-white/70">
+        <span>This mirrors the customer hero banner rotation for this restaurant.</span>
+        <span>{normalizedImages.length || 1} banner{(normalizedImages.length || 1) === 1 ? "" : "s"}</span>
+      </div>
     </div>
   );
 }

@@ -244,7 +244,7 @@ function formatSyncTime(value?: string) {
 function friendlySyncError(value: string) {
   const normalized = value.toLowerCase();
   if (normalized.includes("role admin cannot run owner/pos sync")) {
-    return "You are signed in as Platform Admin. Owner/POS sync must be retried from owner@sarva.test or a restaurant staff account. Clear these failed items if they were old test orders.";
+    return "You are signed in as Platform Admin. Owner/POS sync must be retried from divakdi@gmail.com or a restaurant staff account. Clear these failed items if they were old test orders.";
   }
   if (normalized.includes("permission")) {
     return "Permission was denied by Firestore. Check users/{uid}: active must be true, role must be owner/manager/cashier/waiter/chef, restaurantIds or tenantId must include this restaurant, and branchIds must include this branch.";

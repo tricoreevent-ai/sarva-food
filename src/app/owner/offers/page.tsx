@@ -113,7 +113,7 @@ export default function OwnerOffersPage() {
   const deleteOffer = useAppStore((state) => state.deleteOffer);
   const updateRestaurantCapabilities = useAppStore((state) => state.updateRestaurantCapabilities);
   const apiMessage = useAppStore((state) => state.apiMessage);
-  const restaurantSlug = authUser.restaurantSlug ?? restaurants[0]?.slug ?? "test-owner";
+  const restaurantSlug = authUser.restaurantSlug ?? restaurants[0]?.slug ?? "cafe-al-arab-thanisandra";
   const restaurant = restaurants.find((item) => item.slug === restaurantSlug) ?? restaurants[0];
   const [form, setForm] = useState<OfferForm>(emptyForm);
   const [editingCode, setEditingCode] = useState<string | null>(null);

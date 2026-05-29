@@ -8,7 +8,7 @@ Route:
 
 Example:
 
-- `/instagram/tamarind-table/m1?offer=INSTA20`
+- `/instagram/cafe-al-arab-thanisandra/m1?offer=INSTA20`
 
 Purpose:
 

@@ -51,7 +51,7 @@ If Chrome warns about the local certificate, accept it only for local developmen
 - Splash page: `/splash`
 - Customer discovery: `/`
 - Search and restaurant cards: `/restaurants`
-- Menu and sticky cart: `/restaurant/tamarind-table/menu`
+- Menu and sticky cart: `/restaurant/cafe-al-arab-thanisandra/menu`
 - Checkout: `/checkout`
 - Offline page: `/offline`
 - Owner dashboard: `/owner`

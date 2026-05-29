@@ -24,8 +24,8 @@ if (!password) {
   throw new Error("Set BOOTSTRAP_OWNER_PASSWORD for this one-time client seed.");
 }
 
-const restaurantId = "test-owner";
-const branchId = "br-indiranagar";
+const restaurantId = "cafe-al-arab-thanisandra";
+const branchId = "br-cafe-al-arab-thanisandra";
 const app = initializeApp({
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -38,7 +38,7 @@ const app = initializeApp({
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-const email = "owner@sarva.test";
+const email = "divakdi@gmail.com";
 
 let credential;
 let signInError;
@@ -115,22 +115,34 @@ for (const [role, permissions] of Object.entries(rolePermissions)) {
 
 batch.set(doc(db, "restaurants", restaurantId), {
   id: restaurantId,
-  name: "Cafe Al Arab",
+  name: "Cafe Al Arab UL",
+  displayName: "Cafe Al Arab UL",
   slug: restaurantId,
   active: true,
   approved: true,
+  profileComplete: true,
+  publicListingEnabled: true,
   gstin: "29AABCT1234A1Z5",
-  phone: "+919876543210",
-  address: "12 100 Feet Road, Indiranagar, Bengaluru",
-  latitude: 12.9719,
-  longitude: 77.6412,
-  deliveryRadiusKm: 7,
+  phone: "+919900030001",
+  location: "Avalahalli, Thanisandra Main Road",
+  address: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",
+  latitude: 13.064,
+  longitude: 77.6312,
+  deliveryRadiusKm: 6,
   cuisine: ["Arabic", "Shawarma", "Grills"],
+  imagePath: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+  coverImagePath: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+  coverImagePaths: [
+    "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1400&q=80",
+  ],
+  contact: { phone: "+919900030001", whatsapp: "+919900030001", supportEmail: "cafe-al-arab-thanisandra@sarva.example", callbackEnabled: true },
   createdAt: now,
   updatedAt: now,
 }, { merge: true });
 
-batch.set(doc(db, "branches", branchId), { id: branchId, restaurantId, name: "Cafe Al Arab Main Branch", address: "12 100 Feet Road, Indiranagar, Bengaluru", latitude: 12.9719, longitude: 77.6412, deliveryRadiusKm: 7, active: true, createdAt: now, updatedAt: now }, { merge: true });
+batch.set(doc(db, "branches", branchId), { id: branchId, restaurantId, name: "Cafe Al Arab UL - Thanisandra", address: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064", latitude: 13.064, longitude: 77.6312, deliveryRadiusKm: 6, phone: "+919900030001", active: true, createdAt: now, updatedAt: now }, { merge: true });
 
 for (const table of ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"]) {
   batch.set(doc(db, "tables", table), { id: table, restaurantId, branchId, number: table, status: table === "T03" ? "occupied" : "available", seats: table === "T08" ? 6 : 4, assignedWaiterId: uid, createdAt: now, updatedAt: now }, { merge: true });

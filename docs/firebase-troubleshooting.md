@@ -31,8 +31,8 @@ Owner/POS/KDS users must have a document in `users/{uid}` with:
 
 - `active: true`
 - `role: "owner"`, `"manager"`, `"cashier"`, `"waiter"`, `"chef"`, `"accountant"`, `"inventory-manager"`, or `"admin"`
-- `restaurantIds: ["tamarind-table"]` or the production restaurant ID
-- `branchIds: ["br-indiranagar"]` for branch-scoped users
+- `restaurantIds: ["cafe-al-arab-thanisandra"]` or the production restaurant ID
+- `branchIds: ["br-cafe-al-arab-thanisandra"]` for branch-scoped users
 
 ## Collections Used
 

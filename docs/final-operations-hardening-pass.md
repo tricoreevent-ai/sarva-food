@@ -38,7 +38,7 @@ Date: 2026-05-15
 - Local development test login is controlled by `NEXT_PUBLIC_ENABLE_TEST_LOGIN=true`.
 - Production disables test login automatically through `NODE_ENV !== "production"` gating.
 - Test accounts:
-  - `owner@sarva.test` / `password123`
+  - `divakdi@gmail.com` / `password123`
   - `manager@sarva.test` / `password123`
   - `cashier@sarva.test` / `password123`
   - `chef@sarva.test` / `password123`
@@ -104,7 +104,7 @@ Date: 2026-05-15
 
 The following routes returned HTTP 200 on the local production server:
 
-`/`, `/auth/login`, `/pos`, `/pos/invoice`, `/pos/tables`, `/owner/kitchen`, `/owner/reports`, `/owner/loyalty`, `/owner/printers`, `/owner/onboarding`, `/owner/accounting`, `/owner/inventory`, `/owner/menu`, `/owner/menu/print`, `/owner/offers`, `/owner/tables`, `/owner/orders`, `/owner/social-posts`, `/admin`, `/admin/users`, `/admin/settings/map`, `/admin/analytics`, `/admin/campaigns`, `/admin/restaurants`, `/admin/social-queue`, `/admin/subscriptions`, `/restaurants`, `/restaurant/tamarind-table`, `/restaurant/tamarind-table/menu`, `/checkout`, `/track-order`, `/profile`, `/delivery`, `/delivery/orders`, `/delivery/history`, `/delivery/reports`, `/parcel`, `/catering`, `/catering/packages`, `/catering/requests`, `/offers`, `/offline`, `/studio`, `/studio/create-post`, `/studio/scheduled-posts`, `/studio/templates`, `/owner/digital-menu`.
+`/`, `/auth/login`, `/pos`, `/pos/invoice`, `/pos/tables`, `/owner/kitchen`, `/owner/reports`, `/owner/loyalty`, `/owner/printers`, `/owner/onboarding`, `/owner/accounting`, `/owner/inventory`, `/owner/menu`, `/owner/menu/print`, `/owner/offers`, `/owner/tables`, `/owner/orders`, `/owner/social-posts`, `/admin`, `/admin/users`, `/admin/settings/map`, `/admin/analytics`, `/admin/campaigns`, `/admin/restaurants`, `/admin/social-queue`, `/admin/subscriptions`, `/restaurants`, `/restaurant/cafe-al-arab-thanisandra`, `/restaurant/cafe-al-arab-thanisandra/menu`, `/checkout`, `/track-order`, `/profile`, `/delivery`, `/delivery/orders`, `/delivery/history`, `/delivery/reports`, `/parcel`, `/catering`, `/catering/packages`, `/catering/requests`, `/offers`, `/offline`, `/studio`, `/studio/create-post`, `/studio/scheduled-posts`, `/studio/templates`, `/owner/digital-menu`.
 
 ## Operational Notes
 

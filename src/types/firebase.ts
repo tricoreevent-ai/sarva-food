@@ -77,6 +77,9 @@ export type RestaurantDoc = BaseDoc & {
   deliveryRadiusKm?: number;
   cuisine: string;
   active: boolean;
+  approved?: boolean;
+  profileComplete?: boolean;
+  publicListingEnabled?: boolean;
   imagePath?: string;
   logoPath?: string;
   coverImagePath?: string;

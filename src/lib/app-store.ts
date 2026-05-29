@@ -775,6 +775,170 @@ const initialKitchenStations: KitchenStation[] = [
   { id: "station-dessert", name: "Dessert station", branchId: DEFAULT_BRANCH_ID, categories: ["Desserts", "Ice Cream", "Cakes"], active: true, loadScore: 0 },
 ];
 
+const cafeAlArabCoverImages = [
+  "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+  "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
+  "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1400&q=80",
+];
+
+const cafeAlArabHours = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => ({
+  day: day as OwnerBusinessProfile["operatingHoursSchedule"] extends Array<infer Item> ? Item extends { day: infer Day } ? Day : never : never,
+  open: true,
+  slots: [{ start: "10:30", end: "23:30" }],
+})) as NonNullable<OwnerBusinessProfile["operatingHoursSchedule"]>;
+
+const cafeAlArabOwnerProfile: OwnerBusinessProfile = {
+  ownerName: "Test Owner",
+  hotelName: "Cafe Al Arab UL",
+  logo: "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1690000000/sarva/cafe-al-arab-logo.png",
+  coverImage: cafeAlArabCoverImages[0],
+  coverImages: cafeAlArabCoverImages,
+  businessAddress: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",
+  googleMapLocation: "https://www.google.com/maps?q=13.064,77.6312",
+  latitude: 13.064,
+  longitude: 77.6312,
+  mapboxPlaceId: "sarva-cafe-al-arab-ul-thanisandra",
+  locationVerified: true,
+  cuisineType: "Arabic, Shawarma, Grills",
+  cuisineTypes: ["Arabic", "Shawarma", "Grills"],
+  gstDetails: "29AABCC1234A1Z5",
+  phoneNumber: "+919900030001",
+  whatsappNumber: "+919900030001",
+  supportEmail: "cafe-al-arab-thanisandra@sarva.example",
+  cateringPhoneNumber: "+919900130001",
+  cateringWhatsappNumber: "+919900130001",
+  cateringEmail: "catering.cafe-al-arab@sarva.example",
+  emergencySupportNumber: "+919900230001",
+  operatingHours: "10:30 AM - 11:30 PM",
+  operatingHoursSchedule: cafeAlArabHours,
+  operatingHoursPreference: "specified",
+  deliveryRadiusKm: 6,
+  deliveryCharge: 45,
+  minimumOrder: 149,
+  freeDeliveryThreshold: 499,
+  fssaiLicense: "11223344556677",
+  diningAvailable: true,
+  cloudKitchen: false,
+  paymentConfig: {
+    upiId: "cafealarab@sarva",
+    codEnabled: true,
+    methods: ["upi", "cod", "cash", "card"],
+    razorpayEnabled: false,
+    phonePeEnabled: false,
+    paytmEnabled: false,
+  },
+  reviewStatus: "approved",
+  completed: true,
+};
+
+function createOperationalFallbackBranch(profile: OwnerBusinessProfile | undefined, user: MockUser): RestaurantBranch {
+  const restaurantSlug = user.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  return {
+    id: DEFAULT_BRANCH_ID,
+    tenantId: resolveTenantId(restaurantSlug),
+    name: profile?.hotelName || "Main Branch",
+    restaurantSlug,
+    address: profile?.businessAddress || "Owner operational branch",
+    phone: profile?.phoneNumber || "",
+    managerId: user.id,
+  };
+}
+
+function isOwnerProfilePublicComplete(profile: OwnerBusinessProfile) {
+  const hasLocation = Boolean((typeof profile.latitude === "number" && typeof profile.longitude === "number") || profile.googleMapLocation);
+  const hasHours = profile.operatingHoursPreference === "specified" && Boolean(profile.operatingHoursSchedule?.some((day) => day.open && day.slots.length));
+  const hasCuisine = Boolean(profile.cuisineTypes?.length || profile.cuisineType?.trim());
+  const hasMedia = Boolean(profile.logo || profile.coverImage || profile.coverImages?.length);
+  return Boolean(
+    profile.hotelName?.trim() &&
+    profile.phoneNumber?.trim() &&
+    profile.businessAddress?.trim() &&
+    hasLocation &&
+    hasHours &&
+    hasCuisine &&
+    hasMedia &&
+    profile.deliveryRadiusKm > 0,
+  );
+}
+
+function createCafeAlArabRestaurant(ownerId: string): Restaurant {
+  return {
+    id: DEFAULT_RESTAURANT_ID,
+    tenantId: DEFAULT_TENANT_ID,
+    ownerId,
+    ownerIds: [ownerId],
+    branchId: DEFAULT_BRANCH_ID,
+    name: cafeAlArabOwnerProfile.hotelName,
+    displayName: cafeAlArabOwnerProfile.hotelName,
+    slug: DEFAULT_RESTAURANT_ID,
+    cuisine: "Arabic, Shawarma, Grills",
+    location: "Avalahalli, Thanisandra Main Road",
+    rating: 4.1,
+    deliveryTime: "30-40 min",
+    etaMinutes: 30,
+    priceForTwo: 650,
+    image: cafeAlArabCoverImages[0],
+    logo: cafeAlArabOwnerProfile.logo,
+    coverImage: cafeAlArabCoverImages[0],
+    coverImages: cafeAlArabCoverImages,
+    isOpen: true,
+    tags: ["Shawarma", "Al faham", "Mandi", "Offers available"],
+    instagramHandle: "cafealarabul",
+    latitude: cafeAlArabOwnerProfile.latitude,
+    longitude: cafeAlArabOwnerProfile.longitude,
+    deliveryRadiusKm: cafeAlArabOwnerProfile.deliveryRadiusKm,
+    approved: true,
+    profileComplete: true,
+    publicListingEnabled: true,
+    subscriptionPlan: "Professional",
+    subscriptionStatus: "active",
+    orderingEnabled: true,
+    reviewCount: 89,
+    deliveryFee: cafeAlArabOwnerProfile.deliveryCharge,
+    minPrice: cafeAlArabOwnerProfile.minimumOrder,
+    foodTypes: ["nonveg", "veg"],
+    popularItems: ["Chicken Shawarma Roll", "Al Faham Chicken Half", "Chicken Mandi"],
+    categoryTags: ["Shawarma", "Grills", "Mandi", "Arabic"],
+    offerCodes: ["ARABIC20"],
+    searchKeywords: ["Cafe Al Arab UL", "Arabic", "Shawarma", "Grills", "Mandi", "Thanisandra", "Avalahalli"],
+    address: cafeAlArabOwnerProfile.businessAddress,
+    googleMapLocation: cafeAlArabOwnerProfile.googleMapLocation,
+    operatingHours: cafeAlArabOwnerProfile.operatingHours,
+    operatingHoursSchedule: cafeAlArabOwnerProfile.operatingHoursSchedule,
+    operatingHoursPreference: "specified",
+    gstDetails: cafeAlArabOwnerProfile.gstDetails,
+    fssaiLicense: cafeAlArabOwnerProfile.fssaiLicense,
+    diningAvailable: cafeAlArabOwnerProfile.diningAvailable,
+    cloudKitchen: cafeAlArabOwnerProfile.cloudKitchen,
+    contact: {
+      phone: cafeAlArabOwnerProfile.phoneNumber,
+      whatsapp: cafeAlArabOwnerProfile.whatsappNumber || cafeAlArabOwnerProfile.phoneNumber,
+      supportEmail: cafeAlArabOwnerProfile.supportEmail || "",
+      callbackEnabled: true,
+    },
+    ownerProfile: {
+      businessPhone: cafeAlArabOwnerProfile.phoneNumber,
+      businessWhatsapp: cafeAlArabOwnerProfile.whatsappNumber || cafeAlArabOwnerProfile.phoneNumber,
+      businessEmail: cafeAlArabOwnerProfile.supportEmail || "",
+      cateringPhone: cafeAlArabOwnerProfile.cateringPhoneNumber || cafeAlArabOwnerProfile.phoneNumber,
+      cateringWhatsapp: cafeAlArabOwnerProfile.cateringWhatsappNumber || cafeAlArabOwnerProfile.whatsappNumber || cafeAlArabOwnerProfile.phoneNumber,
+      cateringEmail: cafeAlArabOwnerProfile.cateringEmail || cafeAlArabOwnerProfile.supportEmail || "",
+      emergencyPhone: cafeAlArabOwnerProfile.emergencySupportNumber || cafeAlArabOwnerProfile.phoneNumber,
+    },
+    deliverySettings: {
+      radiusKm: cafeAlArabOwnerProfile.deliveryRadiusKm,
+      baseFee: cafeAlArabOwnerProfile.deliveryCharge ?? 0,
+      freeDeliveryAbove: cafeAlArabOwnerProfile.freeDeliveryThreshold,
+      maxOrdersPerSlot: 8,
+      deliverySlotMinutes: 30,
+    },
+  };
+}
+
+function isCafeAlArabOwner(user: MockUser) {
+  return user.role === "owner" && (user.id === "divakdi@gmail.com" || user.restaurantSlug === DEFAULT_RESTAURANT_ID || !user.restaurantSlug);
+}
+
 const initialAuthUser: MockUser = {
   id: "anonymous",
   name: "Anonymous",
@@ -911,10 +1075,29 @@ export const useAppStore = create<AppStore>()(
       apiMessage: "",
 
       setAuthUser: (user) => {
-        set({
-          authUser: user,
-          apiPhase: "success",
-          apiMessage: `Signed in as ${user.name}.`,
+        set((state) => {
+          const linkedUser = isCafeAlArabOwner(user)
+            ? { ...user, restaurantSlug: DEFAULT_RESTAURANT_ID }
+            : user;
+          if (!isCafeAlArabOwner(linkedUser)) {
+            return {
+              authUser: linkedUser,
+              apiPhase: "success",
+              apiMessage: `Signed in as ${linkedUser.name}.`,
+            };
+          }
+
+          const restaurant = createCafeAlArabRestaurant(linkedUser.id);
+          const branch = createOperationalFallbackBranch(cafeAlArabOwnerProfile, linkedUser);
+          const keepProfile = state.ownerBusinessProfile?.completed ? state.ownerBusinessProfile : cafeAlArabOwnerProfile;
+          return {
+            authUser: linkedUser,
+            ownerBusinessProfile: keepProfile,
+            restaurants: [restaurant, ...state.restaurants.filter((item) => (item.slug || item.id) !== DEFAULT_RESTAURANT_ID)],
+            branches: [branch, ...state.branches.filter((item) => item.id !== branch.id)],
+            apiPhase: "success",
+            apiMessage: `Signed in as ${linkedUser.name}.`,
+          };
         });
       },
 
@@ -1508,14 +1691,7 @@ export const useAppStore = create<AppStore>()(
       payPosBill: async () => {
         set({ apiPhase: "loading", apiMessage: "Taking POS payment..." });
         const bill = get().posBill;
-        const branch = get().branches[0];
-        if (!branch) {
-          set({
-            apiPhase: "error",
-            apiMessage: "Create a branch before taking POS payments.",
-          });
-          return;
-        }
+        const branch = get().branches[0] ?? createOperationalFallbackBranch(get().ownerBusinessProfile, get().authUser);
         const taxSettings = get().taxSettings;
         const effectiveTaxSettings = effectiveTaxSettingsForBill(bill, taxSettings);
         const restaurantId = get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
@@ -1578,6 +1754,7 @@ export const useAppStore = create<AppStore>()(
 
         set((state) => ({
           posBill: paid,
+          branches: state.branches.length ? state.branches : [branch],
           inventoryItems: stockMovements.length ? applyInventoryMovements(state.inventoryItems, stockMovements) : state.inventoryItems,
           inventoryMovements: stockMovements.length
             ? [...stockMovements, ...state.inventoryMovements].slice(0, 500)
@@ -1655,6 +1832,7 @@ export const useAppStore = create<AppStore>()(
         const restaurantSlug = get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
         const existingRestaurant = get().restaurants.find((restaurant) => restaurant.slug === restaurantSlug);
         const branchId = get().branches[0]?.id ?? DEFAULT_BRANCH_ID;
+        const profileComplete = isOwnerProfilePublicComplete(profile);
         const branch: RestaurantBranch = {
           id: branchId,
           tenantId: resolveTenantId(restaurantSlug),
@@ -1697,7 +1875,10 @@ export const useAppStore = create<AppStore>()(
           fssaiLicense: profile.fssaiLicense,
           diningAvailable: profile.diningAvailable,
           cloudKitchen: profile.cloudKitchen,
-          approved: existingRestaurant?.approved ?? Boolean(profile.completed),
+          approved: profileComplete ? (existingRestaurant?.approved ?? true) : false,
+          profileComplete,
+          publicListingEnabled: profileComplete,
+          orderingEnabled: true,
           minPrice: profile.minimumOrder ?? existingRestaurant?.minPrice,
           contact: {
             phone: profile.phoneNumber,

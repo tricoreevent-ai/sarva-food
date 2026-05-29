@@ -28,6 +28,17 @@ function publicApiUrl(path: string, params?: Record<string, string | undefined>)
   return url.toString();
 }
 
+function isPublicRestaurantListable(doc: RestaurantDoc) {
+  const extra = doc as RestaurantDoc & { approved?: boolean; profileComplete?: boolean; publicListingEnabled?: boolean; phone?: string };
+  if (extra.approved === false || extra.profileComplete === false || extra.publicListingEnabled === false) return false;
+  const hasLocation = Boolean((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation);
+  const hasAddress = Boolean((doc.address || doc.location)?.trim());
+  const hasCuisine = Boolean(textList(doc.cuisine));
+  const hasMedia = Boolean(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath);
+  const hasContact = Boolean(doc.contact?.phone || doc.ownerProfile?.businessPhone || extra.phone);
+  return Boolean(doc.active && !doc.isDeleted && doc.name?.trim() && hasAddress && hasLocation && hasCuisine && hasMedia && hasContact && doc.deliveryRadiusKm);
+}
+
 async function fetchPublicDocs<T>(
   path: string,
   params?: Record<string, string | undefined>,
@@ -56,7 +67,7 @@ async function fetchPublicDocs<T>(
 async function fetchPublicRestaurants(slug?: string) {
   const docs = await fetchPublicDocs<RestaurantDoc>("/api/public/restaurants", { slug });
   return docs
-    .filter((item) => !item.isDeleted)
+    .filter(isPublicRestaurantListable)
     .map((item) => restaurantDocToUi(item))
     .filter((item) => item.approved !== false);
 }
@@ -389,7 +400,7 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     latitude: doc.latitude,
     longitude: doc.longitude,
     deliveryRadiusKm: doc.deliveryRadiusKm,
-    approved: doc.active && !doc.isDeleted,
+    approved: isPublicRestaurantListable(doc),
     reviewCount: typeof extra.reviewCount === "number" ? extra.reviewCount : undefined,
     deliveryFee: typeof extra.deliveryFee === "number" ? extra.deliveryFee : undefined,
     minPrice: typeof extra.minPrice === "number" ? extra.minPrice : undefined,

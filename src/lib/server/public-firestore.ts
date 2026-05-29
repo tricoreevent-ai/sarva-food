@@ -329,10 +329,21 @@ function mergeRestaurantStats(docs: RestaurantDoc[], stats: RestaurantStatsDoc[]
 
 function toPublicRestaurantDocs(docs: RestaurantDoc[], slug?: string) {
   return docs
-    .filter((item) => !item.isDeleted && item.active === true && (!slug || item.slug === slug))
+    .filter((item) => !item.isDeleted && item.active === true && isPublicRestaurantListable(item) && (!slug || item.slug === slug))
     .sort((first, second) => first.name.localeCompare(second.name))
     .map(toPublicRestaurantDoc)
     .slice(0, slug ? 1 : PUBLIC_RESTAURANT_LIMIT);
+}
+
+function isPublicRestaurantListable(doc: RestaurantDoc) {
+  const extra = doc as RestaurantDoc & { approved?: boolean; profileComplete?: boolean; publicListingEnabled?: boolean };
+  if (extra.approved === false || extra.publicListingEnabled === false || extra.profileComplete === false) return false;
+  const hasLocation = Boolean((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation);
+  const hasAddress = Boolean((doc.address || doc.location)?.trim());
+  const hasCuisine = Boolean(Array.isArray(doc.cuisine) ? doc.cuisine.length : String(doc.cuisine ?? "").trim());
+  const hasMedia = Boolean(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath);
+  const hasContact = Boolean(doc.contact?.phone || doc.ownerProfile?.businessPhone || (doc as RestaurantDoc & { phone?: string }).phone);
+  return Boolean(doc.name?.trim() && hasAddress && hasLocation && hasCuisine && hasMedia && hasContact && doc.deliveryRadiusKm);
 }
 
 export async function getPublicMenuDocs(restaurantId: string) {
@@ -577,6 +588,8 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     searchKeywords?: string[];
     tags?: string[];
     instagramHandle?: string;
+    profileComplete?: boolean;
+    publicListingEnabled?: boolean;
   };
   return {
     id: doc.id,
@@ -611,6 +624,8 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     ...(extra.approved !== undefined ? { approved: extra.approved } : {}),
+    ...(extra.profileComplete !== undefined ? { profileComplete: extra.profileComplete } : {}),
+    ...(extra.publicListingEnabled !== undefined ? { publicListingEnabled: extra.publicListingEnabled } : {}),
     ...(extra.rating !== undefined ? { rating: extra.rating } : {}),
     ...(extra.deliveryTime ? { deliveryTime: extra.deliveryTime } : {}),
     ...(extra.etaMinutes !== undefined ? { etaMinutes: extra.etaMinutes } : {}),

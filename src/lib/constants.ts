@@ -2,7 +2,7 @@ export const APP_NAME = "Sarva Food";
 export const APP_DESCRIPTION =
   "Browser-first restaurant ordering, operations, delivery, POS, catering, and social commerce.";
 
-export const DEFAULT_RESTAURANT_SLUG = "test-owner";
+export const DEFAULT_RESTAURANT_SLUG = "cafe-al-arab-thanisandra";
 
 export const ROUTES = {
   home: "/",

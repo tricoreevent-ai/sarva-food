@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Grid2X2, Loader2, MapPin, PackageCheck, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { EmptyStateCard } from "@/components/layout/empty-state";
 import { PosSidebar, type PosPanel } from "@/components/pos/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/components/pos/category-list";
 import { ProductGrid } from "@/components/pos/product-grid";
@@ -18,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { subscribeOfflineQueue, type OfflineQueueEntry } from "@/lib/offline";
 import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
-import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
-import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuItem, PosBill, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
+import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
+import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuItem, OwnerBusinessProfile, PosBill, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { normalizePhone, safeFindCustomerByPhone } from "@/services/restaurant-ops-service";
@@ -60,7 +59,7 @@ export function PosBillingFlow() {
   const orders = useAppStore((state) => state.orders);
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
-  const branch = useAppStore((state) => state.branches[0]);
+  const configuredBranch = useAppStore((state) => state.branches[0]);
   const taxSettings = useAppStore((state) => state.taxSettings);
   const printerSettings = useAppStore((state) => state.printerSettings);
   const tables = useAppStore((state) => state.posTables);
@@ -83,6 +82,10 @@ export function PosBillingFlow() {
   const payPosBill = useAppStore((state) => state.payPosBill);
   const resetPosBill = useAppStore((state) => state.resetPosBill);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  const branch = useMemo(
+    () => configuredBranch ?? createFallbackBranch(ownerBusinessProfile, authUser.id, restaurantId),
+    [authUser.id, configuredBranch, ownerBusinessProfile, restaurantId],
+  );
   const applyGst = bill.applyGst ?? true;
   const waiveParcelCharge = Boolean(bill.waiveParcelCharge);
 
@@ -198,19 +201,6 @@ export function PosBillingFlow() {
     }) satisfies TaxSettings,
     [applyGst, taxSettings, waiveParcelCharge],
   );
-
-  if (!branch) {
-    return (
-      <div className="p-6">
-        <EmptyStateCard
-          title="No branch configured"
-          description="POS, kitchen tickets, billing, receipt, and inventory deductions are branch-scoped."
-          actionLabel="Open profile setup"
-          actionHref="/owner/settings?tab=profile"
-        />
-      </div>
-    );
-  }
 
   const billContext = buildBillContext({
     bill,
@@ -686,6 +676,18 @@ export function PosBillingFlow() {
       </div>
     </div>
   );
+}
+
+function createFallbackBranch(profile: OwnerBusinessProfile | undefined, managerId: string, restaurantSlug: string): RestaurantBranch {
+  return {
+    id: DEFAULT_BRANCH_ID,
+    tenantId: resolveTenantId(restaurantSlug),
+    restaurantSlug,
+    name: profile?.hotelName || "Main Branch",
+    address: profile?.businessAddress || "Owner operational branch",
+    phone: profile?.phoneNumber || "",
+    managerId,
+  };
 }
 
 function toMenuProduct(item: MenuItem, category: string): PosProduct {

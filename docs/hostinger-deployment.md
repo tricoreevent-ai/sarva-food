@@ -132,7 +132,7 @@ Then apply only after reviewing the output:
 npm run firebase:launch-cleanup:apply
 ```
 
-The cleanup keeps the launch restaurant ids `test-owner` and `falak-leela-bhartiya`.
+The cleanup keeps the launch restaurant ids `cafe-al-arab-thanisandra` and `falak-leela-bhartiya`.
 
 ## Deployment Steps
 
@@ -144,7 +144,7 @@ The cleanup keeps the launch restaurant ids `test-owner` and `falak-leela-bharti
 6. Add all required environment variables.
 7. Click Deploy.
 8. After deployment, open `/api/public/restaurants`. It should return `{"data":[...]}` with HTTP 200. If it returns 500, open Hostinger application logs and look for a `[Sarva public API] restaurants failed` message.
-9. Verify `/`, `/restaurants`, `/restaurant/cafe-al-arab`, `/owner/login`, and `/admin/login`.
+9. Verify `/`, `/restaurants`, `/restaurant/cafe-al-arab-thanisandra`, `/owner/login`, and `/admin/login`.
 10. Connect the final custom domain and update `NEXT_PUBLIC_APP_URL` to that HTTPS URL.
 11. Redeploy after changing `NEXT_PUBLIC_APP_URL`.
 

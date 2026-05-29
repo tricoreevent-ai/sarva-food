@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
 
   const tenantId = resolveTenantId(restaurantId);
   const branchId = body.branch.id || session.branchIds[0] || DEFAULT_BRANCH_ID;
+  const profileComplete = isPublicProfileComplete(body.profile);
   const coverImagePaths = [
     ...(body.profile.coverImages ?? []),
     body.profile.coverImage,
@@ -78,6 +79,11 @@ export async function POST(request: NextRequest) {
     tenantId,
     branchId,
     primaryBranchId: branchId,
+    active: profileComplete,
+    approved: profileComplete ? (body.restaurant.approved ?? true) : false,
+    profileComplete,
+    publicListingEnabled: profileComplete,
+    orderingEnabled: true,
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy: session.uid,
     isDeleted: false,
@@ -139,4 +145,21 @@ function assertRestaurantAccess(
 
 function sanitize(input: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+function isPublicProfileComplete(profile: OwnerBusinessProfile) {
+  const hasLocation = Boolean((typeof profile.latitude === "number" && typeof profile.longitude === "number") || profile.googleMapLocation);
+  const hasHours = profile.operatingHoursPreference === "specified" && Boolean(profile.operatingHoursSchedule?.some((day) => day.open && day.slots.length));
+  const hasCuisine = Boolean(profile.cuisineTypes?.length || profile.cuisineType?.trim());
+  const hasMedia = Boolean(profile.logo || profile.coverImage || profile.coverImages?.length);
+  return Boolean(
+    profile.hotelName?.trim() &&
+    profile.phoneNumber?.trim() &&
+    profile.businessAddress?.trim() &&
+    hasLocation &&
+    hasHours &&
+    hasCuisine &&
+    hasMedia &&
+    profile.deliveryRadiusKm > 0,
+  );
 }

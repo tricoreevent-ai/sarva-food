@@ -2,7 +2,7 @@
 
 ## Tenant Model
 
-Sarva Food is one platform serving many restaurants, hotels, and cloud kitchens. A tenant is the restaurant business registered on the platform. The current compatibility tenant id for the seeded restaurant is `tamarind-table`.
+Sarva Food is one platform serving many restaurants, hotels, and cloud kitchens. A tenant is the restaurant business registered on the platform. The current compatibility tenant id for the seeded restaurant is `cafe-al-arab-thanisandra`.
 
 Core tenant records:
 
@@ -45,12 +45,12 @@ NEXT_PUBLIC_ENABLE_DEV_LOGIN=true
 
 It is disabled in production and provides local fixtures:
 
-- `owner@sarva.test`
+- `divakdi@gmail.com`
 - `manager@sarva.test`
 - `cashier@sarva.test`
 - `chef@sarva.test`
 - `waiter@sarva.test`
-- `admin@sarva.test`
+- `dinucd@gmail.com`
 
 All use `password123`.
 

@@ -47,8 +47,8 @@ function normalizePrivateKey(value) {
 const db = getFirestore(app);
 const auth = getAuth(app);
 const now = FieldValue.serverTimestamp();
-const restaurantId = "test-owner";
-const branchId = "br-indiranagar";
+const restaurantId = "cafe-al-arab-thanisandra";
+const branchId = "br-cafe-al-arab-thanisandra";
 const rolePermissions = {
   owner: ["pos", "kds", "billing", "reports", "accounting", "inventory", "loyalty", "settings", "employees", "diagnostics"],
   admin: ["pos", "kds", "billing", "reports", "accounting", "inventory", "loyalty", "settings", "employees", "diagnostics", "platform"],
@@ -62,8 +62,8 @@ const rolePermissions = {
 };
 
 const seedUsers = [
-  { uid: "test-admin", email: "admin@sarva.test", displayName: "Platform Admin", role: "admin", password: "password123" },
-  { uid: "test-owner", email: "owner@sarva.test", displayName: "Test Owner", role: "owner", password: "password123" },
+  { uid: "dinucd@gmail.com", email: "dinucd@gmail.com", displayName: "Platform Admin", role: "admin", password: "password123" },
+  { uid: "divakdi@gmail.com", email: "divakdi@gmail.com", displayName: "Test Owner", role: "owner", password: "password123" },
   { uid: "test-manager", email: "manager@sarva.test", displayName: "Test Manager", role: "manager", password: "password123" },
   { uid: "test-cashier", email: "cashier@sarva.test", displayName: "Test Cashier", role: "cashier", password: "password123" },
   { uid: "test-chef", email: "chef@sarva.test", displayName: "Test Chef", role: "chef", password: "password123" },
@@ -622,10 +622,10 @@ const batch = db.batch();
 batch.set(db.collection("tenants").doc(restaurantId), {
   id: restaurantId,
   tenantId: restaurantId,
-  name: "Test Owner",
+  name: "Cafe Al Arab UL",
   plan: "growth",
   status: "active",
-  ownerEmail: "owner@sarva.test",
+  ownerEmail: "divakdi@gmail.com",
   createdAt: now,
   updatedAt: now,
 }, { merge: true });
@@ -788,52 +788,56 @@ for (const [role, permissions] of Object.entries(rolePermissions)) {
 batch.set(db.collection("restaurants").doc(restaurantId), {
   id: restaurantId,
   tenantId: restaurantId,
-  name: "Cafe Al Arab",
+  name: "Cafe Al Arab UL",
+  displayName: "Cafe Al Arab UL",
   slug: restaurantId,
   ownerIds: resolvedUsers.filter((user) => user.role === "owner").map((user) => user.uid),
-  ownerId: resolvedUsers.find((user) => user.role === "owner")?.uid ?? "test-owner",
+  ownerId: resolvedUsers.find((user) => user.role === "owner")?.uid ?? "divakdi@gmail.com",
   branchId,
   primaryBranchId: branchId,
   active: true,
   approved: true,
+  profileComplete: true,
+  publicListingEnabled: true,
   gstin: "29AABCT1234A1Z5",
-  phone: "+919876543210",
-  location: "Indiranagar, Bengaluru",
-  address: "12 100 Feet Road, Indiranagar, Bengaluru",
-  latitude: 12.9719,
-  longitude: 77.6412,
-  deliveryRadiusKm: 7,
+  phone: "+919900030001",
+  location: "Avalahalli, Thanisandra Main Road",
+  address: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",
+  latitude: 13.064,
+  longitude: 77.6312,
+  deliveryRadiusKm: 6,
   cuisine: ["Arabic", "Shawarma", "Grills"],
-  imagePath: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80",
-  coverImagePath: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80",
+  imagePath: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+  coverImagePath: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
   coverImagePaths: [
-    "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1400&q=80",
     "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
     "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1400&q=80",
   ],
-  rating: 4.7,
-  deliveryTime: "24-32 min",
-  etaMinutes: 24,
+  rating: 4.1,
+  reviewCount: 89,
+  deliveryTime: "30-40 min",
+  etaMinutes: 30,
   priceForTwo: 650,
-  tags: ["Shawarma", "Grills", "Catering available"],
+  tags: ["Shawarma", "Al faham", "Mandi", "Offers available"],
   contact: {
-    phone: "+919876543210",
-    whatsapp: "+919876543210",
-    supportEmail: "support@cafealarab.example",
+    phone: "+919900030001",
+    whatsapp: "+919900030001",
+    supportEmail: "cafe-al-arab-thanisandra@sarva.example",
     callbackEnabled: true,
   },
   ownerProfile: {
-    businessPhone: "+919876543210",
-    businessWhatsapp: "+919876543210",
-    businessEmail: "owner@cafealarab.example",
-    cateringPhone: "+919876543211",
-    cateringWhatsapp: "+919876543211",
-    cateringEmail: "catering@cafealarab.example",
-    emergencyPhone: "+919876543212",
+    businessPhone: "+919900030001",
+    businessWhatsapp: "+919900030001",
+    businessEmail: "cafe-al-arab-thanisandra@sarva.example",
+    cateringPhone: "+919900130001",
+    cateringWhatsapp: "+919900130001",
+    cateringEmail: "catering.cafe-al-arab@sarva.example",
+    emergencyPhone: "+919900230001",
   },
   deliverySettings: {
-    radiusKm: 7,
-    baseFee: 39,
+    radiusKm: 6,
+    baseFee: 45,
     freeDeliveryAbove: 499,
     maxOrdersPerSlot: 8,
     deliverySlotMinutes: 30,
@@ -868,15 +872,63 @@ batch.set(db.collection("branches").doc(branchId), {
   id: branchId,
   tenantId: restaurantId,
   restaurantId,
-  name: "Indiranagar",
-  address: "12 100 Feet Road, Indiranagar, Bengaluru",
-  latitude: 12.9719,
-  longitude: 77.6412,
-  deliveryRadiusKm: 7,
-  phone: "+918080808080",
+  name: "Cafe Al Arab UL - Thanisandra",
+  address: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",
+  latitude: 13.064,
+  longitude: 77.6312,
+  deliveryRadiusKm: 6,
+  phone: "+919900030001",
   active: true,
   createdAt: now,
   updatedAt: now,
+}, { merge: true });
+
+const primaryOwnerId = resolvedUsers.find((user) => user.role === "owner")?.uid ?? "divakdi@gmail.com";
+batch.set(db.collection("ownerProfiles").doc(primaryOwnerId), {
+  id: primaryOwnerId,
+  ownerId: primaryOwnerId,
+  tenantId: restaurantId,
+  restaurantId,
+  branchId,
+  ownerName: "Test Owner",
+  hotelName: "Cafe Al Arab UL",
+  logo: "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1690000000/sarva/cafe-al-arab-logo.png",
+  coverImage: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+  coverImages: [
+    "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
+    "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1400&q=80",
+  ],
+  businessAddress: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",
+  googleMapLocation: "https://www.google.com/maps?q=13.064,77.6312",
+  latitude: 13.064,
+  longitude: 77.6312,
+  mapboxPlaceId: "sarva-cafe-al-arab-ul-thanisandra",
+  locationVerified: true,
+  cuisineType: "Arabic, Shawarma, Grills",
+  cuisineTypes: ["Arabic", "Shawarma", "Grills"],
+  gstDetails: "29AABCC1234A1Z5",
+  phoneNumber: "+919900030001",
+  whatsappNumber: "+919900030001",
+  supportEmail: "cafe-al-arab-thanisandra@sarva.example",
+  cateringPhoneNumber: "+919900130001",
+  cateringWhatsappNumber: "+919900130001",
+  cateringEmail: "catering.cafe-al-arab@sarva.example",
+  emergencySupportNumber: "+919900230001",
+  operatingHours: "10:30 AM - 11:30 PM",
+  operatingHoursPreference: "specified",
+  operatingHoursSchedule: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => ({ day, open: true, slots: [{ start: "10:30", end: "23:30" }] })),
+  deliveryRadiusKm: 6,
+  deliveryCharge: 45,
+  minimumOrder: 149,
+  freeDeliveryThreshold: 499,
+  fssaiLicense: "11223344556677",
+  diningAvailable: true,
+  cloudKitchen: false,
+  reviewStatus: "approved",
+  completed: true,
+  updatedAt: now,
+  createdAt: now,
 }, { merge: true });
 
 batch.set(db.collection("menus").doc("menu-default"), {
@@ -1811,7 +1863,7 @@ function reviewCopyFor(cuisine, itemName, deliveryTime) {
   return `${itemName} was well packed, hot on arrival, and matched the restaurant rating.`;
 }
 
-seedThanisandraRestaurants(batch, resolvedUsers.find((user) => user.role === "owner")?.uid ?? "test-owner");
+seedThanisandraRestaurants(batch, resolvedUsers.find((user) => user.role === "owner")?.uid ?? "divakdi@gmail.com");
 
 await batch.commit();
 console.log("Firebase production backend seeded for Cafe Al Arab and Falak - The Leela Bhartiya City.");

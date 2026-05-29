@@ -1,6 +1,6 @@
-export const DEFAULT_TENANT_ID = "test-owner";
+export const DEFAULT_TENANT_ID = "cafe-al-arab-thanisandra";
 export const DEFAULT_RESTAURANT_ID = DEFAULT_TENANT_ID;
-export const DEFAULT_BRANCH_ID = "br-indiranagar";
+export const DEFAULT_BRANCH_ID = "br-cafe-al-arab-thanisandra";
 
 export type TenantScoped = {
   tenantId?: string;

@@ -43,7 +43,7 @@ function normalizePrivateKey(value) {
 }
 
 const db = getFirestore(app);
-const launchRestaurantIds = new Set(["test-owner", "falak-leela-bhartiya"]);
+const launchRestaurantIds = new Set(["cafe-al-arab-thanisandra", "falak-leela-bhartiya"]);
 const relatedCollections = [
   "restaurants",
   "branches",

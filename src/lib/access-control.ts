@@ -196,6 +196,7 @@ export function planMeetsMinimum(plan: Restaurant["subscriptionPlan"] | undefine
 }
 
 export function filterOwnerNavigation(items: NavItem[], plan: Restaurant["subscriptionPlan"] | undefined, role: StaffRole | "customer" | "admin" | "super_admin" | "delivery" | undefined) {
+  if (role === "owner") return items;
   return items.filter((item) =>
     planAllowsFeature(plan, item.featureKey) &&
     planMeetsMinimum(plan, item.minimumPlan) &&
@@ -206,6 +207,7 @@ export function filterOwnerNavigation(items: NavItem[], plan: Restaurant["subscr
 
 export function filterOwnerNavigationForRestaurant(items: NavItem[], restaurant: Restaurant | undefined, role: StaffRole | "customer" | "admin" | "super_admin" | "delivery" | undefined) {
   const allowedByPlanAndRole = filterOwnerNavigation(items, restaurant?.subscriptionPlan, role);
+  if (role === "owner") return allowedByPlanAndRole;
   return allowedByPlanAndRole.filter((item) => {
     if (!item.featureKey) return true;
     if (restaurant?.hiddenOwnerNavItems?.includes(item.featureKey)) return false;

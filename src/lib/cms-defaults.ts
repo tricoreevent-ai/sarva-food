@@ -99,7 +99,7 @@ export const defaultCmsSettings: CmsSettings = {
     {
       id: "homepage-location-ready",
       title: "Thanisandra delivery is live",
-      subtitle: "Cafe Al Arab and Falak are ready for online orders.",
+      subtitle: "Cafe Al Arab UL and Falak are ready for online orders.",
       imageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1200&q=80",
       mobileImageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
       ctaLabel: "See restaurants",
