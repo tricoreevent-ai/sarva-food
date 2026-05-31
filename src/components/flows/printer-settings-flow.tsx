@@ -2,7 +2,6 @@
 
 import { Cable, FileText, Printer, ReceiptText, Wifi, Wrench } from "lucide-react";
 import { useState } from "react";
-import { EmptyStateCard } from "@/components/layout/empty-state";
 import { SectionHeader } from "@/components/layout/section-header";
 import { KotTicket, RestaurantBill } from "@/components/printing";
 import { Badge } from "@/components/ui/badge";
@@ -13,15 +12,17 @@ import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
 import { buildBillContext, buildEscPosPlan, buildKotContext, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
 import { printTemplateSchema, printerProfileSchema } from "@/lib/schemas/printing";
-import type { PrinterProfile, PrintTemplate } from "@/lib/types";
+import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
+import type { PrinterProfile, PrintTemplate, RestaurantBranch } from "@/lib/types";
 
 export function PrinterSettingsFlow() {
   const settings = useAppStore((state) => state.printerSettings);
   const updatePrinterSettings = useAppStore((state) => state.updatePrinterSettings);
   const latestOrder = useAppStore((state) => state.tableOrders[0]);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
+  const authUser = useAppStore((state) => state.authUser);
   const bill = useAppStore((state) => state.posBill);
-  const branch = useAppStore((state) => state.branches[0]);
+  const configuredBranch = useAppStore((state) => state.branches[0]);
   const taxSettings = useAppStore((state) => state.taxSettings);
   const billTemplate = settings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate;
   const kotTemplate = settings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate;
@@ -29,20 +30,15 @@ export function PrinterSettingsFlow() {
   const [selectedProfileId, setSelectedProfileId] = useState(settings.profiles?.[0]?.id ?? "");
   const [paperWidth, setPaperWidth] = useState<PrinterProfile["paperWidth"]>(billTemplate.paperWidth);
   const activeProfile = settings.profiles?.find((profile) => profile.id === selectedProfileId) ?? settings.profiles?.[0];
-
-  if (!branch) {
-    return (
-      <div className="space-y-6">
-        <SectionHeader title="Thermal printers" description="Create a branch before configuring printer profiles and templates." />
-        <EmptyStateCard
-          title="No branch configured"
-          description="Printer profiles are branch-scoped. Complete onboarding or create a branch to continue."
-          actionLabel="Open onboarding"
-          actionHref="/owner/settings?tab=profile"
-        />
-      </div>
-    );
-  }
+  const branch: RestaurantBranch = configuredBranch ?? {
+    id: DEFAULT_BRANCH_ID,
+    tenantId: resolveTenantId(authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID),
+    restaurantSlug: authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID,
+    name: ownerBusinessProfile?.hotelName || "Main Branch",
+    address: ownerBusinessProfile?.businessAddress || "Owner operational branch",
+    phone: ownerBusinessProfile?.phoneNumber || "",
+    managerId: authUser.id,
+  };
   const billContext = buildBillContext({ bill: bill.lines.length ? bill : { ...bill, lines: latestOrder?.lines ?? [] }, branch, taxSettings, restaurantName: ownerBusinessProfile?.hotelName, createdAt: latestOrder ? new Date(latestOrder.createdAt) : new Date(0) });
   const kotContext = latestOrder
     ? { kotNumber: `KIT-${latestOrder.id}`, orderNumber: latestOrder.id, orderType: latestOrder.source === "POS" ? "POS" as const : "Dine-in" as const, tableNumber: latestOrder.tableNumber, waiterName: latestOrder.waiterName ?? "Waiter", priority: latestOrder.priority, lines: latestOrder.lines, createdAt: new Date(latestOrder.createdAt) }

@@ -58,6 +58,7 @@ export function CustomerDiscoveryHome() {
   const cartItems = useCartStore((state) => state.items);
   const rawCmsSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
   const cmsSettings = useMemo(() => resolveCmsSettings(rawCmsSettings), [rawCmsSettings]);
+  const unavailableCopy = cmsSettings.operations ?? defaultCmsSettings.operations!;
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const cartSubtotal = getCartSubtotal(cartItems);
   const heroRestaurant = nearbyRestaurants[0] ?? restaurants[0];
@@ -140,7 +141,11 @@ export function CustomerDiscoveryHome() {
   if (restaurantsStatus === "error") {
     return (
       <main className="container-page py-6">
-        <RetryState onRetry={retryRestaurants} />
+        <RetryState
+          title={unavailableCopy.customerUnavailableTitle}
+          description={unavailableCopy.customerUnavailableMessage}
+          onRetry={retryRestaurants}
+        />
       </main>
     );
   }
@@ -149,8 +154,8 @@ export function CustomerDiscoveryHome() {
     return (
       <main className="container-page py-6">
         <EmptyStateCard
-          title="No restaurants are live yet"
-          description="Approved restaurants from Firestore will appear here when they are ready for delivery."
+          title="Restaurants are getting ready"
+          description="Please check back shortly. Nearby restaurants will appear here as soon as they are ready to accept orders."
           actionHref={null}
         />
       </main>

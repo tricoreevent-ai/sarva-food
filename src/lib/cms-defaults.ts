@@ -89,6 +89,12 @@ export const defaultCmsSettings: CmsSettings = {
     sortLogic: "rating",
     pinnedRestaurantSlugs: [],
   },
+  operations: {
+    databaseAlertsEnabled: true,
+    databaseAlertEmail: "",
+    customerUnavailableTitle: "Restaurants are temporarily unavailable",
+    customerUnavailableMessage: "Please try again in a moment. Our team is already checking the issue.",
+  },
   seo: {
     title: "Sarva Food",
     description: "Order from verified nearby restaurants.",

@@ -49,6 +49,7 @@ const serverEnvSchema = clientEnvSchema.extend({
   SMTP_USER: optionalString,
   SMTP_PASS: optionalString,
   SMTP_FROM: optionalString,
+  DATABASE_ALERT_EMAIL: optionalString,
   SENTRY_DSN: optionalUrl,
 });
 

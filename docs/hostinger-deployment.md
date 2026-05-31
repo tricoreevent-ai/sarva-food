@@ -61,6 +61,7 @@ SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
 SMTP_FROM="Sarva Food <orders@your-domain.com>"
+DATABASE_ALERT_EMAIL=
 ```
 
 Optional production integrations:
@@ -81,6 +82,8 @@ CLOUDINARY_URL=
 ```
 
 Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual values are clearer in Hostinger.
+
+`DATABASE_ALERT_EMAIL` is the fallback recipient for customer-data outage notifications. Configure the same address in Admin → System Settings → Customer service alerts. The hosting value remains usable even when Firestore itself is unavailable.
 
 For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
 

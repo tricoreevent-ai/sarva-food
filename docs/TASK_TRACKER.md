@@ -1,0 +1,47 @@
+# Sarva Food Task Tracker
+
+Last updated: 2026-05-31
+
+This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
+
+## In Progress
+
+- [ ] Deploy the latest verified application build to Hostinger.
+- [ ] Configure and verify the production outage alert recipient in Hostinger and Admin CMS.
+
+## Completed
+
+- [x] Owner POS opens without requiring branch onboarding first.
+- [x] Owner POS uses a safe fallback main branch when a branch document is not available yet.
+- [x] Customer listing is restricted to restaurants with complete public profile, location, contact, media, cuisine, hours, and delivery configuration.
+- [x] `divakdi@gmail.com` is linked to `Cafe Al Arab UL`.
+- [x] Cafe Al Arab UL baseline owner profile, customer listing data, location, hours, delivery settings, contacts, cuisines, and banners are seeded.
+- [x] Owner Branding supports multiple restaurant banners.
+- [x] Owner Branding includes a live customer-facing banner preview.
+- [x] Owner sidebar includes a Banners shortcut.
+- [x] Admin CMS supports configurable homepage content and branding.
+- [x] Customer homepage and restaurant listing use CMS-backed public content.
+- [x] Hostinger production environment template and deployment notes are present.
+- [x] Customer, owner, and admin auth guardrails are separated by role.
+- [x] Customer homepage and restaurant listing show simple, non-technical recovery messages when restaurant data cannot be loaded.
+- [x] Public restaurant, category, menu, offer, CMS, and review API failures trigger a throttled database outage alert email.
+- [x] Admin CMS includes customer service alert controls for recipient email, enable/disable, and customer-facing recovery copy.
+- [x] Hostinger environment template includes the `DATABASE_ALERT_EMAIL` outage fallback recipient.
+- [x] Printer settings use the safe default operational branch when onboarding has not created a branch document yet.
+- [x] Verification completed on 2026-05-31: `npm run typecheck`, `npm run lint`, and `npm run build`.
+
+## Deployment Follow-Up
+
+- [ ] Add the required production environment variables in Hostinger.
+- [ ] Set `DATABASE_ALERT_EMAIL` in Hostinger to the admin mailbox that should receive database outage alerts.
+- [ ] Open Admin → System Settings → Customer service alerts and save the same recipient address.
+- [ ] Confirm SMTP settings in Hostinger so outage alerts and credentials email can be delivered.
+- [ ] Run `npm run firebase:seed:production` after deploying if hosted Firestore still contains old test-owner records.
+- [ ] Redeploy the latest GitHub commit to Hostinger.
+- [ ] Verify customer homepage, `/owner/login`, `/owner/pos`, and `/admin/login` on the hosted URL.
+
+## Notes
+
+- Owners may use operational screens immediately after login.
+- A restaurant is intentionally hidden from the customer portal until its public profile is complete.
+- Public outage messages must never expose Firestore, Firebase, stack traces, environment variables, or other infrastructure details.

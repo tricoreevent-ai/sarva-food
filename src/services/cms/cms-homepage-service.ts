@@ -86,6 +86,14 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
       sortLogic: settings.featuredRestaurants?.sortLogic ?? defaultCmsSettings.featuredRestaurants!.sortLogic,
       pinnedRestaurantSlugs: settings.featuredRestaurants?.pinnedRestaurantSlugs ?? defaultCmsSettings.featuredRestaurants!.pinnedRestaurantSlugs,
     },
+    operations: {
+      ...defaultCmsSettings.operations!,
+      ...(settings.operations ?? {}),
+      databaseAlertsEnabled: settings.operations?.databaseAlertsEnabled ?? defaultCmsSettings.operations!.databaseAlertsEnabled,
+      databaseAlertEmail: settings.operations?.databaseAlertEmail?.trim() || defaultCmsSettings.operations!.databaseAlertEmail,
+      customerUnavailableTitle: settings.operations?.customerUnavailableTitle?.trim() || defaultCmsSettings.operations!.customerUnavailableTitle,
+      customerUnavailableMessage: settings.operations?.customerUnavailableMessage?.trim() || defaultCmsSettings.operations!.customerUnavailableMessage,
+    },
     seo: {
       ...defaultCmsSettings.seo,
       ...(settings.seo ?? {}),

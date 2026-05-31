@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getPublicRestaurantDocs, logPublicDataError } from "@/lib/server/public-firestore";
+import { notifyPublicDatabaseFailure } from "@/lib/server/public-outage-alert";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     logPublicDataError("restaurants", error);
+    void notifyPublicDatabaseFailure("restaurants", error);
     return NextResponse.json({ data: [], error: "Unable to load public restaurants." }, { status: 500 });
   }
 }

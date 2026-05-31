@@ -190,7 +190,7 @@ function preloadPrimaryMenu(restaurants: Restaurant[]) {
 
 export function listenPublicRestaurants(
   onData: (restaurants: Restaurant[]) => void,
-  options: { preloadPrimaryMenu?: boolean } = {},
+  options: { preloadPrimaryMenu?: boolean; onError?: (error: unknown) => void } = {},
 ): Unsubscribe {
   let active = true;
   const deliver = (items: Restaurant[]) => {
@@ -205,7 +205,7 @@ export function listenPublicRestaurants(
     })
     .catch((error) => {
       warnPublicFallbackFailure("restaurants", error);
-      deliver([]);
+      if (active) options.onError?.(error);
     });
 
   return () => {

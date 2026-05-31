@@ -88,16 +88,29 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
       setError("Restaurant data is taking longer than expected.");
     }, PUBLIC_LOAD_TIMEOUT_MS);
 
-    const unsubscribe = listenPublicRestaurants((items) => {
-      if (!active) return;
-      window.clearTimeout(timeoutId);
-      window.clearTimeout(cachedTimerId);
-      setRestaurants(items);
-      writeCache(PUBLIC_RESTAURANTS_CACHE_KEY, items);
-      setLoadingForMs(Math.round(performance.now() - startedAt));
-      setError(null);
-      setStatus("success");
-    }, { preloadPrimaryMenu });
+    const unsubscribe = listenPublicRestaurants(
+      (items) => {
+        if (!active) return;
+        window.clearTimeout(timeoutId);
+        window.clearTimeout(cachedTimerId);
+        setRestaurants(items);
+        writeCache(PUBLIC_RESTAURANTS_CACHE_KEY, items);
+        setLoadingForMs(Math.round(performance.now() - startedAt));
+        setError(null);
+        setStatus("success");
+      },
+      {
+        preloadPrimaryMenu,
+        onError: () => {
+          if (!active) return;
+          window.clearTimeout(timeoutId);
+          window.clearTimeout(cachedTimerId);
+          setLoadingForMs(Math.round(performance.now() - startedAt));
+          setError("Restaurants are temporarily unavailable.");
+          setStatus("error");
+        },
+      },
+    );
 
     return () => {
       active = false;

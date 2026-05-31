@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getPublicMenuDocs, logPublicDataError } from "@/lib/server/public-firestore";
+import { notifyPublicDatabaseFailure } from "@/lib/server/public-outage-alert";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     logPublicDataError("menu", error);
+    void notifyPublicDatabaseFailure("menu", error);
     return NextResponse.json({ data: [], error: "Unable to load public menu." }, { status: 500 });
   }
 }

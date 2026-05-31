@@ -44,6 +44,7 @@ type SortMode = "distance" | "rating" | "eta";
 export function RestaurantBrowserFlow() {
   const { restaurants, status: restaurantsStatus, retry } = usePublicRestaurants();
   const listingCopy = useAppStore((state) => state.cmsSettings.restaurantListing) ?? defaultCmsSettings.restaurantListing!;
+  const unavailableCopy = useAppStore((state) => state.cmsSettings.operations) ?? defaultCmsSettings.operations!;
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("query") ?? "");
   const [locationQuery, setLocationQuery] = useState("");
@@ -149,7 +150,11 @@ export function RestaurantBrowserFlow() {
   if (restaurantsStatus === "error") {
     return (
       <main className="container-page py-6">
-        <RetryState onRetry={retry} />
+        <RetryState
+          title={unavailableCopy.customerUnavailableTitle}
+          description={unavailableCopy.customerUnavailableMessage}
+          onRetry={retry}
+        />
       </main>
     );
   }
@@ -158,8 +163,8 @@ export function RestaurantBrowserFlow() {
     return (
       <main className="container-page py-6">
         <EmptyStateCard
-          title="No restaurants are available"
-          description="Approved restaurants from Firestore will appear here for customers."
+          title="Restaurants are getting ready"
+          description="Please check back shortly. Nearby restaurants will appear here as soon as they are ready to accept orders."
           actionHref={null}
         />
       </main>

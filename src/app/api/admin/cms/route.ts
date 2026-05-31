@@ -4,6 +4,7 @@ import { CMS_COLLECTIONS, CMS_VERSION } from "@/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { rememberPublicOutageAlertConfig } from "@/lib/server/public-outage-alert";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsSettings } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export async function GET() {
   const settings = snapshot.exists
     ? resolveCmsSettings({ ...defaultCmsSettings, ...(snapshot.data() as Partial<CmsSettings>) })
     : defaultCmsSettings;
+  rememberPublicOutageAlertConfig(settings);
   return NextResponse.json({ data: settings });
 }
 
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
     modifiedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
+  rememberPublicOutageAlertConfig(settings);
 
   return NextResponse.json({ ok: true, data: settings });
 }

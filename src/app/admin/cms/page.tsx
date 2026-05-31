@@ -167,6 +167,38 @@ export default function AdminCmsPage() {
                 <CloudinaryUploadWidget folder="branding" aspectRatio={1} tags={["branding-logo"]} label="Upload logo" onUpload={(logoUrl) => setSettings((current) => ({ ...current, branding: { ...current.branding!, logoUrl } }))} />
               </div>
             </div>
+            <div className="rounded-xl border bg-background/60 p-3">
+              <h3 className="font-black">Customer service alerts</h3>
+              <p className="mt-1 text-xs font-semibold leading-5 text-muted-foreground">
+                Send a throttled email when customer restaurant data cannot be loaded. Add the same address as `DATABASE_ALERT_EMAIL` in hosting for alerts during a full database outage.
+              </p>
+              <div className="mt-3 grid gap-3">
+                <Toggle
+                  label="Email database outage alerts"
+                  checked={settings.operations?.databaseAlertsEnabled !== false}
+                  onChange={(databaseAlertsEnabled) => setSettings({ ...settings, operations: { ...settings.operations!, databaseAlertsEnabled } })}
+                />
+                <Field
+                  label="Database alert email"
+                  type="email"
+                  value={settings.operations?.databaseAlertEmail ?? ""}
+                  onChange={(databaseAlertEmail) => setSettings({ ...settings, operations: { ...settings.operations!, databaseAlertEmail } })}
+                />
+                <Field
+                  label="Customer unavailable title"
+                  value={settings.operations?.customerUnavailableTitle ?? ""}
+                  onChange={(customerUnavailableTitle) => setSettings({ ...settings, operations: { ...settings.operations!, customerUnavailableTitle } })}
+                />
+                <div className="grid gap-2">
+                  <Label>Customer unavailable message</Label>
+                  <Textarea
+                    className="min-h-20"
+                    value={settings.operations?.customerUnavailableMessage ?? ""}
+                    onChange={(event) => setSettings({ ...settings, operations: { ...settings.operations!, customerUnavailableMessage: event.target.value } })}
+                  />
+                </div>
+              </div>
+            </div>
             <Field label="Homepage title" value={settings.homepage.title} onChange={(title) => setSettings({ ...settings, homepage: { ...settings.homepage, title } })} />
             <Field label="Homepage subtitle" value={settings.homepage.subtitle} onChange={(subtitle) => setSettings({ ...settings, homepage: { ...settings.homepage, subtitle } })} />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">

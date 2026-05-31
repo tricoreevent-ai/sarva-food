@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { logPublicDataError } from "@/lib/server/public-firestore";
+import { notifyPublicDatabaseFailure } from "@/lib/server/public-outage-alert";
 import { resolveTenantId } from "@/lib/tenant";
 import type { OrderDoc, ReviewDoc } from "@/types/firebase";
 
@@ -89,6 +90,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     logPublicDataError("reviews", error);
+    void notifyPublicDatabaseFailure("reviews", error);
     return NextResponse.json({ data: [], summary: { averageRating: 0, ratingCount: 0 }, error: "Unable to load reviews." }, { status: 500 });
   }
 }

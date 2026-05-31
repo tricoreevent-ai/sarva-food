@@ -425,6 +425,12 @@ export type CmsSettings = {
     sortLogic: "rating" | "priority" | "manual";
     pinnedRestaurantSlugs: string[];
   };
+  operations?: {
+    databaseAlertsEnabled: boolean;
+    databaseAlertEmail?: string;
+    customerUnavailableTitle: string;
+    customerUnavailableMessage: string;
+  };
   seo?: {
     title?: string;
     description?: string;
