@@ -31,6 +31,9 @@ This file is the project-visible source of truth for implementation progress. Up
 - [x] Verification completed on 2026-05-31: `npm run typecheck`, `npm run lint`, and `npm run build`.
 - [x] Customer homepage loading uses a branded animated state instead of blank restaurant-card placeholders while public data loads in the background.
 - [x] Verification completed after homepage loader update on 2026-05-31: `npm run typecheck`, `npm run lint`, and `npm run build`.
+- [x] Admin Firebase startup diagnostics now run through a server-side Admin SDK endpoint instead of browser Firestore aggregation queries.
+- [x] Admin dashboard no longer triggers client-side `permission-denied` aggregation errors for protected Firestore collections.
+- [x] Admin startup banner now uses a lightweight health check; full collection and index scans stay on the Firebase Diagnostics page.
 
 ## Deployment Follow-Up
 

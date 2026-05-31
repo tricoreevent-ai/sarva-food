@@ -6,7 +6,9 @@ export function getServerEnvironmentConfig() {
   return {
     appEnv: env.NEXT_PUBLIC_APP_ENV,
     appUrl: env.NEXT_PUBLIC_APP_URL,
+    useFirebase: env.NEXT_PUBLIC_USE_FIREBASE === "true",
     publicFirebaseProjectId: env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    publicFirebaseStorageBucket: env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     adminFirebaseProjectId: env.FIREBASE_ADMIN_PROJECT_ID,
     firebaseAdminConfigured: Boolean(env.FIREBASE_ADMIN_PROJECT_ID && env.FIREBASE_ADMIN_CLIENT_EMAIL && env.FIREBASE_ADMIN_PRIVATE_KEY),
     smtpConfigured: Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS),

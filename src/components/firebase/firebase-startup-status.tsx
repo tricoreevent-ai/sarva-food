@@ -12,7 +12,7 @@ export function FirebaseStartupStatus() {
   useEffect(() => {
     if (!shouldUseFirebase()) return;
     let active = true;
-    runFirebaseDiagnostics()
+    runFirebaseDiagnostics({ scope: "startup" })
       .then((result) => {
         if (active) setDiagnostics(result);
       })
