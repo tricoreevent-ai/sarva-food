@@ -1,6 +1,6 @@
 # Sarva Food Task Tracker
 
-Last updated: 2026-05-31
+Last updated: 2026-06-01
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
@@ -11,6 +11,12 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Customer, owner, and admin shells now load through independent `React.lazy()` + `Suspense` runtime boundaries.
+- [x] Customer, owner, and admin modules each have independent route/runtime error recovery so one module crash does not take down another module.
+- [x] Module retry and scoped auth hydration updates use `useTransition()` to keep the interface responsive during recovery/session updates.
+- [x] Customer high-traffic routes now have customer-scoped error boundaries: home/root, restaurants, restaurant detail, offers, cart, checkout, orders, profile, account, and tracking.
+- [x] Admin and owner route errors now use the same transition-safe module recovery component.
+- [x] Module API ownership remains separated by endpoint family: customer/public APIs under `/api/public` plus customer order/payment APIs, owner APIs under `/api/owner`, and admin APIs under `/api/admin`.
 - [x] Owner POS opens without requiring branch onboarding first.
 - [x] Owner POS uses a safe fallback main branch when a branch document is not available yet.
 - [x] Customer listing is restricted to restaurants with complete public profile, location, contact, media, cuisine, hours, and delivery configuration.

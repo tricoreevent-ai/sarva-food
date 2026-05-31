@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { subscribeToAuth, syncAuthSession } from "@/services/auth-service";
 import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
@@ -21,10 +21,14 @@ type SessionSurface = "customer" | "owner" | "admin";
 export function AuthSessionBridge() {
   const pathname = usePathname();
   const setAuthUser = useAppStore((state) => state.setAuthUser);
+  const [, startTransition] = useTransition();
+  const setScopedAuthUser = useCallback((user: MockUser) => {
+    startTransition(() => setAuthUser(user));
+  }, [setAuthUser, startTransition]);
   const surface = surfaceForPath(pathname);
 
   useEffect(() => {
-    void hydrateCookieSession(setAuthUser, surface);
+    void hydrateCookieSession(setScopedAuthUser, surface);
 
     if (!shouldUseFirebase() || surface !== "customer") return;
 
@@ -36,9 +40,9 @@ export function AuthSessionBridge() {
       }
 
       await syncAuthSession("customer").catch(() => undefined);
-      await hydrateCookieSession(setAuthUser, "customer");
+      await hydrateCookieSession(setScopedAuthUser, "customer");
     });
-  }, [setAuthUser, surface]);
+  }, [setScopedAuthUser, surface]);
 
   return null;
 }

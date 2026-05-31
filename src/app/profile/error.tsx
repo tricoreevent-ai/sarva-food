@@ -2,11 +2,6 @@
 
 import { ModuleRouteError } from "@/components/runtime/module-runtime-boundary";
 
-export default function GlobalError({
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function ProfileError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return <ModuleRouteError module="customer" reset={reset} />;
 }

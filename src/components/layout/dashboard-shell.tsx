@@ -1,34 +1,14 @@
 "use client";
 
-import { ReactNode, type CSSProperties } from "react";
-import { usePathname } from "next/navigation";
-import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-status";
-import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
-import { DashboardTopbar } from "@/components/layout/dashboard-topbar";
-import { DashboardQuickActions, MobileOfflineBanner } from "@/components/mobile/mobile-experience";
-import { useAppStore } from "@/lib/app-store";
-import { filterOwnerNavigationForRestaurant } from "@/lib/access-control";
-import { cn } from "@/lib/utils";
-import { adminTheme } from "@/themes/admin-theme";
-import {
-  adminNav,
-  cateringNav,
-  deliveryNav,
-  ownerNav,
-  posNav,
-  studioNav,
-} from "@/lib/navigation";
+import { lazy, type ReactNode } from "react";
+import { ModuleRuntimeBoundary, type ModuleSurface } from "@/components/runtime/module-runtime-boundary";
+import type { DashboardApp } from "@/components/layout/dashboard-shell-client";
 
-type DashboardApp = "owner" | "admin" | "delivery" | "studio" | "catering" | "pos";
-
-const appConfig = {
-  owner: { name: "Owner Dashboard", nav: ownerNav, homeHref: "/owner" },
-  admin: { name: "Super Admin", nav: adminNav, homeHref: "/admin" },
-  delivery: { name: "Delivery Partner", nav: deliveryNav, homeHref: "/delivery" },
-  studio: { name: "Marketing Studio", nav: studioNav, homeHref: "/studio" },
-  catering: { name: "Catering", nav: cateringNav, homeHref: "/catering" },
-  pos: { name: "POS Billing", nav: posNav, homeHref: "/owner/pos" },
-} satisfies Record<DashboardApp, { name: string; nav: typeof ownerNav; homeHref: string }>;
+const LazyDashboardShellClient = lazy(() =>
+  import("@/components/layout/dashboard-shell-client").then((module) => ({
+    default: module.DashboardShellClient,
+  })),
+);
 
 export function DashboardShell({
   app,
@@ -37,48 +17,16 @@ export function DashboardShell({
   app: DashboardApp;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
-  const authUser = useAppStore((state) => state.authUser);
-  const restaurants = useAppStore((state) => state.restaurants);
-  if (pathname === "/admin/login" || pathname === "/owner/login") {
-    return children;
-  }
-
-  const config = appConfig[app];
-  const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
-  const navItems = app === "owner" || app === "pos"
-    ? filterOwnerNavigationForRestaurant(config.nav, currentRestaurant, authUser.role)
-    : config.nav;
-  const isPosWorkspace = pathname.startsWith("/owner/pos") || pathname.startsWith("/pos");
-  const adminStyle = app === "admin"
-    ? ({
-        "--admin-console-bg": adminTheme.colors.background,
-        "--admin-console-card": adminTheme.colors.card,
-        "--admin-console-primary": adminTheme.colors.primary,
-      } as CSSProperties)
-    : undefined;
+  const surface = surfaceForDashboardApp(app);
 
   return (
-    <div
-      className={cn(
-        "min-h-screen",
-        app === "admin" && "admin-premium",
-        (app === "owner" || app === "pos") && "owner-premium",
-      )}
-      style={adminStyle}
-      >
-      {app === "owner" || app === "pos" ? <MobileOfflineBanner /> : null}
-      <DashboardTopbar app={app} appName={config.name} navItems={navItems} homeHref={config.homeHref} />
-      <div className={cn(isPosWorkspace ? "" : "lg:flex")}>
-        {isPosWorkspace ? null : <DashboardSidebar appName={config.name} items={navItems} homeHref={config.homeHref} />}
-        <main className={cn("min-w-0 flex-1 pb-24 lg:pb-8", isPosWorkspace ? "p-0" : "px-4 py-5 sm:px-5 2xl:px-8")}>
-          <div className={cn("w-full", isPosWorkspace || app === "owner" ? "max-w-none" : "mx-auto max-w-7xl")}>
-            {app === "admin" ? <FirebaseStartupStatus /> : null}
-            {children}
-          </div>
-        </main>
-      </div>
-      {isPosWorkspace ? null : <DashboardQuickActions app={app} />}
-    </div>
+    <ModuleRuntimeBoundary module={surface}>
+      <LazyDashboardShellClient app={app}>{children}</LazyDashboardShellClient>
+    </ModuleRuntimeBoundary>
   );
+}
+
+function surfaceForDashboardApp(app: DashboardApp): ModuleSurface {
+  if (app === "admin") return "admin";
+  return "owner";
 }
