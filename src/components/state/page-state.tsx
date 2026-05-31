@@ -35,6 +35,31 @@ export function PageLoading() {
   );
 }
 
+export function CustomerHomeLoading() {
+  return (
+    <main className="container-page grid min-h-[52vh] place-items-center py-8" aria-busy="true" aria-live="polite" aria-label="Loading nearby restaurants">
+      <section className="customer-surface w-full max-w-xl overflow-hidden rounded-2xl border p-6 text-center shadow-sm sm:p-8">
+        <div className="mx-auto flex justify-center">
+          <FoodLoadingMark />
+        </div>
+        <p className="mt-5 text-xs font-black uppercase text-primary">Preparing your food choices</p>
+        <h1 className="mt-2 text-2xl font-black">Finding restaurants near you</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-muted-foreground">
+          Fresh menus, offers, and nearby delivery options are loading.
+        </p>
+        <div className="mx-auto mt-6 h-1.5 max-w-xs overflow-hidden rounded-full bg-primary/10">
+          <div className="customer-loading-progress h-full w-2/5 rounded-full bg-primary" />
+        </div>
+        <div className="mt-5 flex items-center justify-center gap-2" aria-hidden="true">
+          <span className="customer-loading-dot size-2 rounded-full bg-primary" />
+          <span className="customer-loading-dot size-2 rounded-full bg-accent" />
+          <span className="customer-loading-dot size-2 rounded-full bg-secondary-foreground" />
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export function ModuleLoading({ module = "customer" }: { module?: "customer" | "owner" | "admin" }) {
   if (module === "admin") {
     return (

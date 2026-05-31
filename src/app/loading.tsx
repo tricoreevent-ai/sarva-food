@@ -1,5 +1,5 @@
-import { PageLoading } from "@/components/state/page-state";
+import { CustomerHomeLoading } from "@/components/state/page-state";
 
 export default function Loading() {
-  return <PageLoading />;
+  return <CustomerHomeLoading />;
 }

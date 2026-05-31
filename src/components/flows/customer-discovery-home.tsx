@@ -24,7 +24,7 @@ import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RetryState, SkeletonGrid } from "@/components/state/page-state";
+import { CustomerHomeLoading, RetryState } from "@/components/state/page-state";
 import { useLocationCommerce } from "@/hooks/use-location-commerce";
 import { usePublicCategories, usePublicMenu, usePublicOffers, usePublicRestaurants } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
@@ -131,11 +131,7 @@ export function CustomerDiscoveryHome() {
   }
 
   if (restaurantsStatus === "loading") {
-    return (
-      <main className="container-page space-y-5 py-6">
-        <SkeletonGrid count={6} />
-      </main>
-    );
+    return <CustomerHomeLoading />;
   }
 
   if (restaurantsStatus === "error") {

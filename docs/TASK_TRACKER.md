@@ -29,6 +29,8 @@ This file is the project-visible source of truth for implementation progress. Up
 - [x] Hostinger environment template includes the `DATABASE_ALERT_EMAIL` outage fallback recipient.
 - [x] Printer settings use the safe default operational branch when onboarding has not created a branch document yet.
 - [x] Verification completed on 2026-05-31: `npm run typecheck`, `npm run lint`, and `npm run build`.
+- [x] Customer homepage loading uses a branded animated state instead of blank restaurant-card placeholders while public data loads in the background.
+- [x] Verification completed after homepage loader update on 2026-05-31: `npm run typecheck`, `npm run lint`, and `npm run build`.
 
 ## Deployment Follow-Up
 
