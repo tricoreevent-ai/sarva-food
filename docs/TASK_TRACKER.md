@@ -34,6 +34,9 @@ This file is the project-visible source of truth for implementation progress. Up
 - [x] Admin Firebase startup diagnostics now run through a server-side Admin SDK endpoint instead of browser Firestore aggregation queries.
 - [x] Admin dashboard no longer triggers client-side `permission-denied` aggregation errors for protected Firestore collections.
 - [x] Admin startup banner now uses a lightweight health check; full collection and index scans stay on the Firebase Diagnostics page.
+- [x] Admin, owner, and customer route guards now use module-scoped session cookies instead of one shared `sarva_role` cookie.
+- [x] Admin and owner logins can coexist without redirecting the owner app back to the admin dashboard.
+- [x] Local same-browser session verification passed on 2026-05-31: admin and owner scoped sessions remain valid in the same cookie jar.
 
 ## Deployment Follow-Up
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { subscribeToAuth, syncAuthSession } from "@/services/auth-service";
 import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
@@ -15,32 +16,35 @@ type SessionResponse = {
   tenantId?: string;
   restaurantIds?: string[];
 };
+type SessionSurface = "customer" | "owner" | "admin";
 
 export function AuthSessionBridge() {
+  const pathname = usePathname();
   const setAuthUser = useAppStore((state) => state.setAuthUser);
+  const surface = surfaceForPath(pathname);
 
   useEffect(() => {
-    void hydrateCookieSession(setAuthUser);
+    void hydrateCookieSession(setAuthUser, surface);
 
-    if (!shouldUseFirebase()) return;
+    if (!shouldUseFirebase() || surface !== "customer") return;
 
     return subscribeToAuth(async (user) => {
       if (!user) {
         if (shouldEnableDevLogin()) return;
-        await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+        await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
         return;
       }
 
-      await syncAuthSession().catch(() => undefined);
-      await hydrateCookieSession(setAuthUser);
+      await syncAuthSession("customer").catch(() => undefined);
+      await hydrateCookieSession(setAuthUser, "customer");
     });
-  }, [setAuthUser]);
+  }, [setAuthUser, surface]);
 
   return null;
 }
 
-async function hydrateCookieSession(setAuthUser: (user: MockUser) => void) {
-  const response = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
+async function hydrateCookieSession(setAuthUser: (user: MockUser) => void, surface: SessionSurface) {
+  const response = await fetch(`/api/auth/session?surface=${surface}`, { cache: "no-store" }).catch(() => null);
   if (!response?.ok) return;
 
   const session = (await response.json().catch(() => null)) as SessionResponse | null;
@@ -58,6 +62,12 @@ async function hydrateCookieSession(setAuthUser: (user: MockUser) => void) {
     role: session.role,
     restaurantSlug: session.tenantId ?? session.restaurantIds?.[0] ?? DEFAULT_TENANT_ID,
   });
+}
+
+function surfaceForPath(pathname: string): SessionSurface {
+  if (pathname.startsWith("/admin")) return "admin";
+  if (pathname.startsWith("/owner") || pathname.startsWith("/pos") || pathname.startsWith("/portal")) return "owner";
+  return "customer";
 }
 
 function displayNameForSession(uid: string, role: UserRole) {

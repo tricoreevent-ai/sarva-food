@@ -37,7 +37,6 @@ import {
   signInCustomerWithEmail,
   signInOperationalWithEmail,
   signInWithGoogle,
-  signOutUser,
   signUpWithEmail,
   startEmailLinkLogin,
 } from "@/services/auth-service";
@@ -54,6 +53,7 @@ import type { UserRole } from "@/types/firebase";
 
 type AuthSurface = "customer-login" | "customer-signup" | "portal-login" | "admin-login";
 type CustomerMode = "sign-in" | "sign-up" | "forgot";
+type SessionSurface = "customer" | "owner" | "admin";
 
 const DEV_USERS: Array<MockUser & { email: string; password: string }> = [
   { id: "demo-customer", name: "Demo Customer", role: "customer", restaurantSlug: DEFAULT_TENANT_ID, email: "demo@sarva.test", password: "password123" },
@@ -196,12 +196,12 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   async function signInAsDevUser(devUser: (typeof DEV_USERS)[number]) {
     setIsSubmitting(true);
     try {
-      await signOutUser().catch(() => undefined);
-      await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+      const sessionSurface = surfaceForAuthSurface(surface);
+      await fetch(`/api/auth/session?surface=${sessionSurface}`, { method: "DELETE" }).catch(() => undefined);
       await fetch("/api/auth/test-session", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ uid: devUser.id, role: devUser.role }),
+        body: JSON.stringify({ uid: devUser.id, role: devUser.role, surface: sessionSurface }),
       }).catch(() => null);
       setAuthUser({
         id: devUser.id,
@@ -704,6 +704,12 @@ function authInputClass(dark: boolean) {
   return dark
     ? "border-white/10 bg-white/10 text-white placeholder:text-white/30 focus-visible:ring-emerald-400"
     : "bg-white";
+}
+
+function surfaceForAuthSurface(surface: AuthSurface): SessionSurface {
+  if (surface === "admin-login") return "admin";
+  if (surface === "portal-login") return "owner";
+  return "customer";
 }
 
 function getPasswordScore(password: string) {

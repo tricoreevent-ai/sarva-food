@@ -38,7 +38,7 @@ export function PublicHeader() {
   async function handleLogout() {
     setProfileOpen(false);
     await signOutUser().catch(() => undefined);
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+    await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
     clearCart();
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });

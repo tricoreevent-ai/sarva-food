@@ -41,6 +41,7 @@ const OPERATIONAL_ROLES: UserRole[] = [
   "delivery",
 ];
 const ADMIN_ROLES: UserRole[] = ["admin", "super_admin"];
+type SessionSurface = "customer" | "owner" | "admin";
 const GOOGLE_IDENTITY_SCRIPT_ID = "sarva-google-identity-services";
 let googleIdentityScriptPromise: Promise<void> | null = null;
 
@@ -85,7 +86,7 @@ export async function signInWithGoogle(role: UserRole = "customer") {
     return signInWithConfiguredGoogleClient(auth);
   });
   await ensureCustomerProfile(result.user, role);
-  await syncAuthSession();
+  await syncAuthSession(surfaceForAuthRole(role));
   return result.user;
 }
 
@@ -115,7 +116,7 @@ export async function signInWithEmail(
     throw new Error("This sign-in screen is not available for your account type.");
   }
 
-  await syncAuthSession();
+  await syncAuthSession(surfaceForAuthRole(nextProfile.role));
   return result.user;
 }
 
@@ -158,7 +159,7 @@ export async function completeEmailLinkLogin(role: UserRole = "customer") {
   const result = await signInWithEmailLink(auth, email, window.location.href);
   window.localStorage.removeItem("sarva-email-for-signin");
   await ensureCustomerProfile(result.user, role);
-  await syncAuthSession();
+  await syncAuthSession(surfaceForAuthRole(role));
   return result.user;
 }
 
@@ -178,7 +179,7 @@ export async function signUpWithEmail(
   if (role === "customer") {
     await sendEmailVerification(result.user);
   }
-  await syncAuthSession();
+  await syncAuthSession(surfaceForAuthRole(role));
   return result.user;
 }
 
@@ -197,7 +198,7 @@ export async function confirmPhoneLogin(
 ) {
   const result = await confirmation.confirm(code);
   await ensureCustomerProfile(result.user, role);
-  await syncAuthSession();
+  await syncAuthSession(surfaceForAuthRole(role));
   return result.user;
 }
 
@@ -236,14 +237,14 @@ export function isAdminRole(role: UserRole) {
   return ADMIN_ROLES.includes(role);
 }
 
-export async function syncAuthSession() {
+export async function syncAuthSession(surface: SessionSurface = "customer") {
   const idToken = await getCurrentIdToken();
   if (!idToken) return null;
 
   const response = await fetch("/api/auth/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ idToken, surface }),
   });
 
   if (!response.ok) {
@@ -256,6 +257,12 @@ export async function syncAuthSession() {
     tenantId?: string;
     branchIds?: string[];
   }>;
+}
+
+function surfaceForAuthRole(role: UserRole): SessionSurface {
+  if (ADMIN_ROLES.includes(role)) return "admin";
+  if (OPERATIONAL_ROLES.includes(role)) return "owner";
+  return "customer";
 }
 
 export async function ensureCustomerProfile(user: User, role: UserRole = "customer") {

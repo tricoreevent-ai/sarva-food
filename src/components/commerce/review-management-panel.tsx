@@ -26,7 +26,7 @@ export function ReviewManagementPanel({
   useEffect(() => {
     let active = true;
     fetch(`/api/public/reviews?restaurantId=${encodeURIComponent(restaurantId)}&scope=manage`, {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "x-sarva-surface": mode },
     })
       .then((response) => response.json())
       .then((payload: { data?: Review[]; error?: string }) => {
@@ -44,13 +44,13 @@ export function ReviewManagementPanel({
     return () => {
       active = false;
     };
-  }, [restaurantId]);
+  }, [mode, restaurantId]);
 
   async function updateReview(reviewId: string, payload: Record<string, unknown>) {
     setMessage("Updating review...");
     const response = await fetch("/api/public/reviews", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-sarva-surface": mode },
       body: JSON.stringify({ reviewId, ...payload }),
     });
     const result = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };

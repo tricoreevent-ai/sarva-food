@@ -129,7 +129,7 @@ export default function ProfilePage() {
   async function handleLogout() {
     setSigningOut(true);
     await signOutUser().catch(() => undefined);
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+    await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
     setSigningOut(false);
     router.replace("/login?next=/profile");

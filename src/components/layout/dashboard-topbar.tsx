@@ -38,7 +38,6 @@ import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTi
 import { playOperationalSound } from "@/lib/operational-sounds";
 import type { DemoOrder, NavItem, TableOrder } from "@/lib/types";
 import { cn, formatCurrency, getInitials } from "@/lib/utils";
-import { signOutUser } from "@/services/auth-service";
 
 type DashboardTopbarProps = {
   app: "owner" | "admin" | "delivery" | "studio" | "catering" | "pos";
@@ -224,8 +223,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   }
 
   async function handleLogout() {
-    await signOutUser().catch(() => undefined);
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+    await fetch(`/api/auth/session?surface=${app === "admin" ? "admin" : "owner"}`, { method: "DELETE" }).catch(() => undefined);
     router.push(app === "admin" ? "/admin/login" : "/owner/login");
   }
 
@@ -468,8 +466,7 @@ function AdminConsoleTopbar({ appName, navItems, homeHref }: DashboardTopbarProp
   }, [applications, debouncedQuery, restaurants]);
 
   async function handleLogout() {
-    await signOutUser().catch(() => undefined);
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+    await fetch("/api/auth/session?surface=admin", { method: "DELETE" }).catch(() => undefined);
     router.push("/admin/login");
   }
 

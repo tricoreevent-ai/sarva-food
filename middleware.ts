@@ -4,6 +4,11 @@ const ownerRoles = new Set(["owner", "manager", "cashier", "waiter", "chef", "ki
 const adminRoles = new Set(["admin", "super_admin"]);
 const protectedCustomerPrefixes = ["/account", "/profile", "/orders", "/wallet", "/addresses", "/favorites"];
 const publicSystemPrefixes = ["/api", "/_next", "/icons", "/images", "/favicon", "/manifest", "/sw.js"];
+const sessionCookies = {
+  admin: "sarva_admin_role",
+  owner: "sarva_owner_role",
+  customer: "sarva_customer_role",
+};
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -11,39 +16,29 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const role = request.cookies.get("sarva_role")?.value;
-  const isOwner = Boolean(role && ownerRoles.has(role));
-  const isAdmin = Boolean(role && adminRoles.has(role));
-  const isCustomer = role === "customer";
+  const adminRole = request.cookies.get(sessionCookies.admin)?.value;
+  const ownerRole = request.cookies.get(sessionCookies.owner)?.value;
+  const customerRole = request.cookies.get(sessionCookies.customer)?.value;
+  const isOwner = Boolean(ownerRole && ownerRoles.has(ownerRole));
+  const isAdmin = Boolean(adminRole && adminRoles.has(adminRole));
+  const isCustomer = customerRole === "customer";
 
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
     if (isAdmin) return NextResponse.next();
-    return redirectTo(request, isOwner ? "/owner" : `/admin/login?next=${encodeURIComponent(pathname)}`);
+    return redirectTo(request, `/admin/login?next=${encodeURIComponent(pathname)}`);
   }
 
   if ((pathname.startsWith("/owner") || pathname.startsWith("/pos")) && !pathname.startsWith("/owner/login")) {
     if (isOwner) return NextResponse.next();
-    if (isAdmin) return redirectTo(request, "/admin");
     return redirectTo(request, `/owner/login?next=${encodeURIComponent(pathname)}`);
   }
 
   if (protectedCustomerPrefixes.some((prefix) => pathname.startsWith(prefix))) {
     if (isCustomer) return NextResponse.next();
-    if (isOwner) return redirectTo(request, "/owner");
-    if (isAdmin) return redirectTo(request, "/admin");
     return redirectTo(request, `/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
-  if ((isOwner || isAdmin) && isCustomerSurface(pathname)) {
-    return redirectTo(request, isAdmin ? "/admin" : "/owner");
-  }
-
   return NextResponse.next();
-}
-
-function isCustomerSurface(pathname: string) {
-  if (pathname === "/" || pathname.startsWith("/restaurants") || pathname.startsWith("/restaurant/")) return true;
-  return ["/offers", "/schedule", "/cart", "/checkout", "/track-order", "/login", "/signup", "/forgot-password", "/terms", "/privacy", "/refund-policy", "/cancellation-policy", "/cookie-policy", "/delivery-policy", "/help", "/register-restaurant"].some((prefix) => pathname.startsWith(prefix));
 }
 
 function redirectTo(request: NextRequest, destination: string) {
