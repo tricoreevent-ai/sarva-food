@@ -17,6 +17,17 @@ This file is the project-visible source of truth for implementation progress. Up
 - [x] Admin, owner, and customer auth role helpers consolidated under `src/modules/shared/auth`.
 - [x] Old config/POS/auth import paths were removed from application code.
 - [x] Fresh dev smoke test passed after module structure cleanup: customer restaurants, admin login, owner login, and owner POS routing respond correctly.
+- [x] Owner login no longer shows a success toast after redirecting into the owner dashboard.
+- [x] Owner module header redesigned as a cleaner navigation bar: simple breadcrumbs, no branch selector, no online/status KPI pills, icon-only actions, Radix tooltips, quick actions, and profile icon-only menu.
+- [x] Owner profile menu closes on outside click, focus loss, and Escape.
+- [x] Owner settings saves use a centered animated success confirmation that remains visible for up to 30 seconds or until dismissed.
+- [x] Owner restaurant banner cards include a clear Delete action.
+- [x] Customer restaurant hero uses only configured owner banners when available, instead of appending unrelated fallback images.
+- [x] Owner profile API no longer writes the restaurant logo into customer carousel banners; the Cafe Al Arab UL Firestore record was repaired to exactly three banners.
+- [x] Added `npm run firebase:repair:banners -- <restaurant-slug>` for narrowly scoped restaurant banner cleanup.
+- [x] Restaurant ordering wizard is positioned after offers and filters; the redundant swipe instruction was removed.
+- [x] Restaurant menu cards use consistent full-height layout, bottom-aligned price/actions, two-line descriptions, and item-detail links from image, name, and More.
+- [x] Customer images skip known invalid seeded Cloudinary placeholders, and the development PWA prompt no longer intercepts browser install events.
 - [x] Admin and owner login routes bypass the lazy dashboard shell to avoid Next.js dev HMR router initialization errors during login.
 - [x] Customer, owner, and admin shells now load through independent `React.lazy()` + `Suspense` runtime boundaries.
 - [x] Customer, owner, and admin modules each have independent route/runtime error recovery so one module crash does not take down another module.

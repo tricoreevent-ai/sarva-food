@@ -329,7 +329,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       ) : (
         <div className="mx-auto grid w-full max-w-[1520px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[minmax(0,1fr)_390px]">
           <section className="min-w-0 space-y-5">
-            <StepIndicator current={step} onSelect={goTo} />
+            {step !== "menu" ? <StepIndicator current={step} onSelect={goTo} /> : null}
 
             {step === "menu" ? (
               <>
@@ -376,6 +376,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                     setQuery("");
                   }}
                 />
+                <StepIndicator current={step} onSelect={goTo} />
 
                 <div className="rounded-3xl border bg-white p-3 shadow-sm sm:p-4">
                   <div className="mb-4 flex items-end justify-between gap-3">
@@ -749,10 +750,7 @@ function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: stri
   if (!offers.length) return null;
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black">Offers for you</h2>
-        <span className="text-sm font-bold text-orange-600">Swipe to explore</span>
-      </div>
+      <h2 className="text-xl font-black">Offers for you</h2>
       <div className="customer-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
         {offers.slice(0, 8).map((offer, index) => (
           <button
@@ -918,34 +916,40 @@ function MenuCard({
   if (viewMode === "list") {
     return (
       <div className="flex gap-3 rounded-2xl border bg-white p-2 shadow-sm transition-transform duration-200">
-        <MenuImage item={item} className="size-20 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-1 font-black">{item.name}</p>
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} aria-label={`View ${item.name} details`}>
+          <MenuImage item={item} className="size-20 shrink-0" />
+        </Link>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-1 font-black hover:text-orange-600">{item.name}</Link>
           <p className="line-clamp-2 text-xs font-semibold text-muted-foreground">{item.description}</p>
-          <p className="mt-1 font-black">{formatCurrency(price)}</p>
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="mt-1 text-xs font-black text-orange-600 hover:text-orange-700">More</Link>
+          <p className="mt-auto pt-1 font-black">{formatCurrency(price)}</p>
         </div>
         <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
       </div>
     );
   }
   return (
-    <article className="group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative aspect-[1.18/1] overflow-hidden bg-orange-50">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block aspect-[1.18/1] overflow-hidden bg-orange-50" aria-label={`View ${item.name} details`}>
         <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="(max-width: 768px) 50vw, 260px" className="object-cover transition duration-300 group-hover:scale-105" />
         <span className={`absolute left-2 top-2 grid size-5 place-items-center rounded-md border bg-white ${item.isVeg ? "text-emerald-600" : "text-red-600"}`}>
           <span className="size-2 rounded-full bg-current" />
         </span>
         {item.isPopular ? <Badge className="absolute bottom-2 left-2 bg-yellow-400 text-slate-950">Bestseller</Badge> : null}
         {item.soldOut ? <div className="absolute inset-0 grid place-items-center bg-white/70 text-sm font-black">Unavailable</div> : null}
-      </div>
-      <div className="space-y-2 p-3">
-        <div className="min-h-[52px]">
+      </Link>
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div>
           <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-2 font-black hover:text-orange-600">
             {item.name}
           </Link>
-          <p className="line-clamp-2 text-xs font-semibold text-muted-foreground">{item.description}</p>
+          <p className="mt-1 line-clamp-2 min-h-8 text-xs font-semibold text-muted-foreground">{item.description}</p>
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="mt-1 inline-flex text-xs font-black text-orange-600 hover:text-orange-700">
+            More
+          </Link>
         </div>
-        <div className="flex items-center justify-between gap-2">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <span className="font-black">{formatCurrency(price)}</span>
           <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
         </div>
@@ -1622,12 +1626,15 @@ function unique(values: string[]) {
 
 function normalizeHeroImages(restaurant: Restaurant) {
   const seen = new Set<string>();
-  return [
+  const configuredBanners = [
     ...(restaurant.coverImages ?? []),
     restaurant.coverImage,
-    restaurant.image,
-    IMAGE_FALLBACKS.restaurant,
-  ]
+  ].filter((value): value is string => Boolean(value));
+  const images = configuredBanners.length
+    ? configuredBanners
+    : [restaurant.image || IMAGE_FALLBACKS.restaurant];
+
+  return images
     .filter((value): value is string => Boolean(value))
     .filter((value) => {
       if (seen.has(value)) return false;

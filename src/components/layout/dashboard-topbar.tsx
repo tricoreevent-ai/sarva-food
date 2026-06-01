@@ -2,17 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BarChart3,
   Bell,
   Building2,
-  ChefHat,
+  CircleHelp,
+  CreditCard,
   DatabaseZap,
-  Fullscreen,
+  Grid3X3,
   Headphones,
+  ImagePlus,
   LogOut,
   Menu,
+  MessageCircle,
   MessageSquareWarning,
+  Percent,
+  ReceiptText,
   Search,
   Settings2,
   ShieldAlert,
@@ -24,7 +30,6 @@ import {
   Volume2,
   VolumeX,
   WalletCards,
-  Wifi,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +38,7 @@ import { SidebarLinks } from "@/components/layout/dashboard-sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { playOperationalSound } from "@/lib/operational-sounds";
@@ -65,7 +71,6 @@ type NotificationItem = {
   createdAt?: string;
 };
 
-const terminalOrderStatuses = new Set(["delivered", "completed", "cancelled", "rejected", "billed"]);
 const notificationStorageKey = "sarva-owner-notification-ack";
 const soundMuteStorageKey = "sarva-owner-sound-muted";
 
@@ -80,7 +85,6 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
   const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
-  const branches = useAppStore((state) => state.branches);
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
@@ -95,16 +99,17 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
   const [browserOnline, setBrowserOnline] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
   const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(new Set());
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const productInitials = getInitials(productName);
   const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner";
-  const ownerEmail = authUser.id.includes("@") ? authUser.id : `${authUser.id}@sarva.test`;
-  const branchCount = branches.length;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -147,26 +152,27 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
     };
   }, []);
 
-  const activeOrders = useMemo(() => {
-    return [
-      ...orders.filter((order) => !terminalOrderStatuses.has(order.status)),
-      ...tableOrders.filter((order) => !terminalOrderStatuses.has(order.status)),
-    ];
-  }, [orders, tableOrders]);
+  useEffect(() => {
+    if (!profileOpen) return;
 
-  const kitchenStats = useMemo(() => {
-    const kitchenOrders = tableOrders.filter((order) => !terminalOrderStatuses.has(order.status));
-    return {
-      pending: kitchenOrders.filter((order) => order.status === "new").length,
-      preparing: kitchenOrders.filter((order) => order.status === "preparing" || order.status === "occupied").length,
-      ready: kitchenOrders.filter((order) => order.status === "ready").length,
-      total: kitchenOrders.length,
+    const closeWhenOutside = (event: Event) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
     };
-  }, [tableOrders]);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileOpen(false);
+    };
 
-  const activeWaiters = useMemo(() => {
-    return staffMembers.filter((member) => member.role === "waiter" && member.status === "active").length;
-  }, [staffMembers]);
+    document.addEventListener("pointerdown", closeWhenOutside);
+    document.addEventListener("focusin", closeWhenOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenOutside);
+      document.removeEventListener("focusin", closeWhenOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [profileOpen]);
 
   const notifications = useMemo(() => {
     return buildNotifications({
@@ -227,171 +233,291 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
     router.push(app === "admin" ? "/admin/login" : "/owner/login");
   }
 
-  function handleFullscreen() {
-    if (typeof document === "undefined") return;
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-      return;
-    }
-    void document.documentElement.requestFullscreen?.();
-  }
+  return (
+    <TooltipProvider delayDuration={150}>
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/94 shadow-sm backdrop-blur-xl">
+        <div className="flex min-h-16 w-full items-center gap-2 px-3 py-2 sm:px-5 2xl:px-8">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation">
+                <Menu className="size-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="rounded-r-3xl">
+              <SheetHeader>
+                <SheetTitle>{appName}</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <SidebarLinks items={navItems} />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200" aria-label="Go to dashboard overview">
+            <span className="food-gradient grid size-10 place-items-center rounded-xl text-sm font-black text-white shadow-lg">{productInitials}</span>
+            <span className="hidden min-w-24 sm:block">
+              <span className="block text-base font-black leading-5 text-slate-950">{productName}</span>
+            </span>
+          </Link>
+
+          <OwnerBreadcrumbs className="hidden max-w-72 shrink-0 lg:flex" />
+
+          <div className="hidden min-w-0 flex-1 items-center lg:flex">
+            <div className="relative min-w-72 flex-1 max-w-xl">
+              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-20 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                placeholder="Search orders, customers, menu items..."
+                aria-label="Global search"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-2 py-1 text-xs font-black text-slate-500">Ctrl / K</span>
+              <SearchResultsPanel results={searchResults} query={debouncedQuery} onNavigate={() => setQuery("")} />
+            </div>
+          </div>
+
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <HeaderIconButton className="lg:hidden" icon={Search} title="Search" description="Find orders, customers, tables, and menu items." onClick={() => setMobileSearchOpen(true)} />
+
+            <div className="relative">
+              <HeaderIconButton
+                icon={Bell}
+                title="Notifications"
+                description="View order alerts, kitchen updates, sync warnings, and operational requests."
+                onClick={() => {
+                  setNotificationsOpen((value) => !value);
+                  setQuickActionsOpen(false);
+                  acknowledgeNotifications();
+                }}
+              />
+              {unreadCount ? (
+                <span className="absolute -right-1 -top-1 grid size-5 animate-pulse place-items-center rounded-full bg-red-500 text-[10px] font-black text-white">{unreadCount}</span>
+              ) : null}
+              {notificationsOpen ? (
+                <NotificationPanel notifications={notifications} onClose={() => setNotificationsOpen(false)} />
+              ) : null}
+            </div>
+
+            <HeaderIconLink href="/owner/customers" icon={MessageCircle} title="Messages" description="Open customer records and support conversations." />
+            <HeaderIconLink href="/help" icon={CircleHelp} title="Help Center" description="Guides, FAQs, and support options for restaurant operations." />
+
+            <div className="relative">
+              <HeaderIconButton
+                icon={Grid3X3}
+                title="Quick Actions"
+                description="Open common shortcuts for POS, menu, banners, offers, employees, and reports."
+                onClick={() => {
+                  setQuickActionsOpen((value) => !value);
+                  setNotificationsOpen(false);
+                }}
+              />
+              {quickActionsOpen ? <QuickActionsPanel onClose={() => setQuickActionsOpen(false)} /> : null}
+            </div>
+
+            <HeaderIconButton
+              icon={soundMuted ? VolumeX : Volume2}
+              title={soundMuted ? "Operational sounds muted" : "Operational sounds on"}
+              description={soundMuted ? "Unmute kitchen and order alert sounds." : "Mute kitchen and order alert sounds."}
+              onClick={toggleMute}
+            />
+
+            <div ref={profileMenuRef} className="relative hidden sm:block">
+              <HeaderIconTooltip title="Account Menu" description="Open profile, plan, billing, settings, support, and sign-out options.">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen((value) => !value);
+                    setQuickActionsOpen(false);
+                    setNotificationsOpen(false);
+                  }}
+                  className="grid size-10 place-items-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
+                  aria-label="Open account menu"
+                >
+                  <span className="food-gradient grid size-8 place-items-center rounded-full text-xs font-black text-white">{getInitials(ownerName)}</span>
+                </button>
+              </HeaderIconTooltip>
+              {profileOpen ? <OwnerProfileMenu onClose={() => setProfileOpen(false)} onLogout={handleLogout} /> : null}
+            </div>
+
+            <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className="grid size-10 place-items-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 sm:hidden"
+                  aria-label="Open account menu"
+                >
+                  <span className="food-gradient grid size-8 place-items-center rounded-full text-xs font-black text-white">{getInitials(ownerName)}</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="max-h-[86vh] overflow-y-auto rounded-t-3xl border-slate-200 bg-white p-0">
+                <OwnerProfileSheet onClose={() => setProfileSheetOpen(false)} onLogout={handleLogout} />
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+
+        {mobileSearchOpen ? (
+          <div className="fixed inset-0 z-50 bg-white p-4 lg:hidden">
+            <div className="flex items-center gap-2">
+              <Search className="size-5 text-slate-400" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+                placeholder="Search orders, customers, menu items..."
+              />
+              <Button variant="ghost" size="icon" onClick={() => setMobileSearchOpen(false)} aria-label="Close search">
+                <X className="size-5" />
+              </Button>
+            </div>
+            <div className="mt-4">
+              <SearchResultsPanel results={searchResults} query={debouncedQuery} mobile onNavigate={() => setMobileSearchOpen(false)} />
+            </div>
+          </div>
+        ) : null}
+      </header>
+    </TooltipProvider>
+  );
+}
+
+function HeaderIconTooltip({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>
+        <p className="font-black">{title}</p>
+        <p className="mt-0.5 text-[11px] font-medium text-slate-200">{description}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function HeaderIconButton({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  className,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <HeaderIconTooltip title={title} description={description}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn("grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200", className)}
+        aria-label={title}
+      >
+        <Icon className="size-4" />
+      </button>
+    </HeaderIconTooltip>
+  );
+}
+
+function HeaderIconLink({ href, icon: Icon, title, description }: { href: string; icon: LucideIcon; title: string; description: string }) {
+  return (
+    <HeaderIconTooltip title={title} description={description}>
+      <Link
+        href={href}
+        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
+        aria-label={title}
+      >
+        <Icon className="size-4" />
+      </Link>
+    </HeaderIconTooltip>
+  );
+}
+
+function QuickActionsPanel({ onClose }: { onClose: () => void }) {
+  const actions = [
+    { href: "/owner/pos", icon: ReceiptText, title: "New Order", description: "Open POS billing and start an order." },
+    { href: "/owner/menu", icon: Utensils, title: "Add Menu Item", description: "Create or update food items." },
+    { href: "/owner/settings?tab=branding", icon: ImagePlus, title: "Add Banner", description: "Manage restaurant customer banners." },
+    { href: "/owner/offers", icon: Percent, title: "Create Offer", description: "Set coupons and customer promotions." },
+    { href: "/owner/employees", icon: Users, title: "Add Employee", description: "Invite staff and set role access." },
+    { href: "/owner/reports", icon: BarChart3, title: "Generate Report", description: "Open sales and operations reports." },
+  ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/94 shadow-sm backdrop-blur-xl">
-      <div className="flex min-h-16 w-full items-center gap-2 px-3 py-2 sm:px-5 2xl:px-8">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation">
-              <Menu className="size-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="rounded-r-3xl">
-            <SheetHeader>
-              <SheetTitle>{appName}</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6">
-              <SidebarLinks items={navItems} />
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200" aria-label="Go to dashboard overview">
-          <span className="food-gradient grid size-10 place-items-center rounded-xl text-sm font-black text-white shadow-lg">{productInitials}</span>
-          <span className="hidden min-w-24 sm:block">
-            <span className="block text-base font-black leading-5 text-slate-950">{productName}</span>
-            <span className="text-xs font-semibold text-slate-500">{appName}</span>
-          </span>
-        </Link>
-
-        <OwnerBreadcrumbs className="hidden max-w-60 shrink-0 lg:flex" />
-
-        <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
-          {branchCount > 1 ? (
-            <button className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800 shadow-sm" type="button" title="Branch selector">
-              <Table2 className="size-4 text-orange-600" />
-              {branches[0]?.name ?? "Main Branch"}
-            </button>
-          ) : null}
-
-          <div className="relative min-w-80 flex-1 max-w-xl">
-            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-20 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
-              placeholder="Search orders, customers, tables, menu items..."
-              aria-label="Global search"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-2 py-1 text-xs font-black text-slate-500">Ctrl / K</span>
-            <SearchResultsPanel results={searchResults} query={debouncedQuery} onNavigate={() => setQuery("")} />
-          </div>
-        </div>
-
-        <div className="ml-auto hidden items-center gap-2 xl:flex">
-          <StatusPill icon={Wifi} label={browserOnline ? "Online" : "Offline"} value={browserOnline ? "Live" : "Retrying"} tone={browserOnline ? "green" : "red"} />
-          <StatusPill icon={ShoppingBag} label="Active Orders" value={String(activeOrders.length)} tone="orange" />
-          <StatusPill icon={ChefHat} label="Kitchen Queue" value={String(kitchenStats.total)} tone="blue" />
-          <StatusPill icon={Users} label="Waiters Active" value={String(activeWaiters)} tone="green" />
-        </div>
-
-        <div className="ml-auto flex shrink-0 items-center gap-2 xl:ml-0">
-          <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setMobileSearchOpen(true)} title="Search" aria-label="Open search">
-            <Search className="size-4" />
-          </Button>
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                setNotificationsOpen((value) => !value);
-                acknowledgeNotifications();
-              }}
-              title="Open notifications"
-              aria-label="Open notifications"
-            >
-              <Bell className="size-4" />
-            </Button>
-            {unreadCount ? (
-              <span className="absolute -right-1 -top-1 grid size-5 animate-pulse place-items-center rounded-full bg-red-500 text-[10px] font-black text-white">{unreadCount}</span>
-            ) : null}
-            {notificationsOpen ? (
-              <NotificationPanel notifications={notifications} onClose={() => setNotificationsOpen(false)} />
-            ) : null}
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleMute}
-            title={soundMuted ? "Unmute operational sounds" : "Mute operational sounds"}
-            aria-label={soundMuted ? "Unmute operational sounds" : "Mute operational sounds"}
-          >
-            {soundMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-          </Button>
-          <Button variant="outline" size="icon" className="hidden sm:inline-flex" onClick={handleFullscreen} title="Toggle fullscreen" aria-label="Toggle fullscreen">
-            <Fullscreen className="size-4" />
-          </Button>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setProfileOpen((value) => !value)}
-              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 sm:px-3"
-              aria-label="Open profile menu"
-            >
-              <span className="food-gradient grid size-8 place-items-center rounded-full text-xs font-black text-white">{getInitials(ownerName)}</span>
-              <span className="hidden text-left md:block">
-                <span className="block max-w-32 truncate text-sm font-black text-slate-950">{ownerName}</span>
-                <span className="text-xs font-semibold text-slate-500">{authUser.role}</span>
+    <div className="absolute right-0 top-14 z-50 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+      <div className="px-3 py-2">
+        <p className="font-black text-slate-950">Quick Actions</p>
+        <p className="text-xs font-semibold text-slate-500">Common restaurant shortcuts</p>
+      </div>
+      <div className="grid gap-1">
+        {actions.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} onClick={onClose} className="flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-orange-50">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600">
+                <Icon className="size-4" />
               </span>
-            </button>
-            {profileOpen ? (
-              <div className="absolute right-0 top-14 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                <div className="flex items-center gap-3 border-b border-slate-100 p-4">
-                  <span className="food-gradient grid size-12 place-items-center rounded-full text-sm font-black text-white">{getInitials(ownerName)}</span>
-                  <div className="min-w-0">
-                    <p className="truncate font-black text-slate-950">{ownerName}</p>
-                    <p className="truncate text-sm text-slate-500">{ownerEmail}</p>
-                  </div>
-                </div>
-                <ProfileLink href={app === "admin" ? "/admin/settings" : "/owner/settings?tab=profile"} icon={UserRound} label="Profile" onClick={() => setProfileOpen(false)} />
-                <ProfileLink href={app === "admin" ? "/admin/settings" : "/owner/settings"} icon={Settings2} label="Settings" onClick={() => setProfileOpen(false)} />
-                <button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-4 text-left text-sm font-black text-red-600 hover:bg-red-50">
-                  <LogOut className="size-4" />
-                  Logout
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-slate-950">{item.title}</span>
+                <span className="block truncate text-xs font-semibold text-slate-500">{item.description}</span>
+              </span>
+            </Link>
+          );
+        })}
       </div>
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-4 border-t border-slate-100 xl:hidden">
-        <MobileMetric label="Orders" value={activeOrders.length} />
-        <MobileMetric label="Kitchen" value={kitchenStats.total} />
-        <MobileMetric label="Waiters" value={activeWaiters} />
-        <MobileMetric label={browserOnline ? "Online" : "Offline"} value={browserOnline ? "Live" : "Retry"} />
+function OwnerProfileMenu({ onClose, onLogout }: { onClose: () => void; onLogout: () => void | Promise<void> }) {
+  return (
+    <div className="absolute right-0 top-14 z-50 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <OwnerProfileMenuContent onClose={onClose} onLogout={onLogout} />
+    </div>
+  );
+}
+
+function OwnerProfileSheet({ onClose, onLogout }: { onClose: () => void; onLogout: () => void | Promise<void> }) {
+  return (
+    <div>
+      <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-200" />
+      <SheetHeader className="border-b border-slate-100 px-5 py-4 text-center">
+        <SheetTitle className="text-sm font-black text-slate-950">Account Menu</SheetTitle>
+      </SheetHeader>
+      <OwnerProfileMenuContent onClose={onClose} onLogout={onLogout} />
+    </div>
+  );
+}
+
+function OwnerProfileMenuContent({ onClose, onLogout }: { onClose: () => void; onLogout: () => void | Promise<void> }) {
+  return (
+    <div>
+      <div className="border-b border-slate-100 p-4">
+        <p className="font-black text-slate-950">Profile</p>
+        <p className="mt-0.5 text-sm font-semibold text-slate-500">Manage your account</p>
       </div>
-
-      {mobileSearchOpen ? (
-        <div className="fixed inset-0 z-50 bg-white p-4 lg:hidden">
-          <div className="flex items-center gap-2">
-            <Search className="size-5 text-slate-400" />
-            <input
-              autoFocus
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
-              placeholder="Search orders, tables, customers..."
-            />
-            <Button variant="ghost" size="icon" onClick={() => setMobileSearchOpen(false)} aria-label="Close search">
-              <X className="size-5" />
-            </Button>
-          </div>
-          <div className="mt-4">
-            <SearchResultsPanel results={searchResults} query={debouncedQuery} mobile onNavigate={() => setMobileSearchOpen(false)} />
-          </div>
-        </div>
-      ) : null}
-    </header>
+      <ProfileLink href="/owner/settings?tab=profile" icon={UserRound} label="Profile" description="View and manage your account" onClick={onClose} />
+      <ProfileLink href="/owner/settings?tab=payments" icon={WalletCards} label="My Plan" description="View subscription plan" onClick={onClose} />
+      <ProfileLink href="/owner/settings" icon={Settings2} label="Settings" description="Restaurant preferences" onClick={onClose} />
+      <ProfileLink href="/owner/accounting" icon={CreditCard} label="Billing" description="Invoices and payments" onClick={onClose} />
+      <ProfileLink href="/help" icon={Headphones} label="Help & Support" description="Support center" onClick={onClose} />
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          void onLogout();
+        }}
+        className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-4 text-left text-sm font-black text-red-600 transition hover:bg-red-50"
+      >
+        <LogOut className="size-4" />
+        <span>
+          <span className="block">Logout</span>
+          <span className="block text-xs font-semibold text-red-400">Sign out of your account</span>
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -650,35 +776,14 @@ function buildAdminAlerts(input: {
   ];
 }
 
-function StatusPill({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: string; tone: "green" | "orange" | "blue" | "red" }) {
+function ProfileLink({ href, icon: Icon, label, description, onClick }: { href: string; icon: LucideIcon; label: string; description?: string; onClick: () => void }) {
   return (
-    <span className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm" title={`${label}: ${value}`}>
-      <span className={cn("relative grid size-7 place-items-center rounded-full", toneClass[tone].bg, toneClass[tone].text)}>
-        {label === "Online" ? <span className="absolute inset-0 rounded-full bg-emerald-300/40 animate-ping" /> : null}
-        <Icon className="size-4" />
-      </span>
+    <Link href={href} onClick={onClick} className="flex items-center gap-3 px-4 py-4 text-sm font-black text-slate-800 transition hover:bg-slate-50">
+      <Icon className="size-4 shrink-0" />
       <span>
-        <span className="block text-[10px] font-bold leading-3 text-slate-500">{label}</span>
-        <span className="block text-xs font-black text-slate-950">{value}</span>
+        <span className="block">{label}</span>
+        {description ? <span className="block text-xs font-semibold text-slate-500">{description}</span> : null}
       </span>
-    </span>
-  );
-}
-
-function MobileMetric({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="border-r border-slate-100 px-3 py-2 text-center last:border-r-0">
-      <p className="text-[11px] font-bold text-slate-500">{label}</p>
-      <p className="font-black text-slate-950">{value}</p>
-    </div>
-  );
-}
-
-function ProfileLink({ href, icon: Icon, label, onClick }: { href: string; icon: LucideIcon; label: string; onClick: () => void }) {
-  return (
-    <Link href={href} onClick={onClick} className="flex items-center gap-3 px-4 py-4 text-sm font-black text-slate-800 hover:bg-slate-50">
-      <Icon className="size-4" />
-      {label}
     </Link>
   );
 }

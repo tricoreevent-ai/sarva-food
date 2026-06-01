@@ -21,10 +21,9 @@ export function InstallPrompt() {
     }, 0);
 
     const handlePrompt = (event: Event) => {
+      if (process.env.NODE_ENV !== "production" || window.localStorage.getItem("sarva-install-dismissed") === "true") return;
       event.preventDefault();
-      if (window.localStorage.getItem("sarva-install-dismissed") !== "true") {
-        setPromptEvent(event as BeforeInstallPromptEvent);
-      }
+      setPromptEvent(event as BeforeInstallPromptEvent);
     };
 
     window.addEventListener("beforeinstallprompt", handlePrompt);

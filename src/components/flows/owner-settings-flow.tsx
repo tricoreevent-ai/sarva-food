@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { Activity, BellRing, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Trash2, X, type LucideIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -141,6 +142,8 @@ export function OwnerSettingsFlow() {
     deliveryRadiusLimit: 7,
     staffingRequired: true,
   });
+  const [successNotice, setSuccessNotice] = useState("");
+  const dismissSuccessNotice = useCallback(() => setSuccessNotice(""), []);
 
   useEffect(() => {
     window.localStorage.setItem(soundStorageKey, JSON.stringify(soundPrefs));
@@ -205,7 +208,7 @@ export function OwnerSettingsFlow() {
       defaultGstRate: charges.packagingGst === 18 ? 18 : 5,
     };
     await updateTaxSettings(nextSettings);
-    toast.success("Charges saved for POS billing.");
+    setSuccessNotice("Charges saved for POS billing.");
   }
 
   async function saveProfile() {
@@ -278,7 +281,7 @@ export function OwnerSettingsFlow() {
         completed,
       });
       setAuthUser({ ...authUser, name: profileDraft.ownerName.trim() || authUser.name });
-      toast.success(completed ? "Owner profile saved." : "Draft saved. Complete the missing fields when ready.");
+      setSuccessNotice(completed ? "Restaurant settings saved successfully." : "Draft saved. Complete the missing fields when ready.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Owner profile could not be saved.");
     }
@@ -343,6 +346,7 @@ export function OwnerSettingsFlow() {
 
   return (
     <div className="space-y-6">
+      <CenteredSuccessNotice message={successNotice} onClose={dismissSuccessNotice} />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-foreground">Settings</h1>
@@ -635,6 +639,59 @@ export function OwnerSettingsFlow() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function CenteredSuccessNotice({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(onClose, 30000);
+    return () => window.clearTimeout(timeout);
+  }, [message, onClose]);
+
+  return (
+    <AnimatePresence>
+      {message ? (
+        <motion.div
+          className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/20 px-4 backdrop-blur-[2px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="status"
+          aria-live="polite"
+        >
+          <motion.div
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-emerald-200 bg-white p-6 text-center shadow-2xl"
+            initial={{ opacity: 0, scale: 0.88, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: -24, rotate: -1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 24 }}
+          >
+            <button
+              type="button"
+              className="absolute right-3 top-3 grid size-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              onClick={onClose}
+              aria-label="Close success message"
+            >
+              <X className="size-4" />
+            </button>
+            <motion.span
+              className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-100 text-emerald-700"
+              initial={{ scale: 0.4, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.08, type: "spring", stiffness: 360, damping: 18 }}
+            >
+              <CheckCircle2 className="size-11" />
+            </motion.span>
+            <p className="mt-5 text-xl font-black text-slate-950">Saved successfully</p>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{message}</p>
+            <Button className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700" onClick={onClose}>
+              Done
+            </Button>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -943,8 +1000,16 @@ function BannerManager({
                 <Button type="button" size="sm" variant={primary === image ? "secondary" : "outline"} onClick={() => onPrimary(image)}>
                   {primary === image ? "Primary" : "Set primary"}
                 </Button>
-                <Button type="button" size="icon-sm" variant="ghost" aria-label={`Remove banner ${index + 1}`} onClick={() => onChange(normalizedImages.filter((item) => item !== image))}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  aria-label={`Delete banner ${index + 1}`}
+                  onClick={() => onChange(normalizedImages.filter((item) => item !== image))}
+                >
                   <Trash2 className="size-4" />
+                  Delete
                 </Button>
               </div>
             </div>

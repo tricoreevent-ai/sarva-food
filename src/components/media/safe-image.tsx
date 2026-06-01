@@ -45,8 +45,16 @@ function normalizeImageSrc(src: SafeImageProps["src"], fallbackSrc: string): Ima
 
   try {
     const url = new URL(src);
-    return ["https:", "http:", "blob:", "data:"].includes(url.protocol) ? src : fallbackSrc;
+    if (!["https:", "http:", "blob:", "data:"].includes(url.protocol)) return fallbackSrc;
+    if (isKnownMissingSeedCloudinaryAsset(url)) return fallbackSrc;
+    return src;
   } catch {
     return fallbackSrc;
   }
+}
+
+function isKnownMissingSeedCloudinaryAsset(url: URL) {
+  return url.hostname === "res.cloudinary.com"
+    && url.pathname.startsWith("/demo/image/upload/")
+    && url.pathname.includes("/sarva/");
 }

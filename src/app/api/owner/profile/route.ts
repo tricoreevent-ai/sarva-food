@@ -38,12 +38,13 @@ export async function POST(request: NextRequest) {
   const tenantId = resolveTenantId(restaurantId);
   const branchId = body.branch.id || session.branchIds[0] || DEFAULT_BRANCH_ID;
   const profileComplete = isPublicProfileComplete(body.profile);
-  const coverImagePaths = [
+  const configuredCoverImagePaths = [
     ...(body.profile.coverImages ?? []),
     body.profile.coverImage,
-    body.profile.logo,
-    body.restaurant.image,
   ].filter((value): value is string => Boolean(value));
+  const coverImagePaths = configuredCoverImagePaths.length
+    ? configuredCoverImagePaths
+    : [body.restaurant.image, body.profile.logo].filter((value): value is string => Boolean(value));
   const restaurantPayload = sanitize({
     ...body.restaurant,
     id: restaurantId,

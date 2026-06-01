@@ -790,7 +790,7 @@ const cafeAlArabHours = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
 const cafeAlArabOwnerProfile: OwnerBusinessProfile = {
   ownerName: "Test Owner",
   hotelName: "Cafe Al Arab UL",
-  logo: "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1690000000/sarva/cafe-al-arab-logo.png",
+  logo: "/icons/sarva-icon.svg",
   coverImage: cafeAlArabCoverImages[0],
   coverImages: cafeAlArabCoverImages,
   businessAddress: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",

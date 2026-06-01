@@ -209,7 +209,9 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
         role: devUser.role,
         restaurantSlug: devUser.restaurantSlug,
       });
-      toastManager.successOnce(`login-success-${devUser.id}`, `Signed in as ${devUser.name}.`);
+      if (surface !== "portal-login") {
+        toastManager.successOnce(`login-success-${devUser.id}`, `Signed in as ${devUser.name}.`);
+      }
       await finish();
     } finally {
       setIsSubmitting(false);
@@ -273,7 +275,9 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
             : await signInOperationalWithEmail(email.trim(), password);
         await syncStoreUser(user.uid);
       }
-      toastManager.successOnce(`login-success-${email.trim().toLowerCase()}`, "Signed in.");
+      if (surface !== "portal-login") {
+        toastManager.successOnce(`login-success-${email.trim().toLowerCase()}`, "Signed in.");
+      }
       await finish();
     } catch (error) {
       const text = friendlyAuthMessage(error);

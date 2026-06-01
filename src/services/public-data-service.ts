@@ -377,6 +377,10 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     instagramHandle?: string;
   };
   const etaMinutes = typeof extra.etaMinutes === "number" ? extra.etaMinutes : undefined;
+  const coverImagePaths = Array.from(new Set(
+    (doc.coverImagePaths ?? [doc.coverImagePath || doc.imagePath || ""])
+      .filter((value): value is string => Boolean(value) && value !== doc.logoPath),
+  ));
   return {
     id: doc.id,
     tenantId: doc.tenantId,
@@ -393,7 +397,7 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     image: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || FALLBACK_IMAGE),
     logo: withCloudinaryAuto(doc.logoPath || ""),
     coverImage: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || ""),
-    coverImages: (doc.coverImagePaths ?? [doc.coverImagePath || doc.imagePath || ""]).map(withCloudinaryAuto).filter(Boolean),
+    coverImages: coverImagePaths.map(withCloudinaryAuto).filter(Boolean),
     isOpen: doc.active,
     tags: extra.tags?.length ? extra.tags : (doc.deliveryRadiusKm ? [`${doc.deliveryRadiusKm} km delivery`] : []),
     instagramHandle: extra.instagramHandle ?? "",
