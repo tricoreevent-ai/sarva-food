@@ -1,6 +1,7 @@
 "use client";
 
 import { lazy, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { ModuleRuntimeBoundary, type ModuleSurface } from "@/components/runtime/module-runtime-boundary";
 import type { DashboardApp } from "@/components/layout/dashboard-shell-client";
 
@@ -18,6 +19,15 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   const surface = surfaceForDashboardApp(app);
+  const pathname = usePathname();
+
+  if ((app === "admin" && pathname === "/admin/login") || (app === "owner" && pathname === "/owner/login")) {
+    return (
+      <ModuleRuntimeBoundary module={surface}>
+        {children}
+      </ModuleRuntimeBoundary>
+    );
+  }
 
   return (
     <ModuleRuntimeBoundary module={surface}>

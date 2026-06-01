@@ -11,6 +11,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Admin and owner login routes bypass the lazy dashboard shell to avoid Next.js dev HMR router initialization errors during login.
 - [x] Customer, owner, and admin shells now load through independent `React.lazy()` + `Suspense` runtime boundaries.
 - [x] Customer, owner, and admin modules each have independent route/runtime error recovery so one module crash does not take down another module.
 - [x] Module retry and scoped auth hydration updates use `useTransition()` to keep the interface responsive during recovery/session updates.
