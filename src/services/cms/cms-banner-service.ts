@@ -1,4 +1,4 @@
-import { CMS_IMAGE_PRESETS } from "@/config/environment/cms.config";
+import { CMS_IMAGE_PRESETS } from "@/modules/shared/config/environment/cms.config";
 import type { CmsBanner } from "@/lib/types";
 
 export type CmsImagePreset = keyof typeof CMS_IMAGE_PRESETS;
@@ -37,4 +37,3 @@ export function getVisibleCmsBanners(items: CmsBanner[] = []) {
     })
     .sort((first, second) => first.sortOrder - second.sortOrder);
 }
-

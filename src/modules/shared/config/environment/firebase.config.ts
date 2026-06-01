@@ -1,4 +1,4 @@
-import { getClientEnvironmentConfig } from "@/config/environment/env.client";
+import { getClientEnvironmentConfig } from "@/modules/shared/config/environment/env.client";
 
 export function getFirebaseClientConfigSummary() {
   const env = getClientEnvironmentConfig();
@@ -11,4 +11,3 @@ export function getFirebaseClientConfigSummary() {
     useEmulators: env.useEmulators,
   };
 }
-

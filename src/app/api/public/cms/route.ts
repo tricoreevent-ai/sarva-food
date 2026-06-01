@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { CMS_COLLECTIONS } from "@/config/environment/cms.config";
+import { CMS_COLLECTIONS } from "@/modules/shared/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { notifyPublicDatabaseFailure, rememberPublicOutageAlertConfig } from "@/lib/server/public-outage-alert";

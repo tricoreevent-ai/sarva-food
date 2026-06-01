@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CMS_COLLECTIONS, CMS_VERSION, REQUIRED_CMS_FIELDS } from "@/config/environment/cms.config";
-import { getServerEnvironmentConfig } from "@/config/environment/env.server";
+import { CMS_COLLECTIONS, CMS_VERSION, REQUIRED_CMS_FIELDS } from "@/modules/shared/config/environment/cms.config";
+import { getServerEnvironmentConfig } from "@/modules/shared/config/environment/env.server";
 import { adminDb } from "@/firebase/admin";
 import { getSessionFromRequest } from "@/lib/server-auth";
 

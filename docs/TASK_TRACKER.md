@@ -11,6 +11,12 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] POS UI files moved from `src/components/pos` into `src/modules/owner/pos/components` with imports updated.
+- [x] POS store selector source moved under `src/modules/owner/pos/pos-store.ts`; the generic store barrel now re-exports the owner POS source.
+- [x] Admin, owner, customer, and environment config files consolidated under `src/modules/shared/config`.
+- [x] Admin, owner, and customer auth role helpers consolidated under `src/modules/shared/auth`.
+- [x] Old config/POS/auth import paths were removed from application code.
+- [x] Fresh dev smoke test passed after module structure cleanup: customer restaurants, admin login, owner login, and owner POS routing respond correctly.
 - [x] Admin and owner login routes bypass the lazy dashboard shell to avoid Next.js dev HMR router initialization errors during login.
 - [x] Customer, owner, and admin shells now load through independent `React.lazy()` + `Suspense` runtime boundaries.
 - [x] Customer, owner, and admin modules each have independent route/runtime error recovery so one module crash does not take down another module.

@@ -1,4 +1,4 @@
-import { CMS_VERSION } from "@/config/environment/cms.config";
+import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import type { CmsSettings } from "@/lib/types";
 import { getVisibleCmsBanners, normalizeCmsBanner } from "@/services/cms/cms-banner-service";

@@ -1,7 +1,7 @@
 import "server-only";
 
 import nodemailer, { type TransportOptions } from "nodemailer";
-import { CMS_COLLECTIONS } from "@/config/environment/cms.config";
+import { CMS_COLLECTIONS } from "@/modules/shared/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
 import type { CmsSettings } from "@/lib/types";
 

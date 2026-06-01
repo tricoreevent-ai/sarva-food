@@ -1,5 +1,5 @@
 import type { CmsSettings } from "@/lib/types";
-import { CMS_VERSION } from "@/config/environment/cms.config";
+import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 
 export const RESPONSIBILITY_DISCLAIMER =
   "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.";

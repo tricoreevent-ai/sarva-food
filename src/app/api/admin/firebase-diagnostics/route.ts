@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { adminAuth, adminDb, adminStorage } from "@/firebase/admin";
-import { getServerEnvironmentConfig } from "@/config/environment/env.server";
+import { getServerEnvironmentConfig } from "@/modules/shared/config/environment/env.server";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { DEFAULT_BRANCH_ID, DEFAULT_TENANT_ID } from "@/lib/tenant";
 import {

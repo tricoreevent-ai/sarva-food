@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Banknote, CheckCircle2, ChefHat, CreditCard, PauseCircle, Printer, ReceiptText, RotateCcw, Save, Send, Sparkles, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CartItem } from "@/components/pos/cart-item";
-import { OrderSummary } from "@/components/pos/order-summary";
+import { CartItem } from "@/modules/owner/pos/components/cart-item";
+import { OrderSummary } from "@/modules/owner/pos/components/order-summary";
 import type { PaymentOption, PosBill, PosOrderType } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 

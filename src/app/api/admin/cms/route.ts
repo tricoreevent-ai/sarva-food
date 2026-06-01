@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
-import { CMS_COLLECTIONS, CMS_VERSION } from "@/config/environment/cms.config";
+import { CMS_COLLECTIONS, CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { getSessionFromRequest } from "@/lib/server-auth";
