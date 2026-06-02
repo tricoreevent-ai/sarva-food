@@ -72,6 +72,82 @@ const themeInitScript = `
 })();
 `;
 
+const chunkRecoveryScript = `
+(function() {
+  var key = "sarva-chunk-recovery";
+  function textFrom(value) {
+    try {
+      if (!value) return "";
+      if (typeof value === "string") return value;
+      if (value.message) return String(value.message);
+      return String(value);
+    } catch (error) {
+      return "";
+    }
+  }
+  function isChunkFailure(value) {
+    var text = textFrom(value);
+    return /ChunkLoadError|Loading chunk|Failed to load chunk|_next\\/static\\/chunks/i.test(text);
+  }
+  function recover() {
+    try {
+      if (window.sessionStorage.getItem(key)) return;
+      window.sessionStorage.setItem(key, String(Date.now()));
+    } catch (error) {
+      return;
+    }
+    window.location.reload();
+  }
+  window.addEventListener("error", function(event) {
+    if (isChunkFailure(event.error || event.message)) recover();
+  }, true);
+  window.addEventListener("unhandledrejection", function(event) {
+    if (isChunkFailure(event.reason)) recover();
+  });
+  window.addEventListener("load", function() {
+    window.setTimeout(function() {
+      try {
+        window.sessionStorage.removeItem(key);
+      } catch (error) {}
+    }, 2000);
+  });
+})();
+`;
+
+const devServiceWorkerResetScript = `
+(function() {
+  try {
+    var host = window.location.hostname;
+    var isLocalHost = host === "localhost" || host === "127.0.0.1" || /^10\\.|^172\\.(1[6-9]|2\\d|3[01])\\.|^192\\.168\\./.test(host);
+    if (!isLocalHost || window.location.protocol === "https:" || !("serviceWorker" in navigator)) return;
+    var reloadKey = "sarva-dev-sw-reset";
+    var hadController = !!navigator.serviceWorker.controller;
+    var clearCaches = "caches" in window
+      ? caches.keys().then(function(keys) {
+          return Promise.all(keys.filter(function(key) {
+            return key.indexOf("sarva-") === 0;
+          }).map(function(key) {
+            return caches.delete(key);
+          }));
+        })
+      : Promise.resolve();
+    var unregister = navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      return Promise.all(registrations.map(function(registration) {
+        return registration.unregister();
+      }));
+    });
+    Promise.all([clearCaches, unregister]).then(function() {
+      if (hadController && !window.sessionStorage.getItem(reloadKey)) {
+        window.sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        return;
+      }
+      window.sessionStorage.removeItem(reloadKey);
+    }).catch(function() {});
+  } catch (error) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -81,6 +157,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <Script id="sarva-theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <Script id="sarva-chunk-recovery" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: chunkRecoveryScript }} />
+        {process.env.NODE_ENV !== "production" ? (
+          <Script id="sarva-dev-sw-reset" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: devServiceWorkerResetScript }} />
+        ) : null}
         <ThemeProvider>
           <I18nProvider>
             <MapboxProvider>

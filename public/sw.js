@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sarva-v9-20260526";
+const CACHE_VERSION = "sarva-v10-20260602";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const MENU_CACHE = `${CACHE_VERSION}-menus`;
@@ -63,6 +63,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  if (url.pathname.startsWith("/_next/") || isNextRouterDataRequest(request, url)) {
+    return;
+  }
+
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request));
     return;
@@ -83,7 +87,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || url.pathname === "/manifest.json") {
+  if (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.json") {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
   }
 });
@@ -150,7 +154,24 @@ async function networkOnlyWithOptionalQueue(request) {
 }
 
 function canCache(response) {
-  return response && response.ok && (response.type === "basic" || response.type === "default");
+  if (!response || !response.ok || (response.type !== "basic" && response.type !== "default")) {
+    return false;
+  }
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("text/x-component")) {
+    return false;
+  }
+  return true;
+}
+
+function isNextRouterDataRequest(request, url) {
+  return (
+    url.searchParams.has("_rsc") ||
+    request.headers.get("rsc") === "1" ||
+    request.headers.has("next-router-state-tree") ||
+    request.headers.has("next-router-prefetch") ||
+    request.headers.has("next-url")
+  );
 }
 
 async function notifyClients(type) {

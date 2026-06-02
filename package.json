@@ -7,8 +7,8 @@
     "npm": ">=10"
   },
   "scripts": {
-    "dev": "next dev --webpack --hostname 0.0.0.0 --port 3000",
-    "dev:lan": "node scripts/show-lan-ip.mjs && next dev --webpack --hostname 0.0.0.0 --port 3000",
+    "dev": "node scripts/clean-next-dev-cache.mjs && next dev --webpack --hostname 0.0.0.0 --port 3000",
+    "dev:lan": "node scripts/show-lan-ip.mjs && node scripts/clean-next-dev-cache.mjs && next dev --webpack --hostname 0.0.0.0 --port 3000",
     "dev:cert": "node scripts/generate-dev-cert.mjs",
     "dev:lan:https": "node scripts/generate-dev-cert.mjs && node scripts/https-dev-server.mjs",
     "dev:lan:https:proxy": "node scripts/generate-dev-cert.mjs && node scripts/https-dev-server.mjs --existing",

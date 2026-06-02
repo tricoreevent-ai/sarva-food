@@ -60,6 +60,14 @@ const nextConfig: NextConfig = {
 
     return [
       {
+        source: "/admin/:path*",
+        headers: [
+          ...securityHeaders,
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+          { key: "Vary", value: "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: securityHeaders,
       },
