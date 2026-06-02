@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  KeyRound,
   Mail,
   Moon,
   ShieldCheck,
@@ -24,10 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
-import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
+import { shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { toastManager } from "@/lib/toast-manager";
-import type { MockUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   completeEmailLinkLogin,
@@ -49,35 +47,9 @@ import {
   signInWithStackGoogle,
   signUpWithStackEmail,
 } from "@/services/auth/stack-auth-client";
-import type { UserRole } from "@/types/firebase";
 
 type AuthSurface = "customer-login" | "customer-signup" | "portal-login" | "admin-login";
 type CustomerMode = "sign-in" | "sign-up" | "forgot";
-type SessionSurface = "customer" | "owner" | "admin";
-
-const DEV_USERS: Array<MockUser & { email: string; password: string }> = [
-  { id: "demo-customer", name: "Demo Customer", role: "customer", restaurantSlug: DEFAULT_TENANT_ID, email: "demo@sarva.test", password: "password123" },
-  { id: "divakdi@gmail.com", name: "Test Owner", role: "owner", restaurantSlug: DEFAULT_TENANT_ID, email: "divakdi@gmail.com", password: "password123" },
-  { id: "test-manager", name: "Test Manager", role: "manager", restaurantSlug: DEFAULT_TENANT_ID, email: "manager@sarva.test", password: "password123" },
-  { id: "test-cashier", name: "Test Cashier", role: "cashier", restaurantSlug: DEFAULT_TENANT_ID, email: "cashier@sarva.test", password: "password123" },
-  { id: "test-chef", name: "Test Chef", role: "chef", restaurantSlug: DEFAULT_TENANT_ID, email: "chef@sarva.test", password: "password123" },
-  { id: "test-waiter", name: "Test Waiter", role: "waiter", restaurantSlug: DEFAULT_TENANT_ID, email: "waiter@sarva.test", password: "password123" },
-  { id: "test-delivery", name: "Test Delivery Partner", role: "delivery-staff", restaurantSlug: DEFAULT_TENANT_ID, email: "delivery@sarva.test", password: "password123" },
-  { id: "dinucd@gmail.com", name: "Platform Admin", role: "admin", restaurantSlug: DEFAULT_TENANT_ID, email: "dinucd@gmail.com", password: "password123" },
-];
-
-const portalRoles: UserRole[] = [
-  "owner",
-  "manager",
-  "cashier",
-  "chef",
-  "kitchen-manager",
-  "waiter",
-  "accountant",
-  "inventory-manager",
-  "delivery-staff",
-  "delivery",
-];
 
 const operationalCopy = {
   "portal-login": {
@@ -101,7 +73,11 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isCustomerSurface = surface === "customer-login" || surface === "customer-signup";
-  const next = searchParams.get("redirect") ?? searchParams.get("next") ?? (isCustomerSurface ? "/account/profile" : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext);
+  const defaultNext = isCustomerSurface
+    ? "/account/profile"
+    : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext;
+  const requestedNext = searchParams.get("redirect") ?? searchParams.get("next");
+  const next = useMemo(() => normalizeNextPath(requestedNext, defaultNext), [defaultNext, requestedNext]);
   const initialMode: CustomerMode = pathname.startsWith("/forgot-password") || searchParams.get("reset") === "true"
     ? "forgot"
     : surface === "customer-signup"
@@ -120,34 +96,20 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   const [authCapabilities, setAuthCapabilities] = useState({
     ready: false,
     firebaseEnabled: false,
-    devLoginEnabled: false,
     stackEnabled: false,
   });
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const branding = useAppStore((state) => state.cmsSettings.branding) ?? defaultCmsSettings.branding!;
   const brandInitials = (branding.shortName || branding.appName || "SF").slice(0, 2).toUpperCase();
-  const { ready: authReady, firebaseEnabled, devLoginEnabled, stackEnabled } = authCapabilities;
-
-  const devUsers = useMemo(() => {
-    if (surface === "admin-login") return DEV_USERS.filter((user) => user.role === "admin");
-    if (surface === "portal-login") return DEV_USERS.filter((user) => portalRoles.includes(user.role));
-    if (surface === "customer-login") return DEV_USERS.filter((user) => user.role === "customer");
-    return [];
-  }, [surface]);
-
-  const matchingDevUser = useMemo(
-    () => devUsers.find((user) => user.email.toLowerCase() === email.trim().toLowerCase() && user.password === password),
-    [devUsers, email, password],
-  );
+  const { ready: authReady, firebaseEnabled, stackEnabled } = authCapabilities;
   const passwordScore = getPasswordScore(password);
-  const canSubmitPassword = stackEnabled || firebaseEnabled || devLoginEnabled;
+  const canSubmitPassword = stackEnabled || firebaseEnabled;
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       setAuthCapabilities({
         ready: true,
         firebaseEnabled: shouldUseFirebase(),
-        devLoginEnabled: shouldEnableDevLogin(),
         stackEnabled: isStackAuthConfigured(),
       });
     }, 0);
@@ -156,8 +118,11 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   }, []);
 
   const finish = useCallback(async () => {
+    if (typeof window !== "undefined") {
+      window.location.replace(next);
+      return;
+    }
     router.replace(next);
-    router.refresh();
   }, [next, router]);
 
   const syncStoreUser = useCallback(async (uid: string) => {
@@ -193,31 +158,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     });
   }
 
-  async function signInAsDevUser(devUser: (typeof DEV_USERS)[number]) {
-    setIsSubmitting(true);
-    try {
-      const sessionSurface = surfaceForAuthSurface(surface);
-      await fetch(`/api/auth/session?surface=${sessionSurface}`, { method: "DELETE" }).catch(() => undefined);
-      await fetch("/api/auth/test-session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ uid: devUser.id, role: devUser.role, surface: sessionSurface }),
-      }).catch(() => null);
-      setAuthUser({
-        id: devUser.id,
-        name: devUser.name,
-        role: devUser.role,
-        restaurantSlug: devUser.restaurantSlug,
-      });
-      if (surface !== "portal-login") {
-        toastManager.successOnce(`login-success-${devUser.id}`, `Signed in as ${devUser.name}.`);
-      }
-      await finish();
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
@@ -243,11 +183,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     try {
       if (mode === "forgot") {
         await sendPasswordReset();
-        return;
-      }
-
-      if (devLoginEnabled && matchingDevUser) {
-        await signInAsDevUser(matchingDevUser);
         return;
       }
 
@@ -370,12 +305,10 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
         isSubmitting={isSubmitting}
         authReady={authReady}
         canSubmit={canSubmitPassword}
-        devUsers={devUsers}
         setEmail={setEmail}
         setPassword={setPassword}
         setShowPassword={setShowPassword}
         submit={handleSubmit}
-        signInAsDevUser={signInAsDevUser}
       />
     );
   }
@@ -542,20 +475,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
               </Button>
             ) : null}
 
-            {devLoginEnabled && devUsers.length ? (
-              <div className="mt-4 grid gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-3">
-                <p className="text-xs font-black uppercase text-amber-300">Development login</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {devUsers.map((devUser) => (
-                    <Button key={devUser.email} type="button" size="sm" variant="outline" className={authDark ? "border-white/10 bg-white/10 text-white" : ""} onClick={() => void signInAsDevUser(devUser)}>
-                      <KeyRound className="size-3.5" />
-                      {devUser.role}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             <div className="mt-4 grid grid-cols-2 gap-2">
               <SecurityBadge dark={authDark} label={stackEnabled ? "Stack Auth ready" : "Firebase session"} />
               <SecurityBadge dark={authDark} label={remember ? "Session persists" : "Session only"} />
@@ -582,12 +501,10 @@ function OperationalLogin({
   isSubmitting,
   authReady,
   canSubmit,
-  devUsers,
   setEmail,
   setPassword,
   setShowPassword,
   submit,
-  signInAsDevUser,
 }: {
   surface: AuthSurface;
   email: string;
@@ -597,12 +514,10 @@ function OperationalLogin({
   isSubmitting: boolean;
   authReady: boolean;
   canSubmit: boolean;
-  devUsers: Array<MockUser & { email: string; password: string }>;
   setEmail: (value: string) => void;
   setPassword: (value: string) => void;
   setShowPassword: (value: boolean) => void;
   submit: (event: FormEvent<HTMLFormElement>) => void;
-  signInAsDevUser: (user: (typeof DEV_USERS)[number]) => Promise<void>;
 }) {
   const copy = operationalCopy[surface as "portal-login" | "admin-login"];
   const Icon = copy.icon;
@@ -633,20 +548,6 @@ function OperationalLogin({
             {isSubmitting ? "Signing in..." : "Sign in"}
           </Button>
         </form>
-
-        {devUsers.length ? (
-          <div className="mt-4 grid gap-2 rounded-md bg-primary/10 p-3 text-sm">
-            <p className="font-bold text-primary">Development login</p>
-            <div className="grid grid-cols-2 gap-2">
-              {devUsers.map((devUser) => (
-                <Button key={devUser.email} variant="outline" size="sm" className="justify-start bg-background" onClick={() => void signInAsDevUser(devUser)}>
-                  <KeyRound className="size-3" />
-                  {devUser.role}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         <Link className="mt-4 inline-flex text-sm font-semibold text-primary" href="/login">
           Customer login
@@ -710,10 +611,18 @@ function authInputClass(dark: boolean) {
     : "bg-white";
 }
 
-function surfaceForAuthSurface(surface: AuthSurface): SessionSurface {
-  if (surface === "admin-login") return "admin";
-  if (surface === "portal-login") return "owner";
-  return "customer";
+function normalizeNextPath(value: string | null, fallback: string) {
+  if (!value) return fallback;
+  try {
+    const path = decodeURIComponent(value).trim();
+    if (!path.startsWith("/") || path.startsWith("//")) return fallback;
+    if (/^\/(?:admin\/login|owner\/login|portal\/login|auth\/login|login|signup)(?:[/?#]|$)/i.test(path)) {
+      return fallback;
+    }
+    return path;
+  } catch {
+    return fallback;
+  }
 }
 
 function getPasswordScore(password: string) {
