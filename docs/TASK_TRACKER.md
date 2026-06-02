@@ -15,6 +15,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Customer restaurant menu filters redesigned on 2026-06-02: the old hardcoded chip section was removed, search and Filters now sit beside the menu item list, and the filter UI opens as a desktop slide-over/mobile bottom sheet with outside-click close, Escape close, scroll lock, reset, multi-select chips, dynamic category/cuisine/tag options, and result counts.
 - [x] Customer home and restaurant pages now use the same shared header on 2026-06-02, including a desktop/mobile address picker with saved profile addresses, recent delivery locations, GPS detect, and an Add new address action.
 - [x] Public CMS branding now hydrates on every customer/public route and caches CMS settings in local storage to reduce visible brand-name flicker between the fallback app name and Admin-configured branding.
 - [x] Build-time app naming now reads `NEXT_PUBLIC_APP_NAME`/`NEXT_PUBLIC_BRAND_NAME`, and the environment templates include `NEXT_PUBLIC_APP_NAME` for production metadata/header fallback alignment.

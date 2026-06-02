@@ -13,8 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  Filter,
-  Grid2X2,
   Home,
   Loader2,
   MapPin,
@@ -28,7 +26,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   Star,
-  Utensils,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -90,18 +87,18 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
   const [step, setStep] = useState<WizardStep>("menu");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
-  const [diet, setDiet] = useState("all");
-  const [meal, setMeal] = useState("all");
-  const [spice, setSpice] = useState("all");
-  const [cuisine, setCuisine] = useState("all");
-  const [tag, setTag] = useState("all");
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
+  const [foodTypeFilters, setFoodTypeFilters] = useState<string[]>([]);
+  const [mealFilters, setMealFilters] = useState<string[]>([]);
+  const [spiceFilters, setSpiceFilters] = useState<string[]>([]);
+  const [cuisineFilters, setCuisineFilters] = useState<string[]>([]);
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [popularOnly, setPopularOnly] = useState(false);
   const [chefSpecialOnly, setChefSpecialOnly] = useState(false);
   const [availableOnly, setAvailableOnly] = useState(true);
   const [comboOnly, setComboOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode] = useState<ViewMode>("list");
   const [visibleCount, setVisibleCount] = useState(12);
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("delivery");
   const [orderTiming, setOrderTiming] = useState<OrderTiming>(() => scheduleLaunch ? "scheduled" : "now");
@@ -139,12 +136,12 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const filteredMenu = useMemo(() => {
     const normalizedQuery = normalize(query);
     return menu.filter((item) => {
-      if (category !== "all" && normalize(item.category) !== normalize(category)) return false;
-      if (diet !== "all" && item.foodType !== diet && (diet === "veg" ? !item.isVeg : item.isVeg)) return false;
-      if (meal !== "all" && !itemMatchesToken(item, meal)) return false;
-      if (spice !== "all" && item.spiceLevel !== spice) return false;
-      if (cuisine !== "all" && !menuItemHasCuisine(item, cuisine)) return false;
-      if (tag !== "all" && !itemMatchesToken(item, tag)) return false;
+      if (categoryFilters.length && !categoryFilters.some((value) => normalize(item.category) === normalize(value))) return false;
+      if (foodTypeFilters.length && !foodTypeFilters.some((value) => itemMatchesFoodType(item, value))) return false;
+      if (mealFilters.length && !mealFilters.some((value) => itemMatchesToken(item, value))) return false;
+      if (spiceFilters.length && !spiceFilters.some((value) => normalize(item.spiceLevel) === normalize(value))) return false;
+      if (cuisineFilters.length && !cuisineFilters.some((value) => menuItemHasCuisine(item, value))) return false;
+      if (tagFilters.length && !tagFilters.some((value) => itemMatchesToken(item, value))) return false;
       if (popularOnly && !item.isPopular) return false;
       if (chefSpecialOnly && !itemMatchesToken(item, "chef")) return false;
       if (comboOnly && !itemMatchesToken(item, "combo")) return false;
@@ -154,7 +151,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         .filter(Boolean)
         .some((value) => normalize(value).includes(normalizedQuery));
     });
-  }, [availableOnly, category, chefSpecialOnly, comboOnly, cuisine, diet, meal, menu, popularOnly, query, spice, tag]);
+  }, [availableOnly, categoryFilters, chefSpecialOnly, comboOnly, cuisineFilters, foodTypeFilters, mealFilters, menu, popularOnly, query, spiceFilters, tagFilters]);
 
   const totals = useMemo(
     () => calculateTotals(restaurantCart, offerCode, visibleOffers, fulfillmentType, restaurant),
@@ -238,6 +235,32 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const contactWhatsApp = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? contactPhone;
   const heroTitle = restaurant.displayName ?? restaurant.name;
   const mobileOrderingActive = cartCount > 0 || step !== "menu";
+  const activeFilterCount = getActiveFilterCount({
+    categoryFilters,
+    foodTypeFilters,
+    mealFilters,
+    spiceFilters,
+    cuisineFilters,
+    tagFilters,
+    popularOnly,
+    chefSpecialOnly,
+    comboOnly,
+    availableOnly,
+  });
+
+  const resetMenuFilters = () => {
+    setCategoryFilters([]);
+    setFoodTypeFilters([]);
+    setMealFilters([]);
+    setSpiceFilters([]);
+    setCuisineFilters([]);
+    setTagFilters([]);
+    setPopularOnly(false);
+    setChefSpecialOnly(false);
+    setComboOnly(false);
+    setAvailableOnly(true);
+    setQuery("");
+  };
 
   const goTo = (next: WizardStep) => {
     if (next !== "menu" && !canContinue) {
@@ -356,30 +379,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     <main className="min-h-screen bg-[#fffaf5] pb-28 text-slate-950 md:pb-10">
       <MobileRestaurantHeader restaurantName={heroTitle} cartCount={cartCount} onCart={() => goTo(canContinue ? "offers" : "menu")} />
 
-      <section className={`border-b bg-white/90 backdrop-blur ${step !== "menu" ? "hidden md:block" : ""}`}>
-        <div className="mx-auto flex w-full max-w-[1520px] items-center gap-3 px-4 py-3 sm:px-6">
-          <Link href="/restaurants" className="hidden rounded-full border bg-white px-3 py-2 text-sm font-bold hover:bg-orange-50 md:inline-flex">
-            <ArrowLeft className="mr-2 size-4" />
-            Restaurants
-          </Link>
-          <div className="min-w-0 flex-1">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search dishes, combos, cuisines..."
-                className="h-11 w-full rounded-2xl border bg-white pl-10 pr-4 text-sm outline-none ring-orange-500/20 transition focus:ring-4"
-              />
-            </div>
-          </div>
-          <Button variant="outline" className="hidden md:inline-flex" onClick={() => setFiltersOpen(true)}>
-            <SlidersHorizontal className="size-4" />
-            Filters
-          </Button>
-        </div>
-      </section>
-
       <div className={mobileOrderingActive ? "hidden md:block" : ""}>
         <HeroSection restaurant={restaurant} title={heroTitle} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} customerDistanceKm={customerDistanceKm} onStart={startOrderNow} onSchedule={startScheduledOrder} />
       </div>
@@ -403,46 +402,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                   onTimeChange={setScheduledTime}
                 />
 
-                <FilterBar
-                  options={filterOptions}
-                  category={category}
-                  diet={diet}
-                  meal={meal}
-                  spice={spice}
-                  cuisine={cuisine}
-                  tag={tag}
-                  popularOnly={popularOnly}
-                  chefSpecialOnly={chefSpecialOnly}
-                  comboOnly={comboOnly}
-                  availableOnly={availableOnly}
-                  viewMode={viewMode}
-                  onCategory={setCategory}
-                  onDiet={setDiet}
-                  onMeal={setMeal}
-                  onSpice={setSpice}
-                  onCuisine={setCuisine}
-                  onTag={setTag}
-                  onPopular={setPopularOnly}
-                  onChefSpecial={setChefSpecialOnly}
-                  onCombo={setComboOnly}
-                  onAvailable={setAvailableOnly}
-                  onViewMode={setViewMode}
-                  onOpenAdvanced={() => setFiltersOpen(true)}
-                  onClear={() => {
-                    setCategory("all");
-                    setDiet("all");
-                    setMeal("all");
-                    setSpice("all");
-                    setCuisine("all");
-                    setTag("all");
-                    setPopularOnly(false);
-                    setChefSpecialOnly(false);
-                    setComboOnly(false);
-                    setAvailableOnly(true);
-                    setQuery("");
-                  }}
-                />
-
                 <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
                   <aside className="order-2 space-y-5 xl:order-1">
                     <OfferStrip offers={visibleOffers} onApply={(code) => {
@@ -453,6 +412,21 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                   </aside>
 
                   <div id="restaurant-menu-panel" className="order-1 rounded-3xl border bg-white p-3 shadow-sm sm:p-4 xl:order-2">
+                    <div className="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          value={query}
+                          onChange={(event) => setQuery(event.target.value)}
+                          placeholder="Search dishes, combos, cuisines..."
+                          className="h-11 w-full rounded-lg border border-orange-100 bg-white pl-10 pr-4 text-sm font-semibold text-slate-950 outline-none ring-orange-500/20 transition placeholder:text-slate-400 focus:border-orange-300 focus:ring-4"
+                        />
+                      </div>
+                      <Button variant="outline" className="h-11 rounded-lg border-orange-200 bg-white px-4 font-black text-slate-950 hover:bg-orange-50" onClick={() => setFiltersOpen(true)}>
+                        <SlidersHorizontal className="size-4 text-orange-600" />
+                        Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
+                      </Button>
+                    </div>
                     <div className="mb-4 flex items-end justify-between gap-3">
                       <div>
                         <p className="text-xs font-black uppercase tracking-wide text-orange-600">Recommended for you</p>
@@ -587,18 +561,18 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         options={filterOptions}
-        category={category}
-        setCategory={setCategory}
-        diet={diet}
-        setDiet={setDiet}
-        meal={meal}
-        setMeal={setMeal}
-        spice={spice}
-        setSpice={setSpice}
-        cuisine={cuisine}
-        setCuisine={setCuisine}
-        tag={tag}
-        setTag={setTag}
+        categoryFilters={categoryFilters}
+        setCategoryFilters={setCategoryFilters}
+        foodTypeFilters={foodTypeFilters}
+        setFoodTypeFilters={setFoodTypeFilters}
+        mealFilters={mealFilters}
+        setMealFilters={setMealFilters}
+        spiceFilters={spiceFilters}
+        setSpiceFilters={setSpiceFilters}
+        cuisineFilters={cuisineFilters}
+        setCuisineFilters={setCuisineFilters}
+        tagFilters={tagFilters}
+        setTagFilters={setTagFilters}
         popularOnly={popularOnly}
         setPopularOnly={setPopularOnly}
         chefSpecialOnly={chefSpecialOnly}
@@ -607,6 +581,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         setComboOnly={setComboOnly}
         availableOnly={availableOnly}
         setAvailableOnly={setAvailableOnly}
+        resultCount={filteredMenu.length}
+        onReset={resetMenuFilters}
       />
     </main>
   );
@@ -989,153 +965,6 @@ function RestaurantInfoCard({ restaurant, contactWhatsApp }: { restaurant: Resta
         <MessageCircle className="size-5" />
       </a>
     </section>
-  );
-}
-
-function FilterBar({
-  options,
-  category,
-  diet,
-  meal,
-  spice,
-  cuisine,
-  tag,
-  popularOnly,
-  chefSpecialOnly,
-  comboOnly,
-  availableOnly,
-  viewMode,
-  onCategory,
-  onDiet,
-  onMeal,
-  onSpice,
-  onCuisine,
-  onTag,
-  onPopular,
-  onChefSpecial,
-  onCombo,
-  onAvailable,
-  onViewMode,
-  onOpenAdvanced,
-  onClear,
-}: {
-  options: FilterOptions;
-  category: string;
-  diet: string;
-  meal: string;
-  spice: string;
-  cuisine: string;
-  tag: string;
-  popularOnly: boolean;
-  chefSpecialOnly: boolean;
-  comboOnly: boolean;
-  availableOnly: boolean;
-  viewMode: ViewMode;
-  onCategory: (value: string) => void;
-  onDiet: (value: string) => void;
-  onMeal: (value: string) => void;
-  onSpice: (value: string) => void;
-  onCuisine: (value: string) => void;
-  onTag: (value: string) => void;
-  onPopular: (value: boolean) => void;
-  onChefSpecial: (value: boolean) => void;
-  onCombo: (value: boolean) => void;
-  onAvailable: (value: boolean) => void;
-  onViewMode: (value: ViewMode) => void;
-  onOpenAdvanced: () => void;
-  onClear: () => void;
-}) {
-  const activeFilters = [category, diet, meal, spice, cuisine, tag].filter((value) => value !== "all").length + [popularOnly, chefSpecialOnly, comboOnly, !availableOnly].filter(Boolean).length;
-  return (
-    <div className="space-y-3">
-      <div className="space-y-3 rounded-[1.75rem] border bg-white p-3 shadow-sm md:hidden">
-        <div className="customer-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <Chip active={category === "all"} onClick={() => onCategory("all")}>All</Chip>
-          {options.foodTypes.map((option) => (
-            <Chip key={`mobile-food-${option}`} active={diet === option} onClick={() => onDiet(diet === option ? "all" : option)}>{humanize(option)}</Chip>
-          ))}
-          {options.hasPopular ? <Chip active={popularOnly} onClick={() => onPopular(!popularOnly)}>Popular</Chip> : null}
-          {options.hasCombos ? <Chip active={comboOnly} onClick={() => onCombo(!comboOnly)}>Combos</Chip> : null}
-          <Chip active={availableOnly} onClick={() => onAvailable(!availableOnly)}>Available</Chip>
-          <Button variant="outline" className="h-10 shrink-0 rounded-xl px-3" onClick={onOpenAdvanced}>
-            <Filter className="size-4" />
-            Filters {activeFilters ? `(${activeFilters})` : ""}
-          </Button>
-        </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <label className="block">
-            <span className="sr-only">Category</span>
-            <select value={category} onChange={(event) => onCategory(event.target.value)} className="h-11 w-full rounded-2xl border bg-orange-50/50 px-3 text-sm font-black text-slate-950 outline-none focus:ring-4 focus:ring-orange-500/20">
-              <option value="all">All categories</option>
-              {options.categories.map((option) => (
-                <option key={option} value={option}>{humanize(option)}</option>
-              ))}
-            </select>
-          </label>
-          <Button variant="ghost" className="h-11 shrink-0 rounded-2xl px-3 text-orange-700" onClick={onClear}>
-            Clear
-          </Button>
-        </div>
-      </div>
-
-      <div className="hidden space-y-3 rounded-3xl border bg-white p-3 shadow-sm md:block">
-        <div className="customer-scroll flex gap-2 overflow-x-auto pb-1">
-          <Chip active={category === "all"} onClick={() => onCategory("all")}>All</Chip>
-          {options.categories.slice(0, 10).map((option) => (
-            <Chip key={option} active={category === option} onClick={() => onCategory(option)}>{humanize(option)}</Chip>
-          ))}
-        </div>
-        <div className="customer-scroll flex gap-2 overflow-x-auto pb-1">
-          {options.foodTypes.length ? <Chip active={diet === "all"} onClick={() => onDiet("all")}>All food</Chip> : null}
-          {options.foodTypes.map((option) => (
-            <Chip key={option} active={diet === option} onClick={() => onDiet(option)}>{humanize(option)}</Chip>
-          ))}
-          {options.meals.map((option) => (
-            <Chip key={option} active={meal === option} onClick={() => onMeal(option)}>{humanize(option)}</Chip>
-          ))}
-          {options.spiceLevels.map((option) => (
-            <Chip key={option} active={spice === option} onClick={() => onSpice(option)}>{humanize(option)}</Chip>
-          ))}
-          {options.cuisines.map((option) => (
-            <Chip key={option} active={cuisine === option} onClick={() => onCuisine(option)}>{humanize(option)}</Chip>
-          ))}
-          {options.tags.slice(0, 12).map((option) => (
-            <Chip key={option} active={tag === option} onClick={() => onTag(option)}>{humanize(option)}</Chip>
-          ))}
-          {options.hasPopular ? <Chip active={popularOnly} onClick={() => onPopular(!popularOnly)}>Bestseller</Chip> : null}
-          {options.hasChefSpecial ? <Chip active={chefSpecialOnly} onClick={() => onChefSpecial(!chefSpecialOnly)}>Chef&apos;s Special</Chip> : null}
-          {options.hasCombos ? <Chip active={comboOnly} onClick={() => onCombo(!comboOnly)}>Combos</Chip> : null}
-          <Chip active={availableOnly} onClick={() => onAvailable(!availableOnly)}>Available Now</Chip>
-          <Button variant="outline" className="h-10 shrink-0 rounded-xl" onClick={onOpenAdvanced}>
-            <Filter className="size-4" />
-            More
-          </Button>
-          <Button variant="ghost" className="h-10 shrink-0 rounded-xl text-orange-600" onClick={onClear}>
-            Clear {activeFilters ? `(${activeFilters})` : ""}
-          </Button>
-          <div className="ml-auto hidden gap-1 md:flex">
-            <Button size="icon" variant={viewMode === "grid" ? "default" : "outline"} onClick={() => onViewMode("grid")} aria-label="Grid view">
-              <Grid2X2 className="size-4" />
-            </Button>
-            <Button size="icon" variant={viewMode === "list" ? "default" : "outline"} onClick={() => onViewMode("list")} aria-label="List view">
-              <Utensils className="size-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-10 shrink-0 rounded-xl border px-4 text-sm font-bold transition ${active ? "border-orange-600 bg-orange-600 text-white" : "bg-white hover:bg-orange-50"}`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1780,18 +1609,18 @@ function AdvancedFilters({
   open,
   onClose,
   options,
-  category,
-  setCategory,
-  diet,
-  setDiet,
-  meal,
-  setMeal,
-  spice,
-  setSpice,
-  cuisine,
-  setCuisine,
-  tag,
-  setTag,
+  categoryFilters,
+  setCategoryFilters,
+  foodTypeFilters,
+  setFoodTypeFilters,
+  mealFilters,
+  setMealFilters,
+  spiceFilters,
+  setSpiceFilters,
+  cuisineFilters,
+  setCuisineFilters,
+  tagFilters,
+  setTagFilters,
   popularOnly,
   setPopularOnly,
   chefSpecialOnly,
@@ -1800,22 +1629,24 @@ function AdvancedFilters({
   setComboOnly,
   availableOnly,
   setAvailableOnly,
+  resultCount,
+  onReset,
 }: {
   open: boolean;
   onClose: () => void;
   options: FilterOptions;
-  category: string;
-  setCategory: (value: string) => void;
-  diet: string;
-  setDiet: (value: string) => void;
-  meal: string;
-  setMeal: (value: string) => void;
-  spice: string;
-  setSpice: (value: string) => void;
-  cuisine: string;
-  setCuisine: (value: string) => void;
-  tag: string;
-  setTag: (value: string) => void;
+  categoryFilters: string[];
+  setCategoryFilters: (value: string[]) => void;
+  foodTypeFilters: string[];
+  setFoodTypeFilters: (value: string[]) => void;
+  mealFilters: string[];
+  setMealFilters: (value: string[]) => void;
+  spiceFilters: string[];
+  setSpiceFilters: (value: string[]) => void;
+  cuisineFilters: string[];
+  setCuisineFilters: (value: string[]) => void;
+  tagFilters: string[];
+  setTagFilters: (value: string[]) => void;
   popularOnly: boolean;
   setPopularOnly: (value: boolean) => void;
   chefSpecialOnly: boolean;
@@ -1824,54 +1655,159 @@ function AdvancedFilters({
   setComboOnly: (value: boolean) => void;
   availableOnly: boolean;
   setAvailableOnly: (value: boolean) => void;
+  resultCount: number;
+  onReset: () => void;
 }) {
+  const [dragStartY, setDragStartY] = useState<number | null>(null);
+  const mealOptions = unique(["breakfast", "lunch", "dinner", "snacks", "beverages", ...options.meals]);
+  const spiceOptions = unique(["mild", "medium", "spicy", ...options.spiceLevels]);
+  const tagOptions = [
+    ...options.tags,
+    ...(options.hasPopular ? ["bestseller"] : []),
+    ...(options.hasCombos ? ["combo"] : []),
+    ...(options.hasChefSpecial ? ["chef special"] : []),
+  ];
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose, open]);
+
   if (!open) return null;
+
+  function handleOverlayClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (dragStartY === null) return;
+    const distance = event.changedTouches[0]?.clientY - dragStartY;
+    setDragStartY(null);
+    if (distance > 80) onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/35">
-      <div className="absolute inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl md:left-auto md:right-5 md:top-5 md:h-[calc(100vh-2.5rem)] md:w-[380px] md:rounded-3xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-black">Filters</h2>
-          <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close filters">
-            <X className="size-5" />
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]" onClick={handleOverlayClick}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu filters"
+        className="absolute inset-x-0 bottom-0 flex max-h-[82vh] flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl md:inset-y-4 md:left-auto md:right-4 md:max-h-none md:w-[460px] md:rounded-xl"
+        onClick={(event) => event.stopPropagation()}
+        onTouchStart={(event) => setDragStartY(event.touches[0]?.clientY ?? null)}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-slate-200 md:hidden" />
+        <header className="sticky top-0 z-10 border-b border-slate-100 bg-white px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-600">
+              <SlidersHorizontal className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-black">Filters</h2>
+              <p className="text-sm font-semibold text-muted-foreground">Refine menu items</p>
+            </div>
+            <Button type="button" variant="ghost" className="h-10 rounded-lg px-3 font-black text-orange-600" onClick={onReset}>
+              Reset
+            </Button>
+            <Button size="icon" variant="ghost" className="rounded-lg" onClick={onClose} aria-label="Close filters">
+              <X className="size-5" />
+            </Button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto px-5 py-2">
+          <FilterChipGroup label="Category" values={categoryFilters} options={options.categories} onChange={setCategoryFilters} />
+          <FilterChipGroup label="Cuisine" values={cuisineFilters} options={options.cuisines} onChange={setCuisineFilters} />
+          <FilterChipGroup label="Meal type" values={mealFilters} options={mealOptions} onChange={setMealFilters} />
+          <FilterChipGroup label="Food type" values={foodTypeFilters} options={options.foodTypes} onChange={setFoodTypeFilters} />
+          <FilterChipGroup label="Spice level" values={spiceFilters} options={spiceOptions} onChange={setSpiceFilters} />
+          <FilterChipGroup label="Tags" values={tagFilters} options={unique(tagOptions).slice(0, 18)} onChange={setTagFilters} />
+
+          <div className="grid gap-3 border-t border-slate-100 py-4 sm:grid-cols-2">
+            {options.hasPopular ? <FilterToggle label="Bestseller only" description="Show popular items only" checked={popularOnly} onChange={setPopularOnly} /> : null}
+            {options.hasChefSpecial ? <FilterToggle label="Chef's special" description="Owner-highlighted dishes" checked={chefSpecialOnly} onChange={setChefSpecialOnly} /> : null}
+            {options.hasCombos ? <FilterToggle label="Combos" description="Show combo meals only" checked={comboOnly} onChange={setComboOnly} /> : null}
+            <FilterToggle label="Available now" description="Hide unavailable items" checked={availableOnly} onChange={setAvailableOnly} />
+          </div>
+        </div>
+
+        <footer className="sticky bottom-0 grid grid-cols-[minmax(0,1fr)_1.4fr] gap-3 border-t border-slate-100 bg-white p-4">
+          <Button type="button" variant="outline" className="h-12 rounded-lg border-0 bg-slate-100 font-black text-slate-950 hover:bg-slate-200" onClick={onClose}>
+            Cancel
           </Button>
-        </div>
-        <div className="mt-4 space-y-4">
-          <FilterSelect label="Category" value={category} onChange={setCategory} options={options.categories} />
-          <FilterSelect label="Cuisine" value={cuisine} onChange={setCuisine} options={options.cuisines} />
-          <FilterSelect label="Tags" value={tag} onChange={setTag} options={options.tags} />
-          <FilterSelect label="Meal type" value={meal} onChange={setMeal} options={options.meals} />
-          <FilterSelect label="Spice level" value={spice} onChange={setSpice} options={options.spiceLevels} />
-          <FilterSelect label="Food type" value={diet} onChange={setDiet} options={options.foodTypes} />
-          {options.hasPopular ? <ToggleLine label="Bestseller" checked={popularOnly} onChange={setPopularOnly} /> : null}
-          {options.hasChefSpecial ? <ToggleLine label="Chef's special" checked={chefSpecialOnly} onChange={setChefSpecialOnly} /> : null}
-          {options.hasCombos ? <ToggleLine label="Combos" checked={comboOnly} onChange={setComboOnly} /> : null}
-          <ToggleLine label="Available now" checked={availableOnly} onChange={setAvailableOnly} />
-        </div>
-        <Button className="mt-5 h-12 w-full bg-orange-600 hover:bg-orange-700" onClick={onClose}>Show menu</Button>
-      </div>
+          <Button type="button" className="h-12 rounded-lg bg-orange-600 font-black text-white hover:bg-orange-700" onClick={onClose}>
+            Show {resultCount} result{resultCount === 1 ? "" : "s"}
+            <SlidersHorizontal className="size-4" />
+          </Button>
+        </footer>
+      </section>
     </div>
   );
 }
 
-function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+function FilterChipGroup({ label, values, options, onChange }: { label: string; values: string[]; options: string[]; onChange: (values: string[]) => void }) {
+  if (!options.length) return null;
+  const selected = new Set(values.map(normalize));
   return (
-    <label className="block">
-      <span className="text-sm font-black">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-11 w-full rounded-2xl border bg-white px-3 text-sm font-bold">
-        <option value="all">All</option>
+    <section className="grid gap-3 border-t border-slate-100 py-4 first:border-t-0">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-black text-slate-950">{label}</h3>
+        {values.length ? (
+          <button type="button" className="text-xs font-black text-orange-600" onClick={() => onChange([])}>
+            Clear
+          </button>
+        ) : (
+          <span className="text-xs font-black text-orange-600">All</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <FilterChip active={!values.length} onClick={() => onChange([])}>All</FilterChip>
         {options.map((option) => (
-          <option key={option} value={option}>{humanize(option)}</option>
+          <FilterChip
+            key={`${label}-${option}`}
+            active={selected.has(normalize(option))}
+            onClick={() => onChange(toggleFilterValue(values, option))}
+          >
+            {humanize(option)}
+          </FilterChip>
         ))}
-      </select>
-    </label>
+      </div>
+    </section>
   );
 }
 
-function ToggleLine({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <label className="flex items-center justify-between rounded-2xl border p-3">
-      <span className="font-bold">{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-5 accent-orange-600" />
+    <button
+      type="button"
+      className={`min-h-11 rounded-lg px-4 text-sm font-black transition focus:outline-none focus:ring-4 focus:ring-orange-500/20 ${
+        active ? "bg-orange-600 text-white shadow-sm shadow-orange-600/20" : "bg-slate-100 text-slate-800 hover:bg-orange-50 hover:text-orange-700"
+      }`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FilterToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="flex min-h-20 items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
+      <span>
+        <span className="block font-black text-slate-950">{label}</span>
+        <span className="text-xs font-semibold text-muted-foreground">{description}</span>
+      </span>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-6 accent-orange-600" />
     </label>
   );
 }
@@ -1973,10 +1909,61 @@ function itemMatchesToken(item: MenuItem, token: string) {
     .some((value) => normalize(value).includes(normalized));
 }
 
+function itemMatchesFoodType(item: MenuItem, foodType: string) {
+  const normalizedFoodType = normalize(foodType);
+  const itemFoodType = normalize(item.foodType);
+  if (itemFoodType === normalizedFoodType) return true;
+  if (normalizedFoodType === "veg") return Boolean(item.isVeg);
+  if (normalizedFoodType === "nonveg" || normalizedFoodType === "non-veg") return !item.isVeg;
+  return itemMatchesToken(item, foodType);
+}
+
 function menuItemHasCuisine(item: MenuItem, cuisine: string) {
   const normalizedCuisine = normalize(cuisine);
   return (item.cuisineIds ?? []).some((candidate) => normalize(candidate) === normalizedCuisine)
     || itemMatchesToken(item, cuisine);
+}
+
+function toggleFilterValue(values: string[], value: string) {
+  const normalizedValue = normalize(value);
+  return values.some((item) => normalize(item) === normalizedValue)
+    ? values.filter((item) => normalize(item) !== normalizedValue)
+    : [...values, value];
+}
+
+function getActiveFilterCount({
+  categoryFilters,
+  foodTypeFilters,
+  mealFilters,
+  spiceFilters,
+  cuisineFilters,
+  tagFilters,
+  popularOnly,
+  chefSpecialOnly,
+  comboOnly,
+  availableOnly,
+}: {
+  categoryFilters: string[];
+  foodTypeFilters: string[];
+  mealFilters: string[];
+  spiceFilters: string[];
+  cuisineFilters: string[];
+  tagFilters: string[];
+  popularOnly: boolean;
+  chefSpecialOnly: boolean;
+  comboOnly: boolean;
+  availableOnly: boolean;
+}) {
+  return categoryFilters.length
+    + foodTypeFilters.length
+    + mealFilters.length
+    + spiceFilters.length
+    + cuisineFilters.length
+    + tagFilters.length
+    + (popularOnly ? 1 : 0)
+    + (chefSpecialOnly ? 1 : 0)
+    + (comboOnly ? 1 : 0)
+    + (availableOnly ? 0 : 1);
 }
 
 function orderedCategoryNames(items: MenuItem[], masterCategories: Array<{ id: string; slug: string; name: string; sortOrder: number }>) {
