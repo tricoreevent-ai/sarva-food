@@ -3,6 +3,7 @@
 import type { AppCategory, AppCuisine, CmsSettings, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
+import { readCachedPublicCmsSettings, writeCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { sortOffers } from "@/lib/offer-engine";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
@@ -107,11 +108,14 @@ async function fetchPublicCms() {
     .then((payload) => {
       const settings = resolveCmsSettings(payload.data);
       writeMemoryCache(url, settings, 5 * 60 * 1000);
+      writeCachedPublicCmsSettings(settings);
       return settings;
     })
     .catch((error) => {
       const cached = readMemoryCache<CmsSettings>(url);
       if (cached) return cached as CmsSettings;
+      const persisted = readCachedPublicCmsSettings();
+      if (persisted) return persisted;
       throw error;
     })
     .finally(() => inflightPublicRequests.delete(url));
@@ -296,6 +300,9 @@ export function listenPublicCms(
     if (!active) return;
     onData(settings);
   };
+
+  const cached = readCachedPublicCmsSettings();
+  if (cached) deliver(cached);
 
   void fetchPublicCms()
     .then(deliver)

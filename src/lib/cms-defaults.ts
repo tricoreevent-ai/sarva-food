@@ -1,16 +1,17 @@
 import type { CmsSettings } from "@/lib/types";
+import { APP_NAME } from "@/lib/constants";
 import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 
 export const RESPONSIBILITY_DISCLAIMER =
-  "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Sarva Food acts only as a technology platform connecting customers and restaurants.";
+  `Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. ${APP_NAME} acts only as a technology platform connecting customers and restaurants.`;
 
 const LEGAL_TERMS =
-  "Sarva Food is a technology intermediary that connects customers with independent restaurants. Restaurants are solely responsible for food quality, ingredients, hygiene, allergens, preparation, packaging, pricing, safety compliance, delivery handling, and fulfilment. Sarva Food does not prepare, store, inspect, or physically handle food and is not liable for contamination, restaurant misconduct, kitchen standards, or restaurant-caused delays. Payments are processed through third-party providers; Sarva Food does not store card details and is not responsible for banking, UPI, gateway, or network downtime. Delivery estimates are approximate and may vary because of traffic, weather, restaurant load, rider availability, or serviceability. Refunds are reviewed after payment confirmation, restaurant validation, and issue verification, and are not automatic. Service may be affected by outages, cyber incidents, internet failures, strikes, floods, public emergencies, or other force majeure events.";
+  `${APP_NAME} is a technology intermediary that connects customers with independent restaurants. Restaurants are solely responsible for food quality, ingredients, hygiene, allergens, preparation, packaging, pricing, safety compliance, delivery handling, and fulfilment. ${APP_NAME} does not prepare, store, inspect, or physically handle food and is not liable for contamination, restaurant misconduct, kitchen standards, or restaurant-caused delays. Payments are processed through third-party providers; ${APP_NAME} does not store card details and is not responsible for banking, UPI, gateway, or network downtime. Delivery estimates are approximate and may vary because of traffic, weather, restaurant load, rider availability, or serviceability. Refunds are reviewed after payment confirmation, restaurant validation, and issue verification, and are not automatic. Service may be affected by outages, cyber incidents, internet failures, strikes, floods, public emergencies, or other force majeure events.`;
 
 export const defaultCmsSettings: CmsSettings = {
-  appName: "Sarva Food",
+  appName: APP_NAME,
   branding: {
-    appName: "Sarva Food",
+    appName: APP_NAME,
     shortName: "Sarva",
     logoUrl: "/icons/sarva-icon.svg",
     faviconUrl: "/icons/sarva-icon.svg",
@@ -57,9 +58,9 @@ export const defaultCmsSettings: CmsSettings = {
   ],
   footer: {
     visible: true,
-    note: RESPONSIBILITY_DISCLAIMER,
+    note: "",
     supportEmail: "support@sarvafood.com",
-    copyright: "© Sarva Food. All rights reserved.",
+    copyright: `© ${APP_NAME}. All rights reserved.`,
     socialLinks: [],
   },
   announcementBar: {
@@ -96,7 +97,7 @@ export const defaultCmsSettings: CmsSettings = {
     customerUnavailableMessage: "Please try again in a moment. Our team is already checking the issue.",
   },
   seo: {
-    title: "Sarva Food",
+    title: APP_NAME,
     description: "Order from verified nearby restaurants.",
     keywords: ["food delivery", "restaurants", "Kerala food", "Biryani"],
   },

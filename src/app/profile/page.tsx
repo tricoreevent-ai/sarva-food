@@ -52,6 +52,7 @@ import { COLLECTIONS } from "@/firebase/collections";
 import { signOutUser } from "@/services/auth-service";
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
+import { readLocalAddresses, readLocalProfile, writeLocalAddresses, writeLocalProfile, type LocalProfileDraft } from "@/lib/customer-address-storage";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatCurrency, getInitials } from "@/lib/utils";
 import type { CateringQuote } from "@/lib/types";
@@ -72,13 +73,6 @@ type AddressDraft = {
   longitude?: number;
   placeId?: string;
   deliveryRadiusKm?: number;
-};
-
-type LocalProfileDraft = {
-  displayName?: string;
-  email?: string;
-  phone?: string;
-  photoURL?: string;
 };
 
 const emptyAddressDraft: AddressDraft = {
@@ -1254,40 +1248,6 @@ function buildFullAddress(draft: AddressDraft) {
 function upsertById<T extends { id: string }>(items: T[], nextItem: T) {
   const exists = items.some((item) => item.id === nextItem.id);
   return exists ? items.map((item) => item.id === nextItem.id ? nextItem : item) : [nextItem, ...items];
-}
-
-function localProfileKey(customerId: string) {
-  return `sarva-local-profile-${customerId}`;
-}
-
-function localAddressesKey(customerId: string) {
-  return `sarva-local-addresses-${customerId}`;
-}
-
-function readLocalProfile(customerId: string): LocalProfileDraft | null {
-  try {
-    const raw = window.localStorage.getItem(localProfileKey(customerId));
-    return raw ? JSON.parse(raw) as LocalProfileDraft : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeLocalProfile(customerId: string, profile: LocalProfileDraft) {
-  window.localStorage.setItem(localProfileKey(customerId), JSON.stringify(profile));
-}
-
-function readLocalAddresses(customerId: string): CustomerAddressDoc[] {
-  try {
-    const raw = window.localStorage.getItem(localAddressesKey(customerId));
-    return raw ? JSON.parse(raw) as CustomerAddressDoc[] : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalAddresses(customerId: string, addresses: CustomerAddressDoc[]) {
-  window.localStorage.setItem(localAddressesKey(customerId), JSON.stringify(addresses));
 }
 
 function filterProfileCatering(inquiries: CateringQuote[], email: string, phone: string, name: string) {

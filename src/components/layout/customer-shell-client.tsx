@@ -26,15 +26,12 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
   const showFloatingCart =
     !restaurantRoute &&
     !["/checkout", "/cart", "/order-success", "/profile"].some((path) => pathname.startsWith(path));
-  const homeRoute = pathname === "/";
 
   return (
     <CustomerAuthProvider>
       <MobileOfflineBanner />
       <MobilePullToRefresh>
-        <div className={homeRoute ? "hidden md:block" : undefined}>
-          <PublicHeader />
-        </div>
+        <PublicHeader />
         {children}
       </MobilePullToRefresh>
       {restaurantRoute ? null : <CustomerFooter />}

@@ -85,7 +85,7 @@ export async function signInWithGoogle(role: UserRole = "customer") {
     if (!shouldTryConfiguredGoogleClient(error)) throw error;
     return signInWithConfiguredGoogleClient(auth);
   });
-  if (role !== "customer") {
+  if (role === "customer") {
     await ensureCustomerProfile(result.user, role);
   }
   await syncAuthSession(surfaceForAuthRole(role), { ensureCustomer: role === "customer" });
@@ -280,18 +280,18 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
   if (existing.exists()) {
     await setDoc(
       userRef,
-      {
+      omitUndefinedFields({
         displayName: user.displayName ?? existing.data().displayName ?? "Sarva user",
         email: user.email ?? existing.data().email,
         phone: user.phoneNumber ?? existing.data().phone,
         photoURL: user.photoURL ?? existing.data().photoURL,
         updatedAt: serverTimestamp(),
-      },
+      }),
       { merge: true },
     );
     await setDoc(
       doc(db, COLLECTIONS.customerProfiles, user.uid),
-      {
+      omitUndefinedFields({
         id: user.uid,
         uid: user.uid,
         displayName: user.displayName ?? existing.data().displayName ?? "Sarva user",
@@ -302,7 +302,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
         phoneVerified: Boolean(user.phoneNumber),
         active: true,
         updatedAt: serverTimestamp(),
-      },
+      }),
       { merge: true },
     );
     return;
@@ -324,14 +324,14 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
     active: true,
   };
 
-  await setDoc(userRef, {
+  await setDoc(userRef, omitUndefinedFields({
     ...profile,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  }));
   await setDoc(
     doc(db, COLLECTIONS.customerProfiles, user.uid),
-    {
+    omitUndefinedFields({
       id: user.uid,
       uid: user.uid,
       displayName: user.displayName ?? "Sarva user",
@@ -343,9 +343,15 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
       active: true,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    },
+    }),
     { merge: true },
   );
+}
+
+function omitUndefinedFields<T extends object>(input: T) {
+  return Object.fromEntries(
+    Object.entries(input as Record<string, unknown>).filter(([, value]) => typeof value !== "undefined"),
+  ) as Partial<T>;
 }
 
 export const DEV_AUTH_FIXTURE = {

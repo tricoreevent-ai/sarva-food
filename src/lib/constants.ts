@@ -1,4 +1,7 @@
-export const APP_NAME = "Sarva Food";
+export const APP_NAME =
+  process.env.NEXT_PUBLIC_APP_NAME?.trim() ||
+  process.env.NEXT_PUBLIC_BRAND_NAME?.trim() ||
+  "Sarva Food";
 export const APP_DESCRIPTION =
   "Browser-first restaurant ordering, operations, delivery, POS, catering, and social commerce.";
 

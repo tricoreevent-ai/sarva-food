@@ -13,7 +13,7 @@
     "dev:lan:https": "node scripts/generate-dev-cert.mjs && node scripts/https-dev-server.mjs",
     "dev:lan:https:proxy": "node scripts/generate-dev-cert.mjs && node scripts/https-dev-server.mjs --existing",
     "dev:staging": "next dev --experimental-https",
-    "build": "next build",
+    "build": "node scripts/build-next-with-middleware-trace.mjs",
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

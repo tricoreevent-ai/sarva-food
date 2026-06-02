@@ -78,7 +78,6 @@ export function CustomerFooter() {
                 <p className="text-xs font-semibold text-muted-foreground">{branding.appDescription}</p>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">{cmsSettings.footer?.note || cmsSettings.disclaimer}</p>
           </div>
           <FooterColumn title="Company" links={[["About Us", "/about"], ["Careers", "/careers"], ["Contact", "/help"], ["Press", "/press"], ["Partner With Us", "/register-restaurant"]]} />
           <FooterColumn title="Customers" links={[["Help Center", "/help"], ["Refund Policy", "/refund-policy"], ["Track Order", "/track-order"], ["Safety", "/terms"], ["FAQs", "/help#faqs"]]} />

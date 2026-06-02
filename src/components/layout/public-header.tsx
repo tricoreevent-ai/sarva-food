@@ -2,38 +2,152 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ChevronDown, CircleHelp, Crown, Heart, LogOut, MapPinned, Menu, MapPin, Search, Settings2, ShoppingBag, UserRound, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
+import {
+  Check,
+  ChevronDown,
+  CircleHelp,
+  Crown,
+  Heart,
+  LocateFixed,
+  LogOut,
+  MapPinned,
+  Menu,
+  MapPin,
+  Plus,
+  Search,
+  Settings2,
+  ShoppingBag,
+  UserRound,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { SafeImage } from "@/components/media/safe-image";
 import { AppPreferences } from "@/components/settings/app-preferences";
+import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
+import { COLLECTIONS } from "@/firebase/collections";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { defaultLocation, useLocationCommerce, type CommerceLocation } from "@/hooks/use-location-commerce";
 import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
+import { APP_NAME } from "@/lib/constants";
+import { readLocalAddresses } from "@/lib/customer-address-storage";
+import { shouldUseFirebase } from "@/lib/env";
 import { customerNav } from "@/lib/navigation";
+import { readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import { signOutUser } from "@/services/auth-service";
+import type { CmsSettings } from "@/lib/types";
+import type { CustomerAddressDoc } from "@/types/firebase";
 
 export function PublicHeader() {
   const router = useRouter();
   const auth = useAuthUser();
   const localAuthUser = useAppStore((state) => state.authUser);
-  const branding = useAppStore((state) => state.cmsSettings.branding);
-  const cmsAppName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
-  const productName = branding?.appName?.trim() || cmsAppName;
+  const storeCmsSettings = useAppStore((state) => state.cmsSettings);
+  const [cachedCmsSettings] = useState<CmsSettings | null>(() => readCachedPublicCmsSettings());
+  const cmsSettings = useMemo(
+    () => resolveCmsSettings(cachedCmsSettings ?? storeCmsSettings),
+    [cachedCmsSettings, storeCmsSettings],
+  );
+  const branding = cmsSettings.branding;
+  const productName = branding?.appName?.trim() || cmsSettings.appName?.trim() || APP_NAME;
   const logoUrl = branding?.logoUrl?.trim();
+  const brandInitials = getInitials(branding?.shortName || productName);
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const clearCart = useCartStore((state) => state.clearCart);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationQuery, setLocationQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [localAddresses, setLocalAddresses] = useState<CustomerAddressDoc[]>([]);
+  const [remoteAddresses, setRemoteAddresses] = useState<CustomerAddressDoc[]>([]);
+  const {
+    location,
+    suggestions,
+    recentLocations,
+    status: locationStatus,
+    detecting,
+    detectLocation,
+    searchPlaces,
+    selectLocation,
+  } = useLocationCommerce([]);
 
   const loggedIn = auth.user
     ? auth.profile?.role === "customer"
     : localAuthUser.role === "customer" && localAuthUser.id !== "anonymous";
+  const customerId = loggedIn ? (auth.user?.uid || localAuthUser.id) : null;
   const displayName = loggedIn ? (auth.profile?.displayName ?? localAuthUser.name) : "Guest";
   const initials = getInitials(displayName);
+  const savedAddresses = useMemo(() => uniqueAddresses([...remoteAddresses, ...localAddresses]), [localAddresses, remoteAddresses]);
+  const locationOptions = useMemo(
+    () => uniqueCommerceLocations([
+      location,
+      ...savedAddresses.map(addressToCommerceLocation),
+      ...recentLocations,
+      ...suggestions,
+      defaultLocation,
+    ]),
+    [location, recentLocations, savedAddresses, suggestions],
+  );
+
+  useEffect(() => {
+    let active = true;
+    const localTimerId = window.setTimeout(() => {
+      if (!active) return;
+      if (!customerId || customerId === "anonymous") {
+        setLocalAddresses([]);
+        setRemoteAddresses([]);
+        return;
+      }
+      setLocalAddresses(readLocalAddresses(customerId));
+      if (!shouldUseFirebase() || !isFirebaseConfigured) {
+        setRemoteAddresses([]);
+      }
+    }, 0);
+
+    if (!customerId || customerId === "anonymous") {
+      return () => {
+        active = false;
+        window.clearTimeout(localTimerId);
+      };
+    }
+
+    if (!shouldUseFirebase() || !isFirebaseConfigured) {
+      return () => {
+        active = false;
+        window.clearTimeout(localTimerId);
+      };
+    }
+
+    const unsubscribe = onSnapshot(
+      query(collection(getFirebaseDb(), COLLECTIONS.customerAddresses), where("customerId", "==", customerId), limit(12)),
+      (snapshot) => {
+        setRemoteAddresses(snapshot.docs.map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }) as CustomerAddressDoc));
+      },
+      () => {
+        setRemoteAddresses([]);
+      },
+    );
+
+    return () => {
+      active = false;
+      window.clearTimeout(localTimerId);
+      unsubscribe();
+    };
+  }, [customerId]);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void searchPlaces(locationQuery);
+    }, 180);
+    return () => window.clearTimeout(timerId);
+  }, [locationQuery, searchPlaces]);
 
   async function handleLogout() {
     setProfileOpen(false);
@@ -45,43 +159,54 @@ export function PublicHeader() {
     window.location.href = "/";
   }
 
+  function chooseLocation(nextLocation: CommerceLocation) {
+    selectLocation(nextLocation);
+    setLocationOpen(false);
+    setLocationQuery("");
+  }
+
   return (
-    <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-background/92 backdrop-blur-xl">
-      <div className="container-page flex h-16 items-center justify-between gap-3 md:h-20">
-        <Link href="/" className="flex items-center gap-3" aria-label={`${productName} home`}>
-          <span className="relative grid size-10 place-items-center overflow-hidden rounded-full food-gradient text-sm font-black text-white shadow-sm md:size-12">
+    <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-background/94 backdrop-blur-xl">
+      <div className="container-page flex min-h-16 items-center justify-between gap-3 py-2 md:min-h-20">
+        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={`${productName} home`}>
+          <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full food-gradient text-sm font-black text-white shadow-sm md:size-12">
             {logoUrl ? (
               <SafeImage src={logoUrl} alt={`${productName} logo`} fill sizes="48px" className="object-cover" />
             ) : (
-              <>
-                <span className="hidden md:inline">SF</span>
-                <span className="md:hidden">SF</span>
-              </>
+              brandInitials
             )}
           </span>
-          <span>
-            <span className="block text-sm font-black leading-tight md:text-xl">{productName}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-black leading-tight md:text-xl">{productName}</span>
           </span>
         </Link>
 
         <div className="hidden min-w-0 flex-1 items-center justify-center gap-3 md:flex">
-          <Button asChild variant="outline" size="sm" className="h-11 max-w-56 rounded-lg bg-white px-4 shadow-sm">
-            <Link href="/restaurants" className="min-w-0">
-              <MapPin className="size-4 shrink-0 text-primary" />
-              <span className="truncate">Choose location</span>
-            </Link>
-          </Button>
+          <LocationPicker
+            compact={false}
+            open={locationOpen}
+            setOpen={setLocationOpen}
+            location={location}
+            locationStatus={locationStatus}
+            locationQuery={locationQuery}
+            setLocationQuery={setLocationQuery}
+            locationOptions={locationOptions}
+            detecting={detecting}
+            detectLocation={detectLocation}
+            chooseLocation={chooseLocation}
+            loggedIn={loggedIn}
+          />
           <form
             className="flex h-11 min-w-[20rem] max-w-xl flex-1 items-center gap-3 rounded-lg border bg-white px-4 text-sm font-semibold text-muted-foreground shadow-sm transition focus-within:border-primary/40"
             onSubmit={(event) => {
               event.preventDefault();
-              const query = searchQuery.trim();
-              router.push(query ? `/restaurants?query=${encodeURIComponent(query)}` : "/restaurants");
+              const queryText = searchQuery.trim();
+              router.push(queryText ? `/restaurants?query=${encodeURIComponent(queryText)}` : "/restaurants");
             }}
           >
             <Search className="size-4 shrink-0" />
             <input
-              className="h-full min-w-0 flex-1 bg-transparent outline-none"
+              className="h-full min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search restaurants, cuisines or dishes"
@@ -240,7 +365,119 @@ export function PublicHeader() {
           </Sheet>
         </div>
       </div>
+      <div className="container-page pb-2 md:hidden">
+        <LocationPicker
+          compact
+          open={locationOpen}
+          setOpen={setLocationOpen}
+          location={location}
+          locationStatus={locationStatus}
+          locationQuery={locationQuery}
+          setLocationQuery={setLocationQuery}
+          locationOptions={locationOptions}
+          detecting={detecting}
+          detectLocation={detectLocation}
+          chooseLocation={chooseLocation}
+          loggedIn={loggedIn}
+        />
+      </div>
     </header>
+  );
+}
+
+function LocationPicker({
+  compact,
+  open,
+  setOpen,
+  location,
+  locationStatus,
+  locationQuery,
+  setLocationQuery,
+  locationOptions,
+  detecting,
+  detectLocation,
+  chooseLocation,
+  loggedIn,
+}: {
+  compact: boolean;
+  open: boolean;
+  setOpen: Dispatch<SetStateAction<boolean>>;
+  location: CommerceLocation;
+  locationStatus: string;
+  locationQuery: string;
+  setLocationQuery: (value: string) => void;
+  locationOptions: CommerceLocation[];
+  detecting: boolean;
+  detectLocation: () => void;
+  chooseLocation: (location: CommerceLocation) => void;
+  loggedIn: boolean;
+}) {
+  const label = location.source === "fallback" ? "Choose location" : location.label;
+
+  return (
+    <div className={compact ? "relative w-full" : "relative shrink-0"}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={compact ? "h-10 w-full justify-start rounded-lg bg-white px-3 shadow-sm" : "h-11 max-w-64 rounded-lg bg-white px-4 shadow-sm"}
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <MapPin className="size-4 shrink-0 text-primary" />
+        <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+        <ChevronDown className="size-4 shrink-0" />
+      </Button>
+      {open ? (
+        <div className={compact ? "absolute left-0 right-0 top-11 z-50 rounded-xl border bg-white p-3 shadow-2xl" : "absolute left-0 top-12 z-50 w-96 rounded-xl border bg-white p-3 shadow-2xl"}>
+          <div className="flex items-center gap-2 rounded-lg border bg-background px-3">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground"
+              value={locationQuery}
+              onChange={(event) => setLocationQuery(event.target.value)}
+              placeholder="Search address, area, or landmark"
+              aria-label="Search delivery location"
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-xs font-semibold text-muted-foreground">{locationStatus}</p>
+            <Button type="button" size="sm" variant="ghost" className="shrink-0" onClick={detectLocation} disabled={detecting}>
+              <LocateFixed className="size-4" />
+              {detecting ? "Detecting" : "Detect"}
+            </Button>
+          </div>
+          <div className="mt-2 max-h-72 overflow-y-auto">
+            {locationOptions.map((option) => {
+              const selected = sameLocation(option, location);
+              return (
+                <button
+                  key={`${option.source}-${option.placeId || option.address}`}
+                  type="button"
+                  className="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-orange-50"
+                  onClick={() => chooseLocation(option)}
+                >
+                  <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-orange-50 text-primary">
+                    {selected ? <Check className="size-4" /> : <MapPinned className="size-4" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-black text-foreground">{option.label}</span>
+                    <span className="line-clamp-2 text-xs font-semibold leading-5 text-muted-foreground">{option.address}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <Link
+            href={loggedIn ? "/account/profile?tab=addresses" : "/login?next=/account/profile?tab=addresses"}
+            className="mt-2 flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-orange-200 px-3 text-sm font-black text-primary hover:bg-orange-50"
+          >
+            <Plus className="size-4" />
+            Add new address
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -251,7 +488,7 @@ function HeaderMenuLink({
   description,
 }: {
   href: string;
-  icon: typeof UserRound;
+  icon: LucideIcon;
   label: string;
   description?: string;
 }) {
@@ -272,7 +509,7 @@ function QuickMenuLink({
   label,
 }: {
   href: string;
-  icon: typeof UserRound;
+  icon: LucideIcon;
   label: string;
 }) {
   return (
@@ -281,6 +518,41 @@ function QuickMenuLink({
       <span>{label}</span>
     </Link>
   );
+}
+
+function addressToCommerceLocation(address: CustomerAddressDoc): CommerceLocation {
+  return {
+    label: address.label || "Saved address",
+    address: address.fullAddress || address.address || address.label || defaultLocation.address,
+    latitude: typeof address.latitude === "number" ? address.latitude : defaultLocation.latitude,
+    longitude: typeof address.longitude === "number" ? address.longitude : defaultLocation.longitude,
+    placeId: address.placeId || address.id,
+    source: "manual",
+  };
+}
+
+function uniqueAddresses(addresses: CustomerAddressDoc[]) {
+  const seen = new Set<string>();
+  return addresses.filter((address) => {
+    const key = (address.id || address.fullAddress || address.address || address.label).trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function uniqueCommerceLocations(locations: CommerceLocation[]) {
+  const seen = new Set<string>();
+  return locations.filter((location) => {
+    const key = (location.placeId || location.address || location.label).trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function sameLocation(first: CommerceLocation, second: CommerceLocation) {
+  return (first.placeId || first.address).trim().toLowerCase() === (second.placeId || second.address).trim().toLowerCase();
 }
 
 function getInitials(name?: string) {

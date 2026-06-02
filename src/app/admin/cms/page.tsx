@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { ArrowDown, ArrowUp, Eye, EyeOff, Monitor, Plus, Save, Smartphone, Tablet, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Italic, List, ListOrdered, Monitor, Plus, Save, Smartphone, Tablet, Trash2, Type, type LucideIcon } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { Badge } from "@/components/ui/badge";
@@ -259,39 +259,19 @@ export default function AdminCmsPage() {
               <Textarea
                 className="min-h-28"
                 value={settings.disclaimer}
-                onChange={(event) => setSettings({
-                  ...settings,
-                  disclaimer: event.target.value,
-                  footer: { ...settings.footer, note: event.target.value },
-                  legalPages: { ...settings.legalPages, terms: event.target.value },
-                })}
+                onChange={(event) => setSettings({ ...settings, disclaimer: event.target.value })}
               />
             </div>
-            <Toggle label="Show footer disclaimer" checked={settings.footer.visible} onChange={(visible) => setSettings({ ...settings, footer: { ...settings.footer, visible } })} />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <Field label="Support email" value={settings.footer.supportEmail ?? ""} onChange={(supportEmail) => setSettings({ ...settings, footer: { ...settings.footer, supportEmail } })} />
               <Field label="Copyright" value={settings.footer.copyright ?? ""} onChange={(copyright) => setSettings({ ...settings, footer: { ...settings.footer, copyright } })} />
             </div>
-            <div className="grid gap-2">
-              <Label>Privacy copy</Label>
-              <Textarea className="min-h-24" value={settings.legalPages.privacy} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, privacy: event.target.value } })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Refund policy</Label>
-              <Textarea className="min-h-20" value={settings.legalPages.refund ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, refund: event.target.value } })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Cancellation policy</Label>
-              <Textarea className="min-h-20" value={settings.legalPages.cancellation ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, cancellation: event.target.value } })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Delivery policy</Label>
-              <Textarea className="min-h-20" value={settings.legalPages.delivery ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, delivery: event.target.value } })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Cookie policy</Label>
-              <Textarea className="min-h-20" value={settings.legalPages.cookie ?? ""} onChange={(event) => setSettings({ ...settings, legalPages: { ...settings.legalPages, cookie: event.target.value } })} />
-            </div>
+            <RichTextEditor label="Terms & Conditions" value={settings.legalPages.terms ?? ""} onChange={(terms) => setSettings({ ...settings, legalPages: { ...settings.legalPages, terms } })} />
+            <RichTextEditor label="Privacy Policy" value={settings.legalPages.privacy ?? ""} onChange={(privacy) => setSettings({ ...settings, legalPages: { ...settings.legalPages, privacy } })} />
+            <RichTextEditor label="Refund Policy" value={settings.legalPages.refund ?? ""} onChange={(refund) => setSettings({ ...settings, legalPages: { ...settings.legalPages, refund } })} />
+            <RichTextEditor label="Cancellation Policy" value={settings.legalPages.cancellation ?? ""} onChange={(cancellation) => setSettings({ ...settings, legalPages: { ...settings.legalPages, cancellation } })} />
+            <RichTextEditor label="Delivery Policy" value={settings.legalPages.delivery ?? ""} onChange={(delivery) => setSettings({ ...settings, legalPages: { ...settings.legalPages, delivery } })} />
+            <RichTextEditor label="Cookie Policy" value={settings.legalPages.cookie ?? ""} onChange={(cookie) => setSettings({ ...settings, legalPages: { ...settings.legalPages, cookie } })} />
           </CardContent>
         </Card>
 
@@ -392,6 +372,68 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
       {label}
     </label>
+  );
+}
+
+function RichTextEditor({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || editor.innerHTML === value) return;
+    editor.innerHTML = value || "";
+  }, [value]);
+
+  function runCommand(command: string, commandValue?: string) {
+    editorRef.current?.focus();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(command, false, commandValue);
+    onChange(editorRef.current?.innerHTML ?? "");
+  }
+
+  return (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <div className="rounded-xl border bg-background">
+        <div className="flex flex-wrap items-center gap-2 border-b p-2">
+          <ToolbarButton icon={Bold} label="Bold" onClick={() => runCommand("bold")} />
+          <ToolbarButton icon={Italic} label="Italic" onClick={() => runCommand("italic")} />
+          <ToolbarButton icon={List} label="Bulleted list" onClick={() => runCommand("insertUnorderedList")} />
+          <ToolbarButton icon={ListOrdered} label="Numbered list" onClick={() => runCommand("insertOrderedList")} />
+          <label className="flex h-9 items-center gap-2 rounded-md border bg-white px-2 text-xs font-black text-foreground">
+            <Type className="size-4" />
+            <select
+              className="bg-transparent text-xs font-black outline-none"
+              defaultValue="3"
+              onChange={(event) => runCommand("fontSize", event.target.value)}
+              aria-label={`${label} font size`}
+            >
+              <option value="2">Small</option>
+              <option value="3">Normal</option>
+              <option value="4">Large</option>
+              <option value="5">Title</option>
+            </select>
+          </label>
+        </div>
+        <div
+          ref={editorRef}
+          className="min-h-40 px-3 py-3 text-sm font-semibold leading-6 text-foreground outline-none prose-headings:text-foreground prose-p:my-2 prose-ul:my-2 prose-ol:my-2"
+          contentEditable
+          role="textbox"
+          aria-label={label}
+          suppressContentEditableWarning
+          onInput={(event) => onChange(event.currentTarget.innerHTML)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ToolbarButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <Button type="button" size="icon-sm" variant="outline" aria-label={label} title={label} onClick={onClick}>
+      <Icon className="size-4" />
+    </Button>
   );
 }
 

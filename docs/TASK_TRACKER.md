@@ -15,6 +15,14 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Customer home and restaurant pages now use the same shared header on 2026-06-02, including a desktop/mobile address picker with saved profile addresses, recent delivery locations, GPS detect, and an Add new address action.
+- [x] Public CMS branding now hydrates on every customer/public route and caches CMS settings in local storage to reduce visible brand-name flicker between the fallback app name and Admin-configured branding.
+- [x] Build-time app naming now reads `NEXT_PUBLIC_APP_NAME`/`NEXT_PUBLIC_BRAND_NAME`, and the environment templates include `NEXT_PUBLIC_APP_NAME` for production metadata/header fallback alignment.
+- [x] Google customer signup/session repair was strengthened on 2026-06-02: Google sign-in creates the customer profile before session sync and client Firestore writes omit undefined phone/photo/email values.
+- [x] Admin CMS legal policy fields now use a rich text editor with bold, italic, bulleted list, numbered list, and font-size controls; legal pages render formatted policy HTML through a sanitizer.
+- [x] Customer footer no longer displays the restaurant responsibility disclaimer sentence; the disclaimer remains available as policy/legal content.
+- [x] Hostinger/Next build trace guard added on 2026-06-02: `npm run build` uses a wrapper that creates `.next/server/middleware.js.nft.json` only when the hosting trace artifact is missing.
+- [x] Customer header/auth/CMS/policy/build verification completed on 2026-06-02: `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed.
 - [x] Owner menu item promotion links added on 2026-06-02: each item row can copy the customer item URL, open the public item page, or launch WhatsApp with a prefilled item promotion message.
 - [x] Customer restaurant ordering now supports right-now or scheduled mode from the same restaurant landing/menu flow, including schedule date/time validation, details-step editing, confirmation summary, and scheduled order metadata submission through the existing order API/store contract.
 - [x] Customer item detail pages now include a Schedule action for shared item links; it adds the configured item/customizations to cart and opens the restaurant page in scheduled mode.

@@ -16,7 +16,7 @@ export function FirestoreStoreHydrator() {
   const ownerSurface = (pathname === "/owner" || pathname.startsWith("/owner/") || pathname.startsWith("/pos")) && !loginSurface;
   const publicSurface = !adminSurface && !loginSurface && !ownerSurface;
   const publicDiscoverySurface = publicSurface && (pathname === "/" || pathname === "/restaurants" || pathname === "/offers");
-  const publicCmsSurface = publicSurface && pathname === "/";
+  const publicCmsSurface = publicSurface;
   const publicOffersSurface = publicSurface && (pathname === "/" || pathname === "/offers");
 
   useEffect(() => {
