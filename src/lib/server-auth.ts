@@ -14,6 +14,20 @@ export type VerifiedSession = {
   restaurantIds: string[];
 };
 
+type AuthBackedCustomerProfile = {
+  role?: UserRole;
+  active?: boolean;
+  displayName?: string;
+  email?: string;
+  phone?: string;
+  photoURL?: string;
+  tenantIds?: string[];
+  restaurantIds?: string[];
+  branchIds?: string[];
+  permissions?: string[];
+  createdAt?: unknown;
+};
+
 const SESSION_PROFILE_CACHE_TTL_MS = 30_000;
 const sessionProfileCache = new Map<string, { expiresAt: number; session: VerifiedSession }>();
 const ownerRoles = new Set<UserRole>(["owner", "manager", "cashier", "waiter", "chef", "kitchen-manager", "accountant", "inventory-manager", "delivery-staff", "delivery"]);
@@ -56,8 +70,13 @@ export const legacySessionCookieNames = {
   restaurantIds: "sarva_restaurants",
 };
 
-export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedSession> {
+export async function verifyFirebaseIdToken(idToken: string, options: { ensureCustomer?: boolean } = {}): Promise<VerifiedSession> {
   const decoded = await adminAuth().verifyIdToken(idToken);
+  if (options.ensureCustomer) {
+    await ensureCustomerProfileFromAuth(decoded.uid);
+    sessionProfileCache.delete(decoded.uid);
+  }
+
   const cached = sessionProfileCache.get(decoded.uid);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.session;
@@ -95,6 +114,70 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedSe
   });
 
   return session;
+}
+
+async function ensureCustomerProfileFromAuth(uid: string) {
+  const db = adminDb();
+  const authUser = await adminAuth().getUser(uid);
+  const userRef = db.collection("users").doc(uid);
+  const existing = await userRef.get();
+  const existingData = existing.data() as AuthBackedCustomerProfile | undefined;
+
+  if (existing.exists && existingData?.role && existingData.role !== "customer") {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const displayName = authUser.displayName || existingData?.displayName || authUser.email?.split("@")[0] || "Sarva user";
+  const email = authUser.email || existingData?.email;
+  const phone = authUser.phoneNumber || existingData?.phone;
+  const photoURL = authUser.photoURL || existingData?.photoURL;
+  const permissions = existingData?.permissions?.length ? existingData.permissions : ["customer:profile", "customer:orders"];
+  const active = existingData?.active ?? true;
+
+  await userRef.set(
+    omitUndefinedFields({
+      id: uid,
+      uid,
+      displayName,
+      email,
+      phone,
+      photoURL,
+      role: "customer",
+      roleId: "customer",
+      tenantIds: existingData?.tenantIds ?? [],
+      restaurantIds: existingData?.restaurantIds ?? [],
+      branchIds: existingData?.branchIds ?? [],
+      permissions,
+      active,
+      createdAt: existingData?.createdAt ?? now,
+      updatedAt: now,
+    }),
+    { merge: true },
+  );
+
+  await db.collection("customerProfiles").doc(uid).set(
+    omitUndefinedFields({
+      id: uid,
+      uid,
+      displayName,
+      email,
+      phone,
+      photoURL,
+      emailVerified: authUser.emailVerified,
+      phoneVerified: Boolean(authUser.phoneNumber),
+      active,
+      createdAt: existingData?.createdAt ?? now,
+      updatedAt: now,
+    }),
+    { merge: true },
+  );
+}
+
+function omitUndefinedFields<T extends Record<string, unknown>>(input: T) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => typeof value !== "undefined"),
+  ) as Partial<T>;
 }
 
 export async function getSessionFromCookies(surface?: SessionSurface) {

@@ -22,8 +22,9 @@ const InstallPrompt = dynamic(
 
 export function CustomerShellClient({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const restaurantRoute = pathname.startsWith("/restaurant/");
   const showFloatingCart =
-    !pathname.startsWith("/restaurant/") &&
+    !restaurantRoute &&
     !["/checkout", "/cart", "/order-success", "/profile"].some((path) => pathname.startsWith(path));
   const homeRoute = pathname === "/";
 
@@ -36,7 +37,7 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
         </div>
         {children}
       </MobilePullToRefresh>
-      <CustomerFooter />
+      {restaurantRoute ? null : <CustomerFooter />}
       <InstallPrompt />
       {showFloatingCart ? <CustomerFloatingCartBar /> : null}
       <MobileBottomNav items={customerNav} />

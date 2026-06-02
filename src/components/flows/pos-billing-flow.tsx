@@ -14,6 +14,7 @@ import { TableSelector } from "@/modules/owner/pos/components/table-selector";
 import { RestaurantBill, KotTicket } from "@/components/printing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { usePublicCategories } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { subscribeOfflineQueue, type OfflineQueueEntry } from "@/lib/offline";
 import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
@@ -67,6 +68,7 @@ export function PosBillingFlow() {
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
   const tableOrders = useAppStore((state) => state.tableOrders);
   const staffMembers = useAppStore((state) => state.staffMembers);
+  const { categories: masterCategories } = usePublicCategories();
   const addPosItem = useAppStore((state) => state.addPosItem);
   const addPosProduct = useAppStore((state) => state.addPosProduct);
   const updatePosQuantity = useAppStore((state) => state.updatePosQuantity);
@@ -132,8 +134,17 @@ export function PosBillingFlow() {
     [inventoryItems],
   );
   const categoryNameById = useMemo(
-    () => new Map(menuCategories.map((item) => [item.id, item.name] as const)),
-    [menuCategories],
+    () => {
+      const entries: Array<[string, string]> = [];
+      masterCategories.forEach((item) => {
+        entries.push([item.id, item.name], [item.slug, item.name], [item.name, item.name]);
+      });
+      menuCategories.forEach((item) => {
+        entries.push([item.id, item.name], [item.name, item.name]);
+      });
+      return new Map(entries);
+    },
+    [masterCategories, menuCategories],
   );
   const resolveCategoryName = useCallback(
     (item: MenuItem) => categoryNameById.get(item.categoryId ?? "") ?? categoryNameById.get(item.category) ?? item.category,
@@ -145,15 +156,21 @@ export function PosBillingFlow() {
       const category = resolveCategoryName(item);
       counts.set(category, (counts.get(category) ?? 0) + 1);
     });
-    return [
+    const orderedCategories = [
+      ...masterCategories
+        .filter((item) => item.active)
+        .map((item) => ({ id: item.id, name: item.name, count: counts.get(item.name) ?? 0, sortOrder: item.sortOrder })),
       ...menuCategories
         .filter((item) => item.restaurantSlug === restaurantId && item.enabled)
-        .map((item) => ({ id: item.id, name: item.name, count: counts.get(item.name) ?? 0 })),
+        .map((item) => ({ id: item.id, name: item.name, count: counts.get(item.name) ?? 0, sortOrder: item.sortOrder + 1000 })),
       ...Array.from(counts.entries())
-        .filter(([name]) => !menuCategories.some((item) => item.name === name))
-        .map(([name, count]) => ({ id: name, name, count })),
-    ].filter((item) => item.count > 0);
-  }, [menu, menuCategories, restaurantId, resolveCategoryName]);
+        .filter(([name]) => !masterCategories.some((item) => item.name === name) && !menuCategories.some((item) => item.name === name))
+        .map(([name, count], index) => ({ id: name, name, count, sortOrder: 2000 + index })),
+    ];
+    return Array.from(new Map(orderedCategories.map((item) => [item.name, item])).values())
+      .filter((item) => item.count > 0)
+      .sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
+  }, [masterCategories, menu, menuCategories, restaurantId, resolveCategoryName]);
   const displayedItems = useMemo(() => {
     const source = activeTab === "menu" ? menu.map((item) => toMenuProduct(item, resolveCategoryName(item))) : activeTab === "custom" ? products.map(toInventoryProduct) : [];
     return source.filter((item) => {

@@ -224,6 +224,11 @@ export type MenuDoc = TenantScopedDoc & {
   imagePaths?: string[];
   isVeg: boolean;
   foodType?: "veg" | "nonveg" | "egg" | "vegan" | "jain";
+  prepTime?: string;
+  calories?: number;
+  spiceLevel?: "mild" | "medium" | "hot";
+  averageRating?: number;
+  reviewCount?: number;
   available: boolean;
   menuVisibility?: Record<"dine-in" | "parcel" | "delivery", boolean>;
   channelConfig?: Record<"dine-in" | "parcel" | "delivery", { visible: boolean; available: boolean; price: number; taxRate: 5 | 18; packingCharge: number; offerCode?: string; startTime?: string; endTime?: string; offerIds?: string[] }>;
@@ -232,6 +237,10 @@ export type MenuDoc = TenantScopedDoc & {
   searchKeywords?: string[];
   dietaryLabels?: string[];
   allergenLabels?: string[];
+  modifiers?: Array<{ name: string; price: number }>;
+  addOns?: Array<{ name: string; price: number }>;
+  variantGroups?: Array<{ id: string; name: string; required: boolean; options: Array<{ id: string; name: string; price: number }> }>;
+  modifierGroups?: Array<{ id: string; name: string; required: boolean; min: number; max: number; options: Array<{ id: string; name: string; price: number }> }>;
   modifierGroupIds?: string[];
   variantGroupIds?: string[];
   recipeLinks?: Array<{ inventoryItemId: string; quantity: number; unit: string }>;

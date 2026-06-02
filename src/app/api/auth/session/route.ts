@@ -41,23 +41,29 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { idToken, surface: requestedSurface } = (await request.json().catch(() => ({}))) as { idToken?: string; surface?: SessionSurface };
+  const { idToken, surface: requestedSurface, ensureCustomer } = (await request.json().catch(() => ({}))) as {
+    idToken?: string;
+    surface?: SessionSurface;
+    ensureCustomer?: boolean;
+  };
 
   if (!idToken) {
     return NextResponse.json({ error: "idToken is required" }, { status: 400 });
   }
 
+  const requestedSessionSurface = parseSessionSurface(requestedSurface);
   let session;
   try {
-    session = await verifyFirebaseIdToken(idToken);
-  } catch {
+    session = await verifyFirebaseIdToken(idToken, { ensureCustomer: requestedSessionSurface === "customer" || ensureCustomer === true });
+  } catch (error) {
+    console.error("[auth/session] Firebase session verification failed:", error);
     return NextResponse.json(
-      { error: "Invalid or expired session." },
+      { error: sessionVerificationMessage(error) },
       { status: 401 },
     );
   }
 
-  const surface = parseSessionSurface(requestedSurface) ?? surfaceForRole(session.role);
+  const surface = requestedSessionSurface ?? surfaceForRole(session.role);
   if (!surface || !roleAllowedForSurface(session.role, surface)) {
     return NextResponse.json(
       { error: "This account cannot be used for this module." },
@@ -77,6 +83,20 @@ export async function POST(request: NextRequest) {
   deleteCookieGroup(response, legacySessionCookieNames);
 
   return response;
+}
+
+function sessionVerificationMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (/Could not load the default credentials|Unable to detect a Project Id|application default|credential|private key|client_email/i.test(message)) {
+    return "Secure account setup is not configured on this server.";
+  }
+  if (/inactive or missing/i.test(message)) {
+    return "Customer profile could not be created. Please try again.";
+  }
+  if (/undefined.*Firestore value|not a valid Firestore document/i.test(message)) {
+    return "Customer profile could not be created. Please try again.";
+  }
+  return "Invalid or expired session.";
 }
 
 export async function DELETE(request: NextRequest) {

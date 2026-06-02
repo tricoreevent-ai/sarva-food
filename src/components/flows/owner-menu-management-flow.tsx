@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, BarChart3, Boxes, Copy, Download, Edit3, FileSpreadsheet, Languages, Loader2, PackageCheck, Plus, QrCode, Save, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { AlertTriangle, BarChart3, Boxes, Copy, Download, Edit3, ExternalLink, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Trash2, ToggleLeft, ToggleRight, X } from "lucide-react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -14,29 +14,98 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { usePublicCategories } from "@/hooks/use-public-data";
+import { usePublicCategories, usePublicCuisines } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { buildQrPayload, calculateRestaurantTax, cloneMenuForChannel, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
-import { advancedMenuItemSchema, comboSchema, cuisineSchema, menuCategorySchema, taxSettingsSchema } from "@/lib/schemas/menu";
+import { advancedMenuItemSchema, comboSchema, taxSettingsSchema } from "@/lib/schemas/menu";
 import type { ComboOffer, InventoryItem, MenuItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 
 type MenuFormValues = z.infer<typeof advancedMenuItemSchema>;
+type MenuFoodType = MenuFormValues["foodType"];
+type MenuSpiceLevel = MenuFormValues["spiceLevel"];
 
 const fallbackImage: string = IMAGE_FALLBACKS.food;
+
+type ItemWizardStepId = "basic" | "description" | "customization" | "info" | "visibility" | "review";
+type ItemFilterChannel = "all" | MenuChannel;
+type ItemFilterOption = "all" | string;
+
+const ITEM_WIZARD_STEPS: Array<{
+  id: ItemWizardStepId;
+  label: string;
+  description: string;
+  meta: string;
+  icon: React.ElementType;
+}> = [
+  { id: "basic", label: "Basic information", description: "Name, category, price", meta: "5 fields", icon: FileSpreadsheet },
+  { id: "description", label: "Description", description: "Details about the item", meta: "3 fields", icon: Languages },
+  { id: "customization", label: "Customization", description: "Modifiers and add-ons", meta: "2 sections", icon: Boxes },
+  { id: "info", label: "Additional info", description: "Allergens, tags, badges", meta: "4 fields", icon: AlertTriangle },
+  { id: "visibility", label: "Channel & visibility", description: "Where to show", meta: "3 channels", icon: PackageCheck },
+  { id: "review", label: "Review & publish", description: "Review and publish", meta: "Review", icon: Save },
+];
+
+function createEmptyMenuDraft(): MenuFormValues {
+  return {
+    name: "",
+    translations: {},
+    category: "",
+    categoryId: "",
+    subcategory: "",
+    cuisineIds: [],
+    description: "",
+    longDescription: "",
+    price: undefined as unknown as number,
+    prepTime: "",
+    dineInPrice: undefined,
+    parcelPrice: undefined,
+    deliveryPrice: undefined,
+    packingCharge: undefined,
+    foodType: "" as MenuFoodType,
+    spiceLevel: "" as MenuSpiceLevel,
+    tags: "",
+    badges: "",
+    searchKeywords: "",
+    allergens: "",
+    modifiers: "",
+    addOns: "",
+    modifierGroups: [],
+    recipeLinks: [],
+    menuVisibility: { "dine-in": false, parcel: false, delivery: false },
+  };
+}
 
 type ImportPreviewRow = {
   rowNumber: number;
   name: string;
   category: string;
+  categoryId?: string;
+  subcategory: string;
+  cuisines: string;
+  cuisineIds: string[];
   price: number;
+  dineInPrice?: number;
+  parcelPrice?: number;
+  deliveryPrice?: number;
+  packingCharge?: number;
   description: string;
-  foodType: "veg" | "nonveg";
+  longDescription: string;
+  foodType: MenuFoodType;
+  prepTime: string;
+  spiceLevel: MenuFormValues["spiceLevel"];
   imageUrl: string;
+  tags: string;
+  badges: string;
+  searchKeywords: string;
+  allergens: string;
+  modifiers: string;
+  addOns: string;
   dineInEnabled: boolean;
   parcelEnabled: boolean;
   deliveryEnabled: boolean;
@@ -57,9 +126,8 @@ type ComboDraft = {
 
 export function OwnerMenuManagementFlow() {
   const allMenuItems = useAppStore((state) => state.menuItems);
-  const allCategories = useAppStore((state) => state.menuCategories);
-  const allCuisines = useAppStore((state) => state.cuisines);
   const { categories: masterCategories } = usePublicCategories();
+  const { cuisines: masterCuisines } = usePublicCuisines();
   const taxSettings = useAppStore((state) => state.taxSettings);
   const combos = useAppStore((state) => state.comboOffers);
   const inventoryItems = useAppStore((state) => state.inventoryItems);
@@ -69,12 +137,6 @@ export function OwnerMenuManagementFlow() {
   const updateMenuItem = useAppStore((state) => state.updateMenuItem);
   const deleteMenuItem = useAppStore((state) => state.deleteMenuItem);
   const toggleSoldOut = useAppStore((state) => state.toggleSoldOut);
-  const createMenuCategory = useAppStore((state) => state.createMenuCategory);
-  const updateMenuCategory = useAppStore((state) => state.updateMenuCategory);
-  const deleteMenuCategory = useAppStore((state) => state.deleteMenuCategory);
-  const createCuisine = useAppStore((state) => state.createCuisine);
-  const updateCuisine = useAppStore((state) => state.updateCuisine);
-  const deleteCuisine = useAppStore((state) => state.deleteCuisine);
   const updateTaxSettings = useAppStore((state) => state.updateTaxSettings);
   const createComboOffer = useAppStore((state) => state.createComboOffer);
   const updateComboOffer = useAppStore((state) => state.updateComboOffer);
@@ -85,13 +147,22 @@ export function OwnerMenuManagementFlow() {
   const apiMessage = useAppStore((state) => state.apiMessage);
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [imagePreview, setImagePreview] = useState(fallbackImage);
+  const [itemEditorOpen, setItemEditorOpen] = useState(false);
+  const [activeItemStep, setActiveItemStep] = useState<ItemWizardStepId>("basic");
   const [activeChannel, setActiveChannel] = useState<MenuChannel>("delivery");
+  const [itemSearch, setItemSearch] = useState("");
+  const [itemCategoryFilter, setItemCategoryFilter] = useState<ItemFilterOption>("all");
+  const [itemFoodFilter, setItemFoodFilter] = useState<ItemFilterOption>("all");
+  const [itemChannelFilter, setItemChannelFilter] = useState<ItemFilterChannel>("all");
+  const [itemVisibilityFilter, setItemVisibilityFilter] = useState<ItemFilterOption>("all");
+  const [itemAvailabilityFilter, setItemAvailabilityFilter] = useState<ItemFilterOption>("all");
+  const [itemPriceFilter, setItemPriceFilter] = useState<ItemFilterOption>("all");
+  const [itemImageFilter, setItemImageFilter] = useState<ItemFilterOption>("all");
+  const [itemModifierFilter, setItemModifierFilter] = useState<ItemFilterOption>("all");
+  const [itemSort, setItemSort] = useState<ItemFilterOption>("name");
   const [activeLanguage, setActiveLanguage] = useState<"en" | "hi" | "ml" | "ta" | "kn" | "ar">("en");
   const [importSummary, setImportSummary] = useState("No import file selected.");
   const [importRows, setImportRows] = useState<ImportPreviewRow[]>([]);
-  const [copyImportToAllChannels, setCopyImportToAllChannels] = useState(true);
-  const [categoryDraft, setCategoryDraft] = useState({ id: "", name: "", image: "", banner: "", enabled: true, startTime: "07:00", endTime: "23:00" });
-  const [cuisineDraft, setCuisineDraft] = useState({ id: "", name: "", image: "", icon: "", enabled: true });
   const [comboDraft, setComboDraft] = useState<ComboDraft>({ editingId: "", name: "", description: "", image: "", price: "499", discount: "50", itemIds: [], available: true });
   const [editingInventoryId, setEditingInventoryId] = useState("");
   const [sellableDraft, setSellableDraft] = useState({
@@ -121,54 +192,128 @@ export function OwnerMenuManagementFlow() {
     () => allMenuItems.filter((item) => item.restaurantSlug === restaurantId),
     [allMenuItems, restaurantId],
   );
-  const categories = useMemo(() => allCategories.filter((item) => item.restaurantSlug === restaurantId).sort((a, b) => a.sortOrder - b.sortOrder), [allCategories, restaurantId]);
-  const cuisines = useMemo(() => allCuisines.filter((item) => item.restaurantSlug === restaurantId), [allCuisines, restaurantId]);
-  const categoryChoices = useMemo(() => {
-    const localChoices = categories.map((item) => ({ id: item.id, name: item.name }));
-    const masterChoices = masterCategories.map((item) => ({ id: item.id, name: item.name }));
-    return Array.from(new Map([...masterChoices, ...localChoices].map((item) => [item.id, item])).values())
+  const cuisineChoices = useMemo(() => {
+    return masterCuisines
+      .filter((item) => item.active)
+      .map((item) => ({ id: item.id || item.slug, name: item.name }))
       .sort((first, second) => first.name.localeCompare(second.name));
-  }, [categories, masterCategories]);
+  }, [masterCuisines]);
+  const categoryChoices = useMemo(() => {
+    return masterCategories
+      .filter((item) => item.active !== false)
+      .map((item) => ({ id: item.id || item.slug, name: item.name }))
+      .sort((first, second) => first.name.localeCompare(second.name));
+  }, [masterCategories]);
   const lowStock = useMemo(() => inventoryItems.filter((item) => getInventoryStatus(item) !== "ok"), [inventoryItems]);
   const channelRevenuePreview = useMemo(
     () => menuItems.reduce((sum, item) => sum + (isItemVisible(item, activeChannel) ? getChannelPrice(item, activeChannel) : 0), 0),
     [activeChannel, menuItems],
   );
+  const itemCategoryFilters = useMemo(() => unique(menuItems.map((item) => item.category).filter(Boolean)), [menuItems]);
+  const filteredMenuItems = useMemo(() => {
+    const normalizedSearch = itemSearch.trim().toLowerCase();
+    return menuItems
+      .filter((item) => {
+        const searchable = [
+          item.name,
+          item.category,
+          item.subcategory,
+          item.description,
+          item.longDescription,
+          item.foodType,
+          ...(item.tags ?? []),
+          ...(item.badges ?? []),
+          ...(item.searchKeywords ?? []),
+          ...(item.allergenLabels ?? []),
+        ].filter(Boolean).join(" ").toLowerCase();
+        const channelVisible = itemChannelFilter === "all" || isItemVisible(item, itemChannelFilter);
+        const customerVisible = isItemVisible(item, "delivery") && !item.soldOut;
+        const hasImage = hasCustomImage(item.image);
+        const hasModifiers = Boolean(item.modifierGroups?.length || item.modifiers?.length || item.addOns?.length);
+        const deliveryPrice = item.deliveryPrice ?? item.price;
+        return (
+          (!normalizedSearch || searchable.includes(normalizedSearch)) &&
+          (itemCategoryFilter === "all" || item.category === itemCategoryFilter) &&
+          (itemFoodFilter === "all" || item.foodType === itemFoodFilter || (itemFoodFilter === "veg" ? item.isVeg : !item.isVeg)) &&
+          channelVisible &&
+          (itemVisibilityFilter === "all" || (itemVisibilityFilter === "customer-visible" ? customerVisible : !customerVisible)) &&
+          (itemAvailabilityFilter === "all" || (itemAvailabilityFilter === "available" ? !item.soldOut : item.soldOut)) &&
+          matchesPriceBand(deliveryPrice, itemPriceFilter) &&
+          (itemImageFilter === "all" || (itemImageFilter === "with-image" ? hasImage : !hasImage)) &&
+          (itemModifierFilter === "all" || (itemModifierFilter === "with-modifiers" ? hasModifiers : !hasModifiers))
+        );
+      })
+      .sort((first, second) => {
+        if (itemSort === "price-high") return (second.deliveryPrice ?? second.price) - (first.deliveryPrice ?? first.price);
+        if (itemSort === "price-low") return (first.deliveryPrice ?? first.price) - (second.deliveryPrice ?? second.price);
+        if (itemSort === "category") return first.category.localeCompare(second.category) || first.name.localeCompare(second.name);
+        return first.name.localeCompare(second.name);
+      });
+  }, [itemAvailabilityFilter, itemCategoryFilter, itemChannelFilter, itemFoodFilter, itemImageFilter, itemModifierFilter, itemPriceFilter, itemSearch, itemSort, itemVisibilityFilter, menuItems]);
+  const filterActive = Boolean(
+    itemSearch ||
+      itemCategoryFilter !== "all" ||
+      itemFoodFilter !== "all" ||
+      itemChannelFilter !== "all" ||
+      itemVisibilityFilter !== "all" ||
+      itemAvailabilityFilter !== "all" ||
+      itemPriceFilter !== "all" ||
+      itemImageFilter !== "all" ||
+      itemModifierFilter !== "all" ||
+      itemSort !== "name",
+  );
   const form = useForm<MenuFormValues>({
     resolver: zodResolver(advancedMenuItemSchema) as Resolver<MenuFormValues>,
-    defaultValues: {
-      name: "",
-      translations: {},
-      category: "",
-      categoryId: "",
-      subcategory: "",
-      cuisineIds: [],
-      description: "",
-      longDescription: "",
-      price: 199,
-      prepTime: "15 min",
-      dineInPrice: 199,
-      parcelPrice: 209,
-      deliveryPrice: 229,
-      packingCharge: 10,
-      foodType: "veg",
-      spiceLevel: "medium",
-      tags: "bestseller",
-      badges: "",
-      searchKeywords: "",
-      allergens: "",
-      modifiers: "",
-      addOns: "",
-      modifierGroups: [],
-      recipeLinks: [],
-      menuVisibility: { "dine-in": true, parcel: true, delivery: true },
-    },
+    defaultValues: createEmptyMenuDraft(),
   });
   const selectedCategoryId = useWatch({ control: form.control, name: "categoryId" }) ?? "";
   const selectedCuisineIds = useWatch({ control: form.control, name: "cuisineIds" }) ?? [];
+  const watchedName = useWatch({ control: form.control, name: "name" }) ?? "";
+  const watchedCategory = useWatch({ control: form.control, name: "category" }) ?? "";
+  const watchedSubcategory = useWatch({ control: form.control, name: "subcategory" }) ?? "";
+  const watchedBasePrice = useWatch({ control: form.control, name: "price" }) ?? 0;
+  const watchedDineInPrice = useWatch({ control: form.control, name: "dineInPrice" });
+  const watchedParcelPrice = useWatch({ control: form.control, name: "parcelPrice" });
+  const watchedDeliveryPrice = useWatch({ control: form.control, name: "deliveryPrice" });
+  const watchedPackingCharge = useWatch({ control: form.control, name: "packingCharge" });
+  const watchedFoodType = useWatch({ control: form.control, name: "foodType" }) ?? "";
+  const watchedVisibility = buildChannelVisibility(watchedDineInPrice, watchedParcelPrice, watchedDeliveryPrice);
+  const watchedDisplayPrice = firstPositivePrice(watchedDeliveryPrice, watchedDineInPrice, watchedParcelPrice, watchedBasePrice) ?? 0;
+  const activeItemStepIndex = Math.max(0, ITEM_WIZARD_STEPS.findIndex((step) => step.id === activeItemStep));
+
+  function resetItemFilters() {
+    setItemSearch("");
+    setItemCategoryFilter("all");
+    setItemFoodFilter("all");
+    setItemChannelFilter("all");
+    setItemVisibilityFilter("all");
+    setItemAvailabilityFilter("all");
+    setItemPriceFilter("all");
+    setItemImageFilter("all");
+    setItemModifierFilter("all");
+    setItemSort("name");
+  }
+
+  function beginCreateItem() {
+    setEditing(null);
+    form.reset(createEmptyMenuDraft());
+    setImagePreview(fallbackImage);
+    setActiveItemStep("basic");
+    setItemEditorOpen(true);
+  }
+
+  function closeItemEditor() {
+    setEditing(null);
+    form.reset(createEmptyMenuDraft());
+    setImagePreview(fallbackImage);
+    setActiveItemStep("basic");
+    setItemEditorOpen(false);
+  }
 
   function beginEdit(item: MenuItem) {
     setEditing(item);
+    setActiveItemStep("basic");
+    setItemEditorOpen(true);
     form.reset({
       name: item.name,
       category: item.category,
@@ -179,10 +324,10 @@ export function OwnerMenuManagementFlow() {
       longDescription: item.longDescription ?? "",
       price: item.price,
       prepTime: item.prepTime,
-      dineInPrice: item.dineInPrice ?? item.price,
-      parcelPrice: item.parcelPrice ?? item.price,
-      deliveryPrice: item.deliveryPrice ?? item.price,
-      packingCharge: item.packingCharge ?? 0,
+      dineInPrice: formChannelPrice(item, "dine-in"),
+      parcelPrice: formChannelPrice(item, "parcel"),
+      deliveryPrice: formChannelPrice(item, "delivery"),
+      packingCharge: item.packingCharge && item.packingCharge > 0 ? item.packingCharge : undefined,
       foodType: item.foodType ?? (item.isVeg ? "veg" : "nonveg"),
       spiceLevel: item.spiceLevel ?? "medium",
       tags: item.tags?.join(", ") ?? "",
@@ -194,12 +339,18 @@ export function OwnerMenuManagementFlow() {
       translations: item.translations ?? {},
       modifierGroups: item.modifierGroups ?? [],
       recipeLinks: item.recipeLinks ?? [],
-      menuVisibility: item.menuVisibility ?? { "dine-in": true, parcel: true, delivery: true },
+      menuVisibility: item.menuVisibility ?? buildChannelVisibility(item.dineInPrice, item.parcelPrice, item.deliveryPrice),
     });
     setImagePreview(item.image);
   }
 
   async function handleSubmit(values: MenuFormValues) {
+    const validationError = validateMenuDraft(values, imagePreview, menuItems, editing?.id);
+    if (validationError) {
+      setActiveItemStep(validationError.step);
+      toast.error(validationError.message);
+      return;
+    }
     const modifiers = parsePricedList(values.modifiers);
     const addOns = parsePricedList(values.addOns);
     const selectedCategory = categoryChoices.find((entry) => entry.id === values.categoryId) ??
@@ -208,6 +359,12 @@ export function OwnerMenuManagementFlow() {
     const tags = splitList(values.tags);
     const badges = splitList(values.badges);
     const searchKeywords = splitList(values.searchKeywords);
+    const dineInPrice = normalizeOptionalPrice(values.dineInPrice);
+    const parcelPrice = normalizeOptionalPrice(values.parcelPrice);
+    const deliveryPrice = normalizeOptionalPrice(values.deliveryPrice);
+    const channelVisibility = buildChannelVisibility(dineInPrice, parcelPrice, deliveryPrice);
+    const packingCharge = channelVisibility.parcel || channelVisibility.delivery ? normalizeOptionalPrice(values.packingCharge) ?? 0 : 0;
+    const fallbackChannelPrice = firstPositivePrice(deliveryPrice, dineInPrice, parcelPrice);
     const modifierGroups = [
       {
         id: editing?.modifierGroups?.[0]?.id ?? `mod-${values.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "custom"}`,
@@ -225,15 +382,16 @@ export function OwnerMenuManagementFlow() {
       categoryId: selectedCategory?.id ?? values.categoryId,
       subcategory: values.subcategory?.trim(),
       cuisineIds: values.cuisineIds,
+      price: fallbackChannelPrice ?? values.price,
       modifiers,
       addOns,
       modifierGroups,
       recipeLinks,
       image: imagePreview,
-      dineInPrice: values.dineInPrice,
-      parcelPrice: values.parcelPrice,
-      deliveryPrice: values.deliveryPrice,
-      packingCharge: values.packingCharge,
+      dineInPrice: dineInPrice ?? 0,
+      parcelPrice: parcelPrice ?? 0,
+      deliveryPrice: deliveryPrice ?? 0,
+      packingCharge,
       foodType: values.foodType,
       isVeg: ["veg", "vegan", "jain"].includes(values.foodType),
       spiceLevel: values.spiceLevel,
@@ -242,7 +400,7 @@ export function OwnerMenuManagementFlow() {
       searchKeywords,
       dietaryLabels: values.foodType === "jain" ? ["jain"] : values.foodType === "vegan" ? ["vegan"] : [],
       allergenLabels: splitList(values.allergens),
-      menuVisibility: values.menuVisibility,
+      menuVisibility: channelVisibility,
       soldOut: recipeLinks.some((link) => {
         const stock = inventoryItems.find((entry) => entry.id === link.inventoryItemId);
         return stock ? stock.currentStock < link.quantity : false;
@@ -254,35 +412,99 @@ export function OwnerMenuManagementFlow() {
         ...common,
       });
       setEditing(null);
+      setActiveItemStep("basic");
+      setItemEditorOpen(false);
       return;
     }
 
-      await createMenuItem({
+    await createMenuItem({
       restaurantSlug: restaurantId,
       ...common,
       isPopular: tags.some((tag) => ["popular", "bestseller"].includes(tag.toLowerCase())),
     });
-    form.reset();
+    form.reset(createEmptyMenuDraft());
     setImagePreview(fallbackImage);
+    setActiveItemStep("basic");
+    setItemEditorOpen(false);
+  }
+
+  function handleInvalidSubmit(errors: typeof form.formState.errors) {
+    const nextStep = stepForFormErrors(errors);
+    setActiveItemStep(nextStep);
+    setItemEditorOpen(true);
+    toast.error("Please fix the highlighted menu item fields.");
   }
 
   function downloadExcelTemplate() {
+    const headers = [
+      "item name",
+      "category",
+      "sub category",
+      "cuisines",
+      "base price",
+      "dine-in price",
+      "parcel price",
+      "delivery price",
+      "packing charge",
+      "food type",
+      "spice level",
+      "prep time",
+      "short description",
+      "long description",
+      "image URL",
+      "tags",
+      "badges",
+      "search keywords",
+      "allergens",
+      "modifiers",
+      "add-ons",
+    ];
+    const exampleCategory = categoryChoices[0]?.name ?? "";
+    const exampleCuisine = cuisineChoices[0]?.name ?? "";
     const worksheet = XLSX.utils.aoa_to_sheet([
+      headers,
       [
-        "item name",
-        "category",
-        "price",
-        "description",
-        "veg/non-veg",
-        "image URL",
-        "dine-in enabled",
-        "parcel enabled",
-        "delivery enabled",
+        "Al Faham Chicken Half",
+        exampleCategory,
+        "Arabic Grills",
+        exampleCuisine,
+        442,
+        442,
+        "",
+        479,
+        10,
+        "nonveg",
+        "medium",
+        "20 min",
+        "Charcoal grilled chicken with house spice rub.",
+        "Half chicken served with kuboos, garlic dip, hummus, and salad.",
+        "https://res.cloudinary.com/.../alfaham.webp",
+        "bestseller, grilled",
+        "Chef special",
+        "alfaham, arabic grill, chicken",
+        "dairy",
+        "Less spicy:0, Extra spicy:0",
+        "Egg:30, Garlic dip:20",
       ],
-      ["", "", "", "", "", "", "", "", ""],
+    ]);
+    worksheet["!cols"] = headers.map((header) => ({ wch: Math.max(16, header.length + 4) }));
+    const categoriesSheet = XLSX.utils.json_to_sheet(categoryChoices.map((item) => ({ id: item.id, name: item.name })));
+    const cuisinesSheet = XLSX.utils.json_to_sheet(cuisineChoices.map((item) => ({ id: item.id, name: item.name })));
+    const optionsSheet = XLSX.utils.aoa_to_sheet([
+      ["Field", "Allowed values / notes"],
+      ["category", "Use exactly one name from Master categories."],
+      ["cuisines", "Comma-separated names or ids from Master cuisines."],
+      ["food type", "veg, nonveg, egg, vegan, jain"],
+      ["spice level", "mild, medium, hot"],
+      ["channel price fields", "Optional. Blank or zero means unavailable for that channel."],
+      ["modifiers/add-ons", "Comma-separated Name:Price pairs. Example: Egg:30, Garlic dip:20"],
+      ["generated from", `Current owner menu item creation fields on ${new Date().toISOString()}`],
     ]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Menu template");
+    XLSX.utils.book_append_sheet(workbook, categoriesSheet, "Master categories");
+    XLSX.utils.book_append_sheet(workbook, cuisinesSheet, "Master cuisines");
+    XLSX.utils.book_append_sheet(workbook, optionsSheet, "Instructions");
     XLSX.writeFile(workbook, "sarva-menu-import-template.xlsx");
   }
 
@@ -301,17 +523,28 @@ export function OwnerMenuManagementFlow() {
       const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" });
       const existingNames = new Set(menuItems.map((item) => item.name.trim().toLowerCase()));
       const seenNames = new Set<string>();
+      const categoryByName = new Map(categoryChoices.map((item) => [item.name.trim().toLowerCase(), item]));
       const parsed = rawRows.map((row, index) => {
         const parsedRow = parseImportRow(row, index + 2);
         const key = parsedRow.name.trim().toLowerCase();
+        const matchedCategory = categoryByName.get(parsedRow.category.trim().toLowerCase());
+        const cuisineMatch = resolveCuisineIds(parsedRow.cuisines, cuisineChoices);
         const duplicateErrors = [
           key && existingNames.has(key) ? "item already exists" : "",
           key && seenNames.has(key) ? "duplicate in file" : "",
+          parsedRow.category && !matchedCategory ? "category must match Admin master list" : "",
+          ...cuisineMatch.errors,
         ].filter(Boolean);
         if (key) seenNames.add(key);
+        const nextRow = {
+          ...parsedRow,
+          categoryId: matchedCategory?.id,
+          category: matchedCategory?.name ?? parsedRow.category,
+          cuisineIds: cuisineMatch.ids,
+        };
         return duplicateErrors.length
-          ? { ...parsedRow, valid: false, errors: [...parsedRow.errors, ...duplicateErrors] }
-          : parsedRow;
+          ? { ...nextRow, valid: false, errors: [...nextRow.errors, ...duplicateErrors] }
+          : nextRow;
       });
       setImportRows(parsed);
       const validCount = parsed.filter((row) => row.valid).length;
@@ -329,45 +562,47 @@ export function OwnerMenuManagementFlow() {
       return;
     }
 
-    const categoryNames = new Set(categories.map((item) => item.name.toLowerCase()));
     for (const row of validRows) {
-      if (!categoryNames.has(row.category.toLowerCase())) {
-        await createMenuCategory({
-          restaurantSlug: restaurantId,
-          name: row.category,
-          enabled: true,
-          schedule: { days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], startTime: "07:00", endTime: "23:00" },
-        });
-        categoryNames.add(row.category.toLowerCase());
-      }
+      const channelVisibility = buildChannelVisibility(row.dineInPrice, row.parcelPrice, row.deliveryPrice);
       await createMenuItem({
         restaurantSlug: restaurantId,
         ownerId: authUser.id,
         name: row.name,
         category: row.category,
-        categoryId: categories.find((item) => item.name.toLowerCase() === row.category.toLowerCase())?.id,
-        cuisineIds: cuisines.slice(0, 1).map((item) => item.id),
+        categoryId: row.categoryId,
+        subcategory: row.subcategory,
+        cuisineIds: row.cuisineIds,
         description: row.description,
-        longDescription: row.description,
+        longDescription: row.longDescription || row.description,
         price: row.price,
-        dineInPrice: row.price,
-        parcelPrice: copyImportToAllChannels ? row.price : row.price + 10,
-        deliveryPrice: copyImportToAllChannels ? row.price : row.price + 20,
-        packingCharge: row.parcelEnabled || row.deliveryEnabled ? 10 : 0,
+        dineInPrice: row.dineInPrice ?? 0,
+        parcelPrice: row.parcelPrice ?? 0,
+        deliveryPrice: row.deliveryPrice ?? 0,
+        packingCharge: channelVisibility.parcel || channelVisibility.delivery ? row.packingCharge ?? 0 : 0,
         image: row.imageUrl || fallbackImage,
-        isVeg: row.foodType === "veg",
+        isVeg: ["veg", "vegan", "jain"].includes(row.foodType),
         foodType: row.foodType,
-        isPopular: false,
-        prepTime: "20 min",
-        spiceLevel: "medium",
-        dietaryLabels: row.foodType === "veg" ? ["veg"] : [],
-        allergenLabels: [],
-        tags: [],
-        menuVisibility: {
-          "dine-in": copyImportToAllChannels ? true : row.dineInEnabled,
-          parcel: copyImportToAllChannels ? true : row.parcelEnabled,
-          delivery: copyImportToAllChannels ? true : row.deliveryEnabled,
-        },
+        isPopular: splitList(row.tags).some((tag) => ["popular", "bestseller"].includes(tag.toLowerCase())),
+        prepTime: row.prepTime,
+        spiceLevel: row.spiceLevel,
+        dietaryLabels: row.foodType === "jain" ? ["jain"] : row.foodType === "vegan" ? ["vegan"] : [],
+        allergenLabels: splitList(row.allergens),
+        tags: splitList(row.tags),
+        badges: splitList(row.badges),
+        searchKeywords: splitList(row.searchKeywords),
+        modifiers: parsePricedList(row.modifiers),
+        addOns: parsePricedList(row.addOns),
+        modifierGroups: parsePricedTokens(row.modifiers).length
+          ? [{
+              id: `mod-${row.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "import"}`,
+              name: "Customisations",
+              required: false,
+              min: 0,
+              max: Math.max(1, parsePricedTokens(row.modifiers).length),
+              options: parsePricedTokens(row.modifiers),
+            }]
+          : [],
+        menuVisibility: channelVisibility,
         soldOut: false,
       });
     }
@@ -376,17 +611,10 @@ export function OwnerMenuManagementFlow() {
   }
 
   async function bulkSetDeliveryAvailability(enabled: boolean) {
-    const targets = menuItems.filter((item) => (item.menuVisibility?.delivery ?? true) !== enabled);
+    const targets = menuItems.filter((item) => isItemVisible(item, "delivery") !== enabled);
     if (!targets.length) return;
     await Promise.all(targets.map((item) =>
-      updateMenuItem({
-        ...item,
-        menuVisibility: {
-          ...{ "dine-in": true, parcel: true, delivery: true },
-          ...item.menuVisibility,
-          delivery: enabled,
-        },
-      }),
+      updateMenuItem(applyChannelAvailability(item, "delivery", enabled)),
     ));
   }
 
@@ -486,327 +714,522 @@ export function OwnerMenuManagementFlow() {
 
   // Owner writes update local state immediately and sync to Firestore/Storage when Firebase is configured.
   return (
-    <Tabs defaultValue="items" className="space-y-5">
+    <Tabs defaultValue="items" className="owner-menu-page space-y-5">
       <SectionHeader
         title="Enterprise menu engine"
-        description="Dine-in, parcel, and delivery menus with GST, categories, cuisines, modifiers, combos, inventory links, QR menus, and Firestore-ready persistence."
+        description="Dine-in, parcel, and delivery menus with GST, admin master categories/cuisines, modifiers, combos, inventory links, QR menus, and Firestore-ready persistence."
       />
       <TabsList className="customer-scroll max-w-full overflow-x-auto">
         <TabsTrigger value="items">Items</TabsTrigger>
-        <TabsTrigger value="categories">Categories</TabsTrigger>
-        <TabsTrigger value="cuisines">Cuisines</TabsTrigger>
         <TabsTrigger value="tax">GST & menus</TabsTrigger>
         <TabsTrigger value="combos">Combos</TabsTrigger>
         <TabsTrigger value="inventory">Inventory</TabsTrigger>
         <TabsTrigger value="qr">QR & languages</TabsTrigger>
         <TabsTrigger value="bulk">Import/Analytics</TabsTrigger>
       </TabsList>
-      <TabsContent value="items" className="grid gap-6 xl:grid-cols-[420px_1fr]">
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <SectionHeader
-            title={editing ? "Edit item" : "Create item"}
-            description="Create, edit, mark sold out, and preview image uploads."
-          />
-          <form className="grid gap-4" onSubmit={form.handleSubmit(handleSubmit)}>
-            <div className="relative aspect-[16/10] overflow-hidden rounded-lg bg-muted">
-              <SafeImage src={imagePreview} alt="Menu image preview" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="420px" className="object-cover" />
+      <TabsContent value="items" className="space-y-6">
+        {itemEditorOpen ? (
+        <section className="owner-menu-wizard overflow-hidden rounded-lg border bg-card text-[#182230] shadow-sm">
+          <div className="flex flex-col gap-3 border-b px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-primary">Menu items</p>
+              <h2 className="text-2xl font-black">{editing ? "Edit menu item" : "Create new menu item"}</h2>
+              <p className="text-sm text-muted-foreground">Add item details for dine-in, parcel, and customer delivery menus.</p>
             </div>
-            <CloudinaryUploadWidget
-              folder="menu"
-              restaurantId={restaurantId}
-              aspectRatio={4 / 3}
-              tags={["menu-item"]}
-              label="Upload and crop image"
-              className="min-h-12 border-dashed"
-              onUpload={(url) => setImagePreview(url)}
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="menu-name">Name</Label>
-              <Input id="menu-name" {...form.register("name")} />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={closeItemEditor}>
+                <X className="size-4" />
+                Back to list
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setActiveItemStep("review")}>
+                <Eye className="size-4" />
+                Preview item
+              </Button>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="menu-category">Category</Label>
-                <select
-                  id="menu-category"
-                  className="h-11 rounded-md border bg-background px-3 text-sm"
-                  value={selectedCategoryId}
-                  onChange={(event) => {
-                    const selected = categoryChoices.find((item) => item.id === event.target.value);
-                    form.setValue("categoryId", selected?.id ?? "");
-                    form.setValue("category", selected?.name ?? "");
-                  }}
-                >
-                  <option value="">Select admin category</option>
-                  {categoryChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
+          </div>
+
+          <form className="grid lg:grid-cols-[290px_minmax(0,1fr)]" onSubmit={form.handleSubmit(handleSubmit, handleInvalidSubmit)}>
+            <aside className="hidden border-r bg-muted/20 p-4 lg:block">
+              <div className="space-y-2">
+                {ITEM_WIZARD_STEPS.map((step, index) => {
+                  const Icon = step.icon;
+                  const active = step.id === activeItemStep;
+                  return (
+                    <button
+                      key={step.id}
+                      type="button"
+                      className={`grid w-full grid-cols-[36px_1fr] gap-3 rounded-md border p-3 text-left transition ${active ? "border-primary bg-primary/8 shadow-sm" : "bg-card hover:border-primary/40"}`}
+                      onClick={() => setActiveItemStep(step.id)}
+                    >
+                      <span className={`grid size-9 place-items-center rounded-full text-sm font-black ${active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}</span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2 text-sm font-black">
+                          <Icon className="size-4" />
+                          {step.label}
+                        </span>
+                        <span className="mt-1 block text-xs font-semibold text-muted-foreground">{step.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="menu-price">Price</Label>
-                <Input
-                  id="menu-price"
-                  inputMode="numeric"
-                  {...form.register("price", { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="menu-subcategory">Subcategory</Label>
-                <Input id="menu-subcategory" placeholder="Rolls, family pack, half grill" {...form.register("subcategory")} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Cuisines</Label>
-                <select
-                  multiple
-                  className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm"
-                  value={selectedCuisineIds}
-                  onChange={(event) => {
-                    const selected = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
-                    form.setValue("cuisineIds", selected);
-                  }}
-                >
-                  {cuisines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <PriceField label="Dine-in" id="dine-price" register={form.register("dineInPrice", { valueAsNumber: true })} />
-              <PriceField label="Parcel" id="parcel-price" register={form.register("parcelPrice", { valueAsNumber: true })} />
-              <PriceField label="Delivery" id="delivery-price" register={form.register("deliveryPrice", { valueAsNumber: true })} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <PriceField label="Packing charge" id="packing-charge" register={form.register("packingCharge", { valueAsNumber: true })} />
-              <div className="grid gap-2">
-                <Label>Food type</Label>
-                <select className="h-11 rounded-md border bg-background px-3 text-sm" {...form.register("foodType")}>
-                  {["veg", "nonveg", "egg", "vegan", "jain"].map((item) => <option key={item}>{item}</option>)}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Spice</Label>
-                <select className="h-11 rounded-md border bg-background px-3 text-sm" {...form.register("spiceLevel")}>
-                  {["mild", "medium", "hot"].map((item) => <option key={item}>{item}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="menu-prep">Prep time</Label>
-              <Input id="menu-prep" {...form.register("prepTime")} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="menu-description">Description</Label>
-              <Textarea id="menu-description" {...form.register("description")} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="menu-long-description">Long description</Label>
-              <Textarea id="menu-long-description" {...form.register("longDescription")} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="menu-modifiers">Modifiers</Label>
-              <Input id="menu-modifiers" placeholder="Less spicy:0, Extra cheese:40" {...form.register("modifiers")} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="menu-addons">Add-ons</Label>
-              <Input id="menu-addons" placeholder="Egg:30, Paneer:60" {...form.register("addOns")} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Tags</Label>
-              <Input placeholder="bestseller, chef special, spicy, shawarma, family pack" {...form.register("tags")} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Badges</Label>
-                <Input placeholder="New item, Ramadan special" {...form.register("badges")} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Search keywords</Label>
-                <Input placeholder="jumbo meal, friday special, kids" {...form.register("searchKeywords")} />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Allergens</Label>
-              <Input placeholder="nuts, dairy, gluten" {...form.register("allergens")} />
-            </div>
-            <div className="grid gap-2 rounded-md border p-3">
-              <Label>Channel visibility</Label>
-              <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                {(["dine-in", "parcel", "delivery"] as MenuChannel[]).map((channel) => (
-                  <label key={channel} className="flex items-center gap-2 rounded-md bg-muted px-2 py-2">
-                    <input type="checkbox" {...form.register(`menuVisibility.${channel}`)} />
-                    {channel}
-                  </label>
+            </aside>
+
+            <div className="min-w-0 p-4 sm:p-6">
+              <div className="mb-5 flex items-center justify-between gap-2 lg:hidden">
+                {ITEM_WIZARD_STEPS.map((step, index) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    className={`grid size-9 place-items-center rounded-full border text-sm font-black ${step.id === activeItemStep ? "border-primary bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                    onClick={() => setActiveItemStep(step.id)}
+                    aria-label={step.label}
+                  >
+                    {index + 1}
+                  </button>
                 ))}
               </div>
-            </div>
-            <Button type="submit" disabled={apiPhase === "loading"}>
-              {apiPhase === "loading" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : editing ? (
-                <Save className="size-4" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              {editing ? "Save item" : "Create item"}
-            </Button>
-            {apiMessage ? <p className="text-sm font-semibold text-primary">{apiMessage}</p> : null}
-          </form>
-        </CardContent>
-      </Card>
 
-      <section className="space-y-4">
-        <SectionHeader
-          title="Menu catalogue"
-          description="Switch channels to audit dine-in, parcel, and delivery pricing without leaving the owner surface."
-          action={
-            <div className="flex flex-wrap gap-2">
-              {(["dine-in", "parcel", "delivery"] as MenuChannel[]).map((channel) => (
-                <Button key={channel} size="sm" variant={activeChannel === channel ? "default" : "outline"} onClick={() => setActiveChannel(channel)}>
-                  {channel}
-                </Button>
-              ))}
-            </div>
-          }
-        />
-        <div className="grid gap-3 md:grid-cols-3">
-          <Metric icon={PackageCheck} label={`${activeChannel} visible`} value={menuItems.filter((item) => isItemVisible(item, activeChannel)).length} />
-          <Metric icon={BarChart3} label="Catalogue value" value={formatCurrency(channelRevenuePreview)} />
-          <Metric icon={AlertTriangle} label="Stock risks" value={menuItems.filter((item) => shouldAutoSoldOut(item, inventoryItems)).length} />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {menuItems.map((item) => (
-            <Card key={item.id}>
-              <CardContent className="grid grid-cols-[96px_1fr] gap-3 p-3">
-                <div className="relative overflow-hidden rounded-md bg-muted">
-                  <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="320px" className="object-cover" />
-                </div>
-                <div className="min-w-0 space-y-3">
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="min-w-0 space-y-5">
                   <div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline">{item.category}</Badge>
-                      {item.soldOut ? <Badge variant="destructive">Sold out</Badge> : null}
+                    <p className="text-sm font-black text-primary">Step {activeItemStepIndex + 1} of {ITEM_WIZARD_STEPS.length}</p>
+                    <h3 className="mt-1 text-xl font-black">{ITEM_WIZARD_STEPS[activeItemStepIndex]?.label}</h3>
+                  </div>
+
+                  {activeItemStep === "basic" ? (
+                    <div className="grid gap-5">
+                      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_170px]">
+                        <div className="relative min-h-64 overflow-hidden rounded-lg bg-muted">
+                          <SafeImage src={imagePreview} alt="Menu image preview" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="720px" className="object-cover" />
+                          <Badge className="absolute left-3 top-3 bg-primary text-primary-foreground">Cover</Badge>
+                          {imagePreview !== fallbackImage ? (
+                            <Button type="button" size="icon" variant="secondary" className="absolute right-3 top-3" aria-label="Remove image" onClick={() => setImagePreview(fallbackImage)}>
+                              <Trash2 className="size-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                        <div className="grid gap-3">
+                          <div className="relative min-h-24 overflow-hidden rounded-md bg-muted">
+                            <SafeImage src={imagePreview} alt="Menu thumbnail" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="170px" className="object-cover" />
+                          </div>
+                          <CloudinaryUploadWidget
+                            folder="menu"
+                            restaurantId={restaurantId}
+                            aspectRatio={4 / 3}
+                            tags={["menu-item"]}
+                            label="Add image"
+                            className="min-h-24 border-dashed"
+                            onUpload={(url) => setImagePreview(url)}
+                          />
+                          <div className="grid gap-2">
+                            <FieldLabel htmlFor="menu-image-url" help="Use this if upload is unavailable. Paste a public image URL from Cloudinary or another HTTPS image source. Example: https://res.cloudinary.com/.../alfaham.webp">Image URL</FieldLabel>
+                            <Input
+                              id="menu-image-url"
+                              value={imagePreview === fallbackImage ? "" : imagePreview}
+                              placeholder="https://res.cloudinary.com/.../item.webp"
+                              className="font-semibold text-foreground"
+                              onChange={(event) => setImagePreview(event.target.value.trim() || fallbackImage)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                          <FieldLabel htmlFor="menu-name" help="Customer-facing item name. Keep it clear and under 100 characters. Example: Al Faham Chicken Half.">Item name</FieldLabel>
+                          <Input id="menu-name" placeholder="Al Faham Chicken Half" maxLength={100} className="font-semibold text-foreground" {...form.register("name")} />
+                          <FieldError message={form.formState.errors.name?.message} />
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel htmlFor="menu-price" help="Default price used when a channel-specific price is not set. Example: 442.">Base price</FieldLabel>
+                          <Input id="menu-price" inputMode="numeric" className="font-semibold text-foreground" {...form.register("price", { valueAsNumber: true })} />
+                          <FieldError message={form.formState.errors.price?.message} />
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel htmlFor="menu-category" help="Choose a category from the Admin master list. Example: Grills.">Category</FieldLabel>
+                          <select
+                            id="menu-category"
+                            className="h-11 rounded-md border bg-background px-3 text-sm font-semibold text-foreground"
+                            value={selectedCategoryId}
+                            onChange={(event) => {
+                              const selected = categoryChoices.find((item) => item.id === event.target.value);
+                              form.setValue("categoryId", selected?.id ?? "");
+                              form.setValue("category", selected?.name ?? "");
+                            }}
+                          >
+                            <option value="">Select category</option>
+                            {categoryChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel htmlFor="menu-category-name" help="Auto-filled from the selected Admin master category and saved on the item. Example: Grills.">Category name</FieldLabel>
+                          <Input id="menu-category-name" placeholder="Select a category first" className="font-semibold text-foreground" readOnly {...form.register("category")} />
+                          <FieldError message={form.formState.errors.category?.message} />
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel htmlFor="menu-subcategory" help="Optional finer grouping shown in filters/search. Example: Arabic Grills.">Sub category</FieldLabel>
+                          <Input id="menu-subcategory" placeholder="Arabic Grills" className="font-semibold text-foreground" {...form.register("subcategory")} />
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel help="Diet classification used for customer filters and badges. Example: nonveg for chicken grill.">Food type</FieldLabel>
+                          <select className="h-11 rounded-md border bg-background px-3 text-sm font-semibold text-foreground" {...form.register("foodType")}>
+                            <option value="">Select food type</option>
+                            {(["veg", "nonveg", "egg", "vegan", "jain"] as MenuFoodType[]).map((item) => <option key={item} value={item}>{formatFoodTypeLabel(item)}</option>)}
+                          </select>
+                          <FieldError message={form.formState.errors.foodType?.message} />
+                        </div>
+                        <div className="grid gap-2 md:col-span-2">
+                          <FieldLabel help="Optional cuisine tags for search and filters. Hold Ctrl to select multiple. Example: Arabic, Grills.">Cuisines</FieldLabel>
+                          <select
+                            multiple
+                            className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm font-semibold text-foreground"
+                            value={selectedCuisineIds}
+                            onChange={(event) => {
+                              const selected = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
+                              form.setValue("cuisineIds", selected);
+                            }}
+                          >
+                            {cuisineChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <h2 className="mt-2 font-bold">{item.name}</h2>
-                    <p className="text-sm text-muted-foreground">{activeChannel} {formatCurrency(getChannelPrice(item, activeChannel))}</p>
-                    <p className="text-xs font-semibold text-muted-foreground">Dine-in {formatCurrency(item.dineInPrice ?? item.price)} · Parcel {formatCurrency(item.parcelPrice ?? item.price)} · Delivery {formatCurrency(item.deliveryPrice ?? item.price)}</p>
-                    <p className="text-xs font-semibold text-muted-foreground">GST {item.taxRate ?? taxSettings.defaultGstRate}% · Prep {item.prepTime} min · {item.modifierGroups?.length ?? 0} modifier groups</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => beginEdit(item)}>
-                      <Edit3 className="size-4" />
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => toggleSoldOut(item.id)}>
-                      {item.soldOut ? (
-                        <ToggleRight className="size-4" />
-                      ) : (
-                        <ToggleLeft className="size-4" />
-                      )}
-                      {item.soldOut ? "Restock" : "Sold out"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => updateMenuItem({ ...item, menuVisibility: { ...{ "dine-in": true, parcel: true, delivery: true }, ...item.menuVisibility, delivery: !(item.menuVisibility?.delivery ?? true) } })}>
-                      Delivery {item.menuVisibility?.delivery === false ? "off" : "on"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => updateMenuItem({ ...item, menuVisibility: { ...{ "dine-in": true, parcel: true, delivery: true }, ...item.menuVisibility, parcel: !(item.menuVisibility?.parcel ?? true) } })}>
-                      Parcel {item.menuVisibility?.parcel === false ? "off" : "on"}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => updateMenuItem(cloneMenuForChannel(item, "dine-in", activeChannel))}>
-                      <Copy className="size-4" />
-                      Clone price
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => deleteMenuItem(item.id)}>
-                      <Trash2 className="size-4" />
-                      Delete
-                    </Button>
-                  </div>
+                  ) : null}
+
+                  {activeItemStep === "description" ? (
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <FieldLabel htmlFor="menu-description" help="Required customer-facing summary. Minimum 8 characters. Example: Charcoal grilled chicken with house spice rub.">Short description</FieldLabel>
+                        <Textarea id="menu-description" rows={4} placeholder="Charcoal grilled chicken with house spice rub." className="font-semibold text-foreground" {...form.register("description")} />
+                        <FieldError message={form.formState.errors.description?.message} />
+                      </div>
+                      <div className="grid gap-2">
+                        <FieldLabel htmlFor="menu-long-description" help="Optional detail for item pages. Include serving size, preparation style, and taste notes. Example: Half chicken, serves 1-2.">Long description</FieldLabel>
+                        <Textarea id="menu-long-description" rows={6} placeholder="Add preparation, serving size, and taste notes." className="font-semibold text-foreground" {...form.register("longDescription")} />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                          <FieldLabel htmlFor="menu-prep" help="Kitchen preparation estimate shown in operations. Example: 20 min.">Prep time</FieldLabel>
+                          <Input id="menu-prep" placeholder="20 min" className="font-semibold text-foreground" {...form.register("prepTime")} />
+                          <FieldError message={form.formState.errors.prepTime?.message} />
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel help="Spice level used for filtering and customer expectation. Example: medium.">Spice</FieldLabel>
+                          <select className="h-11 rounded-md border bg-background px-3 text-sm font-semibold text-foreground" {...form.register("spiceLevel")}>
+                            <option value="">Select spice level</option>
+                            {(["mild", "medium", "hot"] as MenuSpiceLevel[]).map((item) => <option key={item} value={item}>{formatSpiceLabel(item)}</option>)}
+                          </select>
+                          <FieldError message={form.formState.errors.spiceLevel?.message} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {activeItemStep === "customization" ? (
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <FieldLabel htmlFor="menu-modifiers" help="Optional choices that adjust preparation. Use Name:Price and commas. Example: Less spicy:0, Extra cheese:40.">Modifiers</FieldLabel>
+                        <Input id="menu-modifiers" placeholder="Less spicy:0, Extra cheese:40" className="font-semibold text-foreground" {...form.register("modifiers")} />
+                      </div>
+                      <div className="grid gap-2">
+                        <FieldLabel htmlFor="menu-addons" help="Optional paid extras shown to customers/POS. Use Name:Price and commas. Example: Egg:30, Paneer:60.">Add-ons</FieldLabel>
+                        <Input id="menu-addons" placeholder="Egg:30, Paneer:60" className="font-semibold text-foreground" {...form.register("addOns")} />
+                      </div>
+                      <div className="rounded-md border bg-muted/30 p-4 text-sm font-semibold text-foreground/75">
+                        Add prices after a colon. Example: Extra mayo:20, Cheese:35.
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {activeItemStep === "info" ? (
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <FieldLabel help="Search/filter labels and popularity flags. Include bestseller to mark popular. Example: bestseller, spicy, family pack.">Tags</FieldLabel>
+                        <Input placeholder="bestseller, chef special, spicy, shawarma, family pack" className="font-semibold text-foreground" {...form.register("tags")} />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                          <FieldLabel help="Short visual badges for campaign/menu highlights. Example: New item, Ramadan special.">Badges</FieldLabel>
+                          <Input placeholder="New item, Ramadan special" className="font-semibold text-foreground" {...form.register("badges")} />
+                        </div>
+                        <div className="grid gap-2">
+                          <FieldLabel help="Extra words customers may search for. Example: jumbo meal, friday special, kids.">Search keywords</FieldLabel>
+                          <Input placeholder="jumbo meal, friday special, kids" className="font-semibold text-foreground" {...form.register("searchKeywords")} />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <FieldLabel help="Comma-separated allergen labels. Example: dairy, nuts, gluten.">Allergens</FieldLabel>
+                        <Input placeholder="nuts, dairy, gluten" className="font-semibold text-foreground" {...form.register("allergens")} />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {activeItemStep === "visibility" ? (
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 rounded-md border p-4">
+                        <FieldLabel help="Channel visibility is calculated from price. Example: leave Parcel price empty when the item is not available for takeaway.">Channel availability</FieldLabel>
+                        <p className="text-sm font-semibold text-foreground/75">
+                          Enter a price only for the channels where this item is available. Blank or zero channel price means the item is hidden for that channel.
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          <ChannelAvailabilityPill label="Dine-in" enabled={watchedVisibility["dine-in"]} price={watchedDineInPrice} />
+                          <ChannelAvailabilityPill label="Parcel" enabled={watchedVisibility.parcel} price={watchedParcelPrice} />
+                          <ChannelAvailabilityPill label="Delivery" enabled={watchedVisibility.delivery} price={watchedDeliveryPrice} />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <PriceField label="Dine-in price" id="dine-price" register={form.register("dineInPrice", { valueAsNumber: true })} help="Optional. Price charged for tables and in-house orders. Leave blank when dine-in is not available. Example: 442." />
+                        <PriceField label="Parcel price" id="parcel-price" register={form.register("parcelPrice", { valueAsNumber: true })} help="Optional. Pickup/takeaway price. Leave blank when parcel is not available. Example: 459." />
+                        <PriceField label="Delivery price" id="delivery-price" register={form.register("deliveryPrice", { valueAsNumber: true })} help="Optional. Customer online delivery price. Leave blank to hide this item from customer delivery menus. Example: 479." />
+                        <PriceField label="Packing charge" id="packing-charge" register={form.register("packingCharge", { valueAsNumber: true })} help="Optional per-item parcel/delivery packing charge. Leave blank for zero. Example: 10." />
+                      </div>
+                      <FieldError message={form.formState.errors.dineInPrice?.message ?? form.formState.errors.parcelPrice?.message ?? form.formState.errors.deliveryPrice?.message ?? form.formState.errors.packingCharge?.message} />
+                    </div>
+                  ) : null}
+
+                  {activeItemStep === "review" ? (
+                    <div className="grid gap-4">
+                      <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-[140px_1fr]">
+                        <div className="relative min-h-32 overflow-hidden rounded-md bg-muted">
+                          <SafeImage src={imagePreview} alt={watchedName || "Menu item preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="160px" className="object-cover" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant={watchedFoodType === "nonveg" ? "warning" : "success"}>{watchedFoodType}</Badge>
+                            <Badge variant="outline">{watchedCategory || "Category pending"}</Badge>
+                            {watchedVisibility.delivery ? <Badge variant="success">Customer visible</Badge> : <Badge variant="warning">Delivery hidden</Badge>}
+                          </div>
+                          <h3 className="mt-3 text-xl font-black">{watchedName || "Item name pending"}</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">{[watchedSubcategory, watchedCategory].filter(Boolean).join(" - ") || "Menu placement pending"}</p>
+                          <p className="mt-3 text-lg font-black">{formatCurrency(watchedDisplayPrice)}</p>
+                        </div>
+                      </div>
+                      {Object.keys(form.formState.errors).length ? (
+                        <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-bold text-destructive">
+                          Some required fields are missing. Check name, category, description, price, and prep time.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-      </TabsContent>
-      <TabsContent value="categories">
-        <EngineGrid>
-          <Card><CardContent className="space-y-3 p-5">
-            <h2 className="font-black">Create category</h2>
-            <Input placeholder="Kerala Specials" value={categoryDraft.name} onChange={(event) => setCategoryDraft({ ...categoryDraft, name: event.target.value })} />
-            <Input placeholder="Image URL" value={categoryDraft.image} onChange={(event) => setCategoryDraft({ ...categoryDraft, image: event.target.value })} />
-            <CloudinaryUploadWidget folder="categories" restaurantId={restaurantId} aspectRatio={4 / 3} tags={["menu-category"]} label="Upload category image" onUpload={(url) => setCategoryDraft({ ...categoryDraft, image: url })} />
-            <Input placeholder="Banner URL" value={categoryDraft.banner} onChange={(event) => setCategoryDraft({ ...categoryDraft, banner: event.target.value })} />
-            <CloudinaryUploadWidget folder="categories" restaurantId={restaurantId} aspectRatio={16 / 9} tags={["category-banner"]} label="Upload category banner" onUpload={(url) => setCategoryDraft({ ...categoryDraft, banner: url })} />
-            <div className="grid grid-cols-2 gap-2"><Input type="time" value={categoryDraft.startTime} onChange={(event) => setCategoryDraft({ ...categoryDraft, startTime: event.target.value })} /><Input type="time" value={categoryDraft.endTime} onChange={(event) => setCategoryDraft({ ...categoryDraft, endTime: event.target.value })} /></div>
-            <div className="flex gap-2">
-              <Button onClick={() => {
-                const parsed = menuCategorySchema.safeParse(categoryDraft);
-                if (!parsed.success) return toast.error("Enter a valid category name.");
-                const existing = categories.find((item) => item.id === categoryDraft.id);
-                const next = { restaurantSlug: restaurantId, name: categoryDraft.name, image: categoryDraft.image, banner: categoryDraft.banner, enabled: categoryDraft.enabled, schedule: { days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], startTime: categoryDraft.startTime, endTime: categoryDraft.endTime } };
-                if (existing) void updateMenuCategory({ ...existing, ...next });
-                else void createMenuCategory(next);
-                setCategoryDraft({ id: "", name: "", image: "", banner: "", enabled: true, startTime: "07:00", endTime: "23:00" });
-              }}>{categoryDraft.id ? "Save category" : "Add category"}</Button>
-              {categoryDraft.id ? <Button variant="outline" onClick={() => setCategoryDraft({ id: "", name: "", image: "", banner: "", enabled: true, startTime: "07:00", endTime: "23:00" })}>Cancel</Button> : null}
+
+                <aside className="space-y-4">
+                  <div className="rounded-lg border bg-muted/20 p-4">
+                    <p className="text-xs font-black uppercase text-muted-foreground">Live preview</p>
+                    <div className="mt-3 overflow-hidden rounded-md border bg-card">
+                      <div className="relative aspect-[4/3] bg-muted">
+                        <SafeImage src={imagePreview} alt={watchedName || "Menu preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="320px" className="object-cover" />
+                        <Badge className="absolute left-3 top-3 bg-primary text-primary-foreground">{formatFoodTypeLabel(watchedFoodType)}</Badge>
+                      </div>
+                      <div className="space-y-2 p-3">
+                        <h3 className="line-clamp-1 font-black">{watchedName || "New menu item"}</h3>
+                        <p className="line-clamp-1 text-sm text-muted-foreground">{watchedCategory || "Category pending"}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-black">{formatCurrency(watchedDisplayPrice)}</span>
+                          <Badge variant={watchedVisibility.delivery ? "success" : "warning"}>{watchedVisibility.delivery ? "Live" : "Hidden"}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 rounded-lg border p-4 text-sm">
+                    <p className="font-black">Channel prices</p>
+                    <SummaryRow label="Dine-in" value={formatOptionalChannelPrice(watchedDineInPrice)} />
+                    <SummaryRow label="Parcel" value={formatOptionalChannelPrice(watchedParcelPrice)} />
+                    <SummaryRow label="Delivery" value={formatOptionalChannelPrice(watchedDeliveryPrice)} />
+                    <SummaryRow label="Packing" value={formatOptionalChannelPrice(watchedPackingCharge, "No charge")} />
+                  </div>
+                </aside>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={activeItemStepIndex === 0}
+                    onClick={() => setActiveItemStep(ITEM_WIZARD_STEPS[Math.max(0, activeItemStepIndex - 1)]?.id ?? "basic")}
+                  >
+                    Back
+                  </Button>
+                  {editing ? (
+                    <Button type="button" variant="outline" onClick={closeItemEditor}>
+                      Cancel edit
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <Button
+                    type={activeItemStep === "review" ? "submit" : "button"}
+                    disabled={apiPhase === "loading"}
+                    onClick={activeItemStep === "review" ? undefined : () => setActiveItemStep(ITEM_WIZARD_STEPS[Math.min(ITEM_WIZARD_STEPS.length - 1, activeItemStepIndex + 1)]?.id ?? "review")}
+                    className="min-w-36"
+                  >
+                    {apiPhase === "loading" ? <Loader2 className="size-4 animate-spin" /> : activeItemStep === "review" ? editing ? <Save className="size-4" /> : <Plus className="size-4" /> : <ImagePlus className="size-4" />}
+                    {activeItemStep === "review" ? editing ? "Save item" : "Create item" : "Next"}
+                  </Button>
+                  {apiMessage ? <p className="text-sm font-semibold text-primary">{apiMessage}</p> : null}
+                </div>
+              </div>
             </div>
-          </CardContent></Card>
-          <Card><CardContent className="space-y-3 p-5">
-            <h2 className="font-black">Category order</h2>
-            {categories.map((category, index) => (
-              <div key={category.id} className="flex items-center justify-between rounded-md border p-3">
-                <div><p className="font-bold">{index + 1}. {category.name}</p><p className="text-xs text-muted-foreground">{category.schedule ? `${category.schedule.startTime}-${category.schedule.endTime}` : "All day"}</p></div>
-                <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => updateMenuCategory({ ...category, enabled: !category.enabled })}>{category.enabled ? "Disable" : "Enable"}</Button><Button size="sm" variant="outline" onClick={() => setCategoryDraft({ id: category.id, name: category.name, image: category.image ?? "", banner: category.banner ?? "", enabled: category.enabled, startTime: category.schedule?.startTime ?? "07:00", endTime: category.schedule?.endTime ?? "23:00" })}>Edit</Button><Button size="sm" variant="outline" onClick={() => deleteMenuCategory(category.id)}>Delete</Button></div>
-              </div>
-            ))}
-          </CardContent></Card>
-        </EngineGrid>
-      </TabsContent>
-      <TabsContent value="cuisines">
-        <EngineGrid>
-          <Card>
-            <CardContent className="space-y-3 p-5">
-              <h2 className="font-black">{cuisineDraft.id ? "Edit cuisine" : "Create cuisine"}</h2>
-              <Input placeholder="Arabic" value={cuisineDraft.name} onChange={(event) => setCuisineDraft({ ...cuisineDraft, name: event.target.value })} />
-              <Input placeholder="Image/icon URL" value={cuisineDraft.image} onChange={(event) => setCuisineDraft({ ...cuisineDraft, image: event.target.value })} />
-              <CloudinaryUploadWidget folder="cuisines" restaurantId={restaurantId} aspectRatio={1} tags={["cuisine"]} label="Upload cuisine image" onUpload={(url) => setCuisineDraft({ ...cuisineDraft, image: url })} />
-              <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-bold">
-                <input type="checkbox" checked={cuisineDraft.enabled} onChange={(event) => setCuisineDraft({ ...cuisineDraft, enabled: event.target.checked })} />
-                Active
-              </label>
-              <div className="flex gap-2">
-                <Button onClick={() => {
-                  const parsed = cuisineSchema.safeParse(cuisineDraft);
-                  if (!parsed.success) return toast.error("Enter a valid cuisine name.");
-                  if (cuisineDraft.id) void updateCuisine({ restaurantSlug: restaurantId, ...cuisineDraft });
-                  else void createCuisine({ restaurantSlug: restaurantId, name: cuisineDraft.name, image: cuisineDraft.image, icon: cuisineDraft.icon, enabled: cuisineDraft.enabled });
-                  setCuisineDraft({ id: "", name: "", image: "", icon: "", enabled: true });
-                }}>
-                  {cuisineDraft.id ? "Save cuisine" : "Add cuisine"}
+          </form>
+        </section>
+        ) : null}
+
+        {!itemEditorOpen ? (
+        <section className="space-y-4">
+          <SectionHeader
+            title="Menu items"
+            description="Review created items, filter by every operational status, and keep dine-in, parcel, and delivery prices visible before publishing to customers."
+            action={
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={downloadExcelTemplate}>
+                  <Download className="size-4" />
+                  Template
                 </Button>
-                {cuisineDraft.id ? <Button variant="outline" onClick={() => setCuisineDraft({ id: "", name: "", image: "", icon: "", enabled: true })}>Cancel</Button> : null}
+                <Button type="button" onClick={beginCreateItem}>
+                  <Plus className="size-4" />
+                  Add item
+                </Button>
+              </div>
+            }
+          />
+          <div className="grid gap-3 md:grid-cols-4">
+            <Metric icon={PackageCheck} label="Customer visible" value={menuItems.filter((item) => isItemVisible(item, "delivery") && !item.soldOut).length} />
+            <Metric icon={BarChart3} label={`${activeChannel} value`} value={formatCurrency(channelRevenuePreview)} />
+            <Metric icon={AlertTriangle} label="Stock risks" value={menuItems.filter((item) => shouldAutoSoldOut(item, inventoryItems)).length} />
+            <Metric icon={Eye} label="Filtered" value={`${filteredMenuItems.length}/${menuItems.length}`} />
+          </div>
+          <Card>
+            <CardContent className="space-y-4 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground/60" />
+                  <Input
+                    className="h-11 pl-10 font-semibold text-foreground placeholder:text-foreground/50"
+                    placeholder="Search item, category, tag, allergen, cuisine..."
+                    value={itemSearch}
+                    onChange={(event) => setItemSearch(event.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(["dine-in", "parcel", "delivery"] as MenuChannel[]).map((channel) => (
+                    <Button key={channel} type="button" size="sm" variant={activeChannel === channel ? "default" : "outline"} onClick={() => setActiveChannel(channel)}>
+                      {channel}
+                    </Button>
+                  ))}
+                  <Button type="button" variant={filterActive ? "secondary" : "outline"} onClick={resetItemFilters}>
+                    {filterActive ? <X className="size-4" /> : <SlidersHorizontal className="size-4" />}
+                    {filterActive ? "Clear filters" : "Filters ready"}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+                <FilterSelect label="Category" value={itemCategoryFilter} onChange={setItemCategoryFilter} options={[{ value: "all", label: "All categories" }, ...itemCategoryFilters.map((item) => ({ value: item, label: item }))]} />
+                <FilterSelect label="Food type" value={itemFoodFilter} onChange={setItemFoodFilter} options={[
+                  { value: "all", label: "All food types" },
+                  { value: "veg", label: "Veg" },
+                  { value: "nonveg", label: "Non-veg" },
+                  { value: "egg", label: "Egg" },
+                  { value: "vegan", label: "Vegan" },
+                  { value: "jain", label: "Jain" },
+                ]} />
+                <FilterSelect label="Channel" value={itemChannelFilter} onChange={(value) => setItemChannelFilter(value as ItemFilterChannel)} options={[
+                  { value: "all", label: "All channels" },
+                  { value: "dine-in", label: "Dine-in visible" },
+                  { value: "parcel", label: "Parcel visible" },
+                  { value: "delivery", label: "Delivery visible" },
+                ]} />
+                <FilterSelect label="Customer visibility" value={itemVisibilityFilter} onChange={setItemVisibilityFilter} options={[
+                  { value: "all", label: "All visibility" },
+                  { value: "customer-visible", label: "Visible to customer" },
+                  { value: "customer-hidden", label: "Hidden from customer" },
+                ]} />
+                <FilterSelect label="Availability" value={itemAvailabilityFilter} onChange={setItemAvailabilityFilter} options={[
+                  { value: "all", label: "All availability" },
+                  { value: "available", label: "Available" },
+                  { value: "sold-out", label: "Sold out" },
+                ]} />
+                <FilterSelect label="Delivery price" value={itemPriceFilter} onChange={setItemPriceFilter} options={[
+                  { value: "all", label: "Any price" },
+                  { value: "under-150", label: "Under Rs 150" },
+                  { value: "150-300", label: "Rs 150 - Rs 300" },
+                  { value: "300-500", label: "Rs 300 - Rs 500" },
+                  { value: "above-500", label: "Above Rs 500" },
+                ]} />
+                <FilterSelect label="Image" value={itemImageFilter} onChange={setItemImageFilter} options={[
+                  { value: "all", label: "All images" },
+                  { value: "with-image", label: "Has image" },
+                  { value: "missing-image", label: "Missing image" },
+                ]} />
+                <FilterSelect label="Modifiers" value={itemModifierFilter} onChange={setItemModifierFilter} options={[
+                  { value: "all", label: "All modifier states" },
+                  { value: "with-modifiers", label: "Has modifiers" },
+                  { value: "without-modifiers", label: "No modifiers" },
+                ]} />
+                <FilterSelect label="Sort" value={itemSort} onChange={setItemSort} options={[
+                  { value: "name", label: "Name A-Z" },
+                  { value: "category", label: "Category" },
+                  { value: "price-low", label: "Price low-high" },
+                  { value: "price-high", label: "Price high-low" },
+                ]} />
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="space-y-3 p-5">
-              <h2 className="font-black">Cuisine tags</h2>
-              {cuisines.map((cuisine) => (
-                <div key={cuisine.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-                  <div>
-                    <p className="font-bold">{cuisine.name}</p>
-                    <p className="text-xs text-muted-foreground">{cuisine.image || "No image"}</p>
+          <div className="grid gap-4">
+            {filteredMenuItems.length ? filteredMenuItems.map((item) => (
+              <MenuItemRow
+                key={item.id}
+                item={item}
+                activeChannel={activeChannel}
+                taxRate={taxSettings.defaultGstRate}
+                onEdit={() => beginEdit(item)}
+                onToggleSoldOut={() => void toggleSoldOut(item.id)}
+                onToggleDelivery={() => void updateMenuItem(applyChannelAvailability(item, "delivery", !isItemVisible(item, "delivery")))}
+                onToggleParcel={() => void updateMenuItem(applyChannelAvailability(item, "parcel", !isItemVisible(item, "parcel")))}
+                onClonePrice={() => void updateMenuItem(cloneMenuForChannel(item, "dine-in", activeChannel))}
+                onDelete={() => void deleteMenuItem(item.id)}
+              />
+            )) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                  <Search className="size-10 text-foreground/50" />
+                  <h3 className="text-lg font-black text-foreground">No menu items match these filters</h3>
+                  <p className="max-w-xl text-sm font-semibold text-foreground/70">Clear filters or add a new item. Customer pages only show items that are available and delivery-visible.</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button type="button" variant="outline" onClick={resetItemFilters}>Clear filters</Button>
+                    <Button type="button" onClick={beginCreateItem}>Add item</Button>
                   </div>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Badge variant={cuisine.enabled ? "success" : "muted"}>{cuisine.enabled ? "active" : "hidden"}</Badge>
-                    <Button size="sm" variant="outline" onClick={() => void updateCuisine({ ...cuisine, enabled: !cuisine.enabled })}>{cuisine.enabled ? "Disable" : "Enable"}</Button>
-                    <Button size="sm" variant="outline" onClick={() => setCuisineDraft({ id: cuisine.id, name: cuisine.name, image: cuisine.image ?? "", icon: cuisine.icon ?? "", enabled: cuisine.enabled })}>Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => void deleteCuisine(cuisine.id)}>Delete</Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </EngineGrid>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+        ) : null}
+
+        <section className="rounded-lg border bg-card p-4">
+          <h2 className="text-lg font-black">Wizard style - Step by step item creation</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            {ITEM_WIZARD_STEPS.map((step) => {
+              const Icon = step.icon;
+              return (
+                <button key={step.id} type="button" className="grid min-h-36 gap-3 rounded-md border bg-background p-4 text-left hover:border-primary/50" onClick={() => {
+                  if (!itemEditorOpen) beginCreateItem();
+                  setActiveItemStep(step.id);
+                }}>
+                  <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+                    <Icon className="size-5" />
+                  </span>
+                  <span>
+                    <span className="block font-black">{step.label}</span>
+                    <span className="mt-1 block text-sm text-muted-foreground">{step.description}</span>
+                  </span>
+                  <span className="mt-auto rounded-md bg-muted px-3 py-2 text-xs font-bold">{step.meta}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </TabsContent>
       <TabsContent value="tax">
         <EngineGrid>
@@ -943,10 +1366,9 @@ export function OwnerMenuManagementFlow() {
                   <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(event) => void previewImportFile(event.target.files?.[0])} />
                 </label>
               </div>
-              <label className="flex items-center gap-2 rounded-md bg-muted p-3 text-sm font-bold">
-                <input type="checkbox" checked={copyImportToAllChannels} onChange={(event) => setCopyImportToAllChannels(event.target.checked)} />
-                Copy to all menu types
-              </label>
+              <p className="rounded-md bg-muted p-3 text-sm font-bold">
+                Import uses the same fields as item creation. Dine-in, parcel, and delivery prices are optional; blank price means that channel is unavailable.
+              </p>
               <div className="grid gap-2 rounded-md border p-3">
                 <p className="text-sm font-black">Bulk delivery availability</p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1000,7 +1422,7 @@ export function OwnerMenuManagementFlow() {
           </Card>
           <Card><CardContent className="space-y-3 p-5"><h2 className="font-black">Menu health</h2>{[
             ["Total items", menuItems.length],
-            ["Delivery-enabled", menuItems.filter((entry) => entry.menuVisibility?.delivery !== false && !entry.soldOut).length],
+            ["Delivery-enabled", menuItems.filter((entry) => isItemVisible(entry, "delivery") && !entry.soldOut).length],
             ["Sold out", menuItems.filter((entry) => entry.soldOut).length],
             ["Missing images", menuItems.filter((entry) => !entry.image).length],
             ["Low-stock linked", menuItems.filter((entry) => shouldAutoSoldOut(entry, inventoryItems)).length],
@@ -1027,36 +1449,74 @@ function splitList(value?: string) {
 }
 
 function parseImportRow(row: Record<string, unknown>, rowNumber: number): ImportPreviewRow {
-  const value = (key: string) => {
-    const normalizedKey = Object.keys(row).find((entry) => entry.trim().toLowerCase() === key);
+  const value = (...keys: string[]) => {
+    const normalizedKeys = keys.map((key) => key.trim().toLowerCase());
+    const normalizedKey = Object.keys(row).find((entry) => normalizedKeys.includes(entry.trim().toLowerCase()));
     return normalizedKey ? String(row[normalizedKey] ?? "").trim() : "";
   };
   const name = value("item name") || value("name");
   const category = value("category");
-  const price = Number(value("price"));
-  const description = value("description");
+  const subcategory = value("sub category", "subcategory");
+  const cuisines = value("cuisines", "cuisine");
+  const price = parseOptionalPriceValue(value("base price", "price")) ?? 0;
+  const legacyDineInEnabled = parseYesNo(value("dine-in enabled"));
+  const legacyParcelEnabled = parseYesNo(value("parcel enabled"));
+  const legacyDeliveryEnabled = parseYesNo(value("delivery enabled"));
+  const dineInPrice = parseOptionalPriceValue(value("dine-in price", "dine in price")) ?? (legacyDineInEnabled ? price : undefined);
+  const parcelPrice = parseOptionalPriceValue(value("parcel price")) ?? (legacyParcelEnabled ? price : undefined);
+  const deliveryPrice = parseOptionalPriceValue(value("delivery price")) ?? (legacyDeliveryEnabled ? price : undefined);
+  const packingCharge = parseOptionalPriceValue(value("packing charge"));
+  const description = value("short description", "description");
+  const longDescription = value("long description");
   const foodType = normalizeFoodType(value("veg/non-veg") || value("food type"));
+  const spiceLevel = normalizeSpiceLevel(value("spice level"));
+  const prepTime = value("prep time") || "20 min";
   const imageUrl = value("image url");
-  const dineInEnabled = parseYesNo(value("dine-in enabled"));
-  const parcelEnabled = parseYesNo(value("parcel enabled"));
-  const deliveryEnabled = parseYesNo(value("delivery enabled"));
+  const tags = value("tags");
+  const badges = value("badges");
+  const searchKeywords = value("search keywords");
+  const allergens = value("allergens");
+  const modifiers = value("modifiers");
+  const addOns = value("add-ons", "addons", "add ons");
+  const dineInEnabled = isPositivePrice(dineInPrice);
+  const parcelEnabled = isPositivePrice(parcelPrice);
+  const deliveryEnabled = isPositivePrice(deliveryPrice);
   const errors = [
     !name ? "item name is required" : "",
     !category ? "category is required" : "",
-    Number.isFinite(price) && price > 0 ? "" : "price must be greater than zero",
+    Number.isFinite(price) && price > 0 ? "" : "base price must be greater than zero",
     description.length >= 8 ? "" : "description must be at least 8 characters",
+    !imageUrl ? "image URL is required" : "",
     imageUrl && !isValidUrl(imageUrl) ? "image URL must be valid" : "",
-    !dineInEnabled && !parcelEnabled && !deliveryEnabled ? "enable at least one menu type" : "",
+    !dineInEnabled && !parcelEnabled && !deliveryEnabled ? "enter at least one channel price" : "",
+    !isPricedTokenList(modifiers) ? "modifier format must be Name:Price" : "",
+    !isPricedTokenList(addOns) ? "add-on format must be Name:Price" : "",
   ].filter(Boolean);
 
   return {
     rowNumber,
     name,
     category,
+    subcategory,
+    cuisines,
+    cuisineIds: [],
     price: Number.isFinite(price) ? price : 0,
+    dineInPrice,
+    parcelPrice,
+    deliveryPrice,
+    packingCharge,
     description,
+    longDescription,
     foodType,
+    spiceLevel,
+    prepTime,
     imageUrl,
+    tags,
+    badges,
+    searchKeywords,
+    allergens,
+    modifiers,
+    addOns,
     dineInEnabled,
     parcelEnabled,
     deliveryEnabled,
@@ -1065,14 +1525,49 @@ function parseImportRow(row: Record<string, unknown>, rowNumber: number): Import
   };
 }
 
-function normalizeFoodType(value: string): "veg" | "nonveg" {
-  return value.trim().toLowerCase().includes("non") ? "nonveg" : "veg";
+function normalizeFoodType(value: string): MenuFoodType {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, "");
+  if (normalized === "nonveg" || normalized === "nonvegetarian") return "nonveg";
+  if (normalized === "egg") return "egg";
+  if (normalized === "vegan") return "vegan";
+  if (normalized === "jain") return "jain";
+  return "veg";
+}
+
+function normalizeSpiceLevel(value: string): MenuFormValues["spiceLevel"] {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "mild" || normalized === "hot") return normalized;
+  return "medium";
+}
+
+function formatFoodTypeLabel(value?: MenuFoodType | "") {
+  if (value === "nonveg") return "Non-veg";
+  if (value === "egg") return "Egg";
+  if (value === "vegan") return "Vegan";
+  if (value === "jain") return "Jain";
+  if (value === "veg") return "Veg";
+  return "Food type pending";
+}
+
+function formatSpiceLabel(value?: MenuSpiceLevel | "") {
+  if (value === "mild") return "Mild";
+  if (value === "medium") return "Medium";
+  if (value === "hot") return "Hot";
+  return "Spice level pending";
 }
 
 function parseYesNo(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return false;
   return ["yes", "y", "true", "1", "enabled", "active"].includes(normalized);
+}
+
+function parseOptionalPriceValue(value: string) {
+  if (!value.trim()) return undefined;
+  const cleaned = value.replace(/[^\d.]/g, "");
+  if (!cleaned) return undefined;
+  const normalized = Number(cleaned);
+  return Number.isFinite(normalized) ? normalized : undefined;
 }
 
 function isValidUrl(value: string) {
@@ -1085,11 +1580,87 @@ function isValidUrl(value: string) {
 }
 
 function isItemVisible(item: MenuItem, channel: MenuChannel) {
-  return item.menuVisibility?.[channel] ?? true;
+  const explicit = item.menuVisibility?.[channel];
+  if (typeof explicit === "boolean") return explicit && (isPositivePrice(channelPriceValue(item, channel)) || item.price > 0);
+  return isPositivePrice(channelPriceValue(item, channel)) || item.price > 0;
 }
 
-function PriceField({ label, id, register }: { label: string; id: string; register: ReturnType<typeof useForm<MenuFormValues>>["register"] extends (...args: never[]) => infer R ? R : never }) {
-  return <div className="grid gap-2"><Label htmlFor={id}>{label}</Label><Input id={id} inputMode="numeric" {...register} /></div>;
+function channelPriceValue(item: MenuItem, channel: MenuChannel) {
+  if (channel === "dine-in") return item.dineInPrice;
+  if (channel === "parcel") return item.parcelPrice;
+  return item.deliveryPrice;
+}
+
+function formChannelPrice(item: MenuItem, channel: MenuChannel) {
+  if (item.menuVisibility?.[channel] === false) return undefined;
+  const channelPrice = channelPriceValue(item, channel);
+  return isPositivePrice(channelPrice) ? channelPrice : item.menuVisibility?.[channel] ? item.price : undefined;
+}
+
+function applyChannelAvailability(item: MenuItem, channel: MenuChannel, enabled: boolean): MenuItem {
+  const nextVisibility = {
+    ...buildChannelVisibility(item.dineInPrice, item.parcelPrice, item.deliveryPrice),
+    ...item.menuVisibility,
+    [channel]: enabled,
+  };
+  const nextPrice = enabled ? channelPriceValue(item, channel) || item.price : 0;
+  const next = { ...item, menuVisibility: nextVisibility };
+  if (channel === "dine-in") return { ...next, dineInPrice: nextPrice };
+  if (channel === "parcel") return { ...next, parcelPrice: nextPrice };
+  return { ...next, deliveryPrice: nextPrice };
+}
+
+function isPositivePrice(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function normalizeOptionalPrice(value?: number) {
+  return isPositivePrice(value) ? value : undefined;
+}
+
+function buildChannelVisibility(dineInPrice?: number, parcelPrice?: number, deliveryPrice?: number): Record<MenuChannel, boolean> {
+  return {
+    "dine-in": isPositivePrice(dineInPrice),
+    parcel: isPositivePrice(parcelPrice),
+    delivery: isPositivePrice(deliveryPrice),
+  };
+}
+
+function firstPositivePrice(...values: Array<number | undefined>) {
+  return values.find((value) => isPositivePrice(value));
+}
+
+function formatOptionalChannelPrice(value?: number, emptyLabel = "Not available") {
+  return isPositivePrice(value) ? formatCurrency(value) : emptyLabel;
+}
+
+function formatChannelItemPrice(item: MenuItem, channel: MenuChannel) {
+  const channelPrice = channelPriceValue(item, channel);
+  return isItemVisible(item, channel) ? formatCurrency(isPositivePrice(channelPrice) ? channelPrice : item.price) : "Not available";
+}
+
+function resolveCuisineIds(value: string, choices: Array<{ id: string; name: string }>) {
+  const ids: string[] = [];
+  const errors: string[] = [];
+  if (!value.trim()) return { ids, errors };
+  const byId = new Map(choices.map((item) => [item.id.trim().toLowerCase(), item]));
+  const byName = new Map(choices.map((item) => [item.name.trim().toLowerCase(), item]));
+  for (const token of splitList(value)) {
+    const normalized = token.trim().toLowerCase();
+    const match = byId.get(normalized) ?? byName.get(normalized);
+    if (match) ids.push(match.id);
+    else errors.push(`unknown cuisine: ${token}`);
+  }
+  return { ids: unique(ids), errors };
+}
+
+function PriceField({ label, id, register, help }: { label: string; id: string; register: ReturnType<typeof useForm<MenuFormValues>>["register"] extends (...args: never[]) => infer R ? R : never; help?: string }) {
+  return (
+    <div className="grid gap-2">
+      <FieldLabel htmlFor={id} help={help ?? `${label} shown for this channel. Example: 459.`}>{label}</FieldLabel>
+      <Input id={id} inputMode="numeric" className="font-semibold text-foreground" {...register} />
+    </div>
+  );
 }
 
 function EngineGrid({ children }: { children: React.ReactNode }) {
@@ -1110,6 +1681,237 @@ function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: 
       </CardContent>
     </Card>
   );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-black">{value}</span>
+    </div>
+  );
+}
+
+function ChannelAvailabilityPill({ label, enabled, price }: { label: string; enabled: boolean; price?: number }) {
+  return (
+    <div className={`rounded-md border px-3 py-3 text-sm font-bold ${enabled ? "border-success/30 bg-success/10 text-success" : "bg-muted text-foreground/70"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span>{label}</span>
+        <Badge variant={enabled ? "success" : "muted"}>{enabled ? "Available" : "Hidden"}</Badge>
+      </div>
+      <p className="mt-1 text-xs font-black uppercase">{formatOptionalChannelPrice(price)}</p>
+    </div>
+  );
+}
+
+function FieldLabel({ children, htmlFor, help }: { children: React.ReactNode; htmlFor?: string; help: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Label htmlFor={htmlFor} className="text-sm font-black text-foreground">{children}</Label>
+      <InfoTooltip label={help} />
+    </div>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  return message ? <p className="text-xs font-bold text-destructive">{message}</p> : null;
+}
+
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-xs font-black uppercase text-foreground">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm font-bold text-foreground">
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function MenuItemRow({
+  item,
+  activeChannel,
+  taxRate,
+  onEdit,
+  onToggleSoldOut,
+  onToggleDelivery,
+  onToggleParcel,
+  onClonePrice,
+  onDelete,
+}: {
+  item: MenuItem;
+  activeChannel: MenuChannel;
+  taxRate: number;
+  onEdit: () => void;
+  onToggleSoldOut: () => void;
+  onToggleDelivery: () => void;
+  onToggleParcel: () => void;
+  onClonePrice: () => void;
+  onDelete: () => void;
+}) {
+  const customerVisible = isItemVisible(item, "delivery") && !item.soldOut;
+  return (
+    <Card>
+      <CardContent className="grid gap-4 p-3 lg:grid-cols-[112px_minmax(0,1fr)_minmax(280px,360px)_auto] lg:items-center">
+        <div className="relative min-h-28 overflow-hidden rounded-md bg-muted">
+          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="160px" className="object-cover" />
+        </div>
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">{item.category}</Badge>
+            <Badge variant={customerVisible ? "success" : "warning"}>{customerVisible ? "Customer visible" : "Customer hidden"}</Badge>
+            <Badge variant={item.isVeg ? "success" : "warning"}>{item.foodType ?? (item.isVeg ? "veg" : "nonveg")}</Badge>
+            {item.soldOut ? <Badge variant="destructive">Sold out</Badge> : null}
+          </div>
+          <h2 className="line-clamp-1 text-base font-black text-foreground">{item.name}</h2>
+          <p className="line-clamp-2 text-sm font-semibold text-foreground/70">{item.description || "No description added."}</p>
+          <p className="text-xs font-bold text-foreground/70">GST {item.taxRate ?? taxRate}% · Prep {item.prepTime} · Active audit: {activeChannel} {formatCurrency(getChannelPrice(item, activeChannel))}</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <PricePill label="Dine-in" value={formatChannelItemPrice(item, "dine-in")} active={isItemVisible(item, "dine-in")} />
+          <PricePill label="Parcel" value={formatChannelItemPrice(item, "parcel")} active={isItemVisible(item, "parcel")} />
+          <PricePill label="Delivery" value={formatChannelItemPrice(item, "delivery")} active={isItemVisible(item, "delivery")} />
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button size="sm" variant="outline" onClick={() => void copyCustomerItemLink(item)}>
+            <Link2 className="size-4" />
+            Copy link
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <a href={buildCustomerItemPath(item)} target="_blank" rel="noreferrer">
+              <ExternalLink className="size-4" />
+              Open
+            </a>
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => shareCustomerItemOnWhatsApp(item)}>
+            <MessageCircle className="size-4" />
+            WhatsApp
+          </Button>
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Edit3 className="size-4" />
+            Edit
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onToggleSoldOut}>
+            {item.soldOut ? <ToggleRight className="size-4" /> : <ToggleLeft className="size-4" />}
+            {item.soldOut ? "Restock" : "Sold out"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={onToggleDelivery}>Delivery {isItemVisible(item, "delivery") ? "off" : "on"}</Button>
+          <Button size="sm" variant="outline" onClick={onToggleParcel}>Parcel {isItemVisible(item, "parcel") ? "off" : "on"}</Button>
+          <Button size="sm" variant="outline" onClick={onClonePrice}>
+            <Copy className="size-4" />
+            Clone
+          </Button>
+          <Button size="sm" variant="outline" onClick={onDelete}>
+            <Trash2 className="size-4" />
+            Delete
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function buildCustomerItemPath(item: MenuItem) {
+  const slug = item.restaurantSlug || DEFAULT_RESTAURANT_ID;
+  const itemId = item.id.split("::")[0];
+  return `/restaurant/${encodeURIComponent(slug)}/item/${encodeURIComponent(itemId)}`;
+}
+
+function buildCustomerItemUrl(item: MenuItem) {
+  const path = buildCustomerItemPath(item);
+  if (typeof window !== "undefined" && window.location.origin) return `${window.location.origin}${path}`;
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  return configuredOrigin ? `${configuredOrigin}${path}` : path;
+}
+
+async function copyCustomerItemLink(item: MenuItem) {
+  const url = buildCustomerItemUrl(item);
+  try {
+    if (typeof navigator === "undefined" || !navigator.clipboard) throw new Error("Clipboard is not available.");
+    await navigator.clipboard.writeText(url);
+    toast.success("Customer item link copied.");
+  } catch {
+    if (typeof window !== "undefined") window.prompt("Copy customer item link", url);
+  }
+}
+
+function shareCustomerItemOnWhatsApp(item: MenuItem) {
+  const url = buildCustomerItemUrl(item);
+  const href = `https://wa.me/?text=${encodeURIComponent(buildMenuItemPromotionMessage(item, url))}`;
+  if (typeof window !== "undefined") {
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
+}
+
+function buildMenuItemPromotionMessage(item: MenuItem, url: string) {
+  const restaurantName = humanizeRestaurantSlug(item.restaurantSlug || DEFAULT_RESTAURANT_ID);
+  const price = firstPositivePrice(item.deliveryPrice, item.parcelPrice, item.dineInPrice, item.price);
+  return [
+    `Try ${item.name} from ${restaurantName}.`,
+    item.description ? item.description.slice(0, 140) : "",
+    price ? `Price starts at ${formatCurrency(price)}.` : "",
+    `Order now or schedule later: ${url}`,
+  ].filter(Boolean).join("\n");
+}
+
+function humanizeRestaurantSlug(value: string) {
+  return value.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function PricePill({ label, value, active }: { label: string; value: string; active: boolean }) {
+  return (
+    <div className={`rounded-md border p-3 ${active ? "bg-primary/5" : "bg-muted/40 opacity-70"}`}>
+      <p className="text-xs font-black uppercase text-foreground/70">{label}</p>
+      <p className="mt-1 text-base font-black text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function validateMenuDraft(values: MenuFormValues, image: string, menuItems: MenuItem[], editingId?: string): { step: ItemWizardStepId; message: string } | null {
+  if (!hasCustomImage(image)) return { step: "basic", message: "Add a real item image by upload or image URL." };
+  if (menuItems.some((item) => item.id !== editingId && item.name.trim().toLowerCase() === values.name.trim().toLowerCase())) {
+    return { step: "basic", message: "An item with this name already exists." };
+  }
+  const channelVisibility = buildChannelVisibility(values.dineInPrice, values.parcelPrice, values.deliveryPrice);
+  if (!channelVisibility["dine-in"] && !channelVisibility.parcel && !channelVisibility.delivery) {
+    return { step: "visibility", message: "Enter a price for at least one channel. Blank channel prices are treated as unavailable." };
+  }
+  if (!isPricedTokenList(values.modifiers)) return { step: "customization", message: "Modifier format must be Name:Price, separated by commas." };
+  if (!isPricedTokenList(values.addOns)) return { step: "customization", message: "Add-on format must be Name:Price, separated by commas." };
+  return null;
+}
+
+function stepForFormErrors(errors: ReturnType<typeof useForm<MenuFormValues>>["formState"]["errors"]): ItemWizardStepId {
+  const keys = Object.keys(errors);
+  if (keys.some((key) => ["name", "category", "categoryId", "price", "foodType"].includes(key))) return "basic";
+  if (keys.some((key) => ["description", "longDescription", "prepTime", "spiceLevel"].includes(key))) return "description";
+  if (keys.some((key) => ["modifiers", "addOns", "modifierGroups"].includes(key))) return "customization";
+  if (keys.some((key) => ["tags", "badges", "searchKeywords", "allergens"].includes(key))) return "info";
+  if (keys.some((key) => ["menuVisibility", "dineInPrice", "parcelPrice", "deliveryPrice", "packingCharge"].includes(key))) return "visibility";
+  return "basic";
+}
+
+function isPricedTokenList(value?: string) {
+  return splitList(value).every((entry) => {
+    const [name, price] = entry.split(":");
+    return Boolean(name?.trim()) && price !== undefined && Number.isFinite(Number(price)) && Number(price) >= 0;
+  });
+}
+
+function hasCustomImage(value?: string) {
+  return Boolean(value && value !== fallbackImage && value !== IMAGE_FALLBACKS.food && value.trim().length > 8);
+}
+
+function matchesPriceBand(price: number, band: string) {
+  if (band === "under-150") return price < 150;
+  if (band === "150-300") return price >= 150 && price <= 300;
+  if (band === "300-500") return price > 300 && price <= 500;
+  if (band === "above-500") return price > 500;
+  return true;
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
 }
 
 function saveTaxDraft(

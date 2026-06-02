@@ -739,6 +739,8 @@ function friendlyAuthMessage(error: unknown) {
   if (/auth\/unauthorized-domain/i.test(raw)) return "Google sign-in is not enabled for this domain.";
   if (/popup-blocked|popup-closed-by-user/i.test(raw)) return "Google sign-in popup was blocked or closed.";
   if (/operation-not-allowed/i.test(raw)) return "This sign-in method is not enabled yet.";
+  if (/Secure account setup is not configured/i.test(raw)) return "Google sign-in is connected, but secure account setup is missing on this server.";
+  if (/Customer profile could not be created/i.test(raw)) return "Google sign-in worked, but your customer profile could not be created. Please try again.";
   if (/not available for your account type/i.test(raw)) return "Please use the correct login screen for this account.";
   if (/network|offline|fetch/i.test(raw)) return "Connection failed. Please check internet and try again.";
   return raw && raw.length < 140 ? raw : "Authentication failed. Please check your details and try again.";

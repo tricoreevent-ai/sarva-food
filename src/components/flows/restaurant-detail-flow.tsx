@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
   ArrowRight,
   Bike,
+  CalendarClock,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -35,7 +37,7 @@ import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
+import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
@@ -46,6 +48,7 @@ import { formatCurrency } from "@/lib/utils";
 type WizardStep = "menu" | "offers" | "details" | "confirm" | "success";
 type FulfillmentType = "delivery" | "parcel" | "dine-in";
 type ViewMode = "grid" | "list";
+type OrderTiming = "now" | "scheduled";
 
 type CustomerForm = {
   name: string;
@@ -69,8 +72,13 @@ const ORDER_TYPES: Array<{ id: FulfillmentType; label: string; helper: string; i
 ];
 
 export function RestaurantDetailFlow({ slug }: { slug: string }) {
+  const searchParams = useSearchParams();
+  const launchIntent = searchParams.get("intent") ?? searchParams.get("mode");
+  const scheduleLaunch = launchIntent === "schedule" || launchIntent === "scheduled";
   const { restaurant, status, retry } = usePublicRestaurant(slug);
   const { items: menu, offers, status: menuStatus, retry: retryMenu } = usePublicMenu(restaurant?.slug);
+  const { categories: masterCategories } = usePublicCategories();
+  const { cuisines: masterCuisines } = usePublicCuisines();
   const createOrder = useAppStore((state) => state.createOrder);
   const cartItems = useCartStore((state) => state.items);
   const offerCode = useCartStore((state) => state.offerCode);
@@ -93,9 +101,12 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const [availableOnly, setAvailableOnly] = useState(true);
   const [comboOnly, setComboOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [visibleCount, setVisibleCount] = useState(12);
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("delivery");
+  const [orderTiming, setOrderTiming] = useState<OrderTiming>(() => scheduleLaunch ? "scheduled" : "now");
+  const [scheduledDate, setScheduledDate] = useState(() => defaultScheduleDate());
+  const [scheduledTime, setScheduledTime] = useState(() => defaultScheduleTime());
   const [couponDraft, setCouponDraft] = useState("");
   const [customer, setCustomer] = useState<CustomerForm>({
     name: "",
@@ -105,7 +116,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [successOrder, setSuccessOrder] = useState<{ id: string; total: number; prep: number } | null>(null);
+  const [successOrder, setSuccessOrder] = useState<{ id: string; total: number; prep: number; scheduledLabel?: string } | null>(null);
   const [customerDistance, setCustomerDistance] = useState<{ key: string; value: number | null }>({ key: "", value: null });
 
   const restaurantCart = useMemo(
@@ -122,17 +133,17 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     [offers],
   );
 
-  const filterOptions = useMemo(() => buildFilterOptions(menu), [menu]);
+  const filterOptions = useMemo(() => buildFilterOptions(menu, masterCategories, masterCuisines), [masterCategories, masterCuisines, menu]);
   const restaurantLocationKey = restaurant ? `${restaurant.slug}:${restaurant.latitude ?? ""}:${restaurant.longitude ?? ""}` : "";
   const customerDistanceKm = customerDistance.key === restaurantLocationKey ? customerDistance.value : null;
   const filteredMenu = useMemo(() => {
     const normalizedQuery = normalize(query);
     return menu.filter((item) => {
-      if (category !== "all" && item.category !== category) return false;
+      if (category !== "all" && normalize(item.category) !== normalize(category)) return false;
       if (diet !== "all" && item.foodType !== diet && (diet === "veg" ? !item.isVeg : item.isVeg)) return false;
       if (meal !== "all" && !itemMatchesToken(item, meal)) return false;
       if (spice !== "all" && item.spiceLevel !== spice) return false;
-      if (cuisine !== "all" && !(item.cuisineIds ?? []).includes(cuisine) && !itemMatchesToken(item, cuisine)) return false;
+      if (cuisine !== "all" && !menuItemHasCuisine(item, cuisine)) return false;
       if (tag !== "all" && !itemMatchesToken(item, tag)) return false;
       if (popularOnly && !item.isPopular) return false;
       if (chefSpecialOnly && !itemMatchesToken(item, "chef")) return false;
@@ -149,6 +160,11 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     () => calculateTotals(restaurantCart, offerCode, visibleOffers, fulfillmentType, restaurant),
     [fulfillmentType, offerCode, restaurant, restaurantCart, visibleOffers],
   );
+  const scheduledFor = useMemo(
+    () => orderTiming === "scheduled" ? buildScheduledDateTime(scheduledDate, scheduledTime) : null,
+    [orderTiming, scheduledDate, scheduledTime],
+  );
+  const scheduledForLabel = scheduledFor ? formatScheduleDateTime(scheduledFor) : "";
 
   useEffect(() => {
     if (!restaurant || typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number" || typeof navigator === "undefined" || !navigator.geolocation) {
@@ -179,6 +195,13 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       window.clearTimeout(id);
     };
   }, [restaurant, restaurantLocationKey]);
+
+  useEffect(() => {
+    if (!scheduleLaunch) return;
+    window.setTimeout(() => {
+      document.getElementById("restaurant-menu-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }, [scheduleLaunch]);
 
   if (status === "loading") {
     return (
@@ -214,6 +237,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const contactPhone = restaurant.contact?.phone ?? restaurant.ownerProfile?.businessPhone ?? "";
   const contactWhatsApp = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? contactPhone;
   const heroTitle = restaurant.displayName ?? restaurant.name;
+  const mobileOrderingActive = cartCount > 0 || step !== "menu";
 
   const goTo = (next: WizardStep) => {
     if (next !== "menu" && !canContinue) {
@@ -224,7 +248,36 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const goToMenu = () => {
+    setStep("menu");
+    window.setTimeout(() => {
+      document.getElementById("restaurant-menu-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
+  const startOrderNow = () => {
+    setOrderTiming("now");
+    goToMenu();
+  };
+
+  const startScheduledOrder = () => {
+    setOrderTiming("scheduled");
+    goToMenu();
+  };
+
+  const addMenuItem = (item: MenuItem) => {
+    const shouldOpenOffers = restaurantCart.length === 0 && typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    addItem(item);
+    toast.success(`${item.name} added.`);
+    if (shouldOpenOffers) {
+      setStep("offers");
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+    }
+  };
+
   const validateDetails = () => {
+    const scheduleError = validateOrderSchedule(orderTiming, scheduledDate, scheduledTime);
+    if (scheduleError) return scheduleError;
     if (customer.name.trim().length < 2) return "Enter customer name.";
     if (customer.phone.replace(/\D/g, "").length < 10) return "Enter a valid phone number.";
     if (fulfillmentType === "delivery" && customer.address.trim().length < 8) return "Delivery address is required.";
@@ -247,6 +300,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     setSubmitting(true);
     try {
       const createdAt = new Date().toISOString();
+      const scheduledIso = scheduledFor?.toISOString();
       const order = await createOrder({
         restaurantSlug: restaurant.slug,
         customer: {
@@ -271,8 +325,11 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         payment: "cod",
         channel: "Web",
         fulfillmentType,
-        scheduleMode: "now",
+        scheduleMode: orderTiming === "scheduled" ? "scheduled" : "now",
+        scheduledFor: scheduledIso,
+        scheduledStatus: orderTiming === "scheduled" ? "requested" : undefined,
         prepEstimateMinutes: estimatePrepMinutes(restaurantCart),
+        cutoffAt: scheduledFor ? new Date(scheduledFor.getTime() - 45 * 60_000).toISOString() : undefined,
       });
       clearCart();
       setSuccessOrder({
@@ -284,9 +341,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         }),
         total: totals.total,
         prep: estimatePrepMinutes(restaurantCart),
+        scheduledLabel: orderTiming === "scheduled" ? scheduledForLabel : "",
       });
       setStep("success");
-      toast.success("Order sent to the restaurant.");
+      toast.success(orderTiming === "scheduled" ? "Scheduled order sent to the restaurant." : "Order sent to the restaurant.");
     } catch {
       toast.error("Could not place the order. Please try again.");
     } finally {
@@ -298,7 +356,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     <main className="min-h-screen bg-[#fffaf5] pb-28 text-slate-950 md:pb-10">
       <MobileRestaurantHeader restaurantName={heroTitle} cartCount={cartCount} onCart={() => goTo(canContinue ? "offers" : "menu")} />
 
-      <section className="border-b bg-white/90 backdrop-blur">
+      <section className={`border-b bg-white/90 backdrop-blur ${step !== "menu" ? "hidden md:block" : ""}`}>
         <div className="mx-auto flex w-full max-w-[1520px] items-center gap-3 px-4 py-3 sm:px-6">
           <Link href="/restaurants" className="hidden rounded-full border bg-white px-3 py-2 text-sm font-bold hover:bg-orange-50 md:inline-flex">
             <ArrowLeft className="mr-2 size-4" />
@@ -322,7 +380,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         </div>
       </section>
 
-      <HeroSection restaurant={restaurant} title={heroTitle} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} customerDistanceKm={customerDistanceKm} onStart={() => goTo("menu")} />
+      <div className={mobileOrderingActive ? "hidden md:block" : ""}>
+        <HeroSection restaurant={restaurant} title={heroTitle} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} customerDistanceKm={customerDistanceKm} onStart={startOrderNow} onSchedule={startScheduledOrder} />
+      </div>
 
       {step === "success" && successOrder ? (
         <SuccessStep order={successOrder} restaurant={restaurant} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} onNewOrder={() => setStep("menu")} />
@@ -333,10 +393,16 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
             {step === "menu" ? (
               <>
-                <OfferStrip offers={visibleOffers} onApply={(code) => {
-                  applyOffer(code);
-                  toast.success(`${code} applied.`);
-                }} />
+                <OrderTimingStrip
+                  mode={orderTiming}
+                  scheduledDate={scheduledDate}
+                  scheduledTime={scheduledTime}
+                  scheduledLabel={scheduledForLabel}
+                  onModeChange={setOrderTiming}
+                  onDateChange={setScheduledDate}
+                  onTimeChange={setScheduledTime}
+                />
+
                 <FilterBar
                   options={filterOptions}
                   category={category}
@@ -376,50 +442,56 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                     setQuery("");
                   }}
                 />
-                <StepIndicator current={step} onSelect={goTo} />
 
-                <div className="rounded-3xl border bg-white p-3 shadow-sm sm:p-4">
-                  <div className="mb-4 flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wide text-orange-600">Our Menu</p>
-                      <h2 className="text-2xl font-black">Choose your food</h2>
-                    </div>
-                    <span className="text-sm font-bold text-muted-foreground">{filteredMenu.length} items</span>
-                  </div>
-                  {menuStatus === "loading" ? (
-                    <SkeletonGrid count={8} />
-                  ) : menuStatus === "error" ? (
-                    <RetryState onRetry={retryMenu} />
-                  ) : filteredMenu.length ? (
-                    <>
-                      <div className={viewMode === "grid" ? "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" : "grid gap-2"}>
-                        {filteredMenu.slice(0, visibleCount).map((item) => (
-                          <MenuCard
-                            key={item.id}
-                            item={item}
-                            fulfillmentType={fulfillmentType}
-                            quantity={restaurantCartQuantities.get(item.id) ?? 0}
-                            viewMode={viewMode}
-                            onAdd={() => {
-                              addItem(item);
-                              toast.success(`${item.name} added.`);
-                            }}
-                            onQty={(quantity) => updateQuantity(item.id, quantity)}
-                          />
-                        ))}
+                <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+                  <aside className="order-2 space-y-5 xl:order-1">
+                    <OfferStrip offers={visibleOffers} onApply={(code) => {
+                      applyOffer(code);
+                      toast.success(`${code} applied.`);
+                    }} />
+                    <RestaurantInfoCard restaurant={restaurant} contactWhatsApp={contactWhatsApp} />
+                  </aside>
+
+                  <div id="restaurant-menu-panel" className="order-1 rounded-3xl border bg-white p-3 shadow-sm sm:p-4 xl:order-2">
+                    <div className="mb-4 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-orange-600">Recommended for you</p>
+                        <h2 className="text-2xl font-black">Choose your food</h2>
                       </div>
-                      {filteredMenu.length > visibleCount ? (
-                        <div className="mt-5 text-center">
-                          <Button variant="outline" onClick={() => setVisibleCount((count) => count + 12)}>
-                            Load more items
-                            <ChevronRight className="size-4" />
-                          </Button>
+                      <span className="text-sm font-bold text-muted-foreground">{filteredMenu.length} items</span>
+                    </div>
+                    {menuStatus === "loading" ? (
+                      <SkeletonGrid count={8} />
+                    ) : menuStatus === "error" ? (
+                      <RetryState onRetry={retryMenu} />
+                    ) : filteredMenu.length ? (
+                      <>
+                        <div className={viewMode === "grid" ? "grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4" : "grid gap-3"}>
+                          {filteredMenu.slice(0, visibleCount).map((item) => (
+                            <MenuCard
+                              key={item.id}
+                              item={item}
+                              fulfillmentType={fulfillmentType}
+                              quantity={restaurantCartQuantities.get(item.id) ?? 0}
+                              viewMode={viewMode}
+                              onAdd={() => addMenuItem(item)}
+                              onQty={(quantity) => updateQuantity(item.id, quantity)}
+                            />
+                          ))}
                         </div>
-                      ) : null}
-                    </>
-                  ) : (
-                    <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." />
-                  )}
+                        {filteredMenu.length > visibleCount ? (
+                          <div className="mt-5 text-center">
+                            <Button variant="outline" onClick={() => setVisibleCount((count) => count + 12)}>
+                              Load more items
+                              <ChevronRight className="size-4" />
+                            </Button>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." />
+                    )}
+                  </div>
                 </div>
               </>
             ) : null}
@@ -434,8 +506,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 fulfillmentType={fulfillmentType}
                 totals={totals}
                 applyOffer={(code) => {
-                  applyOffer(code);
-                  toast.success(`${code || "Offer"} updated.`);
+                  const normalizedCode = code.trim().toUpperCase();
+                  applyOffer(normalizedCode);
+                  toast.success(normalizedCode ? `${normalizedCode} selected.` : "Offer removed.");
                 }}
                 onBack={() => goTo("menu")}
                 onNext={() => goTo("details")}
@@ -448,6 +521,13 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 setCustomer={setCustomer}
                 fulfillmentType={fulfillmentType}
                 setFulfillmentType={setFulfillmentType}
+                orderTiming={orderTiming}
+                scheduledDate={scheduledDate}
+                scheduledTime={scheduledTime}
+                scheduledLabel={scheduledForLabel}
+                setOrderTiming={setOrderTiming}
+                setScheduledDate={setScheduledDate}
+                setScheduledTime={setScheduledTime}
                 onBack={() => goTo("offers")}
                 onNext={() => {
                   const error = validateDetails();
@@ -467,6 +547,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 fulfillmentType={fulfillmentType}
                 customer={customer}
                 totals={totals}
+                orderTiming={orderTiming}
+                scheduledForLabel={scheduledForLabel}
                 contactPhone={contactPhone}
                 contactWhatsApp={contactWhatsApp}
                 submitting={submitting}
@@ -559,6 +641,7 @@ function HeroSection({
   contactWhatsApp,
   customerDistanceKm,
   onStart,
+  onSchedule,
 }: {
   restaurant: Restaurant;
   title: string;
@@ -566,6 +649,7 @@ function HeroSection({
   contactWhatsApp: string;
   customerDistanceKm: number | null;
   onStart: () => void;
+  onSchedule: () => void;
 }) {
   const minOrder = restaurant.minPrice;
   const deliveryFee = restaurant.deliverySettings?.baseFee ?? restaurant.deliveryFee;
@@ -577,21 +661,22 @@ function HeroSection({
   const heroImages = useMemo(() => normalizeHeroImages(restaurant), [restaurant]);
 
   return (
-    <section className="relative overflow-hidden bg-slate-950 text-white">
-      <HeroBannerCarousel images={heroImages} title={title} />
-      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/10" />
-      <div className="relative mx-auto grid min-h-[440px] w-full max-w-[1520px] content-end gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+    <section className="mx-auto w-full max-w-[1520px] px-3 pt-3 sm:px-6 sm:pt-5">
+      <div className="relative overflow-hidden rounded-[1.75rem] bg-slate-950 text-white shadow-xl shadow-orange-950/10">
+        <HeroBannerCarousel images={heroImages} title={title} />
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/68 to-black/10" />
+        <div className="relative grid min-h-[300px] content-end gap-4 px-4 py-5 sm:min-h-[380px] sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
         <div className="max-w-3xl">
           <div className="flex flex-wrap gap-2">
             <Badge className={status.open ? "rounded-full bg-emerald-500 text-white" : "rounded-full bg-amber-500 text-white"}>{status.label}</Badge>
             {status.detail ? <Badge className="rounded-full bg-white/15 text-white ring-1 ring-white/20">{status.detail}</Badge> : null}
           </div>
           {restaurant.logo ? (
-            <div className="relative mt-5 size-20 overflow-hidden rounded-full border-4 border-white/80 bg-white shadow-xl">
+            <div className="relative mt-4 size-16 overflow-hidden rounded-full border-4 border-white/80 bg-white shadow-xl sm:mt-5 sm:size-20">
               <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="80px" className="object-cover" />
             </div>
           ) : null}
-          <h1 className="mt-4 text-5xl font-black tracking-tight sm:text-7xl">{title}</h1>
+          <h1 className="mt-3 text-4xl font-black tracking-tight sm:mt-4 sm:text-7xl">{title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold text-white/90">
             {restaurant.rating ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
@@ -608,19 +693,23 @@ function HeroSection({
               <span>{address}</span>
             </p>
           ) : null}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" onClick={onStart} className="bg-orange-600 text-white hover:bg-orange-700">
+          <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row">
+            <Button size="lg" onClick={onStart} className="h-12 bg-orange-600 text-white hover:bg-orange-700 sm:h-11">
               Start order
               <ArrowRight className="size-4" />
             </Button>
-            <Button asChild size="lg" variant="secondary" className="bg-white/12 text-white hover:bg-white/20">
+            <Button size="lg" variant="secondary" onClick={onSchedule} className="h-12 bg-white text-slate-950 hover:bg-orange-50 sm:h-11">
+              <CalendarClock className="size-4" />
+              Schedule
+            </Button>
+            <Button asChild size="lg" variant="secondary" className="hidden bg-white/12 text-white hover:bg-white/20 sm:inline-flex">
               <a href={whatsappHref(contactWhatsApp, `Hi ${title}, I want to place an order.`)} target="_blank" rel="noreferrer">
                 <MessageCircle className="size-4" />
                 WhatsApp
               </a>
             </Button>
             {contactPhone ? (
-              <Button asChild size="lg" variant="secondary" className="bg-white/12 text-white hover:bg-white/20">
+              <Button asChild size="lg" variant="secondary" className="hidden bg-white/12 text-white hover:bg-white/20 sm:inline-flex">
                 <a href={`tel:${contactPhone}`}>
                   <Phone className="size-4" />
                   {contactPhone}
@@ -628,7 +717,7 @@ function HeroSection({
               </Button>
             ) : null}
             {mapsHref ? (
-              <Button asChild size="lg" variant="secondary" className="bg-white/12 text-white hover:bg-white/20">
+              <Button asChild size="lg" variant="secondary" className="hidden bg-white/12 text-white hover:bg-white/20 sm:inline-flex">
                 <a href={mapsHref} target="_blank" rel="noreferrer">
                   <MapPin className="size-4" />
                   Map
@@ -637,13 +726,14 @@ function HeroSection({
             ) : null}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-black/32 p-3 ring-1 ring-white/12 backdrop-blur sm:grid-cols-4 lg:grid-cols-2">
+        <div className="hidden grid-cols-2 gap-2 rounded-2xl bg-black/32 p-3 ring-1 ring-white/12 backdrop-blur sm:grid sm:grid-cols-4 lg:grid-cols-2">
           {typeof minOrder === "number" ? <HeroFact icon={ShoppingBag} label="Minimum order" value={formatCurrency(minOrder)} /> : null}
           {typeof deliveryFee === "number" ? <HeroFact icon={Bike} label="Delivery fee" value={formatCurrency(deliveryFee)} /> : null}
           {typeof freeAbove === "number" ? <HeroFact icon={Sparkles} label="Free delivery" value={`above ${formatCurrency(freeAbove)}`} /> : null}
           {typeof customerDistanceKm === "number" ? <HeroFact icon={MapPin} label="Distance" value={`${customerDistanceKm} km`} /> : null}
           {restaurant.deliveryRadiusKm ? <HeroFact icon={Bike} label="Delivery radius" value={`${restaurant.deliveryRadiusKm} km`} /> : null}
           {restaurant.cloudKitchen ? <HeroFact icon={Package} label="Kitchen type" value="Cloud kitchen" /> : null}
+          </div>
         </div>
       </div>
     </section>
@@ -658,6 +748,88 @@ function HeroFact({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
       <p className="text-sm font-black">{value}</p>
     </div>
   );
+}
+
+function OrderTimingStrip({
+  mode,
+  scheduledDate,
+  scheduledTime,
+  scheduledLabel,
+  onModeChange,
+  onDateChange,
+  onTimeChange,
+}: {
+  mode: OrderTiming;
+  scheduledDate: string;
+  scheduledTime: string;
+  scheduledLabel: string;
+  onModeChange: (value: OrderTiming) => void;
+  onDateChange: (value: string) => void;
+  onTimeChange: (value: string) => void;
+}) {
+  return (
+    <section className="rounded-3xl border bg-white p-3 shadow-sm sm:p-4">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <button
+          type="button"
+          onClick={() => onModeChange("now")}
+          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${mode === "now" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+        >
+          <span className="grid size-10 place-items-center rounded-2xl bg-orange-100 text-orange-700">
+            <ZapIcon />
+          </span>
+          <span>
+            <span className="block font-black">Order right now</span>
+            <span className="block text-sm font-semibold text-muted-foreground">Send the order immediately to the restaurant.</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onModeChange("scheduled")}
+          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${mode === "scheduled" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+        >
+          <span className="grid size-10 place-items-center rounded-2xl bg-orange-100 text-orange-700">
+            <CalendarClock className="size-5" />
+          </span>
+          <span>
+            <span className="block font-black">Schedule later</span>
+            <span className="block text-sm font-semibold text-muted-foreground">Choose a date and time after selecting items.</span>
+          </span>
+        </button>
+      </div>
+      {mode === "scheduled" ? (
+        <div className="mt-3 grid gap-3 rounded-2xl border border-orange-100 bg-orange-50/60 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="grid gap-2">
+            <span className="text-sm font-black text-slate-950">Date</span>
+            <input
+              type="date"
+              min={defaultScheduleDate()}
+              value={scheduledDate}
+              onChange={(event) => onDateChange(event.target.value)}
+              className="h-11 rounded-2xl border bg-white px-3 text-sm font-bold text-slate-950 outline-none focus:ring-4 focus:ring-orange-500/20"
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black text-slate-950">Time</span>
+            <input
+              type="time"
+              step={900}
+              value={scheduledTime}
+              onChange={(event) => onTimeChange(event.target.value)}
+              className="h-11 rounded-2xl border bg-white px-3 text-sm font-bold text-slate-950 outline-none focus:ring-4 focus:ring-orange-500/20"
+            />
+          </label>
+          <div className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950">
+            {scheduledLabel || "Choose a valid slot"}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ZapIcon() {
+  return <Sparkles className="size-5" />;
 }
 
 function HeroBannerCarousel({ images, title }: { images: string[]; title: string }) {
@@ -693,7 +865,7 @@ function HeroBannerCarousel({ images, title }: { images: string[]; title: string
         />
       ))}
       {total > 1 ? (
-        <div className="absolute bottom-5 right-5 z-10 flex items-center gap-2">
+        <div className="absolute bottom-5 right-5 z-10 hidden items-center gap-2 sm:flex">
           <button type="button" className="grid size-9 place-items-center rounded-full bg-black/45 text-white ring-1 ring-white/25 backdrop-blur hover:bg-black/65" onClick={() => goTo(activeIndex - 1)} aria-label="Previous banner">
             <ChevronLeft className="size-5" />
           </button>
@@ -749,15 +921,15 @@ function StepIndicator({ current, onSelect }: { current: WizardStep; onSelect: (
 function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: string) => void }) {
   if (!offers.length) return null;
   return (
-    <section className="space-y-3">
+    <section className="rounded-3xl border bg-white p-4 shadow-sm">
       <h2 className="text-xl font-black">Offers for you</h2>
-      <div className="customer-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-        {offers.slice(0, 8).map((offer, index) => (
+      <div className="mt-4 grid gap-3">
+        {offers.slice(0, 3).map((offer, index) => (
           <button
             key={offer.code}
             type="button"
             onClick={() => onApply(offer.code)}
-            className="group relative min-w-[240px] overflow-hidden rounded-3xl border bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-w-[300px]"
+            className="group relative min-h-32 overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-emerald-50" />
             {(offer.mobileBanner ?? offer.banner ?? offer.image) ? (
@@ -778,6 +950,44 @@ function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: stri
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+function RestaurantInfoCard({ restaurant, contactWhatsApp }: { restaurant: Restaurant; contactWhatsApp: string }) {
+  const address = restaurant.address || restaurant.location;
+  return (
+    <section className="rounded-3xl border bg-white p-5 shadow-sm">
+      <h2 className="text-xl font-black">About {restaurant.displayName ?? restaurant.name}</h2>
+      <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+        Serving {restaurant.cuisine || "fresh food"} with restaurant-managed menus, direct ordering, and live availability.
+      </p>
+      <div className="mt-5 space-y-3 text-sm font-semibold text-slate-700">
+        {restaurant.profileComplete || restaurant.approved ? (
+          <p className="flex items-center gap-3"><CheckCircle2 className="size-4 text-emerald-600" />Verified restaurant</p>
+        ) : null}
+        {restaurant.fssaiLicense ? (
+          <p className="flex items-center gap-3"><CheckCircle2 className="size-4 text-emerald-600" />FSSAI certified</p>
+        ) : null}
+        {restaurant.deliverySettings?.baseFee !== undefined ? (
+          <p className="flex items-center gap-3"><Bike className="size-4 text-slate-500" />Restaurant delivery available</p>
+        ) : null}
+        {address ? (
+          <p className="flex items-start gap-3"><MapPin className="mt-0.5 size-4 text-slate-500" /><span>{address}</span></p>
+        ) : null}
+      </div>
+      <a
+        href={whatsappHref(contactWhatsApp, `Hi ${restaurant.name}, I need help with an order.`)}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-5 flex items-center justify-between rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800"
+      >
+        <span>
+          <span className="block text-slate-950">Have a query?</span>
+          Chat with us on WhatsApp
+        </span>
+        <MessageCircle className="size-5" />
+      </a>
     </section>
   );
 }
@@ -837,48 +1047,80 @@ function FilterBar({
 }) {
   const activeFilters = [category, diet, meal, spice, cuisine, tag].filter((value) => value !== "all").length + [popularOnly, chefSpecialOnly, comboOnly, !availableOnly].filter(Boolean).length;
   return (
-    <div className="space-y-3 rounded-3xl border bg-white p-3 shadow-sm">
-      <div className="customer-scroll flex gap-2 overflow-x-auto pb-1">
-        <Chip active={category === "all"} onClick={() => onCategory("all")}>All</Chip>
-        {options.categories.slice(0, 10).map((option) => (
-          <Chip key={option} active={category === option} onClick={() => onCategory(option)}>{humanize(option)}</Chip>
-        ))}
+    <div className="space-y-3">
+      <div className="space-y-3 rounded-[1.75rem] border bg-white p-3 shadow-sm md:hidden">
+        <div className="customer-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <Chip active={category === "all"} onClick={() => onCategory("all")}>All</Chip>
+          {options.foodTypes.map((option) => (
+            <Chip key={`mobile-food-${option}`} active={diet === option} onClick={() => onDiet(diet === option ? "all" : option)}>{humanize(option)}</Chip>
+          ))}
+          {options.hasPopular ? <Chip active={popularOnly} onClick={() => onPopular(!popularOnly)}>Popular</Chip> : null}
+          {options.hasCombos ? <Chip active={comboOnly} onClick={() => onCombo(!comboOnly)}>Combos</Chip> : null}
+          <Chip active={availableOnly} onClick={() => onAvailable(!availableOnly)}>Available</Chip>
+          <Button variant="outline" className="h-10 shrink-0 rounded-xl px-3" onClick={onOpenAdvanced}>
+            <Filter className="size-4" />
+            Filters {activeFilters ? `(${activeFilters})` : ""}
+          </Button>
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <label className="block">
+            <span className="sr-only">Category</span>
+            <select value={category} onChange={(event) => onCategory(event.target.value)} className="h-11 w-full rounded-2xl border bg-orange-50/50 px-3 text-sm font-black text-slate-950 outline-none focus:ring-4 focus:ring-orange-500/20">
+              <option value="all">All categories</option>
+              {options.categories.map((option) => (
+                <option key={option} value={option}>{humanize(option)}</option>
+              ))}
+            </select>
+          </label>
+          <Button variant="ghost" className="h-11 shrink-0 rounded-2xl px-3 text-orange-700" onClick={onClear}>
+            Clear
+          </Button>
+        </div>
       </div>
-      <div className="customer-scroll flex gap-2 overflow-x-auto pb-1">
-        {options.foodTypes.length ? <Chip active={diet === "all"} onClick={() => onDiet("all")}>All food</Chip> : null}
-        {options.foodTypes.map((option) => (
-          <Chip key={option} active={diet === option} onClick={() => onDiet(option)}>{humanize(option)}</Chip>
-        ))}
-        {options.meals.map((option) => (
-          <Chip key={option} active={meal === option} onClick={() => onMeal(option)}>{humanize(option)}</Chip>
-        ))}
-        {options.spiceLevels.map((option) => (
-          <Chip key={option} active={spice === option} onClick={() => onSpice(option)}>{humanize(option)}</Chip>
-        ))}
-        {options.cuisines.map((option) => (
-          <Chip key={option} active={cuisine === option} onClick={() => onCuisine(option)}>{humanize(option)}</Chip>
-        ))}
-        {options.tags.slice(0, 12).map((option) => (
-          <Chip key={option} active={tag === option} onClick={() => onTag(option)}>{humanize(option)}</Chip>
-        ))}
-        {options.hasPopular ? <Chip active={popularOnly} onClick={() => onPopular(!popularOnly)}>Bestseller</Chip> : null}
-        {options.hasChefSpecial ? <Chip active={chefSpecialOnly} onClick={() => onChefSpecial(!chefSpecialOnly)}>Chef&apos;s Special</Chip> : null}
-        {options.hasCombos ? <Chip active={comboOnly} onClick={() => onCombo(!comboOnly)}>Combos</Chip> : null}
-        <Chip active={availableOnly} onClick={() => onAvailable(!availableOnly)}>Available Now</Chip>
-        <Button variant="outline" className="h-10 shrink-0 rounded-xl" onClick={onOpenAdvanced}>
-          <Filter className="size-4" />
-          More
-        </Button>
-        <Button variant="ghost" className="h-10 shrink-0 rounded-xl text-orange-600" onClick={onClear}>
-          Clear {activeFilters ? `(${activeFilters})` : ""}
-        </Button>
-        <div className="ml-auto hidden gap-1 md:flex">
-          <Button size="icon" variant={viewMode === "grid" ? "default" : "outline"} onClick={() => onViewMode("grid")} aria-label="Grid view">
-            <Grid2X2 className="size-4" />
+
+      <div className="hidden space-y-3 rounded-3xl border bg-white p-3 shadow-sm md:block">
+        <div className="customer-scroll flex gap-2 overflow-x-auto pb-1">
+          <Chip active={category === "all"} onClick={() => onCategory("all")}>All</Chip>
+          {options.categories.slice(0, 10).map((option) => (
+            <Chip key={option} active={category === option} onClick={() => onCategory(option)}>{humanize(option)}</Chip>
+          ))}
+        </div>
+        <div className="customer-scroll flex gap-2 overflow-x-auto pb-1">
+          {options.foodTypes.length ? <Chip active={diet === "all"} onClick={() => onDiet("all")}>All food</Chip> : null}
+          {options.foodTypes.map((option) => (
+            <Chip key={option} active={diet === option} onClick={() => onDiet(option)}>{humanize(option)}</Chip>
+          ))}
+          {options.meals.map((option) => (
+            <Chip key={option} active={meal === option} onClick={() => onMeal(option)}>{humanize(option)}</Chip>
+          ))}
+          {options.spiceLevels.map((option) => (
+            <Chip key={option} active={spice === option} onClick={() => onSpice(option)}>{humanize(option)}</Chip>
+          ))}
+          {options.cuisines.map((option) => (
+            <Chip key={option} active={cuisine === option} onClick={() => onCuisine(option)}>{humanize(option)}</Chip>
+          ))}
+          {options.tags.slice(0, 12).map((option) => (
+            <Chip key={option} active={tag === option} onClick={() => onTag(option)}>{humanize(option)}</Chip>
+          ))}
+          {options.hasPopular ? <Chip active={popularOnly} onClick={() => onPopular(!popularOnly)}>Bestseller</Chip> : null}
+          {options.hasChefSpecial ? <Chip active={chefSpecialOnly} onClick={() => onChefSpecial(!chefSpecialOnly)}>Chef&apos;s Special</Chip> : null}
+          {options.hasCombos ? <Chip active={comboOnly} onClick={() => onCombo(!comboOnly)}>Combos</Chip> : null}
+          <Chip active={availableOnly} onClick={() => onAvailable(!availableOnly)}>Available Now</Chip>
+          <Button variant="outline" className="h-10 shrink-0 rounded-xl" onClick={onOpenAdvanced}>
+            <Filter className="size-4" />
+            More
           </Button>
-          <Button size="icon" variant={viewMode === "list" ? "default" : "outline"} onClick={() => onViewMode("list")} aria-label="List view">
-            <Utensils className="size-4" />
+          <Button variant="ghost" className="h-10 shrink-0 rounded-xl text-orange-600" onClick={onClear}>
+            Clear {activeFilters ? `(${activeFilters})` : ""}
           </Button>
+          <div className="ml-auto hidden gap-1 md:flex">
+            <Button size="icon" variant={viewMode === "grid" ? "default" : "outline"} onClick={() => onViewMode("grid")} aria-label="Grid view">
+              <Grid2X2 className="size-4" />
+            </Button>
+            <Button size="icon" variant={viewMode === "list" ? "default" : "outline"} onClick={() => onViewMode("list")} aria-label="List view">
+              <Utensils className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -1011,25 +1253,49 @@ function OfferValidationStep({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const selectedOfferCode = offerCode.trim().toUpperCase();
+  const draftCode = couponDraft.trim().toUpperCase();
+  const removeOffer = () => {
+    setCouponDraft("");
+    applyOffer("");
+  };
+  const selectOffer = (code: string) => {
+    const normalizedCode = code.trim().toUpperCase();
+    setCouponDraft(normalizedCode);
+    applyOffer(normalizedCode);
+  };
+
   return (
     <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
       <SectionTitle eyebrow="Step 2" title="Validate offers" description="Apply owner-created coupons and review eligibility before entering customer details." />
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <div className="flex gap-2">
-            <input value={couponDraft} onChange={(event) => setCouponDraft(event.target.value)} placeholder="Enter coupon code" className="h-12 min-w-0 flex-1 rounded-2xl border px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-orange-500/20" />
-            <Button onClick={() => applyOffer(couponDraft)}>Apply</Button>
+            <input
+              value={couponDraft}
+              onChange={(event) => setCouponDraft(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && draftCode) selectOffer(draftCode);
+              }}
+              placeholder="Enter coupon code"
+              className="h-12 min-w-0 flex-1 rounded-2xl border px-4 text-sm font-bold uppercase outline-none focus:ring-4 focus:ring-orange-500/20"
+            />
+            <Button onClick={() => selectOffer(draftCode)} disabled={!draftCode}>Apply</Button>
           </div>
           {offerCode ? (
-            <div className={`rounded-2xl p-3 text-sm font-bold ${totals.appliedOffer ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-              {totals.appliedOffer ? `${offerCode} applied. You saved ${formatCurrency(totals.discount)}.` : `${offerCode} is not valid for this cart or order type.`}
+            <div className={`flex items-start justify-between gap-3 rounded-2xl p-3 text-sm font-bold ${totals.appliedOffer ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+              <span>{totals.appliedOffer ? `${selectedOfferCode} applied. You saved ${formatCurrency(totals.discount)}.` : `${selectedOfferCode} is not valid for this cart or order type.`}</span>
+              <button type="button" onClick={removeOffer} className="shrink-0 rounded-xl bg-white/70 px-3 py-1 text-xs font-black text-current">
+                Remove
+              </button>
             </div>
           ) : null}
           <div className="grid gap-3 md:grid-cols-2">
-            {offers.map((offer) => {
+            {offers.length ? offers.map((offer) => {
               const eligible = offerEligible(offer, cartItems, fulfillmentType);
+              const selected = selectedOfferCode === offer.code.toUpperCase();
               return (
-                <button key={offer.code} type="button" onClick={() => applyOffer(offer.code)} className={`rounded-2xl border p-4 text-left transition hover:border-orange-300 ${offerCode === offer.code ? "border-orange-600 bg-orange-50" : "bg-white"}`}>
+                <button key={offer.code} type="button" onClick={() => (selected ? removeOffer() : selectOffer(offer.code))} className={`rounded-2xl border p-4 text-left transition hover:border-orange-300 ${selected ? "border-orange-600 bg-orange-50" : "bg-white"}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <Badge className={eligible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>{eligible ? "Eligible" : "Rules apply"}</Badge>
@@ -1038,12 +1304,21 @@ function OfferValidationStep({
                     </div>
                     <span className="rounded-xl bg-orange-600 px-2 py-1 text-xs font-black text-white">{offer.code}</span>
                   </div>
-                  <p className="mt-3 text-xs font-bold text-muted-foreground">
-                    Min {formatCurrency(offer.minimumOrder)} {offer.appliesTo?.length ? `• ${offer.appliesTo.join(", ")}` : ""}
-                  </p>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <p className="text-xs font-bold text-muted-foreground">
+                      Min {formatCurrency(offer.minimumOrder)} {offer.appliesTo?.length ? `• ${offer.appliesTo.join(", ")}` : ""}
+                    </p>
+                    <span className={`shrink-0 rounded-xl px-3 py-1 text-xs font-black ${selected ? "bg-white text-orange-700" : "bg-orange-600 text-white"}`}>
+                      {selected ? "Remove" : "Apply"}
+                    </span>
+                  </div>
                 </button>
               );
-            })}
+            }) : (
+              <div className="rounded-2xl border border-dashed p-5 text-sm font-semibold text-muted-foreground">
+                No offers are live for this restaurant right now.
+              </div>
+            )}
           </div>
         </div>
         <MiniCart items={cartItems} totals={totals} />
@@ -1058,6 +1333,13 @@ function CustomerDetailsStep({
   setCustomer,
   fulfillmentType,
   setFulfillmentType,
+  orderTiming,
+  scheduledDate,
+  scheduledTime,
+  scheduledLabel,
+  setOrderTiming,
+  setScheduledDate,
+  setScheduledTime,
   onBack,
   onNext,
 }: {
@@ -1065,6 +1347,13 @@ function CustomerDetailsStep({
   setCustomer: (value: CustomerForm) => void;
   fulfillmentType: FulfillmentType;
   setFulfillmentType: (value: FulfillmentType) => void;
+  orderTiming: OrderTiming;
+  scheduledDate: string;
+  scheduledTime: string;
+  scheduledLabel: string;
+  setOrderTiming: (value: OrderTiming) => void;
+  setScheduledDate: (value: string) => void;
+  setScheduledTime: (value: string) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -1072,6 +1361,17 @@ function CustomerDetailsStep({
   return (
     <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
       <SectionTitle eyebrow="Step 3" title="Customer details" description="Delivery needs an address. Pickup and dine-in can be completed with name and phone." />
+      <div className="mt-5">
+        <OrderTimingStrip
+          mode={orderTiming}
+          scheduledDate={scheduledDate}
+          scheduledTime={scheduledTime}
+          scheduledLabel={scheduledLabel}
+          onModeChange={setOrderTiming}
+          onDateChange={setScheduledDate}
+          onTimeChange={setScheduledTime}
+        />
+      </div>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         {ORDER_TYPES.map(({ id, label, helper, icon: Icon }) => (
           <button key={id} type="button" onClick={() => setFulfillmentType(id)} className={`rounded-2xl border p-4 text-left transition ${fulfillmentType === id ? "border-orange-600 bg-orange-50" : "bg-white hover:bg-orange-50/50"}`}>
@@ -1106,6 +1406,8 @@ function ConfirmStep({
   fulfillmentType,
   customer,
   totals,
+  orderTiming,
+  scheduledForLabel,
   contactPhone,
   contactWhatsApp,
   submitting,
@@ -1117,6 +1419,8 @@ function ConfirmStep({
   fulfillmentType: FulfillmentType;
   customer: CustomerForm;
   totals: CartTotals;
+  orderTiming: OrderTiming;
+  scheduledForLabel: string;
   contactPhone: string;
   contactWhatsApp: string;
   submitting: boolean;
@@ -1125,13 +1429,17 @@ function ConfirmStep({
 }) {
   return (
     <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
-      <SectionTitle eyebrow="Step 4" title="Confirm order" description="Review items, taxes, charges, contact details, and send the order to the restaurant." />
+      <SectionTitle eyebrow="Step 4" title={orderTiming === "scheduled" ? "Confirm scheduled order" : "Confirm order"} description="Review items, taxes, charges, contact details, and send the order to the restaurant." />
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-3">
           <div className="rounded-2xl border bg-orange-50/60 p-4">
             <p className="text-sm font-black">{restaurant.displayName ?? restaurant.name}</p>
             <p className="text-sm text-muted-foreground">
               {fulfillmentLabel(fulfillmentType)} for {customer.name} • {customer.phone}
+            </p>
+            <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-black text-orange-700">
+              <CalendarClock className="size-4" />
+              {orderTiming === "scheduled" ? `Scheduled for ${scheduledForLabel || "selected slot"}` : "Order right now"}
             </p>
             {customer.address ? <p className="mt-2 text-sm font-semibold">{customer.address}{customer.landmark ? `, ${customer.landmark}` : ""}</p> : null}
           </div>
@@ -1168,7 +1476,7 @@ function ConfirmStep({
           </div>
           <Button className="h-12 w-full bg-emerald-700 text-white hover:bg-emerald-800" onClick={onSubmit} disabled={submitting}>
             {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-            Place order and wait for confirmation
+            {orderTiming === "scheduled" ? "Send scheduled order" : "Place order and wait for confirmation"}
           </Button>
           <Button className="h-12 w-full" variant="outline" disabled>
             <CreditCard className="size-4" />
@@ -1193,7 +1501,7 @@ function SuccessStep({
   contactWhatsApp,
   onNewOrder,
 }: {
-  order: { id: string; total: number; prep: number };
+  order: { id: string; total: number; prep: number; scheduledLabel?: string };
   restaurant: Restaurant;
   contactPhone: string;
   contactWhatsApp: string;
@@ -1205,11 +1513,14 @@ function SuccessStep({
         <div className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-100 text-emerald-700">
           <CheckCircle2 className="size-10" />
         </div>
-        <h1 className="mt-5 text-3xl font-black">Order sent!</h1>
-        <p className="mt-2 text-muted-foreground">The restaurant will review and confirm your order shortly.</p>
+        <h1 className="mt-5 text-3xl font-black">{order.scheduledLabel ? "Scheduled order sent!" : "Order sent!"}</h1>
+        <p className="mt-2 text-muted-foreground">
+          {order.scheduledLabel ? `The restaurant will review your request for ${order.scheduledLabel}.` : "The restaurant will review and confirm your order shortly."}
+        </p>
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left">
           <InfoRow label="Order ID" value={order.id} />
           <InfoRow label="Restaurant" value={restaurant.displayName ?? restaurant.name} />
+          {order.scheduledLabel ? <InfoRow label="Scheduled for" value={order.scheduledLabel} /> : null}
           <InfoRow label="Estimated prep" value={`${order.prep} minutes`} />
           <InfoRow label="Total" value={formatCurrency(order.total)} />
         </div>
@@ -1295,8 +1606,8 @@ function CartSummary({
 
 function MiniCart({ items, totals }: { items: CartLine[]; totals: CartTotals }) {
   return (
-    <div className="rounded-2xl border bg-slate-50 p-4">
-      <h3 className="font-black">Cart review</h3>
+    <div className="rounded-3xl border border-orange-200 bg-orange-50/70 p-4">
+      <h3 className="text-lg font-black">Cart review</h3>
       <div className="mt-3 space-y-2">
         {items.map((item) => (
           <div key={item.id} className="flex justify-between gap-3 text-sm">
@@ -1334,6 +1645,44 @@ function InfoRow({ label, value, strong }: { label: string; value: string; stron
       <span className="font-black">{value}</span>
     </div>
   );
+}
+
+function defaultScheduleDate() {
+  const date = new Date(Date.now() + 2 * 60 * 60_000);
+  return toDateInputValue(date);
+}
+
+function defaultScheduleTime() {
+  const date = new Date(Date.now() + 2 * 60 * 60_000);
+  date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
+  return toTimeInputValue(date);
+}
+
+function toDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function toTimeInputValue(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function buildScheduledDateTime(dateValue: string, timeValue: string) {
+  if (!dateValue || !timeValue) return null;
+  const value = new Date(`${dateValue}T${timeValue}:00`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function validateOrderSchedule(mode: OrderTiming, dateValue: string, timeValue: string) {
+  if (mode === "now") return "";
+  const scheduledFor = buildScheduledDateTime(dateValue, timeValue);
+  if (!scheduledFor) return "Choose a schedule date and time.";
+  const earliest = Date.now() + 45 * 60_000;
+  if (scheduledFor.getTime() < earliest) return "Schedule at least 45 minutes from now.";
+  return "";
+}
+
+function formatScheduleDateTime(value: Date) {
+  return value.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function calculateDistanceKm(
@@ -1593,9 +1942,13 @@ type FilterOptions = {
   hasCombos: boolean;
 };
 
-function buildFilterOptions(items: MenuItem[]): FilterOptions {
-  const categories = unique(items.map((item) => item.category).filter(Boolean));
-  const cuisines = unique(items.flatMap((item) => item.cuisineIds ?? []).filter(Boolean));
+function buildFilterOptions(
+  items: MenuItem[],
+  masterCategories: Array<{ id: string; slug: string; name: string; sortOrder: number }>,
+  masterCuisines: Array<{ id: string; slug: string; name: string; sortOrder: number }>,
+): FilterOptions {
+  const categories = orderedCategoryNames(items, masterCategories);
+  const cuisines = orderedCuisineNames(items, masterCuisines);
   const meals = ["breakfast", "lunch", "dinner"].filter((meal) => items.some((item) => itemMatchesToken(item, meal)));
   const spiceLevels = unique(items.flatMap((item) => (item.spiceLevel ? [item.spiceLevel] : [])));
   const foodTypes = unique(items.flatMap((item) => item.foodType ? [item.foodType] : item.isVeg ? ["veg"] : ["nonveg"]));
@@ -1618,6 +1971,42 @@ function itemMatchesToken(item: MenuItem, token: string) {
   return [item.name, item.description, item.category, item.subcategory, item.spiceLevel, ...(item.tags ?? []), ...(item.badges ?? []), ...(item.searchKeywords ?? []), ...(item.dietaryLabels ?? []), ...(item.cuisineIds ?? [])]
     .filter(Boolean)
     .some((value) => normalize(value).includes(normalized));
+}
+
+function menuItemHasCuisine(item: MenuItem, cuisine: string) {
+  const normalizedCuisine = normalize(cuisine);
+  return (item.cuisineIds ?? []).some((candidate) => normalize(candidate) === normalizedCuisine)
+    || itemMatchesToken(item, cuisine);
+}
+
+function orderedCategoryNames(items: MenuItem[], masterCategories: Array<{ id: string; slug: string; name: string; sortOrder: number }>) {
+  const present = new Set(items.map((item) => item.category).filter(Boolean));
+  const ordered = masterCategories
+    .filter((category) => presentHasTaxonomy(present, category))
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map((category) => category.name);
+  const custom = Array.from(present)
+    .filter((category) => !ordered.some((item) => normalize(item) === normalize(category)))
+    .sort((first, second) => first.localeCompare(second));
+  return [...ordered, ...custom];
+}
+
+function orderedCuisineNames(items: MenuItem[], masterCuisines: Array<{ id: string; slug: string; name: string; sortOrder: number }>) {
+  const present = new Set(items.flatMap((item) => item.cuisineIds ?? []).filter(Boolean));
+  const ordered = masterCuisines
+    .filter((cuisine) => presentHasTaxonomy(present, cuisine))
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map((cuisine) => cuisine.name);
+  const custom = Array.from(present)
+    .filter((cuisine) => !ordered.some((item) => normalize(item) === normalize(cuisine)))
+    .map(humanize)
+    .sort((first, second) => first.localeCompare(second));
+  return [...ordered, ...custom];
+}
+
+function presentHasTaxonomy(present: Set<string>, item: { id: string; slug: string; name: string }) {
+  const values = Array.from(present).map(normalize);
+  return [item.id, item.slug, item.name].some((candidate) => values.includes(normalize(candidate)));
 }
 
 function unique(values: string[]) {
@@ -1644,7 +2033,7 @@ function normalizeHeroImages(restaurant: Restaurant) {
 }
 
 function normalize(value?: string) {
-  return (value ?? "").toLowerCase().trim();
+  return (value ?? "").toLowerCase().replace(/[-_]+/g, " ").trim();
 }
 
 function humanize(value: string) {

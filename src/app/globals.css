@@ -300,10 +300,7 @@ body {
 }
 
 button,
-a,
-input,
-select,
-textarea {
+a {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -311,19 +308,22 @@ textarea {
 input,
 select,
 textarea,
-[contenteditable="true"] {
-  -webkit-user-select: text;
-  user-select: text;
-  pointer-events: auto;
-}
-
-input,
-textarea,
 [contenteditable="true"],
-[role="textbox"] {
+[role="textbox"],
+[role="combobox"],
+[role="searchbox"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: auto;
   -webkit-user-select: text !important;
   user-select: text !important;
   -webkit-touch-callout: default;
+  pointer-events: auto;
+  cursor: text;
+}
+
+select,
+[role="combobox"] {
+  cursor: pointer;
 }
 
 input,
@@ -376,6 +376,16 @@ select:-webkit-autofill:focus {
 
 ::selection {
   background: color-mix(in srgb, var(--secondary) 48%, transparent);
+  color: var(--foreground);
+}
+
+input::selection,
+textarea::selection,
+[contenteditable="true"]::selection,
+[role="textbox"]::selection,
+[role="searchbox"]::selection {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+  color: var(--foreground);
 }
 
 .safe-bottom {
@@ -495,6 +505,54 @@ select:-webkit-autofill:focus {
 
 .owner-premium .dashboard-grid {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) {
+  --foreground: #182230;
+  --card-foreground: #182230;
+  --muted-foreground: #475467;
+  color-scheme: light;
+  color: #182230;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(h1, h2, h3, h4, h5, h6, label, legend, strong, .text-foreground, .text-card-foreground) {
+  color: #182230;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(.text-muted-foreground) {
+  color: #475467;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(.text-primary) {
+  color: #f04f1a;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(.text-primary-foreground) {
+  color: #ffffff;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(input, select, textarea, [role="textbox"], [role="combobox"], [role="listbox"]) {
+  border-color: #cfd6e3;
+  background-color: #ffffff;
+  color: #182230 !important;
+  -webkit-text-fill-color: #182230;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(input::placeholder, textarea::placeholder) {
+  color: #667085;
+  opacity: 1;
+  -webkit-text-fill-color: #667085;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(select option, [role="option"]) {
+  background-color: #ffffff;
+  color: #182230;
+}
+
+.owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(input:disabled, select:disabled, textarea:disabled) {
+  color: #344054 !important;
+  opacity: 1;
+  -webkit-text-fill-color: #344054;
 }
 
 @page {

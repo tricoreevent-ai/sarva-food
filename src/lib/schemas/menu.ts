@@ -8,6 +8,30 @@ export const gstinSchema = z
 
 export const phoneSchema = z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number");
 export const priceSchema = z.coerce.number().min(0, "Price cannot be negative").max(999999);
+
+function normalizeNumberInput(value: unknown) {
+  if (value === "" || value === null || typeof value === "undefined") return undefined;
+  if (typeof value === "number" && Number.isNaN(value)) return undefined;
+  if (typeof value === "string") return Number(value.trim());
+  return value;
+}
+
+function blankToUndefined(value: unknown) {
+  if (value === "" || value === null || typeof value === "undefined") return undefined;
+  return value;
+}
+
+const requiredPositivePriceSchema = z
+  .preprocess(
+    normalizeNumberInput,
+    z.number({ error: "Base price is required" }).min(0, "Price cannot be negative").max(999999),
+  )
+  .refine((value) => value > 0, "Base price must be greater than zero");
+
+export const optionalPriceSchema = z.preprocess(
+  normalizeNumberInput,
+  z.number({ error: "Enter a valid price" }).min(0, "Price cannot be negative").max(999999).optional(),
+);
 export const stockQuantitySchema = z.coerce.number().min(0, "Stock cannot be negative");
 export const taxPercentSchema = z.coerce.number().min(0).max(28);
 export const deliveryRadiusSchema = z.coerce.number().min(0.5).max(50);
@@ -113,14 +137,14 @@ export const advancedMenuItemSchema = z.object({
   cuisineIds: z.array(z.string()).default([]),
   description: z.string().trim().min(8),
   longDescription: z.string().optional(),
-  price: priceSchema.refine((value) => value > 0),
-  dineInPrice: priceSchema,
-  parcelPrice: priceSchema,
-  deliveryPrice: priceSchema,
-  packingCharge: priceSchema,
+  price: requiredPositivePriceSchema,
+  dineInPrice: optionalPriceSchema,
+  parcelPrice: optionalPriceSchema,
+  deliveryPrice: optionalPriceSchema,
+  packingCharge: optionalPriceSchema,
   prepTime: z.string().min(2),
-  foodType: z.enum(["veg", "nonveg", "egg", "vegan", "jain"]),
-  spiceLevel: z.enum(["mild", "medium", "hot"]),
+  foodType: z.preprocess(blankToUndefined, z.enum(["veg", "nonveg", "egg", "vegan", "jain"], { error: "Select a food type" })),
+  spiceLevel: z.preprocess(blankToUndefined, z.enum(["mild", "medium", "hot"], { error: "Select a spice level" })),
   tags: z.string().optional(),
   badges: z.string().optional(),
   searchKeywords: z.string().optional(),

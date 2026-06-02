@@ -85,8 +85,10 @@ export async function signInWithGoogle(role: UserRole = "customer") {
     if (!shouldTryConfiguredGoogleClient(error)) throw error;
     return signInWithConfiguredGoogleClient(auth);
   });
-  await ensureCustomerProfile(result.user, role);
-  await syncAuthSession(surfaceForAuthRole(role));
+  if (role !== "customer") {
+    await ensureCustomerProfile(result.user, role);
+  }
+  await syncAuthSession(surfaceForAuthRole(role), { ensureCustomer: role === "customer" });
   return result.user;
 }
 
@@ -237,18 +239,19 @@ export function isAdminRole(role: UserRole) {
   return ADMIN_ROLES.includes(role);
 }
 
-export async function syncAuthSession(surface: SessionSurface = "customer") {
+export async function syncAuthSession(surface: SessionSurface = "customer", options: { ensureCustomer?: boolean } = {}) {
   const idToken = await getCurrentIdToken();
   if (!idToken) return null;
 
   const response = await fetch("/api/auth/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ idToken, surface }),
+    body: JSON.stringify({ idToken, surface, ensureCustomer: options.ensureCustomer === true }),
   });
 
   if (!response.ok) {
-    throw new Error("Unable to establish your session.");
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to establish your session.");
   }
 
   return response.json() as Promise<{

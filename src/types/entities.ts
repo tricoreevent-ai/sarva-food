@@ -208,6 +208,8 @@ export type MenuItem = {
   prepTime: string;
   calories?: number;
   spiceLevel?: "mild" | "medium" | "hot";
+  averageRating?: number;
+  reviewCount?: number;
   dietaryLabels?: string[];
   allergenLabels?: string[];
   tags?: string[];

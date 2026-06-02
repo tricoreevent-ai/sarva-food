@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { usePublicMenu, usePublicRestaurant, usePublicReviews } from "@/hooks/use-public-data";
+import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant, usePublicReviews } from "@/hooks/use-public-data";
 import { useCartStore } from "@/lib/cart-store";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -51,6 +51,8 @@ export function CustomerMenuFlow({
   const activeRestaurant = restaurant ?? loadedRestaurant;
   const { items: menuItems, offers, status, retry } = usePublicMenu(activeRestaurant?.slug);
   const { reviews, summary: reviewSummary } = usePublicReviews(activeRestaurant?.slug);
+  const { categories: masterCategories } = usePublicCategories();
+  const { cuisines: masterCuisines } = usePublicCuisines();
   const applyOffer = useCartStore((state) => state.applyOffer);
   const activeOffer = offers.find((offer) => offer.code === offerCode);
   const scopedMenu = useMemo(
@@ -77,12 +79,12 @@ export function CustomerMenuFlow({
   }, [viewMode]);
 
   const categories = useMemo(
-    () => ["All", "Popular", ...Array.from(new Set(scopedMenu.map((item) => item.category)))],
-    [scopedMenu],
+    () => ["All", "Popular", ...orderedCategoryNames(scopedMenu, masterCategories)],
+    [masterCategories, scopedMenu],
   );
   const filterKey = [category, debouncedQuery, dietFilter, maxPrice, popularOnly, cuisineFilter, spiceFilter, mealFilter, availableOnly, chefSpecialOnly, comboOnly].join("|");
   const activeVisibleCount = visibleState.key === filterKey ? visibleState.count : 24;
-  const filterOptions = useMemo(() => buildFilterOptions(scopedMenu), [scopedMenu]);
+  const filterOptions = useMemo(() => buildFilterOptions(scopedMenu, masterCuisines), [masterCuisines, scopedMenu]);
   const visibleMenu = useMemo(() => scopedMenu.filter((item) => {
     const itemText = menuSearchText(item);
     const matchesCategory =
@@ -93,7 +95,7 @@ export function CustomerMenuFlow({
       (dietFilter === "veg" ? item.isVeg || ["veg", "vegan", "jain"].includes(item.foodType ?? "") : !item.isVeg);
     const matchesPrice = maxPrice === "any" || item.price <= Number(maxPrice);
     const matchesPopular = !popularOnly || Boolean(item.isPopular);
-    const matchesCuisine = cuisineFilter === "all" || Boolean(item.cuisineIds?.includes(cuisineFilter)) || itemText.includes(cuisineFilter.toLowerCase());
+    const matchesCuisine = cuisineFilter === "all" || menuItemHasCuisine(item, cuisineFilter);
     const matchesSpice = spiceFilter === "all" || item.spiceLevel === spiceFilter || Boolean(item.tags?.some((tag) => tag.toLowerCase() === spiceFilter));
     const matchesMeal = mealFilter === "all" || Boolean(item.tags?.some((tag) => tag.toLowerCase().includes(mealFilter)));
     const matchesAvailable = !availableOnly || !item.soldOut;
@@ -445,13 +447,13 @@ function menuSearchText(item: {
   ].join(" ").toLowerCase();
 }
 
-function buildFilterOptions(items: MenuItem[]) {
+function buildFilterOptions(items: MenuItem[], masterCuisines: Array<{ id: string; slug: string; name: string }>) {
   const cuisines = new Set<string>();
   const spiceLevels = new Set<string>();
   const mealTags = new Set<string>();
 
   for (const item of items) {
-    item.cuisineIds?.forEach((cuisine) => cuisines.add(cuisine));
+    item.cuisineIds?.forEach((cuisine) => cuisines.add(resolveCuisineName(cuisine, masterCuisines)));
     if (item.spiceLevel) spiceLevels.add(item.spiceLevel);
     item.tags?.forEach((tag) => {
       const value = tag.toLowerCase();
@@ -465,6 +467,35 @@ function buildFilterOptions(items: MenuItem[]) {
     spiceLevels: Array.from(spiceLevels).sort(),
     mealTags: Array.from(mealTags).sort(),
   };
+}
+
+function orderedCategoryNames(items: MenuItem[], masterCategories: Array<{ id: string; slug: string; name: string; sortOrder: number }>) {
+  const present = new Set(items.map((item) => item.category).filter(Boolean));
+  const ordered = masterCategories
+    .filter((category) => present.has(category.name) || present.has(category.id) || present.has(category.slug))
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map((category) => category.name);
+  const custom = Array.from(present)
+    .filter((category) => !ordered.includes(category))
+    .sort((first, second) => first.localeCompare(second));
+  return [...ordered, ...custom];
+}
+
+function resolveCuisineName(value: string, masterCuisines: Array<{ id: string; slug: string; name: string }>) {
+  const normalized = normalizeTaxonomy(value);
+  return masterCuisines.find((item) =>
+    [item.id, item.slug, item.name].some((candidate) => normalizeTaxonomy(candidate) === normalized),
+  )?.name ?? titleCase(value);
+}
+
+function menuItemHasCuisine(item: MenuItem, cuisine: string) {
+  const expected = normalizeTaxonomy(cuisine);
+  return (item.cuisineIds ?? []).some((candidate) => normalizeTaxonomy(candidate) === expected)
+    || menuSearchText(item).includes(expected);
+}
+
+function normalizeTaxonomy(value?: string) {
+  return (value ?? "").toLowerCase().replace(/[-_]+/g, " ").trim();
 }
 
 function titleCase(value: string) {

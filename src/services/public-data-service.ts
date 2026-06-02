@@ -1,7 +1,7 @@
 "use client";
 
-import type { AppCategory, CmsSettings, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
-import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
+import type { AppCategory, AppCuisine, CmsSettings, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
+import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc } from "@/types/firebase";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { sortOffers } from "@/lib/offer-engine";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
@@ -19,6 +19,16 @@ const inflightPublicRequests = new Map<string, Promise<unknown>>();
 const publicResponseCache = new Map<string, { value: unknown; expiresAt: number }>();
 const PUBLIC_FETCH_RETRIES = 2;
 const PUBLIC_RESPONSE_CACHE_TTL_MS = 60 * 1000;
+const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
+  "cafe-al-arab-thanisandra-chicken-shawarma-roll",
+  "cafe-al-arab-thanisandra-alfaham-half",
+  "cafe-al-arab-thanisandra-chicken-mandi",
+  "cafe-al-arab-thanisandra-falafel-pita",
+  "menu-chicken-shawarma-roll",
+  "menu-al-faham-half",
+  "menu-chicken-mandi",
+  "menu-falafel-pita",
+]);
 
 function publicApiUrl(path: string, params?: Record<string, string | undefined>) {
   const url = new URL(path, window.location.origin);
@@ -80,6 +90,14 @@ async function fetchPublicCategories() {
     .sort((first, second) => first.sortOrder - second.sortOrder);
 }
 
+async function fetchPublicCuisines() {
+  const docs = await fetchPublicDocs<AppCuisineDoc>("/api/public/cuisines");
+  return docs
+    .filter((item) => item.active && !item.isDeleted)
+    .map(cuisineDocToUi)
+    .sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
+}
+
 async function fetchPublicCms() {
   const url = publicApiUrl("/api/public/cms");
   const existing = inflightPublicRequests.get(url) as Promise<CmsSettings> | undefined;
@@ -106,6 +124,7 @@ async function fetchPublicMenu(restaurantId: string) {
   const docs = await fetchPublicDocs<MenuDoc>("/api/public/menu", { restaurantId });
   return docs
     .filter(isPublicMenuDoc)
+    .filter((item) => !isLegacySeededPublicMenuDoc(item))
     .map((item) => menuDocToUi(item.id, item))
     .filter((item) => !item.soldOut);
 }
@@ -240,6 +259,27 @@ export function listenPublicCategories(
     .then(deliver)
     .catch((error) => {
       warnPublicFallbackFailure("categories", error);
+      deliver([]);
+    });
+
+  return () => {
+    active = false;
+  };
+}
+
+export function listenPublicCuisines(
+  onData: (cuisines: AppCuisine[]) => void,
+): Unsubscribe {
+  let active = true;
+  const deliver = (items: AppCuisine[]) => {
+    if (!active) return;
+    onData(items);
+  };
+
+  void fetchPublicCuisines()
+    .then(deliver)
+    .catch((error) => {
+      warnPublicFallbackFailure("cuisines", error);
       deliver([]);
     });
 
@@ -456,13 +496,21 @@ export function menuDocToUi(id: string, doc: MenuDoc): MenuItem {
     isVeg: doc.isVeg,
     foodType: doc.foodType,
     isPopular: (doc.tags ?? []).some((tag) => ["popular", "bestseller"].includes(tag.toLowerCase())),
-    prepTime: "",
+    prepTime: doc.prepTime ?? "",
+    calories: doc.calories,
+    spiceLevel: doc.spiceLevel,
+    averageRating: doc.averageRating,
+    reviewCount: doc.reviewCount,
     dietaryLabels: doc.dietaryLabels,
     allergenLabels: doc.allergenLabels,
     tags: doc.tags,
     badges: doc.badges,
     searchKeywords: doc.searchKeywords,
     soldOut: !doc.available || doc.isDeleted || doc.channelConfig?.delivery?.available === false,
+    modifiers: doc.modifiers,
+    addOns: doc.addOns,
+    variantGroups: doc.variantGroups,
+    modifierGroups: doc.modifierGroups,
     menuVisibility: doc.menuVisibility,
     scheduleIds: doc.scheduleIds,
     recipeLinks: doc.recipeLinks,
@@ -479,6 +527,22 @@ export function categoryDocToUi(doc: AppCategoryDoc): AppCategory {
     sortOrder: doc.sortOrder,
     active: doc.active,
     colorTheme: doc.colorTheme,
+    createdAt: firestoreDateToIso(doc.createdAt),
+    updatedAt: firestoreDateToIso(doc.updatedAt),
+  };
+}
+
+export function cuisineDocToUi(doc: AppCuisineDoc): AppCuisine {
+  return {
+    id: doc.id,
+    name: doc.name,
+    slug: doc.slug,
+    image: withCloudinaryAuto(doc.imagePath || (doc as AppCuisineDoc & { image?: string }).image || ""),
+    icon: doc.icon,
+    color: doc.color,
+    sortOrder: doc.sortOrder,
+    active: doc.active,
+    description: doc.description,
     createdAt: firestoreDateToIso(doc.createdAt),
     updatedAt: firestoreDateToIso(doc.updatedAt),
   };
@@ -532,15 +596,25 @@ export function offerDocToUi(doc: OfferDoc): Offer {
 
 function isPublicMenuDoc(doc: Partial<MenuDoc>): doc is MenuDoc {
   return Boolean(
-    doc &&
+      doc &&
       !doc.isDeleted &&
       doc.available !== false &&
-      doc.menuVisibility?.delivery !== false &&
-      doc.channelConfig?.delivery?.visible !== false &&
-      doc.channelConfig?.delivery?.available !== false &&
+      isVisibleOnCustomerMenuChannel(doc) &&
       typeof doc.name === "string" &&
       typeof doc.price === "number" &&
       typeof doc.restaurantId === "string",
+  );
+}
+
+function isLegacySeededPublicMenuDoc(doc: MenuDoc) {
+  return doc.restaurantId === "cafe-al-arab-thanisandra" && LEGACY_SEEDED_PUBLIC_MENU_IDS.has(doc.id);
+}
+
+function isVisibleOnCustomerMenuChannel(doc: Partial<MenuDoc>) {
+  return (["delivery", "parcel", "dine-in"] as const).some((channel) =>
+    doc.menuVisibility?.[channel] !== false &&
+    doc.channelConfig?.[channel]?.visible !== false &&
+    doc.channelConfig?.[channel]?.available !== false,
   );
 }
 

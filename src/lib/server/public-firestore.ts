@@ -4,14 +4,25 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { adminDb } from "@/firebase/admin";
 import { defaultAppCategories } from "@/lib/default-app-categories";
+import { defaultAppCuisines } from "@/lib/default-app-cuisines";
 import { resolveTenantId } from "@/lib/tenant";
-import type { AppCategoryDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
+import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
 
 const PUBLIC_RESTAURANT_LIMIT = 100;
 const PUBLIC_MENU_LIMIT = 200;
 const PUBLIC_MENU_FALLBACK_LIMIT = 500;
 const PUBLIC_REST_LIMIT = 500;
 const DEFAULT_PUBLIC_RESTAURANT_IDS = ["cafe-al-arab-thanisandra", "falak-leela-bhartiya"];
+const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
+  "cafe-al-arab-thanisandra-chicken-shawarma-roll",
+  "cafe-al-arab-thanisandra-alfaham-half",
+  "cafe-al-arab-thanisandra-chicken-mandi",
+  "cafe-al-arab-thanisandra-falafel-pita",
+  "menu-chicken-shawarma-roll",
+  "menu-al-faham-half",
+  "menu-chicken-mandi",
+  "menu-falafel-pita",
+]);
 
 type PublicFieldFilter = {
   fieldPath: string;
@@ -418,11 +429,10 @@ function toPublicMenuDocs(docs: MenuDoc[]) {
   const publicDocs = docs
     .filter((item) =>
       !item.isDeleted &&
+      !isLegacySeededPublicMenuDoc(item) &&
       item.available !== false &&
       (item as MenuDoc & { soldOut?: boolean }).soldOut !== true &&
-      item.menuVisibility?.delivery !== false &&
-      item.channelConfig?.delivery?.visible !== false &&
-      item.channelConfig?.delivery?.available !== false &&
+      isVisibleOnCustomerMenuChannel(item) &&
       typeof item.name === "string" &&
       typeof item.price === "number" &&
       typeof item.restaurantId === "string",
@@ -431,6 +441,18 @@ function toPublicMenuDocs(docs: MenuDoc[]) {
   return Array.from(new Map(publicDocs.map((item) => [item.id, item])).values())
     .map(toPublicMenuDoc)
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
+}
+
+function isLegacySeededPublicMenuDoc(item: MenuDoc) {
+  return item.restaurantId === "cafe-al-arab-thanisandra" && LEGACY_SEEDED_PUBLIC_MENU_IDS.has(item.id);
+}
+
+function isVisibleOnCustomerMenuChannel(item: MenuDoc) {
+  return (["delivery", "parcel", "dine-in"] as const).some((channel) =>
+    item.menuVisibility?.[channel] !== false &&
+    item.channelConfig?.[channel]?.visible !== false &&
+    item.channelConfig?.[channel]?.available !== false,
+  );
 }
 
 function isSameTenant(doc: Partial<MenuDoc | OfferDoc | RestaurantDoc>, tenantId: string) {
@@ -494,7 +516,8 @@ export async function getPublicCategoryDocs() {
       .orderBy("sortOrder", "asc")
       .limit(100)
       .get();
-    return snapshot.docs.map((item) => toPublicCategoryDoc(docToJson<AppCategoryDoc>(item)));
+    return mergeDefaultCategoryDocs(snapshot.docs.map((item) => docToJson<AppCategoryDoc>(item)))
+      .map(toPublicCategoryDoc);
   } catch (error) {
     if (isAdminCredentialError(error)) return getPublicCategoryDocsFromRest();
     if (!isMissingIndexError(error)) throw error;
@@ -503,8 +526,8 @@ export async function getPublicCategoryDocs() {
       .where("active", "==", true)
       .limit(100)
       .get();
-    return snapshot.docs
-      .map((item) => toPublicCategoryDoc(docToJson<AppCategoryDoc>(item)))
+    return mergeDefaultCategoryDocs(snapshot.docs.map((item) => docToJson<AppCategoryDoc>(item)))
+      .map(toPublicCategoryDoc)
       .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
   }
 }
@@ -515,23 +538,51 @@ async function getPublicCategoryDocsFromRest() {
       filters: [{ fieldPath: "active", value: true }],
       limit: 100,
     });
-    return docs
+    return mergeDefaultCategoryDocs(docs)
       .map(toPublicCategoryDoc)
       .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
   } catch {
-    const now = new Date();
-    return defaultAppCategories.map((item) => ({
-      id: item.id,
-      name: item.name,
-      slug: item.slug,
-      imagePath: item.image,
-      icon: item.icon,
-      sortOrder: item.sortOrder,
-      active: item.active,
-      colorTheme: item.colorTheme,
-      createdAt: item.createdAt ? new Date(item.createdAt) : now,
-      updatedAt: item.updatedAt ? new Date(item.updatedAt) : now,
-    } satisfies AppCategoryDoc));
+    return mergeDefaultCategoryDocs([]).map(toPublicCategoryDoc);
+  }
+}
+
+export async function getPublicCuisineDocs() {
+  if (!hasAdminFirestoreCredentials()) return getPublicCuisineDocsFromRest();
+
+  try {
+    const snapshot = await adminDb()
+      .collection("appCuisines")
+      .where("active", "==", true)
+      .orderBy("sortOrder", "asc")
+      .limit(150)
+      .get();
+    return mergeDefaultCuisineDocs(snapshot.docs.map((item) => docToJson<AppCuisineDoc>(item)))
+      .map(toPublicCuisineDoc);
+  } catch (error) {
+    if (isAdminCredentialError(error)) return getPublicCuisineDocsFromRest();
+    if (!isMissingIndexError(error)) throw error;
+    const snapshot = await adminDb()
+      .collection("appCuisines")
+      .where("active", "==", true)
+      .limit(150)
+      .get();
+    return mergeDefaultCuisineDocs(snapshot.docs.map((item) => docToJson<AppCuisineDoc>(item)))
+      .map(toPublicCuisineDoc)
+      .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
+  }
+}
+
+async function getPublicCuisineDocsFromRest() {
+  try {
+    const docs = await runPublicFirestoreQuery<AppCuisineDoc>("appCuisines", {
+      filters: [{ fieldPath: "active", value: true }],
+      limit: 150,
+    });
+    return mergeDefaultCuisineDocs(docs)
+      .map(toPublicCuisineDoc)
+      .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
+  } catch {
+    return mergeDefaultCuisineDocs([]).map(toPublicCuisineDoc);
   }
 }
 
@@ -670,12 +721,21 @@ function toPublicMenuDoc(doc: MenuDoc): MenuDoc {
     imagePaths: doc.imagePaths,
     isVeg: doc.isVeg,
     foodType: doc.foodType,
+    prepTime: doc.prepTime,
+    calories: doc.calories,
+    spiceLevel: doc.spiceLevel,
+    averageRating: doc.averageRating,
+    reviewCount: doc.reviewCount,
     available: doc.available,
     tags: doc.tags,
     badges: doc.badges,
     searchKeywords: doc.searchKeywords,
     dietaryLabels: doc.dietaryLabels,
     allergenLabels: doc.allergenLabels,
+    modifiers: doc.modifiers,
+    addOns: doc.addOns,
+    variantGroups: doc.variantGroups,
+    modifierGroups: doc.modifierGroups,
     scheduleIds: doc.scheduleIds,
     sortOrder: doc.sortOrder,
     createdAt: doc.createdAt,
@@ -696,6 +756,71 @@ function toPublicCategoryDoc(doc: AppCategoryDoc): AppCategoryDoc {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
+}
+
+function toPublicCuisineDoc(doc: AppCuisineDoc): AppCuisineDoc {
+  return {
+    id: doc.id,
+    name: doc.name,
+    slug: doc.slug,
+    imagePath: doc.imagePath,
+    icon: doc.icon,
+    color: doc.color,
+    sortOrder: doc.sortOrder,
+    active: doc.active,
+    description: doc.description,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
+}
+
+function mergeDefaultCategoryDocs(docs: AppCategoryDoc[]) {
+  const now = new Date();
+  const defaultDocs: AppCategoryDoc[] = defaultAppCategories.map((item) => ({
+    id: item.id,
+    name: item.name,
+    slug: item.slug,
+    imagePath: item.image,
+    icon: item.icon,
+    sortOrder: item.sortOrder,
+    active: item.active,
+    colorTheme: item.colorTheme,
+    createdAt: item.createdAt ? new Date(item.createdAt) : now,
+    updatedAt: item.updatedAt ? new Date(item.updatedAt) : now,
+  } satisfies AppCategoryDoc));
+  return mergeDefaultDocs(defaultDocs, docs);
+}
+
+function mergeDefaultCuisineDocs(docs: AppCuisineDoc[]) {
+  const now = new Date();
+  const defaultDocs: AppCuisineDoc[] = defaultAppCuisines.map((item) => ({
+    id: item.id,
+    name: item.name,
+    slug: item.slug,
+    imagePath: item.image,
+    icon: item.icon,
+    color: item.color,
+    sortOrder: item.sortOrder,
+    active: item.active,
+    description: item.description,
+    createdAt: item.createdAt ? new Date(item.createdAt) : now,
+    updatedAt: item.updatedAt ? new Date(item.updatedAt) : now,
+  } satisfies AppCuisineDoc));
+  return mergeDefaultDocs(defaultDocs, docs);
+}
+
+function mergeDefaultDocs<T extends { id: string; slug?: string; active: boolean; sortOrder: number; isDeleted?: boolean }>(defaults: T[], docs: T[]) {
+  const deleted = new Set(docs.filter((item) => item.isDeleted).flatMap((item) => [item.id, item.slug].filter(Boolean) as string[]));
+  const merged = new Map<string, T>();
+  defaults
+    .filter((item) => !deleted.has(item.id) && (!item.slug || !deleted.has(item.slug)))
+    .forEach((item) => merged.set(item.slug ?? item.id, item));
+  docs
+    .filter((item) => !item.isDeleted)
+    .forEach((item) => merged.set(item.slug ?? item.id, item));
+  return Array.from(merged.values())
+    .filter((item) => item.active !== false)
+    .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
 }
 
 function toPublicOfferDoc(doc: OfferDoc): OfferDoc {

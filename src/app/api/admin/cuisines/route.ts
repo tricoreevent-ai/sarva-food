@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
-import { slugifyCuisine } from "@/lib/default-app-cuisines";
+import { defaultAppCuisines, slugifyCuisine } from "@/lib/default-app-cuisines";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import type { AppCuisine } from "@/lib/types";
 
@@ -15,12 +15,24 @@ type CuisineRequest = {
 
 export async function GET() {
   const snapshot = await adminDb().collection("appCuisines").limit(200).get();
-  const cuisines = snapshot.docs
+  const persistedCuisines = snapshot.docs
     .map((doc) => {
       const data = doc.data() as AppCuisine & { imagePath?: string; isDeleted?: boolean };
-      return { ...data, image: data.image ?? data.imagePath, id: doc.id };
-    })
-    .filter((item) => !item.isDeleted)
+      return { ...data, image: data.image ?? data.imagePath, id: doc.id } as AppCuisine & { isDeleted?: boolean };
+    });
+  const deletedSlugs = new Set(
+    persistedCuisines
+      .filter((item) => item.isDeleted)
+      .flatMap((item) => [item.id, item.slug].filter(Boolean)),
+  );
+  const cuisines = Array.from(new Map([
+    ...defaultAppCuisines
+      .filter((item) => !deletedSlugs.has(item.id) && !deletedSlugs.has(item.slug))
+      .map((item) => [item.slug, item] as const),
+    ...persistedCuisines
+      .filter((item) => !item.isDeleted)
+      .map((item) => [item.slug, item] as const),
+  ]).values())
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0) || first.name.localeCompare(second.name));
 
   return NextResponse.json({

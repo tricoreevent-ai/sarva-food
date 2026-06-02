@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listenPublicCategories,
+  listenPublicCuisines,
   listenPublicMenu,
   listenPublicOffers,
   listenPublicRestaurant,
@@ -11,13 +12,25 @@ import {
   type PublicDataStatus,
 } from "@/services/public-data-service";
 import { cacheReport, getCachedReport } from "@/lib/offline/offline-storage";
-import type { AppCategory, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
+import { useAppStore } from "@/lib/app-store";
+import type { AppCategory, AppCuisine, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 
 const PUBLIC_LOAD_TIMEOUT_MS = 1500;
 const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
 const PUBLIC_RESTAURANTS_CACHE_KEY = "sarva-public-restaurants-cache:v3";
-const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v3:";
+const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v4:";
+const PUBLIC_CUISINES_CACHE_KEY = "sarva-public-cuisines-cache:v1";
+const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
+  "cafe-al-arab-thanisandra-chicken-shawarma-roll",
+  "cafe-al-arab-thanisandra-alfaham-half",
+  "cafe-al-arab-thanisandra-chicken-mandi",
+  "cafe-al-arab-thanisandra-falafel-pita",
+  "menu-chicken-shawarma-roll",
+  "menu-al-faham-half",
+  "menu-chicken-mandi",
+  "menu-falafel-pita",
+]);
 
 function readCache<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -160,6 +173,55 @@ export function usePublicCategories() {
   return { categories, status, error, retry };
 }
 
+export function usePublicCuisines() {
+  const [cuisines, setCuisines] = useState<AppCuisine[]>([]);
+  const [status, setStatus] = useState<PublicDataStatus>("loading");
+  const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  const retry = useCallback(() => {
+    setStatus("loading");
+    setError(null);
+    setVersion((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const cachedTimerId = window.setTimeout(() => {
+      const cached = readCache<AppCuisine[]>(PUBLIC_CUISINES_CACHE_KEY, []);
+      if (active && cached.length) {
+        window.clearTimeout(timeoutId);
+        setCuisines(cached);
+        setStatus("success");
+        setError(null);
+      }
+    }, 75);
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return;
+      setStatus("error");
+      setError("Cuisine types are taking longer than expected.");
+    }, PUBLIC_LOAD_TIMEOUT_MS);
+
+    const unsubscribe = listenPublicCuisines((items) => {
+      if (!active) return;
+      window.clearTimeout(timeoutId);
+      window.clearTimeout(cachedTimerId);
+      setCuisines(items);
+      writeCache(PUBLIC_CUISINES_CACHE_KEY, items);
+      setError(null);
+      setStatus("success");
+    });
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+      window.clearTimeout(cachedTimerId);
+      unsubscribe();
+    };
+  }, [version]);
+
+  return { cuisines, status, error, retry };
+}
+
 export function usePublicRestaurant(slug: string) {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [status, setStatus] = useState<PublicDataStatus>("loading");
@@ -210,6 +272,7 @@ export function usePublicRestaurant(slug: string) {
 }
 
 export function usePublicMenu(restaurantId?: string) {
+  const ownerMenuItems = useAppStore((state) => state.menuItems);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [status, setStatus] = useState<PublicDataStatus>(restaurantId ? "loading" : "idle");
@@ -318,7 +381,18 @@ export function usePublicMenu(restaurantId?: string) {
     };
   }, [restaurantId, version]);
 
-  return { items, offers, status, error, retry, loadingForMs };
+  const localOwnerItems = useMemo(
+    () => ownerMenuItems.filter((item) => isCustomerVisibleOwnerMenuItem(item, restaurantId)),
+    [ownerMenuItems, restaurantId],
+  );
+  const publicItems = useMemo(() => items.filter((item) => !isLegacySeededPublicMenuItem(item)), [items]);
+  const mergedItems = useMemo(() => mergeMenuItems(publicItems, localOwnerItems), [publicItems, localOwnerItems]);
+  const effectiveStatus: PublicDataStatus = restaurantId && localOwnerItems.length && (status === "loading" || status === "error")
+    ? "success"
+    : status;
+  const effectiveError = effectiveStatus === "success" ? null : error;
+
+  return { items: mergedItems, offers, status: effectiveStatus, error: effectiveError, retry, loadingForMs };
 }
 
 export function usePublicOffers(restaurants?: Restaurant[]) {
@@ -425,4 +499,30 @@ export function usePublicReviews(restaurantId?: string, menuItemId?: string) {
 
 function isOfferLive(offer: Offer) {
   return isOfferActive(offer);
+}
+
+function isCustomerVisibleOwnerMenuItem(item: MenuItem, restaurantId?: string) {
+  return Boolean(
+    restaurantId &&
+      item.restaurantSlug === restaurantId &&
+      !item.soldOut &&
+      isVisibleOnAnyCustomerMenuChannel(item) &&
+      item.name?.trim() &&
+      item.price > 0,
+  );
+}
+
+function mergeMenuItems(remoteItems: MenuItem[], localItems: MenuItem[]) {
+  const merged = new Map<string, MenuItem>();
+  remoteItems.forEach((item) => merged.set(item.id, item));
+  localItems.forEach((item) => merged.set(item.id, item));
+  return Array.from(merged.values());
+}
+
+function isLegacySeededPublicMenuItem(item: MenuItem) {
+  return item.restaurantSlug === "cafe-al-arab-thanisandra" && LEGACY_SEEDED_PUBLIC_MENU_IDS.has(item.id);
+}
+
+function isVisibleOnAnyCustomerMenuChannel(item: MenuItem) {
+  return (["delivery", "parcel", "dine-in"] as const).some((channel) => item.menuVisibility?.[channel] !== false);
 }

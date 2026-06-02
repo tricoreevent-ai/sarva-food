@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
-import { slugifyCategory } from "@/lib/default-app-categories";
+import { defaultAppCategories, slugifyCategory } from "@/lib/default-app-categories";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import type { AppCategory } from "@/lib/types";
 
@@ -15,12 +15,24 @@ type CategoryRequest = {
 
 export async function GET() {
   const snapshot = await adminDb().collection("appCategories").limit(200).get();
-  const categories = snapshot.docs
+  const persistedCategories = snapshot.docs
     .map((doc) => {
-      const data = doc.data() as AppCategory & { imagePath?: string };
-      return { ...data, id: doc.id, image: data.image ?? data.imagePath } as AppCategory;
-    })
-    .filter((item) => !("isDeleted" in item) || !(item as AppCategory & { isDeleted?: boolean }).isDeleted)
+      const data = doc.data() as AppCategory & { imagePath?: string; isDeleted?: boolean };
+      return { ...data, id: doc.id, image: data.image ?? data.imagePath } as AppCategory & { isDeleted?: boolean };
+    });
+  const deletedSlugs = new Set(
+    persistedCategories
+      .filter((item) => item.isDeleted)
+      .flatMap((item) => [item.id, item.slug].filter(Boolean)),
+  );
+  const categories = Array.from(new Map([
+    ...defaultAppCategories
+      .filter((item) => !deletedSlugs.has(item.id) && !deletedSlugs.has(item.slug))
+      .map((item) => [item.slug, item] as const),
+    ...persistedCategories
+      .filter((item) => !item.isDeleted)
+      .map((item) => [item.slug, item] as const),
+  ]).values())
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0));
 
   return NextResponse.json({ categories });

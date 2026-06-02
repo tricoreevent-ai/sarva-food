@@ -41,6 +41,10 @@ export function MobilePullToRefresh({ children }: { children: ReactNode }) {
   return (
     <div
       onTouchStart={(event) => {
+        if (isTextEntryTarget(event.target)) {
+          setStartY(null);
+          return;
+        }
         if (window.scrollY <= 0) {
           setStartY(event.touches[0]?.clientY ?? null);
         }
@@ -74,6 +78,10 @@ export function MobilePullToRefresh({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+function isTextEntryTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && Boolean(target.closest("input, textarea, select, [contenteditable='true'], [role='textbox'], [role='combobox'], [role='searchbox']"));
 }
 
 export function MobileOfflineBanner() {
