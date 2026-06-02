@@ -386,7 +386,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       {step === "success" && successOrder ? (
         <SuccessStep order={successOrder} restaurant={restaurant} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} onNewOrder={() => setStep("menu")} />
       ) : (
-        <div className="mx-auto grid w-full max-w-[1520px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="container-page grid gap-5 py-5 xl:grid-cols-[minmax(0,1fr)_390px]">
           <section className="min-w-0 space-y-5">
             {step !== "menu" ? <StepIndicator current={step} onSelect={goTo} /> : null}
 
@@ -637,7 +637,7 @@ function HeroSection({
   const heroImages = useMemo(() => normalizeHeroImages(restaurant), [restaurant]);
 
   return (
-    <section className="mx-auto w-full max-w-[1520px] px-3 pt-3 sm:px-6 sm:pt-5">
+    <section className="container-page pt-3 sm:pt-5">
       <div className="relative overflow-hidden rounded-[1.75rem] bg-slate-950 text-white shadow-xl shadow-orange-950/10">
         <HeroBannerCarousel images={heroImages} title={title} />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/68 to-black/10" />
@@ -835,6 +835,7 @@ function HeroBannerCarousel({ images, title }: { images: string[]; title: string
           alt={`${title} banner ${index + 1}`}
           fill
           priority={index === 0}
+          loading={index === 0 ? undefined : index === 1 ? "eager" : "lazy"}
           fallbackSrc={IMAGE_FALLBACKS.restaurant}
           sizes="100vw"
           className={`object-cover opacity-0 transition-opacity duration-700 ease-out ${index === activeIndex ? "opacity-70" : ""}`}

@@ -7,8 +7,8 @@
     "npm": ">=10"
   },
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3000",
-    "dev:lan": "node scripts/show-lan-ip.mjs && next dev --hostname 0.0.0.0 --port 3000",
+    "dev": "next dev --webpack --hostname 0.0.0.0 --port 3000",
+    "dev:lan": "node scripts/show-lan-ip.mjs && next dev --webpack --hostname 0.0.0.0 --port 3000",
     "dev:cert": "node scripts/generate-dev-cert.mjs",
     "dev:lan:https": "node scripts/generate-dev-cert.mjs && node scripts/https-dev-server.mjs",
     "dev:lan:https:proxy": "node scripts/generate-dev-cert.mjs && node scripts/https-dev-server.mjs --existing",
@@ -28,6 +28,8 @@
     "firebase:repair:banners": "node scripts/repair-restaurant-banner-media.mjs",
     "firebase:cleanup:dry-run": "node scripts/firestore-production-cleanup.mjs",
     "firebase:cleanup:apply": "node scripts/firestore-production-cleanup.mjs --apply",
+    "firebase:legacy-menu:dry-run": "node scripts/remove-legacy-seeded-menu-items.mjs",
+    "firebase:legacy-menu:apply": "node scripts/remove-legacy-seeded-menu-items.mjs --apply",
     "firebase:launch-cleanup:dry-run": "node scripts/remove-non-launch-restaurants.mjs",
     "firebase:launch-cleanup:apply": "node scripts/remove-non-launch-restaurants.mjs --apply",
     "firebase:validate:production-data": "node scripts/validate-production-data.mjs",

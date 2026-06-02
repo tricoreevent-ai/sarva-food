@@ -906,7 +906,7 @@ function createCafeAlArabRestaurant(ownerId: string): Restaurant {
     deliveryFee: cafeAlArabOwnerProfile.deliveryCharge,
     minPrice: cafeAlArabOwnerProfile.minimumOrder,
     foodTypes: ["nonveg", "veg"],
-    popularItems: ["Chicken Shawarma Roll", "Al Faham Chicken Half", "Chicken Mandi"],
+    popularItems: [],
     categoryTags: ["Shawarma", "Grills", "Mandi", "Arabic"],
     offerCodes: ["ARABIC20"],
     searchKeywords: ["Cafe Al Arab UL", "Arabic", "Shawarma", "Grills", "Mandi", "Thanisandra", "Avalahalli"],

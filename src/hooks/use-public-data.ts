@@ -19,7 +19,7 @@ import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 const PUBLIC_LOAD_TIMEOUT_MS = 1500;
 const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
 const PUBLIC_RESTAURANTS_CACHE_KEY = "sarva-public-restaurants-cache:v3";
-const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v4:";
+const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v5:";
 const PUBLIC_CUISINES_CACHE_KEY = "sarva-public-cuisines-cache:v1";
 const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "cafe-al-arab-thanisandra-chicken-shawarma-roll",

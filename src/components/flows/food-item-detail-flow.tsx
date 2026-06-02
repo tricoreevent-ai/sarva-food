@@ -275,7 +275,7 @@ export function FoodItemDetailFlow({
           onFavorite={() => setFavorite((value) => !value)}
         />
 
-        <div className="mx-auto hidden max-w-[1480px] px-5 py-5 md:block">
+        <div className="container-page hidden py-5 md:block">
           <nav className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <Link href="/" className="hover:text-primary">Home</Link>
             <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
@@ -291,7 +291,7 @@ export function FoodItemDetailFlow({
           </nav>
         </div>
 
-        <div className="mx-auto grid max-w-[1480px] gap-5 px-0 md:px-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="container-page grid gap-5 px-0 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_390px]">
           <section className="space-y-5">
             <div className="grid gap-5 bg-white md:rounded-2xl md:border md:border-orange-100 md:bg-transparent lg:grid-cols-[minmax(360px,520px)_minmax(0,1fr)]">
               <ImageGallery

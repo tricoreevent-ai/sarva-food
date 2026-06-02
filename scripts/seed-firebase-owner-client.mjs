@@ -26,6 +26,8 @@ if (!password) {
 
 const restaurantId = "cafe-al-arab-thanisandra";
 const branchId = "br-cafe-al-arab-thanisandra";
+const includeSampleMenuItems = process.env.SEED_SAMPLE_MENU_ITEMS === "true";
+const includeSampleOrders = includeSampleMenuItems && process.env.SEED_SAMPLE_ORDERS !== "false";
 const app = initializeApp({
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -152,11 +154,13 @@ for (const [id, name, sortOrder] of [["cat-shawarma", "Shawarma", 1], ["cat-mand
   batch.set(doc(db, "menuCategories", id), { id, restaurantId, branchId, name, enabled: true, sortOrder, createdAt: now, updatedAt: now }, { merge: true });
 }
 
-for (const [id, name, categoryId, category, price, parcelCharge] of menuItems) {
-  const payload = { id, restaurantId, branchId, name, categoryId, category, price, gstPercent: 5, parcelCharge, available: true, dineInPrice: price, parcelPrice: price + parcelCharge, deliveryPrice: price + parcelCharge + 15, modifiers: ["regular", "less spicy"], addOns: [], createdAt: now, updatedAt: now };
-  batch.set(doc(db, "menuItems", id), payload, { merge: true });
-  batch.set(doc(db, "dineInMenus", id), { ...payload, menuType: "dine-in" }, { merge: true });
-  batch.set(doc(db, "deliveryMenus", id), { ...payload, menuType: "delivery" }, { merge: true });
+if (includeSampleMenuItems) {
+  for (const [id, name, categoryId, category, price, parcelCharge] of menuItems) {
+    const payload = { id, restaurantId, branchId, name, categoryId, category, price, gstPercent: 5, parcelCharge, available: true, dineInPrice: price, parcelPrice: price + parcelCharge, deliveryPrice: price + parcelCharge + 15, modifiers: ["regular", "less spicy"], addOns: [], createdAt: now, updatedAt: now };
+    batch.set(doc(db, "menuItems", id), payload, { merge: true });
+    batch.set(doc(db, "dineInMenus", id), { ...payload, menuType: "dine-in" }, { merge: true });
+    batch.set(doc(db, "deliveryMenus", id), { ...payload, menuType: "delivery" }, { merge: true });
+  }
 }
 
 for (const item of [
@@ -175,10 +179,12 @@ batch.set(doc(db, "suppliers", "sup-fresh-farms"), { id: "sup-fresh-farms", rest
 batch.set(doc(db, "customers", "cust-aanya"), { id: "cust-aanya", restaurantId, name: "Aanya Rao", phone: "+919900001111", normalizedPhone: "9900001111", email: "aanya@example.com", loyaltyPoints: 420, lifetimeValue: 8650, totalOrders: 18, createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "customerAddresses", "addr-aanya-home"), { id: "addr-aanya-home", restaurantId, customerId: "cust-aanya", label: "Home", address: "Indiranagar 12th Main, Bengaluru", latitude: 12.9716, longitude: 77.6414, placeId: "mapbox.demo.indiranagar", createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "loyaltyCustomers", "cust-aanya"), { id: "cust-aanya", restaurantId, name: "Aanya Rao", phone: "+919900001111", email: "aanya@example.com", loyaltyPoints: 420, points: 420, tier: "Gold", totalOrders: 18, clv: 8650, lifetimeValue: 8650, createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "orders", "order-pos-1001"), { id: "order-pos-1001", restaurantId, branchId, customerId: "cust-aanya", customerName: "Aanya Rao", customerPhone: "+919900001111", channel: "pos", orderType: "dine-in", tableNumber: "T03", status: "completed", lines: [{ menuItemId: "menu-chicken-shawarma-roll", name: "Chicken Shawarma Roll", price: 220, quantity: 2 }, { menuItemId: "menu-mint-lime", name: "Mint Lime", price: 90, quantity: 2 }], subtotal: 620, discount: 0, tax: 31, deliveryFee: 0, total: 651, paymentStatus: "paid", createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "orderItems", "order-pos-1001-item-1"), { id: "order-pos-1001-item-1", restaurantId, branchId, orderId: "order-pos-1001", menuItemId: "menu-chicken-shawarma-roll", name: "Chicken Shawarma Roll", quantity: 2, price: 220, gstPercent: 5, createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "kitchenOrders", "DIN-T03-260522-001"), { id: "DIN-T03-260522-001", restaurantId, branchId, orderType: "dine-in", source: "pos", tableNumber: "T03", customerName: "Aanya Rao", customerPhone: "+919900001111", waiterId: uid, waiterName: "Test Owner", status: "new", lines: [{ menuItemId: "menu-al-faham-half", name: "Al Faham Chicken Half", price: 360, quantity: 1 }], total: 378, priority: "normal", etaMinutes: 12, createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "accountingEntries", "acc-sales-1001"), { id: "acc-sales-1001", restaurantId, branchId, type: "income", category: "sales income", amount: 567, gst: 27, paymentMode: "upi", approvalStatus: "approved", createdBy: uid, notes: "POS order order-pos-1001", createdAt: now, updatedAt: now }, { merge: true });
+if (includeSampleOrders) {
+  batch.set(doc(db, "orders", "order-pos-1001"), { id: "order-pos-1001", restaurantId, branchId, customerId: "cust-aanya", customerName: "Aanya Rao", customerPhone: "+919900001111", channel: "pos", orderType: "dine-in", tableNumber: "T03", status: "completed", lines: [{ menuItemId: "menu-chicken-shawarma-roll", name: "Chicken Shawarma Roll", price: 220, quantity: 2 }, { menuItemId: "menu-mint-lime", name: "Mint Lime", price: 90, quantity: 2 }], subtotal: 620, discount: 0, tax: 31, deliveryFee: 0, total: 651, paymentStatus: "paid", createdAt: now, updatedAt: now }, { merge: true });
+  batch.set(doc(db, "orderItems", "order-pos-1001-item-1"), { id: "order-pos-1001-item-1", restaurantId, branchId, orderId: "order-pos-1001", menuItemId: "menu-chicken-shawarma-roll", name: "Chicken Shawarma Roll", quantity: 2, price: 220, gstPercent: 5, createdAt: now, updatedAt: now }, { merge: true });
+  batch.set(doc(db, "kitchenOrders", "DIN-T03-260522-001"), { id: "DIN-T03-260522-001", restaurantId, branchId, orderType: "dine-in", source: "pos", tableNumber: "T03", customerName: "Aanya Rao", customerPhone: "+919900001111", waiterId: uid, waiterName: "Test Owner", status: "new", lines: [{ menuItemId: "menu-al-faham-half", name: "Al Faham Chicken Half", price: 360, quantity: 1 }], total: 378, priority: "normal", etaMinutes: 12, createdAt: now, updatedAt: now }, { merge: true });
+  batch.set(doc(db, "accountingEntries", "acc-sales-1001"), { id: "acc-sales-1001", restaurantId, branchId, type: "income", category: "sales income", amount: 567, gst: 27, paymentMode: "upi", approvalStatus: "approved", createdBy: uid, notes: "POS order order-pos-1001", createdAt: now, updatedAt: now }, { merge: true });
+}
 batch.set(doc(db, "expenses", "exp-opening-stock"), { id: "exp-opening-stock", restaurantId, branchId, category: "ingredient purchase", amount: 12450, gst: 592.86, paymentMode: "upi", approvalStatus: "approved", createdBy: uid, notes: "Opening stock purchase", createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "purchaseOrders", "po-opening-stock"), { id: "po-opening-stock", restaurantId, branchId, supplierId: "sup-fresh-farms", status: "received", total: 12450, items: [{ inventoryId: "inv-dosa-batter", quantity: 18, unitCost: 75 }], createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "reports", "report-today-sales"), { id: "report-today-sales", restaurantId, branchId, type: "sales-summary", grossSales: 567, gst: 27, orderCount: 1, from: now, to: now, createdAt: now, updatedAt: now }, { merge: true });
@@ -189,7 +195,9 @@ batch.set(doc(db, "coupons", "coupon-gold-50"), { id: "coupon-gold-50", restaura
 batch.set(doc(db, "settings", `settings-${restaurantId}-map`), { id: `settings-${restaurantId}-map`, restaurantId, branchId, mapsEnabled: true, deliveryRadiusKm: 7, tax: { gstPercent: 5, parcelCharge: 12 }, mapDefaults: { latitude: 12.9719, longitude: 77.6412, zoom: 14, country: "in" }, createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "notifications", "notif-kitchen-new"), { id: "notif-kitchen-new", restaurantId, branchId, targetRole: "chef", title: "New kitchen ticket received", body: "Table T03 has a new live kitchen ticket.", read: false, createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "staffActivityLogs", "activity-owner-client-seed"), { id: "activity-owner-client-seed", restaurantId, branchId, userId: uid, action: "seeded production backend with owner login", module: "firebase", createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "paymentTransactions", "pay-order-pos-1001"), { id: "pay-order-pos-1001", restaurantId, branchId, orderId: "order-pos-1001", method: "upi", status: "captured", subtotal: 540, tax: 27, total: 567, createdAt: now, updatedAt: now }, { merge: true });
+if (includeSampleOrders) {
+  batch.set(doc(db, "paymentTransactions", "pay-order-pos-1001"), { id: "pay-order-pos-1001", restaurantId, branchId, orderId: "order-pos-1001", method: "upi", status: "captured", subtotal: 540, tax: 27, total: 567, createdAt: now, updatedAt: now }, { merge: true });
+}
 batch.set(doc(db, "deliveryAgents", "agent-ravi"), { id: "agent-ravi", restaurantId, branchId, name: "Ravi Kumar", phone: "+919900002222", active: true, currentStatus: "available", createdAt: now, updatedAt: now }, { merge: true });
 
 for (const collectionName of requiredCollections) {

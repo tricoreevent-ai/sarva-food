@@ -49,6 +49,8 @@ const auth = getAuth(app);
 const now = FieldValue.serverTimestamp();
 const restaurantId = "cafe-al-arab-thanisandra";
 const branchId = "br-cafe-al-arab-thanisandra";
+const includeSampleMenuItems = process.env.SEED_SAMPLE_MENU_ITEMS === "true";
+const includeSampleOrders = includeSampleMenuItems && process.env.SEED_SAMPLE_ORDERS !== "false";
 const rolePermissions = {
   owner: ["pos", "kds", "billing", "reports", "accounting", "inventory", "loyalty", "settings", "employees", "diagnostics"],
   admin: ["pos", "kds", "billing", "reports", "accounting", "inventory", "loyalty", "settings", "employees", "diagnostics", "platform"],
@@ -989,65 +991,67 @@ for (const category of menuCategories) {
   }, { merge: true });
 }
 
-for (const item of menuItems) {
-  const payload = {
-    ...item,
-    tenantId: restaurantId,
-    restaurantId,
-    branchId,
-    ownerId: resolvedUsers.find((user) => user.role === "owner")?.uid ?? "system",
-    description: item.description,
-    imagePath: item.imagePath,
-    isVeg: item.isVeg,
-    foodType: item.foodType,
-    available: true,
-    dineInPrice: item.price,
-    parcelPrice: item.price + item.parcelCharge,
-    deliveryPrice: item.price + item.parcelCharge + 15,
-    menuVisibility: { "dine-in": true, parcel: true, delivery: true },
-    channelConfig: {
-      "dine-in": { visible: true, available: true, price: item.price, taxRate: 5, packingCharge: 0 },
-      parcel: { visible: true, available: true, price: item.price + item.parcelCharge, taxRate: 5, packingCharge: item.parcelCharge },
-      delivery: { visible: true, available: true, price: item.price + item.parcelCharge + 15, taxRate: 5, packingCharge: item.parcelCharge },
-    },
-    tags: item.sortOrder <= 3 ? ["popular", "bestseller"] : [],
-    createdAt: now,
-    updatedAt: now,
-  };
-  batch.set(db.collection("menuItems").doc(item.id), payload, { merge: true });
-  batch.set(db.collection("dineInMenus").doc(item.id), { ...payload, menuType: "dine-in" }, { merge: true });
-  batch.set(db.collection("parcelMenus").doc(item.id), { ...payload, menuType: "parcel" }, { merge: true });
-  batch.set(db.collection("deliveryMenus").doc(item.id), { ...payload, menuType: "delivery" }, { merge: true });
-}
+if (includeSampleMenuItems) {
+  for (const item of menuItems) {
+    const payload = {
+      ...item,
+      tenantId: restaurantId,
+      restaurantId,
+      branchId,
+      ownerId: resolvedUsers.find((user) => user.role === "owner")?.uid ?? "system",
+      description: item.description,
+      imagePath: item.imagePath,
+      isVeg: item.isVeg,
+      foodType: item.foodType,
+      available: true,
+      dineInPrice: item.price,
+      parcelPrice: item.price + item.parcelCharge,
+      deliveryPrice: item.price + item.parcelCharge + 15,
+      menuVisibility: { "dine-in": true, parcel: true, delivery: true },
+      channelConfig: {
+        "dine-in": { visible: true, available: true, price: item.price, taxRate: 5, packingCharge: 0 },
+        parcel: { visible: true, available: true, price: item.price + item.parcelCharge, taxRate: 5, packingCharge: item.parcelCharge },
+        delivery: { visible: true, available: true, price: item.price + item.parcelCharge + 15, taxRate: 5, packingCharge: item.parcelCharge },
+      },
+      tags: item.sortOrder <= 3 ? ["popular", "bestseller"] : [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    batch.set(db.collection("menuItems").doc(item.id), payload, { merge: true });
+    batch.set(db.collection("dineInMenus").doc(item.id), { ...payload, menuType: "dine-in" }, { merge: true });
+    batch.set(db.collection("parcelMenus").doc(item.id), { ...payload, menuType: "parcel" }, { merge: true });
+    batch.set(db.collection("deliveryMenus").doc(item.id), { ...payload, menuType: "delivery" }, { merge: true });
+  }
 
-for (const legacyItem of [
-  { id: "menu-masala-dosa", name: "Mysore Masala Dosa", categoryId: "cat-south-indian", category: "South Indian", price: 180, parcelCharge: 12, isVeg: true, foodType: "veg" },
-  { id: "menu-paneer-butter-masala", name: "Paneer Butter Masala", categoryId: "cat-north-indian", category: "North Indian", price: 290, parcelCharge: 18, isVeg: true, foodType: "veg" },
-]) {
-  const payload = {
-    ...legacyItem,
-    tenantId: restaurantId,
-    restaurantId,
-    branchId,
-    ownerId: resolvedUsers.find((user) => user.role === "owner")?.uid ?? "system",
-    description: `${legacyItem.name} from Cafe Al Arab.`,
-    available: true,
-    dineInPrice: legacyItem.price,
-    parcelPrice: legacyItem.price + legacyItem.parcelCharge,
-    deliveryPrice: legacyItem.price + legacyItem.parcelCharge + 15,
-    menuVisibility: { "dine-in": true, parcel: true, delivery: true },
-    channelConfig: {
-      "dine-in": { visible: true, available: true, price: legacyItem.price, taxRate: 5, packingCharge: 0 },
-      parcel: { visible: true, available: true, price: legacyItem.price + legacyItem.parcelCharge, taxRate: 5, packingCharge: legacyItem.parcelCharge },
-      delivery: { visible: true, available: true, price: legacyItem.price + legacyItem.parcelCharge + 15, taxRate: 5, packingCharge: legacyItem.parcelCharge },
-    },
-    createdAt: now,
-    updatedAt: now,
-  };
-  batch.set(db.collection("menuItems").doc(legacyItem.id), payload, { merge: true });
-  batch.set(db.collection("dineInMenus").doc(legacyItem.id), { ...payload, menuType: "dine-in" }, { merge: true });
-  batch.set(db.collection("parcelMenus").doc(legacyItem.id), { ...payload, menuType: "parcel" }, { merge: true });
-  batch.set(db.collection("deliveryMenus").doc(legacyItem.id), { ...payload, menuType: "delivery" }, { merge: true });
+  for (const legacyItem of [
+    { id: "menu-masala-dosa", name: "Mysore Masala Dosa", categoryId: "cat-south-indian", category: "South Indian", price: 180, parcelCharge: 12, isVeg: true, foodType: "veg" },
+    { id: "menu-paneer-butter-masala", name: "Paneer Butter Masala", categoryId: "cat-north-indian", category: "North Indian", price: 290, parcelCharge: 18, isVeg: true, foodType: "veg" },
+  ]) {
+    const payload = {
+      ...legacyItem,
+      tenantId: restaurantId,
+      restaurantId,
+      branchId,
+      ownerId: resolvedUsers.find((user) => user.role === "owner")?.uid ?? "system",
+      description: `${legacyItem.name} from Cafe Al Arab.`,
+      available: true,
+      dineInPrice: legacyItem.price,
+      parcelPrice: legacyItem.price + legacyItem.parcelCharge,
+      deliveryPrice: legacyItem.price + legacyItem.parcelCharge + 15,
+      menuVisibility: { "dine-in": true, parcel: true, delivery: true },
+      channelConfig: {
+        "dine-in": { visible: true, available: true, price: legacyItem.price, taxRate: 5, packingCharge: 0 },
+        parcel: { visible: true, available: true, price: legacyItem.price + legacyItem.parcelCharge, taxRate: 5, packingCharge: legacyItem.parcelCharge },
+        delivery: { visible: true, available: true, price: legacyItem.price + legacyItem.parcelCharge + 15, taxRate: 5, packingCharge: legacyItem.parcelCharge },
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+    batch.set(db.collection("menuItems").doc(legacyItem.id), payload, { merge: true });
+    batch.set(db.collection("dineInMenus").doc(legacyItem.id), { ...payload, menuType: "dine-in" }, { merge: true });
+    batch.set(db.collection("parcelMenus").doc(legacyItem.id), { ...payload, menuType: "parcel" }, { merge: true });
+    batch.set(db.collection("deliveryMenus").doc(legacyItem.id), { ...payload, menuType: "delivery" }, { merge: true });
+  }
 }
 
 for (const item of inventoryItems) {
@@ -1157,103 +1161,105 @@ batch.set(db.collection("loyaltyCustomers").doc("cust-aanya"), {
   updatedAt: now,
 }, { merge: true });
 
-batch.set(db.collection("orders").doc("order-pos-1001"), {
-  id: "order-pos-1001",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  customerId: "cust-aanya",
-  customerName: "Aanya Rao",
-  customerPhone: "+919900001111",
-  channel: "pos",
-  status: "completed",
-  orderType: "dine-in",
-  tableNumber: "T03",
-  lines: [
-    { menuItemId: "menu-paneer-tikka", name: "Charcoal Paneer Tikka", price: 260, quantity: 2 },
-    { menuItemId: "menu-filter-coffee", name: "Degree Filter Coffee", price: 90, quantity: 2 },
-  ],
-  subtotal: 700,
-  discount: 0,
-  tax: 35,
-  deliveryFee: 0,
-  total: 735,
-  paymentStatus: "paid",
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
+if (includeSampleOrders) {
+  batch.set(db.collection("orders").doc("order-pos-1001"), {
+    id: "order-pos-1001",
+    tenantId: restaurantId,
+    restaurantId,
+    branchId,
+    customerId: "cust-aanya",
+    customerName: "Aanya Rao",
+    customerPhone: "+919900001111",
+    channel: "pos",
+    status: "completed",
+    orderType: "dine-in",
+    tableNumber: "T03",
+    lines: [
+      { menuItemId: "menu-paneer-tikka", name: "Charcoal Paneer Tikka", price: 260, quantity: 2 },
+      { menuItemId: "menu-filter-coffee", name: "Degree Filter Coffee", price: 90, quantity: 2 },
+    ],
+    subtotal: 700,
+    discount: 0,
+    tax: 35,
+    deliveryFee: 0,
+    total: 735,
+    paymentStatus: "paid",
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
 
-batch.set(db.collection("orderItems").doc("order-pos-1001-item-1"), {
-  id: "order-pos-1001-item-1",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  orderId: "order-pos-1001",
-  menuItemId: "menu-paneer-tikka",
-  name: "Charcoal Paneer Tikka",
-  quantity: 2,
-  price: 260,
-  gstPercent: 5,
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
+  batch.set(db.collection("orderItems").doc("order-pos-1001-item-1"), {
+    id: "order-pos-1001-item-1",
+    tenantId: restaurantId,
+    restaurantId,
+    branchId,
+    orderId: "order-pos-1001",
+    menuItemId: "menu-paneer-tikka",
+    name: "Charcoal Paneer Tikka",
+    quantity: 2,
+    price: 260,
+    gstPercent: 5,
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
 
-batch.set(db.collection("kitchenOrders").doc("kot-live-1001"), {
-  id: "kot-live-1001",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  orderType: "dine-in",
-  source: "pos",
-  tableNumber: "T03",
-  customerName: "Aanya Rao",
-  customerPhone: "+919900001111",
-  waiterId: "test-waiter",
-  waiterName: "Test Waiter",
-  status: "new",
-  lines: [
-    { menuItemId: "menu-paneer-butter-masala", name: "Paneer Butter Masala", price: 290, quantity: 1, notes: "medium spice" },
-    { menuItemId: "menu-chicken-biryani", name: "Hyderabadi Chicken Biryani", price: 340, quantity: 1 },
-  ],
-  total: 661.5,
-  priority: "normal",
-  etaMinutes: 14,
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
+  batch.set(db.collection("kitchenOrders").doc("kot-live-1001"), {
+    id: "kot-live-1001",
+    tenantId: restaurantId,
+    restaurantId,
+    branchId,
+    orderType: "dine-in",
+    source: "pos",
+    tableNumber: "T03",
+    customerName: "Aanya Rao",
+    customerPhone: "+919900001111",
+    waiterId: "test-waiter",
+    waiterName: "Test Waiter",
+    status: "new",
+    lines: [
+      { menuItemId: "menu-paneer-butter-masala", name: "Paneer Butter Masala", price: 290, quantity: 1, notes: "medium spice" },
+      { menuItemId: "menu-chicken-biryani", name: "Hyderabadi Chicken Biryani", price: 340, quantity: 1 },
+    ],
+    total: 661.5,
+    priority: "normal",
+    etaMinutes: 14,
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
 
-batch.set(db.collection("accountingEntries").doc("acc-sales-1001"), {
-  id: "acc-sales-1001",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  type: "income",
-  category: "sales income",
-  amount: 735,
-  gst: 35,
-  paymentMode: "upi",
-  approvalStatus: "approved",
-  createdBy: "test-cashier",
-  notes: "POS order order-pos-1001",
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
+  batch.set(db.collection("accountingEntries").doc("acc-sales-1001"), {
+    id: "acc-sales-1001",
+    tenantId: restaurantId,
+    restaurantId,
+    branchId,
+    type: "income",
+    category: "sales income",
+    amount: 735,
+    gst: 35,
+    paymentMode: "upi",
+    approvalStatus: "approved",
+    createdBy: "test-cashier",
+    notes: "POS order order-pos-1001",
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
 
-batch.set(db.collection("accountingTransactions").doc("txn-sales-1001"), {
-  id: "txn-sales-1001",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  orderId: "order-pos-1001",
-  paymentMethod: "upi",
-  subtotal: 700,
-  taxData: { gstRate: 5, gstAmount: 35 },
-  total: 735,
-  type: "sale",
-  timestamp: now,
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
+  batch.set(db.collection("accountingTransactions").doc("txn-sales-1001"), {
+    id: "txn-sales-1001",
+    tenantId: restaurantId,
+    restaurantId,
+    branchId,
+    orderId: "order-pos-1001",
+    paymentMethod: "upi",
+    subtotal: 700,
+    taxData: { gstRate: 5, gstAmount: 35 },
+    total: 735,
+    type: "sale",
+    timestamp: now,
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
+}
 
 batch.set(db.collection("expenses").doc("exp-opening-stock"), {
   id: "exp-opening-stock",
@@ -1355,20 +1361,22 @@ batch.set(db.collection("receiptTemplates").doc("receipt-standard-80mm"), {
   updatedAt: now,
 }, { merge: true });
 
-batch.set(db.collection("paymentTransactions").doc("pay-order-pos-1001"), {
-  id: "pay-order-pos-1001",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  orderId: "order-pos-1001",
-  method: "upi",
-  status: "captured",
-  subtotal: 700,
-  tax: 35,
-  total: 735,
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
+if (includeSampleOrders) {
+  batch.set(db.collection("paymentTransactions").doc("pay-order-pos-1001"), {
+    id: "pay-order-pos-1001",
+    tenantId: restaurantId,
+    restaurantId,
+    branchId,
+    orderId: "order-pos-1001",
+    method: "upi",
+    status: "captured",
+    subtotal: 700,
+    tax: 35,
+    total: 735,
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
+}
 
 batch.set(db.collection("offers").doc("offer-lunch10"), {
   id: "offer-lunch10",
@@ -1531,10 +1539,11 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
   launchRestaurantSeeds.forEach((restaurant, restaurantIndex) => {
     const branchIdForRestaurant = `br-${restaurant.id}`;
     const restaurantOwnerId = restaurant.id === "cafe-al-arab-thanisandra" ? ownerId : "owner-falak-leela";
-    const categories = Array.from(new Set(restaurant.menus.map((item) => item[2])));
-    const popularItems = restaurant.menus.map((item) => item[1]);
-    const prices = restaurant.menus.map((item) => Number(item[3]));
-    const foodTypes = Array.from(new Set(restaurant.menus.map((item) => item[5])));
+    const sampleMenus = includeSampleMenuItems ? restaurant.menus : [];
+    const categories = Array.from(new Set(sampleMenus.map((item) => item[2])));
+    const popularItems = sampleMenus.map((item) => item[1]);
+    const prices = sampleMenus.map((item) => Number(item[3]));
+    const foodTypes = Array.from(new Set(sampleMenus.map((item) => item[5])));
 
     batchRef.set(db.collection("tenants").doc(restaurant.id), {
       id: restaurant.id,
@@ -1575,11 +1584,10 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       etaMinutes: restaurant.etaMinutes,
       priceForTwo: restaurant.priceForTwo,
       deliveryFee: restaurant.deliveryFee,
-      minPrice: Math.min(...prices),
-      maxPrice: Math.max(...prices),
-      foodTypes,
-      popularItems,
-      categoryTags: categories,
+      ...(prices.length ? { minPrice: Math.min(...prices), maxPrice: Math.max(...prices) } : {}),
+      ...(foodTypes.length ? { foodTypes } : {}),
+      ...(popularItems.length ? { popularItems } : {}),
+      ...(categories.length ? { categoryTags: categories } : {}),
       offerCodes: [restaurant.offer.code],
       searchKeywords: [...restaurant.cuisine, ...restaurant.tags, ...popularItems, ...categories],
       tags: restaurant.tags,
@@ -1646,96 +1654,98 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       updatedAt: now,
     }, { merge: true });
 
-    batchRef.set(db.collection("menus").doc(`menu-${restaurant.id}`), {
-      id: `menu-${restaurant.id}`,
-      tenantId: restaurant.id,
-      restaurantId: restaurant.id,
-      branchId: branchIdForRestaurant,
-      name: "Delivery menu",
-      active: true,
-      available: true,
-      channels: ["delivery", "parcel"],
-      sortOrder: 0,
-      createdAt: now,
-      updatedAt: now,
-    }, { merge: true });
-
-    for (const menuType of ["dine-in", "parcel", "delivery"]) {
-      batchRef.set(db.collection("menus").doc(`menu-${restaurant.id}-${menuType}`), {
-        id: `menu-${restaurant.id}-${menuType}`,
+    if (includeSampleMenuItems) {
+      batchRef.set(db.collection("menus").doc(`menu-${restaurant.id}`), {
+        id: `menu-${restaurant.id}`,
         tenantId: restaurant.id,
         restaurantId: restaurant.id,
         branchId: branchIdForRestaurant,
-        name: `${menuType} menu`,
-        menuType,
+        name: "Delivery menu",
         active: true,
         available: true,
-        channels: [menuType],
-        sortOrder: menuType === "dine-in" ? 1 : menuType === "parcel" ? 2 : 3,
+        channels: ["delivery", "parcel"],
+        sortOrder: 0,
         createdAt: now,
         updatedAt: now,
       }, { merge: true });
+
+      for (const menuType of ["dine-in", "parcel", "delivery"]) {
+        batchRef.set(db.collection("menus").doc(`menu-${restaurant.id}-${menuType}`), {
+          id: `menu-${restaurant.id}-${menuType}`,
+          tenantId: restaurant.id,
+          restaurantId: restaurant.id,
+          branchId: branchIdForRestaurant,
+          name: `${menuType} menu`,
+          menuType,
+          active: true,
+          available: true,
+          channels: [menuType],
+          sortOrder: menuType === "dine-in" ? 1 : menuType === "parcel" ? 2 : 3,
+          createdAt: now,
+          updatedAt: now,
+        }, { merge: true });
+      }
+
+      categories.forEach((categoryName, categoryIndex) => {
+        const categoryId = `${restaurant.id}-cat-${safeSeedId(categoryName)}`;
+        batchRef.set(db.collection("menuCategories").doc(categoryId), {
+          id: categoryId,
+          tenantId: restaurant.id,
+          restaurantId: restaurant.id,
+          branchId: branchIdForRestaurant,
+          ownerId: restaurantOwnerId,
+          name: categoryName,
+          sortOrder: categoryIndex + 1,
+          enabled: true,
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        }, { merge: true });
+      });
+
+      sampleMenus.forEach((item, itemIndex) => {
+        const [itemId, name, categoryName, price, isVeg, foodType, description, tag] = item;
+        const menuId = `${restaurant.id}-${itemId}`;
+        const parcelCharge = price >= 300 ? 18 : 10;
+        const categoryId = `${restaurant.id}-cat-${safeSeedId(categoryName)}`;
+        const payload = {
+          id: menuId,
+          tenantId: restaurant.id,
+          restaurantId: restaurant.id,
+          branchId: branchIdForRestaurant,
+          ownerId: restaurantOwnerId,
+          categoryId,
+          category: categoryName,
+          cuisineIds: restaurant.cuisine.map(safeSeedId),
+          name,
+          description,
+          price,
+          dineInPrice: price,
+          parcelPrice: price + parcelCharge,
+          deliveryPrice: price + parcelCharge + restaurant.deliveryFee,
+          taxRate: 5,
+          packingCharge: parcelCharge,
+          imagePath: itemImageFor(categoryName, foodType),
+          isVeg,
+          foodType,
+          available: true,
+          menuVisibility: { "dine-in": true, parcel: true, delivery: true },
+          channelConfig: {
+            "dine-in": { visible: true, available: true, price, taxRate: 5, packingCharge: 0 },
+            parcel: { visible: true, available: true, price: price + parcelCharge, taxRate: 5, packingCharge: parcelCharge },
+            delivery: { visible: true, available: true, price: price + parcelCharge + restaurant.deliveryFee, taxRate: 5, packingCharge: parcelCharge },
+          },
+          tags: Array.from(new Set([tag, itemIndex < 2 ? "popular" : "", itemIndex === 1 ? "bestseller" : ""].filter(Boolean))),
+          sortOrder: itemIndex + 1,
+          createdAt: now,
+          updatedAt: now,
+        };
+        batchRef.set(db.collection("menuItems").doc(menuId), payload, { merge: true });
+        batchRef.set(db.collection("dineInMenus").doc(menuId), { ...payload, menuType: "dine-in" }, { merge: true });
+        batchRef.set(db.collection("parcelMenus").doc(menuId), { ...payload, menuType: "parcel" }, { merge: true });
+        batchRef.set(db.collection("deliveryMenus").doc(menuId), { ...payload, menuType: "delivery" }, { merge: true });
+      });
     }
-
-    categories.forEach((categoryName, categoryIndex) => {
-      const categoryId = `${restaurant.id}-cat-${safeSeedId(categoryName)}`;
-      batchRef.set(db.collection("menuCategories").doc(categoryId), {
-        id: categoryId,
-        tenantId: restaurant.id,
-        restaurantId: restaurant.id,
-        branchId: branchIdForRestaurant,
-        ownerId: restaurantOwnerId,
-        name: categoryName,
-        sortOrder: categoryIndex + 1,
-        enabled: true,
-        active: true,
-        createdAt: now,
-        updatedAt: now,
-      }, { merge: true });
-    });
-
-    restaurant.menus.forEach((item, itemIndex) => {
-      const [itemId, name, categoryName, price, isVeg, foodType, description, tag] = item;
-      const menuId = `${restaurant.id}-${itemId}`;
-      const parcelCharge = price >= 300 ? 18 : 10;
-      const categoryId = `${restaurant.id}-cat-${safeSeedId(categoryName)}`;
-      const payload = {
-        id: menuId,
-        tenantId: restaurant.id,
-        restaurantId: restaurant.id,
-        branchId: branchIdForRestaurant,
-        ownerId: restaurantOwnerId,
-        categoryId,
-        category: categoryName,
-        cuisineIds: restaurant.cuisine.map(safeSeedId),
-        name,
-        description,
-        price,
-        dineInPrice: price,
-        parcelPrice: price + parcelCharge,
-        deliveryPrice: price + parcelCharge + restaurant.deliveryFee,
-        taxRate: 5,
-        packingCharge: parcelCharge,
-        imagePath: itemImageFor(categoryName, foodType),
-        isVeg,
-        foodType,
-        available: true,
-        menuVisibility: { "dine-in": true, parcel: true, delivery: true },
-        channelConfig: {
-          "dine-in": { visible: true, available: true, price, taxRate: 5, packingCharge: 0 },
-          parcel: { visible: true, available: true, price: price + parcelCharge, taxRate: 5, packingCharge: parcelCharge },
-          delivery: { visible: true, available: true, price: price + parcelCharge + restaurant.deliveryFee, taxRate: 5, packingCharge: parcelCharge },
-        },
-        tags: Array.from(new Set([tag, itemIndex < 2 ? "popular" : "", itemIndex === 1 ? "bestseller" : ""].filter(Boolean))),
-        sortOrder: itemIndex + 1,
-        createdAt: now,
-        updatedAt: now,
-      };
-      batchRef.set(db.collection("menuItems").doc(menuId), payload, { merge: true });
-      batchRef.set(db.collection("dineInMenus").doc(menuId), { ...payload, menuType: "dine-in" }, { merge: true });
-      batchRef.set(db.collection("parcelMenus").doc(menuId), { ...payload, menuType: "parcel" }, { merge: true });
-      batchRef.set(db.collection("deliveryMenus").doc(menuId), { ...payload, menuType: "delivery" }, { merge: true });
-    });
 
     batchRef.set(db.collection("offers").doc(`offer-${restaurant.offer.code.toLowerCase()}`), {
       id: `offer-${restaurant.offer.code.toLowerCase()}`,
@@ -1753,73 +1763,75 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       updatedAt: now,
     }, { merge: true });
 
-    const firstItem = restaurant.menus[0];
-    const secondItem = restaurant.menus[1];
-    const orderDate = new Date(Date.now() - (restaurantIndex + 1) * 18 * 60 * 60 * 1000);
-    const orderId = `order-demo-${restaurant.id}`;
-    const subtotal = Number(firstItem[3]) + Number(secondItem[3]);
-    const discount = restaurant.offer.discountType === "flat"
-      ? Math.min(subtotal, restaurant.offer.discountValue)
-      : Math.round(subtotal * (restaurant.offer.discountValue / 100));
-    const tax = Math.round((subtotal - discount) * 0.05);
-    const total = subtotal - discount + restaurant.deliveryFee + tax;
-    const lines = [
-      { menuItemId: `${restaurant.id}-${firstItem[0]}`, name: firstItem[1], price: Number(firstItem[3]), quantity: 1 },
-      { menuItemId: `${restaurant.id}-${secondItem[0]}`, name: secondItem[1], price: Number(secondItem[3]), quantity: 1 },
-    ];
-    const orderPayload = {
-      id: orderId,
-      tenantId: restaurant.id,
-      restaurantId: restaurant.id,
-      branchId: branchIdForRestaurant,
-      customerId: "demo-customer",
-      customerName: "Demo Customer",
-      customerPhone: "+919900009900",
-      deliveryAddress: thanisandraDeliveryLocation.address,
-      deliveryAddressLabel: thanisandraDeliveryLocation.label,
-      deliveryGeo: { lat: thanisandraDeliveryLocation.latitude, lng: thanisandraDeliveryLocation.longitude },
-      deliveryPlaceId: "registered-monarch-serenity-thanisandra",
-      channel: "web",
-      status: restaurantIndex % 3 === 0 ? "delivered" : "completed",
-      orderType: "delivery",
-      lines,
-      offerCode: restaurant.offer.code,
-      subtotal,
-      discount,
-      tax,
-      deliveryFee: restaurant.deliveryFee,
-      total,
-      paymentStatus: "paid",
-      deliveryOtp: String(4700 + restaurantIndex),
-      createdAt: orderDate,
-      updatedAt: orderDate,
-    };
-    batchRef.set(db.collection("orders").doc(orderId), orderPayload, { merge: true });
-    batchRef.set(db.collection("customerOrders").doc(orderId), orderPayload, { merge: true });
-
-    [firstItem, secondItem].forEach((item, reviewIndex) => {
-      const reviewId = `review-${restaurant.id}-${reviewIndex + 1}`;
-      const reviewDate = new Date(orderDate.getTime() + (reviewIndex + 1) * 60 * 60 * 1000);
-      batchRef.set(db.collection("customerReviews").doc(reviewId), {
-        id: reviewId,
+    if (includeSampleOrders && sampleMenus.length >= 2) {
+      const firstItem = sampleMenus[0];
+      const secondItem = sampleMenus[1];
+      const orderDate = new Date(Date.now() - (restaurantIndex + 1) * 18 * 60 * 60 * 1000);
+      const orderId = `order-demo-${restaurant.id}`;
+      const subtotal = Number(firstItem[3]) + Number(secondItem[3]);
+      const discount = restaurant.offer.discountType === "flat"
+        ? Math.min(subtotal, restaurant.offer.discountValue)
+        : Math.round(subtotal * (restaurant.offer.discountValue / 100));
+      const tax = Math.round((subtotal - discount) * 0.05);
+      const total = subtotal - discount + restaurant.deliveryFee + tax;
+      const lines = [
+        { menuItemId: `${restaurant.id}-${firstItem[0]}`, name: firstItem[1], price: Number(firstItem[3]), quantity: 1 },
+        { menuItemId: `${restaurant.id}-${secondItem[0]}`, name: secondItem[1], price: Number(secondItem[3]), quantity: 1 },
+      ];
+      const orderPayload = {
+        id: orderId,
         tenantId: restaurant.id,
         restaurantId: restaurant.id,
         branchId: branchIdForRestaurant,
-        menuItemId: `${restaurant.id}-${item[0]}`,
-        menuItemName: item[1],
-        orderId,
         customerId: "demo-customer",
-        customerName: reviewIndex === 0 ? "Demo Customer" : sampleReviewerName(restaurantIndex),
-        rating: Math.max(3, Math.min(5, Math.round(restaurant.rating + (reviewIndex === 0 ? 0.2 : -0.1)))),
-        comment: reviewCopyFor(restaurant.cuisine[0], item[1], restaurant.deliveryTime),
-        imageUrls: [],
-        verifiedOrder: true,
-        status: "published",
-        reportCount: 0,
-        createdAt: reviewDate,
-        updatedAt: reviewDate,
-      }, { merge: true });
-    });
+        customerName: "Demo Customer",
+        customerPhone: "+919900009900",
+        deliveryAddress: thanisandraDeliveryLocation.address,
+        deliveryAddressLabel: thanisandraDeliveryLocation.label,
+        deliveryGeo: { lat: thanisandraDeliveryLocation.latitude, lng: thanisandraDeliveryLocation.longitude },
+        deliveryPlaceId: "registered-monarch-serenity-thanisandra",
+        channel: "web",
+        status: restaurantIndex % 3 === 0 ? "delivered" : "completed",
+        orderType: "delivery",
+        lines,
+        offerCode: restaurant.offer.code,
+        subtotal,
+        discount,
+        tax,
+        deliveryFee: restaurant.deliveryFee,
+        total,
+        paymentStatus: "paid",
+        deliveryOtp: String(4700 + restaurantIndex),
+        createdAt: orderDate,
+        updatedAt: orderDate,
+      };
+      batchRef.set(db.collection("orders").doc(orderId), orderPayload, { merge: true });
+      batchRef.set(db.collection("customerOrders").doc(orderId), orderPayload, { merge: true });
+
+      [firstItem, secondItem].forEach((item, reviewIndex) => {
+        const reviewId = `review-${restaurant.id}-${reviewIndex + 1}`;
+        const reviewDate = new Date(orderDate.getTime() + (reviewIndex + 1) * 60 * 60 * 1000);
+        batchRef.set(db.collection("customerReviews").doc(reviewId), {
+          id: reviewId,
+          tenantId: restaurant.id,
+          restaurantId: restaurant.id,
+          branchId: branchIdForRestaurant,
+          menuItemId: `${restaurant.id}-${item[0]}`,
+          menuItemName: item[1],
+          orderId,
+          customerId: "demo-customer",
+          customerName: reviewIndex === 0 ? "Demo Customer" : sampleReviewerName(restaurantIndex),
+          rating: Math.max(3, Math.min(5, Math.round(restaurant.rating + (reviewIndex === 0 ? 0.2 : -0.1)))),
+          comment: reviewCopyFor(restaurant.cuisine[0], item[1], restaurant.deliveryTime),
+          imageUrls: [],
+          verifiedOrder: true,
+          status: "published",
+          reportCount: 0,
+          createdAt: reviewDate,
+          updatedAt: reviewDate,
+        }, { merge: true });
+      });
+    }
 
     batchRef.set(db.collection("deliveryZones").doc(`zone-${restaurant.id}`), {
       id: `zone-${restaurant.id}`,
