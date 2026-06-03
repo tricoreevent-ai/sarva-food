@@ -31,7 +31,9 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
     <CustomerAuthProvider>
       <MobileOfflineBanner />
       <MobilePullToRefresh>
-        <PublicHeader />
+        <div className={restaurantRoute ? "hidden xl:block" : ""}>
+          <PublicHeader />
+        </div>
         {children}
       </MobilePullToRefresh>
       {restaurantRoute ? null : <CustomerFooter />}

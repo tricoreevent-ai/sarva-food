@@ -242,15 +242,18 @@ export function PublicHeader() {
               <Search className="size-4" />
             </Link>
           </Button>
-          {restaurantRoute ? null : (
-            <CartDrawer
-              trigger={
-                <Button variant="ghost" size="icon" aria-label="Open cart" className="relative bg-card">
-                  <ShoppingBag className="size-4" />
-                </Button>
-              }
-            />
-          )}
+          <CartDrawer
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open cart"
+                className={`relative bg-card ${restaurantRoute ? "hidden md:inline-flex" : ""}`}
+              >
+                <ShoppingBag className="size-4" />
+              </Button>
+            }
+          />
           {loggedIn ? (
             <div className="relative hidden md:block">
               <Button

@@ -12,7 +12,6 @@ import {
   MapPin,
   Plus,
   Search,
-  ShoppingCart,
   SlidersHorizontal,
   Star,
   User,
@@ -59,7 +58,6 @@ export function CustomerDiscoveryHome() {
   const rawCmsSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
   const cmsSettings = useMemo(() => resolveCmsSettings(rawCmsSettings), [rawCmsSettings]);
   const unavailableCopy = cmsSettings.operations ?? defaultCmsSettings.operations!;
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const cartSubtotal = getCartSubtotal(cartItems);
   const heroRestaurant = nearbyRestaurants[0] ?? restaurants[0];
   const { items: menuItems } = usePublicMenu(heroRestaurant?.slug);
@@ -485,15 +483,6 @@ export function CustomerDiscoveryHome() {
           <span className="text-xs font-black text-muted-foreground">{freeDeliveryRemaining ? `${formatCurrency(freeDeliveryRemaining)} more` : "Unlocked"}</span>
         </div>
       </section>
-      ) : null}
-
-      {cartCount ? (
-        <Button asChild size="icon" className="fixed bottom-[6.3rem] right-5 z-40 size-16 rounded-full shadow-2xl md:hidden" aria-label="Open cart">
-          <Link href="/cart">
-            <ShoppingCart className="size-7" />
-            <span className="absolute -right-1 -top-1 grid size-7 place-items-center rounded-full bg-white text-xs font-black text-primary shadow">{cartCount}</span>
-          </Link>
-        </Button>
       ) : null}
     </main>
   );

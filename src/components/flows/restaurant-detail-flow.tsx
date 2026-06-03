@@ -10,11 +10,13 @@ import {
   Bike,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CreditCard,
   Home,
   Loader2,
+  MoreVertical,
   MapPin,
   MessageCircle,
   Minus,
@@ -22,6 +24,7 @@ import {
   Phone,
   Plus,
   Search,
+  Share2,
   ShoppingBag,
   SlidersHorizontal,
   Sparkles,
@@ -234,6 +237,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const contactPhone = restaurant.contact?.phone ?? restaurant.ownerProfile?.businessPhone ?? "";
   const contactWhatsApp = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? contactPhone;
   const heroTitle = restaurant.displayName ?? restaurant.name;
+  const operatingStatus = getOperatingStatus(restaurant);
   const activeFilterCount = getActiveFilterCount({
     categoryFilters,
     foodTypeFilters,
@@ -266,6 +270,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       toast.error("Please add at least one item first.");
       return;
     }
+    if (next !== "menu" && orderTiming === "now" && !operatingStatus.open) {
+      showClosedRestaurantPrompt(operatingStatus, startScheduledOrder);
+      return;
+    }
     setStep(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -288,13 +296,12 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   };
 
   const addMenuItem = (item: MenuItem) => {
-    const shouldOpenOffers = restaurantCart.length === 0 && typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    if (orderTiming === "now" && !operatingStatus.open) {
+      showClosedRestaurantPrompt(operatingStatus, startScheduledOrder);
+      return;
+    }
     addItem(item);
     toast.success(`${item.name} added.`);
-    if (shouldOpenOffers) {
-      setStep("offers");
-      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
-    }
   };
 
   const validateDetails = () => {
@@ -316,6 +323,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     if (!restaurantCart.length) {
       toast.error("Your cart is empty.");
       setStep("menu");
+      return;
+    }
+    if (orderTiming === "now" && !operatingStatus.open) {
+      showClosedRestaurantPrompt(operatingStatus, startScheduledOrder);
       return;
     }
 
@@ -376,7 +387,49 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
   return (
     <main className="min-h-screen bg-[#fffaf5] pb-28 text-slate-950 md:pb-10">
-      <div className={step === "menu" ? "" : "hidden md:block"}>
+      {step === "menu" ? (
+        <MobileRestaurantLanding
+          restaurant={restaurant}
+          title={heroTitle}
+          customerDistanceKm={customerDistanceKm}
+          orderTiming={orderTiming}
+          scheduledDate={scheduledDate}
+          scheduledTime={scheduledTime}
+          scheduledLabel={scheduledForLabel}
+          onModeChange={setOrderTiming}
+          onDateChange={setScheduledDate}
+          onTimeChange={setScheduledTime}
+          query={query}
+          setQuery={setQuery}
+          filterOptions={filterOptions}
+          categoryFilters={categoryFilters}
+          setCategoryFilters={setCategoryFilters}
+          foodTypeFilters={foodTypeFilters}
+          setFoodTypeFilters={setFoodTypeFilters}
+          popularOnly={popularOnly}
+          setPopularOnly={setPopularOnly}
+          availableOnly={availableOnly}
+          setAvailableOnly={setAvailableOnly}
+          activeFilterCount={activeFilterCount}
+          onOpenFilters={() => setFiltersOpen(true)}
+          offers={visibleOffers}
+          onApplyOffer={(code) => {
+            applyOffer(code);
+            toast.success(`${code} applied.`);
+          }}
+          menuStatus={menuStatus}
+          retryMenu={retryMenu}
+          filteredMenu={filteredMenu}
+          visibleCount={visibleCount}
+          setVisibleCount={setVisibleCount}
+          fulfillmentType={fulfillmentType}
+          quantities={restaurantCartQuantities}
+          onAdd={addMenuItem}
+          onQty={updateQuantity}
+        />
+      ) : null}
+
+      <div className={step === "menu" ? "hidden xl:block" : "hidden xl:block"}>
         <HeroSection restaurant={restaurant} title={heroTitle} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} customerDistanceKm={customerDistanceKm} onStart={startOrderNow} onSchedule={startScheduledOrder} />
       </div>
 
@@ -388,7 +441,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
             {step !== "menu" ? <StepIndicator current={step} onSelect={goTo} /> : null}
 
             {step === "menu" ? (
-              <>
+              <div className="hidden xl:block">
                 <OrderTimingStrip
                   mode={orderTiming}
                   scheduledDate={scheduledDate}
@@ -464,7 +517,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                     )}
                   </div>
                 </div>
-              </>
+              </div>
             ) : null}
 
             {step === "offers" ? (
@@ -583,6 +636,400 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       />
     </main>
   );
+}
+
+function MobileRestaurantLanding({
+  restaurant,
+  title,
+  customerDistanceKm,
+  orderTiming,
+  scheduledDate,
+  scheduledTime,
+  scheduledLabel,
+  onModeChange,
+  onDateChange,
+  onTimeChange,
+  query,
+  setQuery,
+  filterOptions,
+  categoryFilters,
+  setCategoryFilters,
+  foodTypeFilters,
+  setFoodTypeFilters,
+  popularOnly,
+  setPopularOnly,
+  availableOnly,
+  setAvailableOnly,
+  activeFilterCount,
+  onOpenFilters,
+  offers,
+  onApplyOffer,
+  menuStatus,
+  retryMenu,
+  filteredMenu,
+  visibleCount,
+  setVisibleCount,
+  fulfillmentType,
+  quantities,
+  onAdd,
+  onQty,
+}: {
+  restaurant: Restaurant;
+  title: string;
+  customerDistanceKm: number | null;
+  orderTiming: OrderTiming;
+  scheduledDate: string;
+  scheduledTime: string;
+  scheduledLabel: string;
+  onModeChange: (value: OrderTiming) => void;
+  onDateChange: (value: string) => void;
+  onTimeChange: (value: string) => void;
+  query: string;
+  setQuery: (value: string) => void;
+  filterOptions: FilterOptions;
+  categoryFilters: string[];
+  setCategoryFilters: (value: string[]) => void;
+  foodTypeFilters: string[];
+  setFoodTypeFilters: (value: string[]) => void;
+  popularOnly: boolean;
+  setPopularOnly: (value: boolean) => void;
+  availableOnly: boolean;
+  setAvailableOnly: (value: boolean) => void;
+  activeFilterCount: number;
+  onOpenFilters: () => void;
+  offers: Offer[];
+  onApplyOffer: (code: string) => void;
+  menuStatus: "idle" | "loading" | "success" | "error";
+  retryMenu: () => void;
+  filteredMenu: MenuItem[];
+  visibleCount: number;
+  setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
+  fulfillmentType: FulfillmentType;
+  quantities: Map<string, number>;
+  onAdd: (item: MenuItem) => void;
+  onQty: (id: string, quantity: number) => void;
+}) {
+  const status = getOperatingStatus(restaurant);
+  const address = restaurant.address || restaurant.location;
+  const heroImage = normalizeHeroImages(restaurant)[0] ?? IMAGE_FALLBACKS.restaurant;
+  const eta = restaurant.deliveryTime || (typeof customerDistanceKm === "number" ? `${estimateDeliveryMinutes(customerDistanceKm)} mins` : "");
+  const priceForOne = restaurant.priceForTwo ? Math.round(restaurant.priceForTwo / 2) : null;
+  const quickCategories = filterOptions.categories.slice(0, 10);
+  const quickFoodTypes = filterOptions.foodTypes.filter(Boolean).slice(0, 4);
+
+  function focusSearch() {
+    document.getElementById("mobile-restaurant-search")?.focus();
+  }
+
+  function shareRestaurant() {
+    const url = typeof window === "undefined" ? "" : window.location.href;
+    const nav = typeof navigator === "undefined" ? null : navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
+    if (nav?.share) {
+      void nav.share({ title, text: `Order from ${title}`, url }).catch(() => undefined);
+      return;
+    }
+    if (url && nav?.clipboard) {
+      void nav.clipboard.writeText(url).then(() => toast.success("Restaurant link copied."));
+    }
+  }
+
+  return (
+    <div className="xl:hidden">
+      <section className="relative min-h-[220px] overflow-hidden bg-slate-950 text-white">
+        <SafeImage src={heroImage} alt={`${title} food banner`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="100vw" className="object-cover opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-black/82" />
+
+        <div className="relative z-10 flex items-start justify-between gap-3 px-4 pt-4">
+          <Button asChild size="icon" variant="ghost" className="size-11 rounded-full border border-white/25 bg-black/20 text-white backdrop-blur" aria-label="Back to restaurants">
+            <Link href="/restaurants">
+              <ArrowLeft className="size-5" />
+            </Link>
+          </Button>
+          <div className="flex min-w-0 flex-1 justify-center">
+            {address ? (
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-xs font-black text-white backdrop-blur">
+                <MapPin className="size-4 shrink-0 text-orange-400" />
+                <span className="truncate">{restaurant.location}</span>
+                <ChevronDown className="size-4 shrink-0" />
+              </span>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={focusSearch} aria-label="Search dishes">
+              <Search className="size-5" />
+            </Button>
+            <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={shareRestaurant} aria-label="Share restaurant">
+              <Share2 className="size-5" />
+            </Button>
+            <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" aria-label="More restaurant actions">
+              <MoreVertical className="size-5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="relative z-10 px-4 pb-6 pt-8">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge className={status.open ? "rounded-full bg-emerald-500 text-white" : "rounded-full bg-amber-500 text-white"}>{status.label}</Badge>
+            {status.detail ? <Badge className="rounded-full bg-black/30 text-white ring-1 ring-white/25">{status.detail}</Badge> : null}
+          </div>
+          {restaurant.logo ? (
+            <div className="relative mb-3 size-14 overflow-hidden rounded-full border-2 border-white bg-white shadow-lg">
+              <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="56px" className="object-cover" />
+            </div>
+          ) : null}
+          <h1 className="flex items-center gap-2 text-4xl font-black tracking-tight">
+            <span className="min-w-0 truncate">{title}</span>
+            {restaurant.approved || restaurant.profileComplete ? <CheckCircle2 className="size-7 shrink-0 fill-orange-600 text-white" /> : null}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-black text-white/92">
+            {restaurant.rating ? (
+              <span className="inline-flex items-center gap-1">
+                <Star className="size-4 fill-yellow-400 text-yellow-400" />
+                {restaurant.rating} {restaurant.reviewCount ? `(${restaurant.reviewCount}+ reviews)` : ""}
+              </span>
+            ) : null}
+            {restaurant.cuisine ? <span>• {restaurant.cuisine}</span> : null}
+            {eta ? <span>• {eta}</span> : null}
+            {priceForOne ? <span>• {formatCurrency(priceForOne)} for one</span> : null}
+            {typeof customerDistanceKm === "number" ? <span>• {customerDistanceKm} km</span> : null}
+          </div>
+          {address ? <p className="mt-2 line-clamp-1 text-sm font-semibold text-white/85">{address}</p> : null}
+        </div>
+      </section>
+
+      <section className="relative z-10 -mt-4 rounded-t-[1.5rem] bg-[#fffaf5] px-4 pb-5 pt-4">
+        <OrderTimingStrip
+          mode={orderTiming}
+          scheduledDate={scheduledDate}
+          scheduledTime={scheduledTime}
+          scheduledLabel={scheduledLabel}
+          onModeChange={onModeChange}
+          onDateChange={onDateChange}
+          onTimeChange={onTimeChange}
+        />
+
+        <div className="sticky top-0 z-30 -mx-4 mt-4 border-y border-orange-100 bg-[#fffaf5]/95 px-4 py-3 backdrop-blur">
+          <div className="grid grid-cols-[minmax(0,1fr)_6.75rem] gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+              <input
+                id="mobile-restaurant-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search dishes, combos..."
+                className="h-12 w-full rounded-xl border border-orange-100 bg-white pl-10 pr-3 text-sm font-bold text-slate-950 outline-none placeholder:text-slate-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"
+              />
+            </div>
+            <Button type="button" variant="outline" className="h-12 rounded-xl border-orange-200 bg-white px-3 font-black text-slate-950" onClick={onOpenFilters}>
+              <SlidersHorizontal className="size-4 text-orange-600" />
+              {activeFilterCount ? `${activeFilterCount}` : "Filters"}
+            </Button>
+          </div>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <QuickFilterPill active={!categoryFilters.length} onClick={() => setCategoryFilters([])}>All</QuickFilterPill>
+            {quickCategories.map((category) => (
+              <QuickFilterPill key={category} active={categoryFilters.some((value) => normalize(value) === normalize(category))} onClick={() => setCategoryFilters(toggleFilterValue(categoryFilters, category))}>
+                {humanize(category)}
+              </QuickFilterPill>
+            ))}
+            {quickFoodTypes.map((foodType) => (
+              <QuickFilterPill key={foodType} active={foodTypeFilters.some((value) => normalize(value) === normalize(foodType))} onClick={() => setFoodTypeFilters(toggleFilterValue(foodTypeFilters, foodType))}>
+                {foodTypeLabel(foodType)}
+              </QuickFilterPill>
+            ))}
+            {filterOptions.hasPopular ? <QuickFilterPill active={popularOnly} onClick={() => setPopularOnly(!popularOnly)}>Bestseller</QuickFilterPill> : null}
+            <QuickFilterPill active={availableOnly} onClick={() => setAvailableOnly(!availableOnly)}>Available Now</QuickFilterPill>
+          </div>
+        </div>
+
+        <MobileOfferRail offers={offers} onApply={onApplyOffer} />
+
+        <section id="restaurant-menu-panel" className="mt-5">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-orange-600">Recommended for you</p>
+              <h2 className="text-2xl font-black tracking-tight">Choose your food</h2>
+            </div>
+            <span className="shrink-0 text-sm font-black text-slate-500">{filteredMenu.length} items</span>
+          </div>
+
+          {menuStatus === "loading" ? (
+            <div className="grid gap-3">
+              <MobileMenuSkeleton />
+              <MobileMenuSkeleton />
+              <MobileMenuSkeleton />
+            </div>
+          ) : menuStatus === "error" ? (
+            <RetryState onRetry={retryMenu} />
+          ) : filteredMenu.length ? (
+            <div className="grid gap-3">
+              {filteredMenu.slice(0, visibleCount).map((item) => (
+                <MobileMenuItemCard
+                  key={item.id}
+                  item={item}
+                  fulfillmentType={fulfillmentType}
+                  quantity={quantities.get(item.id) ?? 0}
+                  onAdd={() => onAdd(item)}
+                  onQty={(quantity) => onQty(item.id, quantity)}
+                />
+              ))}
+              {filteredMenu.length > visibleCount ? (
+                <Button variant="outline" className="h-12 rounded-xl border-orange-200 bg-white font-black" onClick={() => setVisibleCount((count) => count + 12)}>
+                  Load more items
+                  <ChevronRight className="size-4" />
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." />
+          )}
+        </section>
+
+        <MobileRestaurantAbout restaurant={restaurant} />
+      </section>
+    </div>
+  );
+}
+
+function QuickFilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      className={`h-10 shrink-0 rounded-full border px-4 text-sm font-black transition ${
+        active ? "border-orange-600 bg-orange-600 text-white shadow-sm" : "border-orange-100 bg-white text-slate-800 hover:bg-orange-50"
+      }`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MobileOfferRail({ offers, onApply }: { offers: Offer[]; onApply: (code: string) => void }) {
+  if (!offers.length) return null;
+  return (
+    <section className="mt-4">
+      <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {offers.slice(0, 5).map((offer) => (
+          <button
+            key={offer.code}
+            type="button"
+            onClick={() => onApply(offer.code)}
+            className="relative min-h-28 w-[min(82vw,360px)] shrink-0 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-left"
+          >
+            {(offer.mobileBanner ?? offer.banner ?? offer.image) ? (
+              <SafeImage src={offer.mobileBanner ?? offer.banner ?? offer.image} alt={offer.title} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="360px" className="object-cover opacity-25" />
+            ) : (
+              <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/60" />
+            )}
+            <div className="relative max-w-[70%]">
+              <Badge className="bg-emerald-100 text-emerald-700">{offer.promoTag || `${offer.discount}${offer.discountType === "percentage" ? "% off" : " off"}`}</Badge>
+              <h3 className="mt-2 line-clamp-2 text-lg font-black">{offer.title}</h3>
+              <p className="mt-1 line-clamp-1 text-sm font-bold text-slate-600">
+                Use code: <span className="text-emerald-700">{offer.code}</span>
+                {offer.minimumOrder ? ` • Min order ${formatCurrency(offer.minimumOrder)}` : ""}
+              </p>
+            </div>
+            <span className="absolute right-4 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-emerald-700 shadow-md">
+              <ChevronRight className="size-6" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MobileMenuItemCard({
+  item,
+  fulfillmentType,
+  quantity,
+  onAdd,
+  onQty,
+}: {
+  item: MenuItem;
+  fulfillmentType: FulfillmentType;
+  quantity: number;
+  onAdd: () => void;
+  onQty: (quantity: number) => void;
+}) {
+  const price = itemPrice(item, fulfillmentType);
+  const tags = [item.isPopular ? "Bestseller" : "", item.spiceLevel ? humanize(item.spiceLevel) : "", ...(item.badges ?? [])].filter(Boolean).slice(0, 3);
+  return (
+    <article className="grid grid-cols-[minmax(0,1fr)_116px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
+      <div className="min-w-0">
+        <span className={`mb-2 grid size-4 place-items-center rounded border ${item.isVeg ? "border-emerald-600 text-emerald-600" : "border-red-600 text-red-600"}`}>
+          <span className="size-2 rounded-full bg-current" />
+        </span>
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-2 text-base font-black leading-tight hover:text-orange-600">
+          {item.name}
+        </Link>
+        <p className="mt-1 font-black">{formatCurrency(price)}</p>
+        {item.averageRating ? (
+          <p className="mt-1 inline-flex items-center gap-1 text-xs font-black text-emerald-700">
+            <Star className="size-3 fill-emerald-600 text-emerald-600" />
+            {item.averageRating}
+            {item.reviewCount ? <span className="text-slate-500">({item.reviewCount})</span> : null}
+          </p>
+        ) : null}
+        <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-600">{item.description}</p>
+        {tags.length ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span key={tag} className="rounded-full bg-orange-50 px-2 py-1 text-[11px] font-black text-orange-700">{tag}</span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="flex flex-col items-end">
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block size-28 overflow-hidden rounded-2xl bg-orange-50" aria-label={`View ${item.name} details`}>
+          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="112px" className="object-cover" />
+          {item.soldOut ? <span className="absolute inset-0 grid place-items-center bg-white/75 text-xs font-black text-slate-700">Unavailable</span> : null}
+        </Link>
+        <div className="-mt-4 mr-2">
+          <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MobileMenuSkeleton() {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_116px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
+      <div className="space-y-3">
+        <div className="h-4 w-20 rounded-full bg-orange-100" />
+        <div className="h-5 w-40 rounded-full bg-slate-100" />
+        <div className="h-4 w-16 rounded-full bg-slate-100" />
+        <div className="h-10 rounded-xl bg-slate-100" />
+      </div>
+      <div className="size-28 rounded-2xl bg-orange-100" />
+    </div>
+  );
+}
+
+function MobileRestaurantAbout({ restaurant }: { restaurant: Restaurant }) {
+  return (
+    <section className="mt-6 border-t border-orange-100 pt-5">
+      <h2 className="text-2xl font-black">About this restaurant</h2>
+      <div className="mt-3 flex gap-3 overflow-x-auto pb-1 text-sm font-bold text-slate-700 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-3 py-2"><CheckCircle2 className="size-4 text-emerald-600" />Hygienic packaging</span>
+        <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-orange-50 px-3 py-2"><CalendarClock className="size-4 text-orange-600" />On-time delivery</span>
+        {restaurant.rating ? <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-yellow-50 px-3 py-2"><Star className="size-4 text-yellow-600" />Top rated restaurant</span> : null}
+        {restaurant.fssaiLicense ? <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-100 px-3 py-2"><CheckCircle2 className="size-4 text-slate-600" />FSSAI certified</span> : null}
+      </div>
+    </section>
+  );
+}
+
+function foodTypeLabel(value: string) {
+  const normalized = normalize(value);
+  if (normalized === "nonveg" || normalized === "non veg" || normalized === "non-veg") return "Non Veg";
+  if (normalized === "veg") return "Veg";
+  if (normalized === "egg") return "Egg";
+  if (normalized === "jain") return "Jain";
+  if (normalized === "vegan") return "Vegan";
+  return humanize(value);
 }
 
 function HeroSection({
@@ -1561,6 +2008,35 @@ function formatTime(value: string) {
   const period = rawHours >= 12 ? "PM" : "AM";
   const hours = rawHours % 12 || 12;
   return `${hours}:${String(rawMinutes || 0).padStart(2, "0")} ${period}`;
+}
+
+function showClosedRestaurantPrompt(status: { detail?: string }, onSchedule: () => void) {
+  toast.custom(
+    (toastItem) => (
+      <div className="w-[min(92vw,380px)] rounded-2xl border border-orange-100 bg-white p-4 text-slate-950 shadow-2xl">
+        <h3 className="text-base font-black">Restaurant is currently closed.</h3>
+        <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+          {status.detail ? `${status.detail}. ` : ""}Please wait until the restaurant opens or schedule your order for later.
+        </p>
+        <div className="mt-4 grid grid-cols-[1.2fr_0.8fr] gap-2">
+          <Button
+            type="button"
+            className="h-11 rounded-xl bg-orange-600 font-black text-white hover:bg-orange-700"
+            onClick={() => {
+              toast.dismiss(toastItem.id);
+              onSchedule();
+            }}
+          >
+            Schedule Order
+          </Button>
+          <Button type="button" variant="outline" className="h-11 rounded-xl font-black" onClick={() => toast.dismiss(toastItem.id)}>
+            OK
+          </Button>
+        </div>
+      </div>
+    ),
+    { duration: 7000 },
+  );
 }
 
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {
