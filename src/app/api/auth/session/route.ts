@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[auth/session] Firebase session verification failed:", error);
     return NextResponse.json(
-      { error: sessionVerificationMessage(error) },
+      { error: sessionVerificationMessage(error, requestedSessionSurface) },
       { status: 401 },
     );
   }
@@ -85,12 +85,14 @@ export async function POST(request: NextRequest) {
   return response;
 }
 
-function sessionVerificationMessage(error: unknown) {
+function sessionVerificationMessage(error: unknown, surface?: SessionSurface | null) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   if (/Could not load the default credentials|Unable to detect a Project Id|application default|credential|private key|client_email/i.test(message)) {
     return "Secure account setup is not configured on this server.";
   }
   if (/inactive or missing/i.test(message)) {
+    if (surface === "owner") return "Owner profile is inactive or missing. Ask the platform admin to activate this account.";
+    if (surface === "admin") return "Admin profile is inactive or missing. Ask the platform admin to activate this account.";
     return "Customer profile could not be created. Please try again.";
   }
   if (/undefined.*Firestore value|not a valid Firestore document/i.test(message)) {

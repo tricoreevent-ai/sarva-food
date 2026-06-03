@@ -401,15 +401,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
           onTimeChange={setScheduledTime}
           query={query}
           setQuery={setQuery}
-          filterOptions={filterOptions}
-          categoryFilters={categoryFilters}
-          setCategoryFilters={setCategoryFilters}
-          foodTypeFilters={foodTypeFilters}
-          setFoodTypeFilters={setFoodTypeFilters}
-          popularOnly={popularOnly}
-          setPopularOnly={setPopularOnly}
-          availableOnly={availableOnly}
-          setAvailableOnly={setAvailableOnly}
           activeFilterCount={activeFilterCount}
           onOpenFilters={() => setFiltersOpen(true)}
           offers={visibleOffers}
@@ -651,15 +642,6 @@ function MobileRestaurantLanding({
   onTimeChange,
   query,
   setQuery,
-  filterOptions,
-  categoryFilters,
-  setCategoryFilters,
-  foodTypeFilters,
-  setFoodTypeFilters,
-  popularOnly,
-  setPopularOnly,
-  availableOnly,
-  setAvailableOnly,
   activeFilterCount,
   onOpenFilters,
   offers,
@@ -686,15 +668,6 @@ function MobileRestaurantLanding({
   onTimeChange: (value: string) => void;
   query: string;
   setQuery: (value: string) => void;
-  filterOptions: FilterOptions;
-  categoryFilters: string[];
-  setCategoryFilters: (value: string[]) => void;
-  foodTypeFilters: string[];
-  setFoodTypeFilters: (value: string[]) => void;
-  popularOnly: boolean;
-  setPopularOnly: (value: boolean) => void;
-  availableOnly: boolean;
-  setAvailableOnly: (value: boolean) => void;
   activeFilterCount: number;
   onOpenFilters: () => void;
   offers: Offer[];
@@ -714,8 +687,6 @@ function MobileRestaurantLanding({
   const heroImage = normalizeHeroImages(restaurant)[0] ?? IMAGE_FALLBACKS.restaurant;
   const eta = restaurant.deliveryTime || (typeof customerDistanceKm === "number" ? `${estimateDeliveryMinutes(customerDistanceKm)} mins` : "");
   const priceForOne = restaurant.priceForTwo ? Math.round(restaurant.priceForTwo / 2) : null;
-  const quickCategories = filterOptions.categories.slice(0, 10);
-  const quickFoodTypes = filterOptions.foodTypes.filter(Boolean).slice(0, 4);
 
   function focusSearch() {
     document.getElementById("mobile-restaurant-search")?.focus();
@@ -825,21 +796,6 @@ function MobileRestaurantLanding({
               {activeFilterCount ? `${activeFilterCount}` : "Filters"}
             </Button>
           </div>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <QuickFilterPill active={!categoryFilters.length} onClick={() => setCategoryFilters([])}>All</QuickFilterPill>
-            {quickCategories.map((category) => (
-              <QuickFilterPill key={category} active={categoryFilters.some((value) => normalize(value) === normalize(category))} onClick={() => setCategoryFilters(toggleFilterValue(categoryFilters, category))}>
-                {humanize(category)}
-              </QuickFilterPill>
-            ))}
-            {quickFoodTypes.map((foodType) => (
-              <QuickFilterPill key={foodType} active={foodTypeFilters.some((value) => normalize(value) === normalize(foodType))} onClick={() => setFoodTypeFilters(toggleFilterValue(foodTypeFilters, foodType))}>
-                {foodTypeLabel(foodType)}
-              </QuickFilterPill>
-            ))}
-            {filterOptions.hasPopular ? <QuickFilterPill active={popularOnly} onClick={() => setPopularOnly(!popularOnly)}>Bestseller</QuickFilterPill> : null}
-            <QuickFilterPill active={availableOnly} onClick={() => setAvailableOnly(!availableOnly)}>Available Now</QuickFilterPill>
-          </div>
         </div>
 
         <MobileOfferRail offers={offers} onApply={onApplyOffer} />
@@ -888,20 +844,6 @@ function MobileRestaurantLanding({
         <MobileRestaurantAbout restaurant={restaurant} />
       </section>
     </div>
-  );
-}
-
-function QuickFilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      className={`h-10 shrink-0 rounded-full border px-4 text-sm font-black transition ${
-        active ? "border-orange-600 bg-orange-600 text-white shadow-sm" : "border-orange-100 bg-white text-slate-800 hover:bg-orange-50"
-      }`}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -954,11 +896,13 @@ function MobileMenuItemCard({
   onQty: (quantity: number) => void;
 }) {
   const price = itemPrice(item, fulfillmentType);
-  const tags = [item.isPopular ? "Bestseller" : "", item.spiceLevel ? humanize(item.spiceLevel) : "", ...(item.badges ?? [])].filter(Boolean).slice(0, 3);
   return (
-    <article className="grid grid-cols-[minmax(0,1fr)_116px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
+    <article className="grid grid-cols-[minmax(0,1fr)_92px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
       <div className="min-w-0">
-        <span className={`mb-2 grid size-4 place-items-center rounded border ${item.isVeg ? "border-emerald-600 text-emerald-600" : "border-red-600 text-red-600"}`}>
+        <span
+          aria-label={item.isVeg ? "Vegetarian item" : "Non-vegetarian item"}
+          className={`mb-2 grid size-4 place-items-center rounded border ${item.isVeg ? "border-emerald-600 text-emerald-600" : "border-red-600 text-red-600"}`}
+        >
           <span className="size-2 rounded-full bg-current" />
         </span>
         <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-2 text-base font-black leading-tight hover:text-orange-600">
@@ -973,37 +917,50 @@ function MobileMenuItemCard({
           </p>
         ) : null}
         <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-600">{item.description}</p>
-        {tags.length ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-orange-50 px-2 py-1 text-[11px] font-black text-orange-700">{tag}</span>
-            ))}
-          </div>
-        ) : null}
       </div>
-      <div className="flex flex-col items-end">
-        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block size-28 overflow-hidden rounded-2xl bg-orange-50" aria-label={`View ${item.name} details`}>
-          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="112px" className="object-cover" />
+      <div className="flex flex-col items-end gap-2">
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block size-20 overflow-hidden rounded-xl bg-orange-50" aria-label={`View ${item.name} details`}>
+          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="80px" className="object-cover" />
           {item.soldOut ? <span className="absolute inset-0 grid place-items-center bg-white/75 text-xs font-black text-slate-700">Unavailable</span> : null}
         </Link>
-        <div className="-mt-4 mr-2">
-          <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
-        </div>
+        <MobileQtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
       </div>
     </article>
   );
 }
 
+function MobileQtyButton({ quantity, soldOut, onAdd, onQty }: { quantity: number; soldOut?: boolean; onAdd: () => void; onQty: (quantity: number) => void }) {
+  if (quantity > 0) {
+    return (
+      <div className="grid h-8 w-20 grid-cols-3 overflow-hidden rounded-lg border bg-white text-sm font-black">
+        <button type="button" className="grid place-items-center hover:bg-orange-50" onClick={() => onQty(quantity - 1)} aria-label="Decrease quantity">
+          <Minus className="size-3.5" />
+        </button>
+        <span className="grid place-items-center">{quantity}</span>
+        <button type="button" className="grid place-items-center hover:bg-orange-50" onClick={() => onQty(quantity + 1)} aria-label="Increase quantity">
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <Button size="sm" variant="outline" disabled={soldOut} onClick={onAdd} className="h-8 w-20 rounded-lg border-orange-300 px-2 text-xs font-black text-orange-700 hover:bg-orange-50">
+      Add
+      <Plus className="size-3.5" />
+    </Button>
+  );
+}
+
 function MobileMenuSkeleton() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_116px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_92px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
       <div className="space-y-3">
         <div className="h-4 w-20 rounded-full bg-orange-100" />
         <div className="h-5 w-40 rounded-full bg-slate-100" />
         <div className="h-4 w-16 rounded-full bg-slate-100" />
         <div className="h-10 rounded-xl bg-slate-100" />
       </div>
-      <div className="size-28 rounded-2xl bg-orange-100" />
+      <div className="size-20 justify-self-end rounded-xl bg-orange-100" />
     </div>
   );
 }
@@ -1020,16 +977,6 @@ function MobileRestaurantAbout({ restaurant }: { restaurant: Restaurant }) {
       </div>
     </section>
   );
-}
-
-function foodTypeLabel(value: string) {
-  const normalized = normalize(value);
-  if (normalized === "nonveg" || normalized === "non veg" || normalized === "non-veg") return "Non Veg";
-  if (normalized === "veg") return "Veg";
-  if (normalized === "egg") return "Egg";
-  if (normalized === "jain") return "Jain";
-  if (normalized === "vegan") return "Vegan";
-  return humanize(value);
 }
 
 function HeroSection({

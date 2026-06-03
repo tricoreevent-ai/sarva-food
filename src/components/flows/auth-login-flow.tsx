@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { shouldUseFirebase } from "@/lib/env";
@@ -103,7 +104,8 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   const brandInitials = (branding.shortName || branding.appName || "SF").slice(0, 2).toUpperCase();
   const { ready: authReady, firebaseEnabled, stackEnabled } = authCapabilities;
   const passwordScore = getPasswordScore(password);
-  const canSubmitPassword = stackEnabled || firebaseEnabled;
+  const customerStackEnabled = isCustomerSurface && stackEnabled;
+  const canSubmitPassword = customerStackEnabled || firebaseEnabled;
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -187,7 +189,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       }
 
       if (mode === "sign-up") {
-        if (stackEnabled) {
+        if (customerStackEnabled) {
           await signUpWithStackEmail(email.trim(), password);
           await syncStackCustomer();
         } else {
@@ -199,7 +201,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
         return;
       }
 
-      if (stackEnabled) {
+      if (customerStackEnabled) {
         await signInWithStackEmail(email.trim(), password);
         await syncStackCustomer();
       } else {
@@ -217,7 +219,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     } catch (error) {
       const text = friendlyAuthMessage(error);
       setMessage(text);
-      toast.error(text);
     } finally {
       setIsSubmitting(false);
     }
@@ -233,7 +234,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     }
     setMessage("Sending reset email...");
     try {
-      if (stackEnabled) {
+      if (customerStackEnabled) {
         await sendStackPasswordReset(email.trim(), `${window.location.origin}/handler/password-reset`);
       } else {
         await resetPassword(email.trim());
@@ -254,7 +255,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setIsSubmitting(true);
     setMessage("Sending secure magic link...");
     try {
-      if (stackEnabled) {
+      if (customerStackEnabled) {
         await sendStackMagicLink(email.trim(), `${window.location.origin}/handler/magic-link`);
       } else if (firebaseEnabled) {
         await startEmailLinkLogin(email.trim());
@@ -266,7 +267,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     } catch (error) {
       const text = friendlyAuthMessage(error);
       setMessage(text);
-      toast.error(text);
     } finally {
       setIsSubmitting(false);
     }
@@ -276,7 +276,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setIsSubmitting(true);
     setMessage("Opening Google sign in...");
     try {
-      if (stackEnabled) {
+      if (customerStackEnabled) {
         await signInWithStackGoogle(`${window.location.origin}${next}`);
         return;
       }
@@ -288,7 +288,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     } catch (error) {
       const text = friendlyAuthMessage(error);
       setMessage(text);
-      toast.error(text);
     } finally {
       setIsSubmitting(false);
     }
@@ -481,9 +480,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
             </div>
 
             {message ? (
-              <div className={cn("mt-4 rounded-2xl border p-3 text-sm font-semibold", authDark ? "border-white/10 bg-white/10 text-white/80" : "bg-orange-50 text-orange-900")}>
-                {message}
-              </div>
+              <FormAlert className="mt-4" title={messageAlertTitle(message)} message={message} tone={messageAlertTone(message)} />
             ) : null}
           </motion.div>
         </section>
@@ -552,7 +549,7 @@ function OperationalLogin({
         <Link className="mt-4 inline-flex text-sm font-semibold text-primary" href="/login">
           Customer login
         </Link>
-        {message ? <p className="mt-3 text-sm font-semibold text-muted-foreground">{message}</p> : null}
+        {message ? <FormAlert className="mt-4" title={messageAlertTitle(message)} message={message} tone={messageAlertTone(message)} /> : null}
       </section>
     </main>
   );
@@ -603,6 +600,19 @@ function SecurityBadge({ label, dark }: { label: string; dark: boolean }) {
       {label}
     </div>
   );
+}
+
+function messageAlertTone(message: string): "error" | "success" | "info" {
+  if (/sent|verified|created|opening|signing|check your email/i.test(message)) return "info";
+  if (/success/i.test(message)) return "success";
+  return "error";
+}
+
+function messageAlertTitle(message: string) {
+  const tone = messageAlertTone(message);
+  if (tone === "success") return "Success";
+  if (tone === "info") return "Account update";
+  return "Check your details";
 }
 
 function authInputClass(dark: boolean) {
