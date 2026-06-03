@@ -234,7 +234,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const contactPhone = restaurant.contact?.phone ?? restaurant.ownerProfile?.businessPhone ?? "";
   const contactWhatsApp = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? contactPhone;
   const heroTitle = restaurant.displayName ?? restaurant.name;
-  const mobileOrderingActive = cartCount > 0 || step !== "menu";
   const activeFilterCount = getActiveFilterCount({
     categoryFilters,
     foodTypeFilters,
@@ -377,9 +376,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
   return (
     <main className="min-h-screen bg-[#fffaf5] pb-28 text-slate-950 md:pb-10">
-      <MobileRestaurantHeader restaurantName={heroTitle} cartCount={cartCount} onCart={() => goTo(canContinue ? "offers" : "menu")} />
-
-      <div className={mobileOrderingActive ? "hidden md:block" : ""}>
+      <div className={step === "menu" ? "" : "hidden md:block"}>
         <HeroSection restaurant={restaurant} title={heroTitle} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} customerDistanceKm={customerDistanceKm} onStart={startOrderNow} onSchedule={startScheduledOrder} />
       </div>
 
@@ -588,28 +585,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   );
 }
 
-function MobileRestaurantHeader({ restaurantName, cartCount, onCart }: { restaurantName: string; cartCount: number; onCart: () => void }) {
-  return (
-    <div className="sticky top-0 z-40 border-b bg-white/95 px-3 py-2 shadow-sm backdrop-blur md:hidden">
-      <div className="flex items-center gap-2">
-        <Button asChild size="icon" variant="ghost" aria-label="Back">
-          <Link href="/restaurants">
-            <ArrowLeft className="size-5" />
-          </Link>
-        </Button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-black">{restaurantName}</p>
-          <p className="text-xs font-semibold text-emerald-600">Open for orders</p>
-        </div>
-        <Button size="icon" variant="outline" aria-label="Open cart" onClick={onCart} className="relative">
-          <ShoppingBag className="size-5" />
-          {cartCount ? <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-orange-600 text-[10px] font-black text-white">{cartCount}</span> : null}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function HeroSection({
   restaurant,
   title,
@@ -637,26 +612,26 @@ function HeroSection({
   const heroImages = useMemo(() => normalizeHeroImages(restaurant), [restaurant]);
 
   return (
-    <section className="container-page pt-3 sm:pt-5">
-      <div className="relative overflow-hidden rounded-[1.75rem] bg-slate-950 text-white shadow-xl shadow-orange-950/10">
+    <section className="md:container-page md:pt-5">
+      <div className="relative overflow-hidden bg-slate-950 text-white shadow-xl shadow-orange-950/10 md:rounded-[1.75rem]">
         <HeroBannerCarousel images={heroImages} title={title} />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/68 to-black/10" />
-        <div className="relative grid min-h-[300px] content-end gap-4 px-4 py-5 sm:min-h-[380px] sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+        <div className="relative grid min-h-[30svh] max-h-[260px] content-end gap-2 px-4 py-4 md:min-h-[380px] md:max-h-none md:gap-4 md:px-8 md:py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
         <div className="max-w-3xl">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 md:gap-2">
             <Badge className={status.open ? "rounded-full bg-emerald-500 text-white" : "rounded-full bg-amber-500 text-white"}>{status.label}</Badge>
             {status.detail ? <Badge className="rounded-full bg-white/15 text-white ring-1 ring-white/20">{status.detail}</Badge> : null}
           </div>
           {restaurant.logo ? (
-            <div className="relative mt-4 size-16 overflow-hidden rounded-full border-4 border-white/80 bg-white shadow-xl sm:mt-5 sm:size-20">
+            <div className="relative mt-2 size-12 overflow-hidden rounded-full border-2 border-white/80 bg-white shadow-xl md:mt-5 md:size-20 md:border-4">
               <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="80px" className="object-cover" />
             </div>
           ) : null}
-          <h1 className="mt-3 text-4xl font-black tracking-tight sm:mt-4 sm:text-7xl">{title}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-bold text-white/90">
+          <h1 className="mt-2 text-3xl font-black tracking-tight md:mt-4 md:text-7xl">{title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-white/90 md:mt-3 md:gap-3 md:text-sm">
             {restaurant.rating ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
-                <Star className="size-4 fill-yellow-400 text-yellow-400" />
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-1 md:px-3 md:py-1.5">
+                <Star className="size-3.5 fill-yellow-400 text-yellow-400 md:size-4" />
                 {restaurant.rating} {restaurant.reviewCount ? `(${restaurant.reviewCount}+ reviews)` : ""}
               </span>
             ) : null}
@@ -664,12 +639,12 @@ function HeroSection({
             {eta ? <span>{eta}</span> : null}
           </div>
           {address ? (
-            <p className="mt-4 flex max-w-2xl items-start gap-2 text-base leading-7 text-white/80">
+            <p className="mt-4 hidden max-w-2xl items-start gap-2 text-base leading-7 text-white/80 md:flex">
               <MapPin className="mt-1 size-4 shrink-0" />
               <span>{address}</span>
             </p>
           ) : null}
-          <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row">
+          <div className="mt-5 hidden flex-col gap-3 md:mt-6 md:flex md:flex-row">
             <Button size="lg" onClick={onStart} className="h-12 bg-orange-600 text-white hover:bg-orange-700 sm:h-11">
               Start order
               <ArrowRight className="size-4" />
@@ -702,7 +677,7 @@ function HeroSection({
             ) : null}
           </div>
         </div>
-        <div className="hidden grid-cols-2 gap-2 rounded-2xl bg-black/32 p-3 ring-1 ring-white/12 backdrop-blur sm:grid sm:grid-cols-4 lg:grid-cols-2">
+        <div className="hidden grid-cols-2 gap-2 rounded-2xl bg-black/32 p-3 ring-1 ring-white/12 backdrop-blur md:grid md:grid-cols-4 lg:grid-cols-2">
           {typeof minOrder === "number" ? <HeroFact icon={ShoppingBag} label="Minimum order" value={formatCurrency(minOrder)} /> : null}
           {typeof deliveryFee === "number" ? <HeroFact icon={Bike} label="Delivery fee" value={formatCurrency(deliveryFee)} /> : null}
           {typeof freeAbove === "number" ? <HeroFact icon={Sparkles} label="Free delivery" value={`above ${formatCurrency(freeAbove)}`} /> : null}
@@ -744,32 +719,32 @@ function OrderTimingStrip({
   onTimeChange: (value: string) => void;
 }) {
   return (
-    <section className="rounded-3xl border bg-white p-3 shadow-sm sm:p-4">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <section className="rounded-2xl border bg-white p-2 shadow-sm sm:rounded-3xl sm:p-4">
+      <div className="grid grid-cols-2 gap-2 md:gap-3">
         <button
           type="button"
           onClick={() => onModeChange("now")}
-          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${mode === "now" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+          className={`flex min-h-14 items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "now" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
         >
-          <span className="grid size-10 place-items-center rounded-2xl bg-orange-100 text-orange-700">
+          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
             <ZapIcon />
           </span>
-          <span>
-            <span className="block font-black">Order right now</span>
-            <span className="block text-sm font-semibold text-muted-foreground">Send the order immediately to the restaurant.</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-black leading-tight sm:text-base">Order right now</span>
+            <span className="hidden text-sm font-semibold text-muted-foreground sm:block">Send the order immediately to the restaurant.</span>
           </span>
         </button>
         <button
           type="button"
           onClick={() => onModeChange("scheduled")}
-          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${mode === "scheduled" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+          className={`flex min-h-14 items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "scheduled" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
         >
-          <span className="grid size-10 place-items-center rounded-2xl bg-orange-100 text-orange-700">
-            <CalendarClock className="size-5" />
+          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
+            <CalendarClock className="size-4 sm:size-5" />
           </span>
-          <span>
-            <span className="block font-black">Schedule later</span>
-            <span className="block text-sm font-semibold text-muted-foreground">Choose a date and time after selecting items.</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-black leading-tight sm:text-base">Schedule later</span>
+            <span className="hidden text-sm font-semibold text-muted-foreground sm:block">Choose a date and time after selecting items.</span>
           </span>
         </button>
       </div>

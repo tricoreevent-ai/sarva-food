@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import {
@@ -47,6 +47,7 @@ import type { CustomerAddressDoc } from "@/types/firebase";
 
 export function PublicHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const auth = useAuthUser();
   const localAuthUser = useAppStore((state) => state.authUser);
   const storeCmsSettings = useAppStore((state) => state.cmsSettings);
@@ -81,6 +82,7 @@ export function PublicHeader() {
   const loggedIn = auth.user
     ? auth.profile?.role === "customer"
     : localAuthUser.role === "customer" && localAuthUser.id !== "anonymous";
+  const restaurantRoute = pathname.startsWith("/restaurant/");
   const customerId = loggedIn ? (auth.user?.uid || localAuthUser.id) : null;
   const displayName = loggedIn ? (auth.profile?.displayName ?? localAuthUser.name) : "Guest";
   const initials = getInitials(displayName);
@@ -240,13 +242,15 @@ export function PublicHeader() {
               <Search className="size-4" />
             </Link>
           </Button>
-          <CartDrawer
-            trigger={
-              <Button variant="ghost" size="icon" aria-label="Open cart" className="relative bg-card">
-                <ShoppingBag className="size-4" />
-              </Button>
-            }
-          />
+          {restaurantRoute ? null : (
+            <CartDrawer
+              trigger={
+                <Button variant="ghost" size="icon" aria-label="Open cart" className="relative bg-card">
+                  <ShoppingBag className="size-4" />
+                </Button>
+              }
+            />
+          )}
           {loggedIn ? (
             <div className="relative hidden md:block">
               <Button
