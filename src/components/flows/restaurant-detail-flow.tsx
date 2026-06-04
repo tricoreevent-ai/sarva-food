@@ -739,7 +739,7 @@ function MobileRestaurantLanding({
   return (
     <div className="xl:hidden">
       <section className="relative min-h-[220px] overflow-hidden bg-slate-950 text-white">
-        <SafeImage src={heroImage} alt={`${title} food banner`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="100vw" className="object-cover opacity-80" />
+        <SafeImage src={heroImage} alt={`${title} food banner`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="(max-width: 1279px) 100vw, 50vw" className="object-cover opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-black/82" />
 
         <div className="relative z-10 flex items-start justify-between gap-3 px-4 pt-4">
@@ -1238,7 +1238,7 @@ function HeroBannerCarousel({ images, title }: { images: string[]; title: string
           priority={index === 0}
           loading={index === 0 ? undefined : index === 1 ? "eager" : "lazy"}
           fallbackSrc={IMAGE_FALLBACKS.restaurant}
-          sizes="100vw"
+          sizes="(max-width: 767px) 100vw, (max-width: 1279px) 100vw, 80vw"
           className={`object-cover opacity-0 transition-opacity duration-700 ease-out ${index === activeIndex ? "opacity-70" : ""}`}
         />
       ))}

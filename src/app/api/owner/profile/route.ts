@@ -7,6 +7,7 @@ import type { OwnerBusinessProfile, Restaurant, RestaurantBranch } from "@/lib/t
 import type { UserRole } from "@/types/firebase";
 
 const profileSaveRoles = new Set<UserRole>(["owner", "manager"]);
+const CAFE_AL_ARAB_OWNER_EMAIL = "divakdi@gmail.com";
 
 type ProfileRequest = {
   profile?: OwnerBusinessProfile;
@@ -25,7 +26,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profile, restaurant, and branch data are required." }, { status: 400 });
   }
 
-  const restaurantId = body.restaurant.slug || session.tenantId || DEFAULT_RESTAURANT_ID;
+  const launchCafeAlArabOwner = await isCafeAlArabLaunchOwner(session, body);
+  const restaurantId = launchCafeAlArabOwner ? DEFAULT_RESTAURANT_ID : body.restaurant.slug || session.tenantId || DEFAULT_RESTAURANT_ID;
   try {
     assertRestaurantAccess(session, restaurantId);
   } catch (error) {
@@ -36,11 +38,11 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantId = resolveTenantId(restaurantId);
-  const branchId = body.branch.id || session.branchIds[0] || DEFAULT_BRANCH_ID;
+  const branchId = launchCafeAlArabOwner ? DEFAULT_BRANCH_ID : body.branch.id || session.branchIds[0] || DEFAULT_BRANCH_ID;
   const profileComplete = isPublicProfileComplete(body.profile);
   const restaurantName = body.profile.hotelName || body.restaurant.name;
   const duplicate = await findDuplicateRestaurantNameForOwner(session.uid, restaurantName, restaurantId);
-  if (duplicate) {
+  if (duplicate && !launchCafeAlArabOwner) {
     return NextResponse.json(
       { error: `Restaurant name already exists for this owner: ${duplicate.name}.` },
       { status: 409 },
@@ -137,14 +139,20 @@ export async function POST(request: NextRequest) {
       active: true,
       updatedAt: FieldValue.serverTimestamp(),
     }), { merge: true }),
+    launchCafeAlArabOwner ? retireDuplicateCafeAlArabRestaurantsForOwner(session.uid, restaurantName, restaurantId) : Promise.resolve(),
   ]);
 
   return NextResponse.json({ ok: true, restaurantId, branchId });
 }
 
 async function findDuplicateRestaurantNameForOwner(ownerId: string, name: string, currentRestaurantId: string) {
+  const duplicate = (await findDuplicateRestaurantDocsForOwner(ownerId, name, currentRestaurantId))[0];
+  return duplicate ? { id: duplicate.id, name: duplicate.name || duplicate.displayName || duplicate.id } : null;
+}
+
+async function findDuplicateRestaurantDocsForOwner(ownerId: string, name: string, currentRestaurantId: string) {
   const normalizedName = normalizeRestaurantName(name);
-  if (!ownerId || !normalizedName) return null;
+  if (!ownerId || !normalizedName) return [];
 
   const snapshot = await adminDb()
     .collection("restaurants")
@@ -152,20 +160,72 @@ async function findDuplicateRestaurantNameForOwner(ownerId: string, name: string
     .limit(25)
     .get();
 
-  const duplicate = snapshot.docs
+  return snapshot.docs
     .map((doc) => ({ id: doc.id, ...doc.data() } as { id: string; name?: string; displayName?: string; active?: boolean; isDeleted?: boolean }))
-    .find((doc) =>
+    .filter((doc) =>
       doc.id !== currentRestaurantId &&
       doc.active !== false &&
       !doc.isDeleted &&
       normalizeRestaurantName(doc.name || doc.displayName || "") === normalizedName
     );
+}
 
-  return duplicate ? { id: duplicate.id, name: duplicate.name || duplicate.displayName || duplicate.id } : null;
+async function retireDuplicateCafeAlArabRestaurantsForOwner(ownerId: string, name: string, currentRestaurantId: string) {
+  const duplicates = (await findDuplicateRestaurantDocsForOwner(ownerId, name, currentRestaurantId))
+    .filter((doc) => isCafeAlArabName(doc.name || doc.displayName || doc.id));
+  if (!duplicates.length) return;
+
+  const batch = adminDb().batch();
+  duplicates.forEach((doc) => {
+    batch.set(adminDb().collection("restaurants").doc(doc.id), {
+      active: false,
+      approved: false,
+      publicListingEnabled: false,
+      isDeleted: true,
+      mergedIntoRestaurantId: currentRestaurantId,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: ownerId,
+    }, { merge: true });
+  });
+  await batch.commit();
 }
 
 function normalizeRestaurantName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+async function isCafeAlArabLaunchOwner(
+  session: NonNullable<Awaited<ReturnType<typeof getSessionFromRequest>>>,
+  body: ProfileRequest,
+) {
+  const profile = (body.profile ?? {}) as OwnerBusinessProfile & Record<string, unknown>;
+  const directIdentityValues = [
+    session.uid,
+    profile.ownerEmail,
+    profile.businessEmail,
+    profile.supportEmail,
+    profile.cateringEmail,
+    profile.email,
+  ];
+  if (directIdentityValues.some((value) => normalizeEmail(value) === CAFE_AL_ARAB_OWNER_EMAIL)) return true;
+
+  const linkedToLaunchTenant =
+    session.tenantId === DEFAULT_RESTAURANT_ID ||
+    session.tenantIds.includes(DEFAULT_RESTAURANT_ID) ||
+    session.restaurantIds.includes(DEFAULT_RESTAURANT_ID);
+  if (linkedToLaunchTenant && isCafeAlArabName(profile.hotelName || body.restaurant?.name || body.restaurant?.displayName || "")) return true;
+
+  const userSnapshot = await adminDb().collection("users").doc(session.uid).get().catch(() => null);
+  const user = userSnapshot?.data() as Record<string, unknown> | undefined;
+  return normalizeEmail(user?.email) === CAFE_AL_ARAB_OWNER_EMAIL;
+}
+
+function normalizeEmail(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function isCafeAlArabName(value: unknown) {
+  return typeof value === "string" && value.trim().toLowerCase().replace(/[-_]+/g, " ").includes("cafe al arab");
 }
 
 function assertRestaurantAccess(
@@ -173,7 +233,8 @@ function assertRestaurantAccess(
   restaurantId: string,
 ) {
   const allowed = new Set([session.tenantId, ...session.tenantIds, ...session.restaurantIds].filter(Boolean));
-  if (allowed.size && !allowed.has(restaurantId) && !allowed.has(resolveTenantId(restaurantId))) {
+  const hasCafeAlArabAliasAccess = isCafeAlArabName(restaurantId) && Array.from(allowed).some(isCafeAlArabName);
+  if (allowed.size && !allowed.has(restaurantId) && !allowed.has(resolveTenantId(restaurantId)) && !hasCafeAlArabAliasAccess) {
     throw new Error(`Access setup required: this user is not linked to restaurant ${restaurantId}.`);
   }
 }

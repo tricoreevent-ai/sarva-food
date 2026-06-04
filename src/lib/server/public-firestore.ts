@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { adminDb } from "@/firebase/admin";
 import { defaultAppCategories } from "@/lib/default-app-categories";
 import { defaultAppCuisines } from "@/lib/default-app-cuisines";
-import { resolveTenantId } from "@/lib/tenant";
+import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
 
 const PUBLIC_RESTAURANT_LIMIT = 100;
@@ -13,6 +13,13 @@ const PUBLIC_MENU_LIMIT = 200;
 const PUBLIC_MENU_FALLBACK_LIMIT = 500;
 const PUBLIC_REST_LIMIT = 500;
 const DEFAULT_PUBLIC_RESTAURANT_IDS = ["cafe-al-arab-thanisandra", "falak-leela-bhartiya"];
+const LEGACY_DEMO_TENANT_IDS = new Set(["test-owner", "demo-owner", "sample-owner"]);
+const CAFE_AL_ARAB_PUBLIC_TENANT_ALIASES = [
+  DEFAULT_RESTAURANT_ID,
+  "cafe-al-arab-ul",
+  "cafe-al-arab-ul-thanisandra",
+  "cafe-al-arab",
+];
 const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "cafe-al-arab-thanisandra-chicken-shawarma-roll",
   "cafe-al-arab-thanisandra-alfaham-half",
@@ -182,6 +189,22 @@ function publicRestaurantIds() {
   return configured?.length ? configured : DEFAULT_PUBLIC_RESTAURANT_IDS;
 }
 
+function expandedPublicRestaurantIds() {
+  return Array.from(new Set(publicRestaurantIds().flatMap(publicTenantAliases)));
+}
+
+function publicTenantAliases(tenantId: string) {
+  return isCafeAlArabTenantId(tenantId) ? CAFE_AL_ARAB_PUBLIC_TENANT_ALIASES : [tenantId];
+}
+
+function isCafeAlArabTenantId(value?: string | null) {
+  return Boolean(value && value.trim().toLowerCase().includes("cafe-al-arab"));
+}
+
+function isLegacyDemoTenant(value?: string | null) {
+  return Boolean(value && LEGACY_DEMO_TENANT_IDS.has(value.trim().toLowerCase()));
+}
+
 function restWhere(filters: PublicFieldFilter[]) {
   const fieldFilters = filters.map((filter) => ({
     fieldFilter: {
@@ -295,8 +318,9 @@ export async function getPublicRestaurantDocs(slug?: string) {
 }
 
 async function getPublicRestaurantDocsFromRest(slug?: string) {
+  const restaurantIds = slug ? publicTenantAliases(slug) : expandedPublicRestaurantIds();
   const docs = (await Promise.all(
-    publicRestaurantIds().map((id) => getPublicFirestoreDocument<RestaurantDoc>("restaurants", id)),
+    restaurantIds.map((id) => getPublicFirestoreDocument<RestaurantDoc>("restaurants", id)),
   )).filter((doc): doc is RestaurantDoc => Boolean(doc));
   const stats = await Promise.all(docs.map((doc) => getPublicFirestoreDocument<RestaurantStatsDoc>("restaurant_stats", doc.tenantId || doc.id).catch(() => null)));
   return toPublicRestaurantDocs(mergeRestaurantStats(docs, stats.filter((item): item is RestaurantStatsDoc => Boolean(item))), slug);
@@ -339,14 +363,53 @@ function mergeRestaurantStats(docs: RestaurantDoc[], stats: RestaurantStatsDoc[]
 }
 
 function toPublicRestaurantDocs(docs: RestaurantDoc[], slug?: string) {
-  return docs
-    .filter((item) => !item.isDeleted && item.active === true && isPublicRestaurantListable(item) && (!slug || item.slug === slug))
+  const publicDocs = docs
+    .filter((item) => !item.isDeleted && item.active === true && isPublicRestaurantListable(item) && matchesPublicRestaurantSlug(item, slug))
+    .map(toPublicRestaurantDoc);
+
+  return dedupePublicRestaurantDocs(publicDocs)
     .sort((first, second) => first.name.localeCompare(second.name))
-    .map(toPublicRestaurantDoc)
     .slice(0, slug ? 1 : PUBLIC_RESTAURANT_LIMIT);
 }
 
+function matchesPublicRestaurantSlug(doc: RestaurantDoc, slug?: string) {
+  if (!slug) return true;
+  if (doc.slug === slug || doc.id === slug || doc.tenantId === slug) return true;
+  return isCafeAlArabTenantId(slug) && isCafeAlArabRestaurantDoc(doc);
+}
+
+function dedupePublicRestaurantDocs(docs: RestaurantDoc[]) {
+  const restaurants = new Map<string, RestaurantDoc>();
+  docs.forEach((doc) => {
+    const key = publicRestaurantIdentityKey(doc);
+    const previous = restaurants.get(key);
+    if (!previous || isPreferredPublicRestaurantDoc(doc, previous)) {
+      restaurants.set(key, doc);
+    }
+  });
+  return Array.from(restaurants.values());
+}
+
+function publicRestaurantIdentityKey(doc: RestaurantDoc) {
+  if (isCafeAlArabRestaurantDoc(doc)) return DEFAULT_RESTAURANT_ID;
+  return (doc.slug || doc.tenantId || doc.id || doc.name).trim().toLowerCase();
+}
+
+function isPreferredPublicRestaurantDoc(candidate: RestaurantDoc, current: RestaurantDoc) {
+  if (candidate.id === DEFAULT_RESTAURANT_ID && current.id !== DEFAULT_RESTAURANT_ID) return true;
+  if (candidate.slug === DEFAULT_RESTAURANT_ID && current.slug !== DEFAULT_RESTAURANT_ID) return true;
+  return false;
+}
+
+function isCafeAlArabRestaurantDoc(doc: RestaurantDoc) {
+  const extra = doc as RestaurantDoc & { displayName?: string };
+  return [doc.id, doc.slug, doc.tenantId, doc.name, extra.displayName]
+    .filter((value): value is string => Boolean(value))
+    .some((value) => value.trim().toLowerCase().includes("cafe al arab") || isCafeAlArabTenantId(value));
+}
+
 function isPublicRestaurantListable(doc: RestaurantDoc) {
+  if (isLegacyDemoTenant(doc.tenantId ?? doc.id ?? doc.slug)) return false;
   const extra = doc as RestaurantDoc & { approved?: boolean; profileComplete?: boolean; publicListingEnabled?: boolean };
   if (extra.approved === false || extra.publicListingEnabled === false || extra.profileComplete === false) return false;
   const hasLocation = Boolean((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation);
@@ -359,27 +422,32 @@ function isPublicRestaurantListable(doc: RestaurantDoc) {
 
 export async function getPublicMenuDocs(restaurantId: string) {
   const tenantId = resolveTenantId(restaurantId);
+  const tenantIds = publicTenantAliases(tenantId);
   if (!hasAdminFirestoreCredentials()) return getPublicMenuDocsFromRest(tenantId);
 
   try {
-    const [menusSnapshot, menuItemsSnapshot] = await Promise.all([
-      adminDb()
-        .collection("menus")
-        .where("available", "==", true)
-        .where("tenantId", "==", tenantId)
-        .orderBy("sortOrder", "asc")
-        .limit(PUBLIC_MENU_LIMIT)
-        .get(),
-      adminDb()
-        .collection("menuItems")
-        .where("available", "==", true)
-        .where("tenantId", "==", tenantId)
-        .orderBy("sortOrder", "asc")
-        .limit(PUBLIC_MENU_LIMIT)
-        .get(),
+    const [menusSnapshots, menuItemsSnapshots] = await Promise.all([
+      Promise.all(tenantIds.map((id) =>
+        adminDb()
+          .collection("menus")
+          .where("available", "==", true)
+          .where("tenantId", "==", id)
+          .orderBy("sortOrder", "asc")
+          .limit(PUBLIC_MENU_LIMIT)
+          .get(),
+      )),
+      Promise.all(tenantIds.map((id) =>
+        adminDb()
+          .collection("menuItems")
+          .where("available", "==", true)
+          .where("tenantId", "==", id)
+          .orderBy("sortOrder", "asc")
+          .limit(PUBLIC_MENU_LIMIT)
+          .get(),
+      )),
     ]);
 
-    return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs].map((item) => docToJson<MenuDoc>(item)));
+    return toPublicMenuDocs([...menusSnapshots, ...menuItemsSnapshots].flatMap((snapshot) => snapshot.docs.map((item) => docToJson<MenuDoc>(item))), tenantId);
   } catch (error) {
     if (isMissingIndexError(error)) return getPublicMenuDocsWithoutCompositeIndex(tenantId);
     if (isAdminCredentialError(error)) return getPublicMenuDocsFromRest(tenantId);
@@ -389,46 +457,56 @@ export async function getPublicMenuDocs(restaurantId: string) {
 
 async function getPublicMenuDocsFromRest(tenantId: string) {
   const [menus, menuItems] = await Promise.all([
-    runPublicFirestoreQuery<MenuDoc>("menus", {
-      filters: [
-        { fieldPath: "available", value: true },
-        { fieldPath: "tenantId", value: tenantId },
-      ],
-      limit: PUBLIC_MENU_LIMIT,
-    }),
-    runPublicFirestoreQuery<MenuDoc>("menuItems", {
-      filters: [
-        { fieldPath: "available", value: true },
-        { fieldPath: "tenantId", value: tenantId },
-      ],
-      limit: PUBLIC_MENU_LIMIT,
-    }),
+    Promise.all(publicTenantAliases(tenantId).map((id) =>
+      runPublicFirestoreQuery<MenuDoc>("menus", {
+        filters: [
+          { fieldPath: "available", value: true },
+          { fieldPath: "tenantId", value: id },
+        ],
+        limit: PUBLIC_MENU_LIMIT,
+      }),
+    )),
+    Promise.all(publicTenantAliases(tenantId).map((id) =>
+      runPublicFirestoreQuery<MenuDoc>("menuItems", {
+        filters: [
+          { fieldPath: "available", value: true },
+          { fieldPath: "tenantId", value: id },
+        ],
+        limit: PUBLIC_MENU_LIMIT,
+      }),
+    )),
   ]);
 
-  return toPublicMenuDocs([...menus, ...menuItems].filter((item) => isSameTenant(item, tenantId)));
+  return toPublicMenuDocs([...menus.flat(), ...menuItems.flat()].filter((item) => isSameTenant(item, tenantId)), tenantId);
 }
 
 async function getPublicMenuDocsWithoutCompositeIndex(tenantId: string) {
-  const [menusSnapshot, menuItemsSnapshot] = await Promise.all([
-    adminDb()
-      .collection("menus")
-      .where("tenantId", "==", tenantId)
-      .limit(PUBLIC_MENU_FALLBACK_LIMIT)
-      .get(),
-    adminDb()
-      .collection("menuItems")
-      .where("tenantId", "==", tenantId)
-      .limit(PUBLIC_MENU_FALLBACK_LIMIT)
-      .get(),
+  const tenantIds = publicTenantAliases(tenantId);
+  const [menusSnapshots, menuItemsSnapshots] = await Promise.all([
+    Promise.all(tenantIds.map((id) =>
+      adminDb()
+        .collection("menus")
+        .where("tenantId", "==", id)
+        .limit(PUBLIC_MENU_FALLBACK_LIMIT)
+        .get(),
+    )),
+    Promise.all(tenantIds.map((id) =>
+      adminDb()
+        .collection("menuItems")
+        .where("tenantId", "==", id)
+        .limit(PUBLIC_MENU_FALLBACK_LIMIT)
+        .get(),
+    )),
   ]);
 
-  return toPublicMenuDocs([...menusSnapshot.docs, ...menuItemsSnapshot.docs].map((item) => docToJson<MenuDoc>(item)));
+  return toPublicMenuDocs([...menusSnapshots, ...menuItemsSnapshots].flatMap((snapshot) => snapshot.docs.map((item) => docToJson<MenuDoc>(item))), tenantId);
 }
 
-function toPublicMenuDocs(docs: MenuDoc[]) {
+function toPublicMenuDocs(docs: MenuDoc[], requestedTenantId?: string) {
   const publicDocs = docs
     .filter((item) =>
       !item.isDeleted &&
+      !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) &&
       !isLegacySeededPublicMenuDoc(item) &&
       item.available !== false &&
       (item as MenuDoc & { soldOut?: boolean }).soldOut !== true &&
@@ -436,7 +514,8 @@ function toPublicMenuDocs(docs: MenuDoc[]) {
       typeof item.name === "string" &&
       typeof item.price === "number" &&
       typeof item.restaurantId === "string",
-    );
+    )
+    .map((item) => normalizePublicMenuTenant(item, requestedTenantId));
 
   return Array.from(new Map(publicDocs.map((item) => [item.id, item])).values())
     .map(toPublicMenuDoc)
@@ -458,28 +537,62 @@ function isVisibleOnCustomerMenuChannel(item: MenuDoc) {
 function isSameTenant(doc: Partial<MenuDoc | OfferDoc | RestaurantDoc>, tenantId: string) {
   const candidate = doc as { tenantId?: string; restaurantId?: string; id?: string };
   const docTenant = candidate.tenantId ?? candidate.restaurantId ?? candidate.id;
-  return Boolean(docTenant && resolveTenantId(docTenant) === tenantId);
+  if (!docTenant) return false;
+  const resolvedDocTenant = resolveTenantId(docTenant);
+  return resolvedDocTenant === tenantId || (isCafeAlArabTenantId(resolvedDocTenant) && isCafeAlArabTenantId(tenantId));
+}
+
+function normalizePublicMenuTenant(item: MenuDoc, requestedTenantId?: string): MenuDoc {
+  if (!requestedTenantId || !isCafeAlArabTenantId(requestedTenantId) || !isCafeAlArabTenantId(item.tenantId ?? item.restaurantId)) return item;
+  return {
+    ...item,
+    tenantId: DEFAULT_RESTAURANT_ID,
+    restaurantId: DEFAULT_RESTAURANT_ID,
+  };
+}
+
+function normalizePublicOfferTenant(item: OfferDoc, requestedTenantId?: string): OfferDoc {
+  const itemTenant = item.tenantId ?? item.restaurantId;
+  if (!isCafeAlArabTenantId(itemTenant) || (requestedTenantId && !isCafeAlArabTenantId(requestedTenantId))) return item;
+  return {
+    ...item,
+    tenantId: DEFAULT_RESTAURANT_ID,
+    restaurantId: DEFAULT_RESTAURANT_ID,
+  };
+}
+
+function dedupePublicOffers(docs: OfferDoc[]) {
+  return Array.from(
+    new Map(docs.map((item) => [`${item.tenantId ?? ""}:${item.code || item.id}`.toLowerCase(), item])).values(),
+  );
 }
 
 export async function getPublicOfferDocs(restaurantId?: string) {
   if (!hasAdminFirestoreCredentials()) return getPublicOfferDocsFromRest(restaurantId);
 
-  let offersQuery = adminDb()
-    .collection("offers")
-    .where("active", "==", true);
-
-  if (restaurantId) {
-    offersQuery = offersQuery.where("tenantId", "==", resolveTenantId(restaurantId));
-  }
-
   try {
-    const snapshot = await offersQuery.limit(restaurantId ? 50 : 100).get();
+    const requestedTenantId = restaurantId ? resolveTenantId(restaurantId) : undefined;
+    const tenantIds = requestedTenantId ? publicTenantAliases(requestedTenantId) : undefined;
+    const snapshots = tenantIds?.length
+      ? await Promise.all(tenantIds.map((tenantId) =>
+        adminDb()
+          .collection("offers")
+          .where("active", "==", true)
+          .where("tenantId", "==", tenantId)
+          .limit(50)
+          .get(),
+      ))
+      : [await adminDb()
+        .collection("offers")
+        .where("active", "==", true)
+        .limit(100)
+        .get()];
 
-    const docs = snapshot.docs
+    const docs = snapshots.flatMap((snapshot) => snapshot.docs)
       .map((item) => docToJson<OfferDoc>(item))
-      .filter((item) => item.active && !item.isDeleted && isOfferCurrentlyVisible(item))
-      .map(toPublicOfferDoc);
-    return docs;
+      .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && (!requestedTenantId || isSameTenant(item, requestedTenantId)) && isOfferCurrentlyVisible(item))
+      .map((item) => toPublicOfferDoc(normalizePublicOfferTenant(item, requestedTenantId)));
+    return dedupePublicOffers(docs);
   } catch (error) {
     if (isAdminCredentialError(error)) return getPublicOfferDocsFromRest(restaurantId);
     throw new Error("Unable to load public offers.");
@@ -488,7 +601,7 @@ export async function getPublicOfferDocs(restaurantId?: string) {
 
 async function getPublicOfferDocsFromRest(restaurantId?: string) {
   const tenantId = restaurantId ? resolveTenantId(restaurantId) : undefined;
-  const tenantIds = tenantId ? [tenantId] : publicRestaurantIds().map(resolveTenantId);
+  const tenantIds = tenantId ? publicTenantAliases(tenantId) : expandedPublicRestaurantIds().map(resolveTenantId);
   const docs = (await Promise.all(
     tenantIds.map((id) =>
       runPublicFirestoreQuery<OfferDoc>("offers", {
@@ -501,9 +614,9 @@ async function getPublicOfferDocsFromRest(restaurantId?: string) {
     ),
   )).flat();
 
-  return docs
-    .filter((item) => item.active && !item.isDeleted && (!tenantId || isSameTenant(item, tenantId)) && isOfferCurrentlyVisible(item))
-    .map(toPublicOfferDoc);
+  return dedupePublicOffers(docs
+    .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && (!tenantId || isSameTenant(item, tenantId)) && isOfferCurrentlyVisible(item))
+    .map((item) => toPublicOfferDoc(normalizePublicOfferTenant(item, tenantId))));
 }
 
 export async function getPublicCategoryDocs() {
@@ -624,6 +737,7 @@ export async function getPublicReviewDocs(restaurantId: string, menuItemId?: str
 function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
   const extra = doc as RestaurantDoc & {
     approved?: boolean;
+    displayName?: string;
     rating?: number;
     deliveryTime?: string;
     etaMinutes?: number;
@@ -642,11 +756,15 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     profileComplete?: boolean;
     publicListingEnabled?: boolean;
   };
+  const cafeAlArab = isCafeAlArabRestaurantDoc(doc);
+  const publicRestaurantId = cafeAlArab ? DEFAULT_RESTAURANT_ID : doc.id;
+  const publicRestaurantName = cafeAlArab ? "Cafe Al Arab UL" : doc.name;
   return {
-    id: doc.id,
-    tenantId: doc.tenantId,
-    name: doc.name,
-    slug: doc.slug,
+    id: publicRestaurantId,
+    tenantId: cafeAlArab ? DEFAULT_RESTAURANT_ID : doc.tenantId,
+    name: publicRestaurantName,
+    displayName: cafeAlArab ? publicRestaurantName : extra.displayName,
+    slug: cafeAlArab ? DEFAULT_RESTAURANT_ID : doc.slug,
     ownerIds: doc.ownerIds ?? [],
     ownerId: doc.ownerId ?? doc.ownerIds?.[0],
     branchId: doc.branchId ?? doc.primaryBranchId,

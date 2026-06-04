@@ -6,16 +6,19 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## In Progress
 
-- [ ] Live Firestore data integrity verification for Cafe Al Arab owner/menu/offer/schedule mappings. Code paths and seed/demo leakage were fixed locally on 2026-06-04; final live database audit/repair still needs authenticated Firestore execution against the target environment.
+- [ ] Live Firestore Cafe Al Arab cleanup approval. Authenticated audit against `sarva-food-app` completed on 2026-06-04; application guards are fixed, but the targeted live soft-delete of `restaurants/test-owner` and its seeded related docs requires explicit approval because it changes shared Firebase data.
 
 ## Blocked / External Access Required
 
-- [ ] Verify and repair the live Cafe Al Arab Firestore relationship so `Cafe Al Arab` / `cafe-al-arab-thanisandra` is owned by `divakdi@gmail.com` only, with no Test Owner records, duplicate active restaurants, orphan menu items, or stale seeded offers. Requires running the audit/repair against the intended Firebase project.
+- [ ] Explicit approval required to apply the live Firebase repair: soft-delete `restaurants/test-owner`, related seeded docs under tenant/restaurant/owner `test-owner`, and normalize `restaurants/cafe-al-arab-thanisandra` display name to `Cafe Al Arab UL`. Audit found Cafe Al Arab is owned by Firebase uid `7EFvpGe3tqNpMHOcmPMFFmq8bGk1`; `test-owner` is still active and linked to `divakdi@gmail.com`; Cafe Al Arab currently has only menu header documents and no public food item docs in `menus`/`menuItems`.
 - [ ] Deploy the latest verified application build to Hostinger. Local build verification passed on 2026-06-01; final deployment requires Hostinger hPanel/GitHub deployment access.
 - [ ] Configure and verify the production outage alert recipient in Hostinger and Admin CMS. The Hostinger env template is ready; final setup requires Hostinger environment access and production Admin CMS login.
 
 ## Completed
 
+- [x] Cafe Al Arab restaurant detail console cleanup completed on 2026-06-04: customer footer CMS branding now renders the same fallback snapshot during server/client hydration, then switches to cached CMS after hydration, removing the `NAMMUDE` vs `Sarva Food` mismatch.
+- [x] Cafe Al Arab public mapping hardening completed on 2026-06-04: server public restaurant/menu/offer APIs now collapse Cafe Al Arab aliases to `cafe-al-arab-thanisandra`/`Cafe Al Arab UL`, bridge Cafe alias menu and offer tenant ids, and block legacy demo tenants such as `test-owner` from public restaurant/menu responses.
+- [x] Live Cafe Al Arab Firestore audit completed on 2026-06-04: verified `/api/public/restaurants?slug=cafe-al-arab-thanisandra` returns the normalized Cafe Al Arab UL launch record, `/api/public/menu?restaurantId=cafe-al-arab-thanisandra` returns no food items because no Cafe public item docs exist, and the stale active `test-owner` tenant remains a separate live-data repair.
 - [x] Customer home width/category cleanup completed on 2026-06-04: the fixed `1180px` homepage restaurant/item sections now use the full shared page width, Admin-master categories render without hard borders, and category chips include lighter hover animation.
 - [x] Public header/profile cleanup completed on 2026-06-04: desktop address/search controls are right-aligned, the stale/fake `Gold Member` profile card row was removed, logout immediately hides the customer profile state, and the extra desktop create-account action was removed from the header.
 - [x] Customer login/profile completion cleanup completed on 2026-06-04: Google/customer login defaults to the homepage, while missing customer phone numbers still route to `/profile?phoneRequired=1` and now focus the phone number field.

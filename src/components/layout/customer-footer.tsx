@@ -7,7 +7,7 @@ import { SafeImage } from "@/components/media/safe-image";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
-import { PUBLIC_CMS_CACHE_EVENT, initialPublicCmsSettings, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
+import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsSettings } from "@/lib/types";
 
@@ -15,11 +15,13 @@ type FooterSection = NonNullable<CmsSettings["footer"]["sections"]>[number];
 type FooterLink = FooterSection["links"][number];
 
 export function CustomerFooter() {
-  const cachedSettings = useSyncExternalStore(subscribePublicCmsSettings, getPublicCmsSettingsSnapshot, getPublicCmsSettingsServerSnapshot);
+  const cachedSettings = useSyncExternalStore(subscribePublicCmsSettings, readCachedPublicCmsSettings, emptyPublicCmsSnapshot);
+  const hydrated = useSyncExternalStore(subscribeHydration, browserHydratedSnapshot, serverHydratedSnapshot);
   const storedSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
+  const settingsSource = hydrated ? cachedSettings ?? storedSettings : defaultCmsSettings;
   const cmsSettings = useMemo(
-    () => resolveCmsSettings(cachedSettings ?? storedSettings ?? defaultCmsSettings),
-    [cachedSettings, storedSettings],
+    () => resolveCmsSettings(settingsSource),
+    [settingsSource],
   );
 
   if (cmsSettings.footer?.visible === false) return null;
@@ -210,18 +212,29 @@ function isExternalHref(href?: string) {
 
 function subscribePublicCmsSettings(callback: () => void) {
   if (typeof window === "undefined") return () => undefined;
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === PUBLIC_CMS_CACHE_KEY) callback();
+  };
   window.addEventListener(PUBLIC_CMS_CACHE_EVENT, callback);
-  window.addEventListener("storage", callback);
+  window.addEventListener("storage", handleStorage);
   return () => {
     window.removeEventListener(PUBLIC_CMS_CACHE_EVENT, callback);
-    window.removeEventListener("storage", callback);
+    window.removeEventListener("storage", handleStorage);
   };
 }
 
-function getPublicCmsSettingsSnapshot() {
-  return readCachedPublicCmsSettings();
+function emptyPublicCmsSnapshot(): CmsSettings | null {
+  return null;
 }
 
-function getPublicCmsSettingsServerSnapshot() {
-  return initialPublicCmsSettings();
+function subscribeHydration() {
+  return () => undefined;
+}
+
+function browserHydratedSnapshot() {
+  return true;
+}
+
+function serverHydratedSnapshot() {
+  return false;
 }
