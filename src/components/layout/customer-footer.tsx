@@ -7,6 +7,7 @@ import { SafeImage } from "@/components/media/safe-image";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
+import { APP_DESCRIPTION } from "@/lib/constants";
 import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsSettings } from "@/lib/types";
@@ -49,7 +50,7 @@ export function CustomerFooter() {
             <div>
               <p className="text-xl font-black">{appName}</p>
               <p className="mt-1 max-w-48 text-sm font-semibold leading-6 text-muted-foreground">
-                {branding.appDescription || "Order from verified nearby restaurants."}
+                {branding.appDescription || APP_DESCRIPTION}
               </p>
             </div>
           </div>

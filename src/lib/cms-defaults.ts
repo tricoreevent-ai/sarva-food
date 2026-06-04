@@ -1,5 +1,5 @@
 import type { CmsSettings } from "@/lib/types";
-import { APP_NAME } from "@/lib/constants";
+import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 
 export const RESPONSIBILITY_DISCLAIMER =
@@ -15,7 +15,7 @@ export const defaultCmsSettings: CmsSettings = {
     shortName: "Sarva",
     logoUrl: "/icons/sarva-icon.svg",
     faviconUrl: "/icons/sarva-icon.svg",
-    appDescription: "Order from verified nearby restaurants.",
+    appDescription: APP_DESCRIPTION,
     supportEmail: "support@sarvafood.com",
     supportPhone: "",
     onboardingEmail: "partners@sarvafood.com",
@@ -23,8 +23,8 @@ export const defaultCmsSettings: CmsSettings = {
   },
   disclaimer: RESPONSIBILITY_DISCLAIMER,
   homepage: {
-    title: "Craving something delicious?",
-    subtitle: "Order from verified nearby restaurants with live menus, quick delivery, and direct restaurant support.",
+    title: "Connect Directly with Restaurants",
+    subtitle: "Skip the middlemen and order directly from local restaurants. Browse real-time menus, access exclusive restaurant offers, schedule deliveries, and communicate directly with restaurant owners for a faster, more transparent food ordering experience.",
     visible: true,
     ctaText: "Find Food",
     ctaLink: "/restaurants",
@@ -173,9 +173,9 @@ export const defaultCmsSettings: CmsSettings = {
     ],
   },
   seo: {
-    title: APP_NAME,
-    description: "Order from verified nearby restaurants.",
-    keywords: ["food delivery", "restaurants", "Kerala food", "Biryani"],
+    title: APP_DEFAULT_TITLE,
+    description: APP_DESCRIPTION,
+    keywords: APP_SEO_KEYWORDS,
   },
   cmsVersion: CMS_VERSION,
   announcements: [

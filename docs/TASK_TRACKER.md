@@ -16,6 +16,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] SEO/title/restaurant indexing update completed on 2026-06-04: root metadata, Open Graph/Twitter descriptions, keywords, PWA manifest copy, CMS default homepage copy, visible homepage direct-restaurant messaging, restaurant detail dynamic metadata, and restaurant sitemap entries now use the direct restaurant-to-customer positioning.
 - [x] Cafe Al Arab restaurant detail console cleanup completed on 2026-06-04: customer footer CMS branding now renders the same fallback snapshot during server/client hydration, then switches to cached CMS after hydration, removing the `NAMMUDE` vs `Sarva Food` mismatch.
 - [x] Cafe Al Arab public mapping hardening completed on 2026-06-04: server public restaurant/menu/offer APIs now collapse Cafe Al Arab aliases to `cafe-al-arab-thanisandra`/`Cafe Al Arab UL`, bridge Cafe alias menu and offer tenant ids, and block legacy demo tenants such as `test-owner` from public restaurant/menu responses.
 - [x] Live Cafe Al Arab Firestore audit completed on 2026-06-04: verified `/api/public/restaurants?slug=cafe-al-arab-thanisandra` returns the normalized Cafe Al Arab UL launch record, `/api/public/menu?restaurantId=cafe-al-arab-thanisandra` returns no food items because no Cafe public item docs exist, and the stale active `test-owner` tenant remains a separate live-data repair.

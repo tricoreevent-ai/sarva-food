@@ -11,17 +11,18 @@ import { AppToaster } from "@/components/ui/app-toaster";
 import { I18nProvider } from "@/lib/i18n";
 import { MapboxProvider } from "@/components/maps/mapbox-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { APP_DESCRIPTION, APP_NAME } from "@/lib/constants";
+import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://sarva-food.example"),
   title: {
-    default: `${APP_NAME} Commerce Ecosystem`,
+    default: APP_DEFAULT_TITLE,
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
+  keywords: APP_SEO_KEYWORDS,
   manifest: "/manifest.json",
   applicationName: APP_NAME,
   appleWebApp: {
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
     apple: "/icons/sarva-icon.svg",
   },
   openGraph: {
-    title: `${APP_NAME} Commerce Ecosystem`,
+    title: APP_DEFAULT_TITLE,
     description: APP_DESCRIPTION,
     siteName: APP_NAME,
     type: "website",
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${APP_NAME} Commerce Ecosystem`,
+    title: APP_DEFAULT_TITLE,
     description: APP_DESCRIPTION,
   },
 };

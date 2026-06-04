@@ -40,6 +40,18 @@ import { customerFavoriteId, deleteCustomerFavoriteRestaurant, saveCustomerFavor
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
+const DIRECT_HOMEPAGE_TITLE = "Connect Directly with Restaurants";
+const DIRECT_HOMEPAGE_SUBTITLE =
+  "Skip the middlemen and order directly from local restaurants. Browse real-time menus, access exclusive restaurant offers, schedule deliveries, and communicate directly with restaurant owners for a faster, more transparent food ordering experience.";
+const DIRECT_HOMEPAGE_HEADING = "Order Directly From Restaurants Near You";
+const DIRECT_HOMEPAGE_SUPPORT =
+  "Skip the aggregators and connect directly with restaurant owners for better prices, exclusive offers, and a more personal food ordering experience.";
+const DIRECT_HOMEPAGE_TAGLINE = "Direct Restaurant. Direct Customer. No Third Party.";
+const STALE_DEFAULT_HOME_TITLES = new Set(["craving something delicious?"]);
+const STALE_DEFAULT_HOME_SUBTITLES = new Set([
+  "order from verified nearby restaurants with live menus, quick delivery, and direct restaurant support.",
+]);
+
 export function CustomerDiscoveryHome() {
   const router = useRouter();
   const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants({ preloadPrimaryMenu: true });
@@ -212,6 +224,8 @@ export function CustomerDiscoveryHome() {
   const freeDeliveryTarget = heroRestaurant.deliverySettings?.freeDeliveryAbove;
   const freeDeliveryProgress = freeDeliveryTarget ? Math.min(100, Math.round((cartSubtotal / freeDeliveryTarget) * 100)) : 0;
   const freeDeliveryRemaining = freeDeliveryTarget ? Math.max(0, freeDeliveryTarget - cartSubtotal) : 0;
+  const homepageTitle = resolveDirectHomepageTitle(cmsSettings.homepage?.title);
+  const homepageSubtitle = resolveDirectHomepageSubtitle(cmsSettings.homepage?.subtitle);
 
   return (
     <main className="min-h-screen overflow-hidden pb-8 md:pb-16">
@@ -259,8 +273,9 @@ export function CustomerDiscoveryHome() {
         <div className="relative mt-4 grid grid-cols-[1fr_7.6rem] items-end gap-1">
           <div className="pb-2">
             <p className="text-[0.98rem] font-black tracking-normal">{customerFirstName ? `Good Morning, ${customerFirstName}!` : "Good Morning!"}</p>
-            <h1 className="mt-2 max-w-[14.5rem] text-[1.95rem] font-black leading-[1.04] tracking-normal">
-              What&apos;s on your <span className="text-primary">mind today?</span>
+            <p className="mt-2 max-w-[13.5rem] text-xs font-black uppercase tracking-normal text-primary">{DIRECT_HOMEPAGE_TAGLINE}</p>
+            <h1 className="mt-2 max-w-[15.5rem] text-[1.72rem] font-black leading-[1.06] tracking-normal">
+              {DIRECT_HOMEPAGE_HEADING}
             </h1>
           </div>
           <div className="relative h-32 overflow-visible">
@@ -322,14 +337,17 @@ export function CustomerDiscoveryHome() {
         <div className="container-page pt-6">
           <div className="relative min-h-[22.5rem] overflow-hidden rounded-[1.35rem] bg-[linear-gradient(110deg,#fff7ef_0%,#fffdf9_47%,#ffe5d3_100%)] px-10 py-10 shadow-[0_22px_70px_rgba(255,90,47,0.12)] ring-1 ring-orange-100 lg:px-16">
             <div className="relative z-10 max-w-xl">
-              {cmsSettings.homepage?.visible !== false && cmsSettings.homepage.title ? (
+              {cmsSettings.homepage?.visible !== false && homepageTitle ? (
+                <p className="mb-4 text-sm font-black uppercase tracking-normal text-primary">{DIRECT_HOMEPAGE_TAGLINE}</p>
+              ) : null}
+              {cmsSettings.homepage?.visible !== false && homepageTitle ? (
                 <h1 className="text-5xl font-black leading-[1.05] tracking-normal xl:text-[3.65rem]">
-                  {cmsSettings.homepage.title}
+                  {homepageTitle}
                 </h1>
               ) : null}
-              {cmsSettings.homepage?.visible !== false && cmsSettings.homepage.subtitle ? (
+              {cmsSettings.homepage?.visible !== false && homepageSubtitle ? (
                 <p className="mt-5 max-w-md text-lg leading-8 text-muted-foreground">
-                  {cmsSettings.homepage.subtitle}
+                  {homepageSubtitle}
                 </p>
               ) : null}
               <div className="mt-7 flex max-w-xl items-center gap-3">
@@ -367,6 +385,19 @@ export function CustomerDiscoveryHome() {
               <span className="absolute bottom-20 left-24 size-8 rounded-full bg-green-500/80 shadow-lg" />
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="container-page py-5 md:py-7">
+        <div className="grid gap-4 rounded-2xl bg-white p-5 shadow-sm md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-7">
+          <div>
+            <p className="text-xs font-black uppercase tracking-normal text-primary">Why Choose Sarva Food?</p>
+            <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">Food Ordering Without Middlemen</h2>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{DIRECT_HOMEPAGE_SUPPORT}</p>
+          </div>
+          <p className="text-sm font-semibold leading-7 text-muted-foreground md:text-base md:leading-8">
+            Sarva Food is a direct-to-customer restaurant platform where customers connect directly with restaurant owners. Discover local restaurants, access genuine offers, view real-time menus, and place orders without relying on third-party aggregators. Better communication, better pricing, and a more transparent food ordering experience.
+          </p>
         </div>
       </section>
 
@@ -711,4 +742,16 @@ function statusLabel(status: string, permission: string) {
   if (permission === "granted") return "GPS location active";
   if (permission === "denied") return "Using selected delivery area";
   return status || "Choose delivery location";
+}
+
+function resolveDirectHomepageTitle(value?: string) {
+  const normalized = value?.trim();
+  if (!normalized || STALE_DEFAULT_HOME_TITLES.has(normalized.toLowerCase())) return DIRECT_HOMEPAGE_TITLE;
+  return normalized;
+}
+
+function resolveDirectHomepageSubtitle(value?: string) {
+  const normalized = value?.trim();
+  if (!normalized || STALE_DEFAULT_HOME_SUBTITLES.has(normalized.toLowerCase())) return DIRECT_HOMEPAGE_SUBTITLE;
+  return normalized;
 }
