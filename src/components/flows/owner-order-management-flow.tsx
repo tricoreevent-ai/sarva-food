@@ -61,8 +61,25 @@ export function OwnerOrderManagementFlow() {
   const [operationsOpen, setOperationsOpen] = useState(true);
   const firebaseEnabled = shouldUseFirebase();
   const authUser = useAppStore((state) => state.authUser);
-  const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
-  const firebaseQueue = useRestaurantOrders(firebaseEnabled ? restaurantId : undefined);
+  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
+  const restaurants = useAppStore((state) => state.restaurants);
+  const restaurantIds = useMemo(() => {
+    const ownedRestaurants = restaurants.filter((restaurant) =>
+      restaurant.slug === authUser.restaurantSlug ||
+      restaurant.id === authUser.restaurantSlug ||
+      restaurant.tenantId === authUser.tenantId ||
+      restaurant.ownerId === authUser.id ||
+      restaurant.ownerIds?.includes(authUser.id),
+    );
+    return Array.from(new Set([
+      authUser.restaurantSlug,
+      authUser.tenantId,
+      ...ownedRestaurants.flatMap((restaurant) => [restaurant.slug, restaurant.id, restaurant.tenantId]),
+      ownerBusinessProfile?.completed ? DEFAULT_RESTAURANT_ID : undefined,
+      DEFAULT_RESTAURANT_ID,
+    ].filter((id): id is string => Boolean(id))));
+  }, [authUser.id, authUser.restaurantSlug, authUser.tenantId, ownerBusinessProfile?.completed, restaurants]);
+  const firebaseQueue = useRestaurantOrders(firebaseEnabled ? restaurantIds : undefined);
   const localOrders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
   const cateringInquiries = useAppStore((state) => state.cateringInquiries);
@@ -70,7 +87,13 @@ export function OwnerOrderManagementFlow() {
   const updateTableOrderStatus = useAppStore((state) => state.updateTableOrderStatus);
   const updateCateringInquiryStatus = useAppStore((state) => state.updateCateringInquiryStatus);
   const convertCateringInquiryToOrder = useAppStore((state) => state.convertCateringInquiryToOrder);
-  const orders = firebaseQueue.orders.length ? firebaseQueue.orders.map(toDemoOrder) : localOrders;
+  const firebaseOrders = useMemo(() => firebaseQueue.orders.map(toDemoOrder), [firebaseQueue.orders]);
+  const firebaseOrderIds = useMemo(() => new Set(firebaseQueue.orders.map((order) => order.id)), [firebaseQueue.orders]);
+  const orders = useMemo(() => {
+    const merged = new Map(localOrders.map((order) => [order.id, order]));
+    for (const order of firebaseOrders) merged.set(order.id, order);
+    return Array.from(merged.values());
+  }, [firebaseOrders, localOrders]);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders), [orders, tableOrders]);
   const tabOrders = mappedOrders.filter((order) => matchesTab(order, tab));
   const tabCatering = cateringInquiries.filter((quote) => matchesCateringTab(quote, tab));
@@ -80,7 +103,7 @@ export function OwnerOrderManagementFlow() {
   const filters = buildFilters(tabOrders, tabCatering);
 
   async function updateOrder(orderId: string, status: OrderStatus) {
-    if (firebaseEnabled) {
+    if (firebaseEnabled && firebaseOrderIds.has(orderId)) {
       await updateFirebaseOrderStatus(orderId, status).catch(() => undefined);
       return;
     }

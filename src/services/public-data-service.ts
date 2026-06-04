@@ -5,6 +5,7 @@ import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc } 
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { readCachedPublicCmsSettings, writeCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { sortOffers } from "@/lib/offer-engine";
+import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
 export type PublicDataStatus = "idle" | "loading" | "success" | "error";
@@ -80,7 +81,8 @@ async function fetchPublicRestaurants(slug?: string) {
   return docs
     .filter(isPublicRestaurantListable)
     .map((item) => restaurantDocToUi(item))
-    .filter((item) => item.approved !== false);
+    .filter((item) => item.approved !== false)
+    .reduce<Restaurant[]>((items, item) => mergePublicRestaurant(items, item), []);
 }
 
 async function fetchPublicCategories() {
@@ -434,7 +436,7 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     ownerId: doc.ownerId ?? doc.ownerIds?.[0],
     branchId: doc.branchId ?? doc.primaryBranchId,
     ownerIds: doc.ownerIds,
-    name: doc.name,
+    name: normalizePublicRestaurantName(doc),
     slug: doc.slug,
     cuisine: textList(doc.cuisine),
     location: doc.location || doc.address || "",
@@ -445,7 +447,8 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     logo: withCloudinaryAuto(doc.logoPath || ""),
     coverImage: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || ""),
     coverImages: coverImagePaths.map(withCloudinaryAuto).filter(Boolean),
-    isOpen: doc.active,
+    active: doc.active,
+    isOpen: false,
     tags: extra.tags?.length ? extra.tags : (doc.deliveryRadiusKm ? [`${doc.deliveryRadiusKm} km delivery`] : []),
     instagramHandle: extra.instagramHandle ?? "",
     latitude: doc.latitude,
@@ -476,6 +479,35 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     scheduling: doc.scheduling,
     advancedFeatures: doc.advancedFeatures,
   };
+}
+
+function mergePublicRestaurant(items: Restaurant[], item: Restaurant) {
+  const key = publicRestaurantIdentityKey(item);
+  const existingIndex = items.findIndex((entry) => publicRestaurantIdentityKey(entry) === key);
+  if (existingIndex === -1) return [...items, item];
+  const existing = items[existingIndex];
+  const preferred = preferPublicRestaurant(existing, item);
+  return items.map((entry, index) => (index === existingIndex ? preferred : entry));
+}
+
+function publicRestaurantIdentityKey(restaurant: Pick<Restaurant, "id" | "slug" | "name">) {
+  const text = `${restaurant.slug || restaurant.id || ""} ${restaurant.name || ""}`.toLowerCase();
+  if (text.includes("cafe-al-arab")) return DEFAULT_RESTAURANT_ID;
+  return restaurant.slug || restaurant.id || restaurant.name.trim().toLowerCase();
+}
+
+function preferPublicRestaurant(first: Restaurant, second: Restaurant) {
+  if (second.slug === DEFAULT_RESTAURANT_ID && first.slug !== DEFAULT_RESTAURANT_ID) return second;
+  if (first.slug === DEFAULT_RESTAURANT_ID && second.slug !== DEFAULT_RESTAURANT_ID) return first;
+  const firstScore = Number(Boolean(first.coverImages?.length || first.image)) + Number(Boolean(first.contact?.phone || first.ownerProfile?.businessPhone)) + Number(first.rating ?? 0);
+  const secondScore = Number(Boolean(second.coverImages?.length || second.image)) + Number(Boolean(second.contact?.phone || second.ownerProfile?.businessPhone)) + Number(second.rating ?? 0);
+  return secondScore > firstScore ? second : first;
+}
+
+function normalizePublicRestaurantName(doc: RestaurantDoc) {
+  const text = `${doc.id || ""} ${doc.slug || ""} ${doc.name || ""}`.toLowerCase();
+  if (text.includes("cafe-al-arab")) return "Cafe Al Arab UL";
+  return doc.name;
 }
 
 export function menuDocToUi(id: string, doc: MenuDoc): MenuItem {

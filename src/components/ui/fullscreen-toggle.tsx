@@ -112,13 +112,16 @@ export function FullscreenToggle({ className, compact = false }: { className?: s
             </div>
             <Button
               type="button"
+              size={compact ? "icon" : "default"}
               variant={active ? "outline" : "default"}
               onClick={toggleFullscreen}
               disabled={!mounted || standalone}
-              className={cn("w-full sm:w-auto", compact && "h-9 text-xs")}
+              className={cn("w-full sm:w-auto", compact && "size-9")}
+              title={helperText}
+              aria-label={active ? "Exit fullscreen app view" : "Enter fullscreen app view"}
             >
               {active ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-              {active ? "Exit fullscreen" : "Enter fullscreen"}
+              {!compact ? (active ? "Exit fullscreen" : "Enter fullscreen") : null}
             </Button>
           </div>
           {message ? <p className="mt-2 text-xs font-bold text-primary">{message}</p> : null}

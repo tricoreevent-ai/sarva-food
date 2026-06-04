@@ -65,7 +65,7 @@ const rolePermissions = {
 
 const seedUsers = [
   { uid: "dinucd@gmail.com", email: "dinucd@gmail.com", displayName: "Platform Admin", role: "admin", password: "password123" },
-  { uid: "divakdi@gmail.com", email: "divakdi@gmail.com", displayName: "Test Owner", role: "owner", password: "password123" },
+  { uid: "divakdi@gmail.com", email: "divakdi@gmail.com", displayName: "divakdi@gmail.com", role: "owner", password: "password123" },
   { uid: "test-manager", email: "manager@sarva.test", displayName: "Test Manager", role: "manager", password: "password123" },
   { uid: "test-cashier", email: "cashier@sarva.test", displayName: "Test Cashier", role: "cashier", password: "password123" },
   { uid: "test-chef", email: "chef@sarva.test", displayName: "Test Chef", role: "chef", password: "password123" },
@@ -286,9 +286,6 @@ const thanisandraDeliveryLocation = {
   longitude: 77.6325,
 };
 
-const offerStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
-const offerEnd = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-
 const thanisandraRestaurantSeeds = [
   {
     id: "itminaan-biryani-thanisandra",
@@ -306,8 +303,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 24,
     priceForTwo: 500,
     deliveryFee: 35,
-    offer: { code: "DUM15", title: "15% off dum biryani", discountType: "percentage", discountValue: 15, minimumOrder: 399 },
-    tags: ["Dum biryani", "Family packs", "Offers available", "Chicken biryani"],
+    tags: ["Dum biryani", "Family packs", "Chicken biryani"],
     menus: [
       ["slow-cooked-dum-chicken-biryani", "Slow Cooked Dum Chicken Biryani", "Biryani", 329, false, "nonveg", "Layered dum biryani with tender chicken, saffron rice, salan, and raita.", "popular"],
       ["paneer-dum-biryani", "Paneer Dum Biryani", "Biryani", 299, true, "veg", "Paneer cubes and long grain rice sealed with mild spices.", "veg"],
@@ -331,8 +327,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 28,
     priceForTwo: 700,
     deliveryFee: 39,
-    offer: { code: "SHARIEF100", title: "Flat ₹100 off family pack", discountType: "flat", discountValue: 100, minimumOrder: 799 },
-    tags: ["Mutton biryani", "Kebab", "Family packs", "Offers available"],
+    tags: ["Mutton biryani", "Kebab", "Family packs"],
     menus: [
       ["mutton-dum-biryani", "Mutton Dum Biryani", "Biryani", 399, false, "nonveg", "Aromatic rice and slow-cooked mutton with salan.", "popular"],
       ["chicken-seekh-kebab", "Chicken Seekh Kebab", "Kebab", 289, false, "nonveg", "Charred seekh kebabs with onion and mint.", "bestseller"],
@@ -356,8 +351,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 25,
     priceForTwo: 450,
     deliveryFee: 29,
-    offer: { code: "MAAYAFISH", title: "Seafood combo 12% off", discountType: "percentage", discountValue: 12, minimumOrder: 349 },
-    tags: ["Fish fry", "Chicken biryani", "Street food", "Offers available"],
+    tags: ["Fish fry", "Chicken biryani", "Street food"],
     menus: [
       ["andhra-chicken-biryani", "Andhra Chicken Biryani", "Biryani", 289, false, "nonveg", "Spicy chicken biryani with mirchi salan.", "popular"],
       ["fish-fry-meal", "Fish Fry Meal", "Seafood", 349, false, "nonveg", "Fried seer fish with rice, curry, and salad.", "bestseller"],
@@ -386,8 +380,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 30,
     priceForTwo: 650,
     deliveryFee: 45,
-    offer: { code: "ARABIC20", title: "20% off grilled platters", discountType: "percentage", discountValue: 20, minimumOrder: 599 },
-    tags: ["Shawarma", "Al faham", "Mandi", "Offers available"],
+    tags: ["Shawarma", "Al faham", "Mandi"],
     menus: [
       ["chicken-shawarma-roll", "Chicken Shawarma Roll", "Shawarma", 149, false, "nonveg", "Juicy chicken shawarma with garlic sauce.", "popular"],
       ["alfaham-half", "Al Faham Chicken Half", "Grills", 379, false, "nonveg", "Charcoal grilled chicken with kuboos and dips.", "bestseller"],
@@ -411,8 +404,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 22,
     priceForTwo: 400,
     deliveryFee: 25,
-    offer: { code: "VEG50", title: "Flat ₹50 off pure veg orders", discountType: "flat", discountValue: 50, minimumOrder: 299 },
-    tags: ["Pure veg", "Paneer", "Chaat", "Offers available"],
+    tags: ["Pure veg", "Paneer", "Chaat"],
     menus: [
       ["paneer-butter-masala", "Paneer Butter Masala", "North Indian", 249, true, "veg", "Paneer simmered in rich tomato makhani gravy.", "popular"],
       ["veg-biryani-raita", "Veg Biryani with Raita", "Biryani", 219, true, "veg", "Comforting veg biryani with cool raita.", "veg"],
@@ -436,8 +428,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 20,
     priceForTwo: 550,
     deliveryFee: 29,
-    offer: { code: "COFFEE99", title: "Coffee and snack at ₹99 off", discountType: "flat", discountValue: 99, minimumOrder: 399 },
-    tags: ["Coffee", "Sandwich", "Pasta", "Offers available"],
+    tags: ["Coffee", "Sandwich", "Pasta"],
     menus: [
       ["cappuccino", "Cappuccino", "Coffee", 149, true, "veg", "Fresh espresso with velvety steamed milk.", "popular"],
       ["peri-peri-paneer-sandwich", "Peri Peri Paneer Sandwich", "Sandwiches", 229, true, "veg", "Grilled paneer sandwich with peri peri spread.", "veg"],
@@ -461,8 +452,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 32,
     priceForTwo: 750,
     deliveryFee: 49,
-    offer: { code: "BAKE20", title: "20% off cakes and bakes", discountType: "percentage", discountValue: 20, minimumOrder: 499 },
-    tags: ["Bakery", "Cake", "Croissant", "Pizza", "Offers available"],
+    tags: ["Bakery", "Cake", "Croissant", "Pizza"],
     menus: [
       ["butter-croissant", "Butter Croissant", "Bakery", 159, true, "veg", "Flaky butter croissant baked fresh.", "popular"],
       ["chocolate-truffle-slice", "Chocolate Truffle Slice", "Desserts", 189, true, "veg", "Dense chocolate truffle pastry slice.", "bestseller"],
@@ -486,8 +476,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 18,
     priceForTwo: 220,
     deliveryFee: 20,
-    offer: { code: "JUICE2", title: "Buy 2 coolers, save 10%", discountType: "percentage", discountValue: 10, minimumOrder: 199 },
-    tags: ["Juice", "Milkshake", "Fresh fruit", "Offers available"],
+    tags: ["Juice", "Milkshake", "Fresh fruit"],
     menus: [
       ["watermelon-mint-juice", "Watermelon Mint Juice", "Fresh Juices", 99, true, "vegan", "Fresh watermelon with mint and lime.", "popular"],
       ["mango-milkshake", "Mango Milkshake", "Milkshakes", 139, true, "veg", "Thick mango shake with chilled milk.", "bestseller"],
@@ -516,8 +505,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 38,
     priceForTwo: 2400,
     deliveryFee: 59,
-    offer: { code: "FALAK300", title: "Flat ₹300 off royal dinners", discountType: "flat", discountValue: 300, minimumOrder: 1800 },
-    tags: ["Awadhi", "Kebab", "Premium", "Offers available"],
+    tags: ["Awadhi", "Kebab", "Premium"],
     menus: [
       ["nalli-nihari", "Nalli Nihari", "Awadhi", 799, false, "nonveg", "Slow-cooked lamb shank gravy with kulcha.", "popular"],
       ["murgh-malai-kebab", "Murgh Malai Kebab", "Kebab", 649, false, "nonveg", "Creamy chicken kebab cooked in tandoor.", "bestseller"],
@@ -541,8 +529,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 36,
     priceForTwo: 1800,
     deliveryFee: 59,
-    offer: { code: "QUATTRO15", title: "15% off all-day dining", discountType: "percentage", discountValue: 15, minimumOrder: 1200 },
-    tags: ["Continental", "Breakfast", "Pasta", "Offers available"],
+    tags: ["Continental", "Breakfast", "Pasta"],
     menus: [
       ["classic-caesar-salad", "Classic Caesar Salad", "Salads", 429, true, "veg", "Crunchy romaine with parmesan and croutons.", "veg"],
       ["grilled-chicken-steak", "Grilled Chicken Steak", "Continental", 699, false, "nonveg", "Grilled chicken steak with pepper sauce.", "popular"],
@@ -566,8 +553,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 27,
     priceForTwo: 700,
     deliveryFee: 39,
-    offer: { code: "ANDHRA75", title: "Flat ₹75 off Andhra meals", discountType: "flat", discountValue: 75, minimumOrder: 499 },
-    tags: ["Andhra meals", "Biryani", "Spicy", "Offers available"],
+    tags: ["Andhra meals", "Biryani", "Spicy"],
     menus: [
       ["andhra-meals", "Andhra Veg Meals", "Meals", 229, true, "veg", "Rice, dal, sambar, rasam, poriyal, curd, and pickle.", "veg"],
       ["gongura-chicken", "Gongura Chicken", "Andhra Specials", 349, false, "nonveg", "Chicken cooked with tangy gongura leaves.", "popular"],
@@ -591,8 +577,7 @@ const thanisandraRestaurantSeeds = [
     etaMinutes: 31,
     priceForTwo: 900,
     deliveryFee: 45,
-    offer: { code: "MALABAR15", title: "15% off Kerala specials", discountType: "percentage", discountValue: 15, minimumOrder: 699 },
-    tags: ["Kerala", "Parotta", "Seafood", "Offers available"],
+    tags: ["Kerala", "Parotta", "Seafood"],
     menus: [
       ["kerala-parotta-chicken-curry", "Kerala Parotta with Chicken Curry", "Kerala", 329, false, "nonveg", "Layered parotta served with peppery chicken curry.", "popular"],
       ["fish-nirvana", "Fish Nirvana", "Seafood", 499, false, "nonveg", "Fish simmered in coconut milk and curry leaves.", "bestseller"],
@@ -699,19 +684,7 @@ batch.set(db.collection("appSettings").doc("cms"), {
       sortOrder: 2,
     },
   ],
-  sponsoredAds: [
-    {
-      id: "homepage-falak-offer",
-      title: "Flat ₹300 off royal dinners",
-      subtitle: "Use FALAK300 on Falak favourites above the minimum order.",
-      imageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1200&q=80",
-      mobileImageUrl: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
-      ctaLabel: "Use FALAK300",
-      ctaHref: "/restaurant/falak-leela-bhartiya",
-      visible: true,
-      sortOrder: 1,
-    },
-  ],
+  sponsoredAds: [],
   announcements: [
     {
       id: "homepage-location-ready",
@@ -821,7 +794,7 @@ batch.set(db.collection("restaurants").doc(restaurantId), {
   deliveryTime: "30-40 min",
   etaMinutes: 30,
   priceForTwo: 650,
-  tags: ["Shawarma", "Al faham", "Mandi", "Offers available"],
+  tags: ["Shawarma", "Al faham", "Mandi"],
   contact: {
     phone: "+919900030001",
     whatsapp: "+919900030001",
@@ -892,7 +865,7 @@ batch.set(db.collection("ownerProfiles").doc(primaryOwnerId), {
   tenantId: restaurantId,
   restaurantId,
   branchId,
-  ownerName: "Test Owner",
+  ownerName: "divakdi@gmail.com",
   hotelName: "Cafe Al Arab UL",
   logo: "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1690000000/sarva/cafe-al-arab-logo.png",
   coverImage: "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=1400&q=80",
@@ -912,10 +885,10 @@ batch.set(db.collection("ownerProfiles").doc(primaryOwnerId), {
   gstDetails: "29AABCC1234A1Z5",
   phoneNumber: "+919900030001",
   whatsappNumber: "+919900030001",
-  supportEmail: "cafe-al-arab-thanisandra@sarva.example",
+  supportEmail: "divakdi@gmail.com",
   cateringPhoneNumber: "+919900130001",
   cateringWhatsappNumber: "+919900130001",
-  cateringEmail: "catering.cafe-al-arab@sarva.example",
+  cateringEmail: "divakdi@gmail.com",
   emergencySupportNumber: "+919900230001",
   operatingHours: "10:30 AM - 11:30 PM",
   operatingHoursPreference: "specified",
@@ -1378,29 +1351,12 @@ if (includeSampleOrders) {
   }, { merge: true });
 }
 
-batch.set(db.collection("offers").doc("offer-lunch10"), {
-  id: "offer-lunch10",
-  tenantId: restaurantId,
-  restaurantId,
-  code: "LUNCH10",
-  title: "Weekday lunch 10%",
-  discountType: "percentage",
-  discountValue: 10,
-  minimumOrder: 499,
-  active: true,
-  startsAt: offerStart,
-  endsAt: offerEnd,
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
-
 batch.set(db.collection("socialPosts").doc("social-lunch10"), {
   id: "social-lunch10",
   tenantId: restaurantId,
   restaurantId,
   branchId,
-  headline: "Lunch thali near Indiranagar",
-  offerCode: "LUNCH10",
+  headline: "Lunch menu near Thanisandra",
   status: "pending",
   channels: ["Instagram", "Facebook"],
   createdAt: now,
@@ -1416,19 +1372,6 @@ batch.set(db.collection("deliveryZones").doc("zone-indiranagar-7km"), {
   radiusKm: 7,
   baseFee: 39,
   active: true,
-  createdAt: now,
-  updatedAt: now,
-}, { merge: true });
-
-batch.set(db.collection("coupons").doc("coupon-gold-50"), {
-  id: "coupon-gold-50",
-  tenantId: restaurantId,
-  restaurantId,
-  branchId,
-  customerId: "cust-aanya",
-  code: "GOLD50",
-  value: 50,
-  status: "available",
   createdAt: now,
   updatedAt: now,
 }, { merge: true });
@@ -1524,18 +1467,6 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
     createdAt: now,
   }, { merge: true });
 
-  batchRef.set(db.collection("customerCoupons").doc("coupon-demo-nearby"), {
-    id: "coupon-demo-nearby",
-    customerId: "demo-customer",
-    code: "NEARBY100",
-    title: "Flat ₹100 off nearby restaurants",
-    active: true,
-    status: "available",
-    expiresAt: offerEnd,
-    createdAt: now,
-    updatedAt: now,
-  }, { merge: true });
-
   launchRestaurantSeeds.forEach((restaurant, restaurantIndex) => {
     const branchIdForRestaurant = `br-${restaurant.id}`;
     const restaurantOwnerId = restaurant.id === "cafe-al-arab-thanisandra" ? ownerId : "owner-falak-leela";
@@ -1588,7 +1519,6 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       ...(foodTypes.length ? { foodTypes } : {}),
       ...(popularItems.length ? { popularItems } : {}),
       ...(categories.length ? { categoryTags: categories } : {}),
-      offerCodes: [restaurant.offer.code],
       searchKeywords: [...restaurant.cuisine, ...restaurant.tags, ...popularItems, ...categories],
       tags: restaurant.tags,
       contact: {
@@ -1747,33 +1677,15 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
       });
     }
 
-    batchRef.set(db.collection("offers").doc(`offer-${restaurant.offer.code.toLowerCase()}`), {
-      id: `offer-${restaurant.offer.code.toLowerCase()}`,
-      tenantId: restaurant.id,
-      restaurantId: restaurant.id,
-      code: restaurant.offer.code,
-      title: restaurant.offer.title,
-      discountType: restaurant.offer.discountType,
-      discountValue: restaurant.offer.discountValue,
-      minimumOrder: restaurant.offer.minimumOrder,
-      active: true,
-      startsAt: offerStart,
-      endsAt: offerEnd,
-      createdAt: now,
-      updatedAt: now,
-    }, { merge: true });
-
     if (includeSampleOrders && sampleMenus.length >= 2) {
       const firstItem = sampleMenus[0];
       const secondItem = sampleMenus[1];
       const orderDate = new Date(Date.now() - (restaurantIndex + 1) * 18 * 60 * 60 * 1000);
       const orderId = `order-demo-${restaurant.id}`;
       const subtotal = Number(firstItem[3]) + Number(secondItem[3]);
-      const discount = restaurant.offer.discountType === "flat"
-        ? Math.min(subtotal, restaurant.offer.discountValue)
-        : Math.round(subtotal * (restaurant.offer.discountValue / 100));
-      const tax = Math.round((subtotal - discount) * 0.05);
-      const total = subtotal - discount + restaurant.deliveryFee + tax;
+      const discount = 0;
+      const tax = Math.round(subtotal * 0.05);
+      const total = subtotal + restaurant.deliveryFee + tax;
       const lines = [
         { menuItemId: `${restaurant.id}-${firstItem[0]}`, name: firstItem[1], price: Number(firstItem[3]), quantity: 1 },
         { menuItemId: `${restaurant.id}-${secondItem[0]}`, name: secondItem[1], price: Number(secondItem[3]), quantity: 1 },
@@ -1794,7 +1706,6 @@ function seedThanisandraRestaurants(batchRef, ownerId) {
         status: restaurantIndex % 3 === 0 ? "delivered" : "completed",
         orderType: "delivery",
         lines,
-        offerCode: restaurant.offer.code,
         subtotal,
         discount,
         tax,

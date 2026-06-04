@@ -1,26 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, BarChart3, Boxes, Copy, Download, Edit3, ExternalLink, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Trash2, ToggleLeft, ToggleRight, X } from "lucide-react";
+import { AlertTriangle, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
+import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePublicCategories, usePublicCuisines } from "@/hooks/use-public-data";
+import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
-import { buildQrPayload, calculateRestaurantTax, cloneMenuForChannel, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
+import { buildQrPayload, calculateRestaurantTax, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
 import { advancedMenuItemSchema, comboSchema, taxSettingsSchema } from "@/lib/schemas/menu";
 import type { ComboOffer, InventoryItem, MenuItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -35,6 +40,20 @@ const fallbackImage: string = IMAGE_FALLBACKS.food;
 type ItemWizardStepId = "basic" | "description" | "customization" | "info" | "visibility" | "review";
 type ItemFilterChannel = "all" | MenuChannel;
 type ItemFilterOption = "all" | string;
+type ItemQuickFilter = "all" | "active" | "sold-out" | "veg" | "nonveg" | "delivery" | "parcel" | "dine-in";
+
+const itemListPageSize = 10;
+
+const quickFilterOptions: Array<{ value: ItemQuickFilter; label: string; help: string }> = [
+  { value: "all", label: "All", help: "Show all menu items" },
+  { value: "active", label: "Active", help: "Show customer-visible available items" },
+  { value: "sold-out", label: "Sold Out", help: "Show items hidden as sold out" },
+  { value: "veg", label: "Veg", help: "Show vegetarian items" },
+  { value: "nonveg", label: "Non Veg", help: "Show non-vegetarian items" },
+  { value: "delivery", label: "Delivery", help: "Show delivery-enabled items" },
+  { value: "parcel", label: "Parcel", help: "Show parcel-enabled items" },
+  { value: "dine-in", label: "Dine-In", help: "Show dine-in-enabled items" },
+];
 
 const ITEM_WIZARD_STEPS: Array<{
   id: ItemWizardStepId;
@@ -147,11 +166,15 @@ export function OwnerMenuManagementFlow() {
   const apiMessage = useAppStore((state) => state.apiMessage);
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [imagePreview, setImagePreview] = useState(fallbackImage);
+  const [imageGallery, setImageGallery] = useState<string[]>([]);
   const [itemEditorOpen, setItemEditorOpen] = useState(false);
   const [activeItemStep, setActiveItemStep] = useState<ItemWizardStepId>("basic");
   const [activeChannel, setActiveChannel] = useState<MenuChannel>("delivery");
   const [itemSearch, setItemSearch] = useState("");
+  const [debouncedItemSearch, setDebouncedItemSearch] = useState("");
+  const [itemQuickFilter, setItemQuickFilter] = useState<ItemQuickFilter>("all");
   const [itemCategoryFilter, setItemCategoryFilter] = useState<ItemFilterOption>("all");
+  const [itemCuisineFilter, setItemCuisineFilter] = useState<ItemFilterOption>("all");
   const [itemFoodFilter, setItemFoodFilter] = useState<ItemFilterOption>("all");
   const [itemChannelFilter, setItemChannelFilter] = useState<ItemFilterChannel>("all");
   const [itemVisibilityFilter, setItemVisibilityFilter] = useState<ItemFilterOption>("all");
@@ -159,7 +182,15 @@ export function OwnerMenuManagementFlow() {
   const [itemPriceFilter, setItemPriceFilter] = useState<ItemFilterOption>("all");
   const [itemImageFilter, setItemImageFilter] = useState<ItemFilterOption>("all");
   const [itemModifierFilter, setItemModifierFilter] = useState<ItemFilterOption>("all");
+  const [itemAllergenFilter, setItemAllergenFilter] = useState<ItemFilterOption>("all");
+  const [itemTagFilter, setItemTagFilter] = useState<ItemFilterOption>("all");
+  const [itemPrepFilter, setItemPrepFilter] = useState<ItemFilterOption>("all");
   const [itemSort, setItemSort] = useState<ItemFilterOption>("name");
+  const [cuisineQuery, setCuisineQuery] = useState("");
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [itemPage, setItemPage] = useState(1);
+  const [imagePreviewItem, setImagePreviewItem] = useState<MenuItem | null>(null);
   const [activeLanguage, setActiveLanguage] = useState<"en" | "hi" | "ml" | "ta" | "kn" | "ar">("en");
   const [importSummary, setImportSummary] = useState("No import file selected.");
   const [importRows, setImportRows] = useState<ImportPreviewRow[]>([]);
@@ -188,6 +219,7 @@ export function OwnerMenuManagementFlow() {
     serviceChargeRate: String(taxSettings.serviceChargeRate),
     defaultPackingCharge: String(taxSettings.defaultPackingCharge),
   });
+  const whatsappShare = useWhatsAppShare();
   const menuItems = useMemo(
     () => allMenuItems.filter((item) => item.restaurantSlug === restaurantId),
     [allMenuItems, restaurantId],
@@ -205,13 +237,18 @@ export function OwnerMenuManagementFlow() {
       .sort((first, second) => first.name.localeCompare(second.name));
   }, [masterCategories]);
   const lowStock = useMemo(() => inventoryItems.filter((item) => getInventoryStatus(item) !== "ok"), [inventoryItems]);
-  const channelRevenuePreview = useMemo(
-    () => menuItems.reduce((sum, item) => sum + (isItemVisible(item, activeChannel) ? getChannelPrice(item, activeChannel) : 0), 0),
-    [activeChannel, menuItems],
-  );
   const itemCategoryFilters = useMemo(() => unique(menuItems.map((item) => item.category).filter(Boolean)), [menuItems]);
+  const itemCuisineFilters = useMemo(() => unique(menuItems.flatMap((item) => item.cuisineIds ?? [])), [menuItems]);
+  const itemAllergenFilters = useMemo(() => unique(menuItems.flatMap((item) => item.allergenLabels ?? [])), [menuItems]);
+  const itemTagFilters = useMemo(() => unique(menuItems.flatMap((item) => [...(item.tags ?? []), ...(item.badges ?? [])])), [menuItems]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedItemSearch(itemSearch), 250);
+    return () => window.clearTimeout(timer);
+  }, [itemSearch]);
+
   const filteredMenuItems = useMemo(() => {
-    const normalizedSearch = itemSearch.trim().toLowerCase();
+    const normalizedSearch = debouncedItemSearch.trim().toLowerCase();
     return menuItems
       .filter((item) => {
         const searchable = [
@@ -231,16 +268,30 @@ export function OwnerMenuManagementFlow() {
         const hasImage = hasCustomImage(item.image);
         const hasModifiers = Boolean(item.modifierGroups?.length || item.modifiers?.length || item.addOns?.length);
         const deliveryPrice = item.deliveryPrice ?? item.price;
+        const quickFilterMatch =
+          itemQuickFilter === "all" ||
+          (itemQuickFilter === "active" && !item.soldOut && customerVisible) ||
+          (itemQuickFilter === "sold-out" && Boolean(item.soldOut)) ||
+          (itemQuickFilter === "veg" && (item.foodType === "veg" || item.isVeg)) ||
+          (itemQuickFilter === "nonveg" && (item.foodType === "nonveg" || !item.isVeg)) ||
+          (itemQuickFilter === "delivery" && isItemVisible(item, "delivery")) ||
+          (itemQuickFilter === "parcel" && isItemVisible(item, "parcel")) ||
+          (itemQuickFilter === "dine-in" && isItemVisible(item, "dine-in"));
         return (
           (!normalizedSearch || searchable.includes(normalizedSearch)) &&
+          quickFilterMatch &&
           (itemCategoryFilter === "all" || item.category === itemCategoryFilter) &&
+          (itemCuisineFilter === "all" || item.cuisineIds?.includes(itemCuisineFilter)) &&
           (itemFoodFilter === "all" || item.foodType === itemFoodFilter || (itemFoodFilter === "veg" ? item.isVeg : !item.isVeg)) &&
           channelVisible &&
           (itemVisibilityFilter === "all" || (itemVisibilityFilter === "customer-visible" ? customerVisible : !customerVisible)) &&
           (itemAvailabilityFilter === "all" || (itemAvailabilityFilter === "available" ? !item.soldOut : item.soldOut)) &&
           matchesPriceBand(deliveryPrice, itemPriceFilter) &&
           (itemImageFilter === "all" || (itemImageFilter === "with-image" ? hasImage : !hasImage)) &&
-          (itemModifierFilter === "all" || (itemModifierFilter === "with-modifiers" ? hasModifiers : !hasModifiers))
+          (itemModifierFilter === "all" || (itemModifierFilter === "with-modifiers" ? hasModifiers : !hasModifiers)) &&
+          (itemAllergenFilter === "all" || item.allergenLabels?.includes(itemAllergenFilter)) &&
+          (itemTagFilter === "all" || item.tags?.includes(itemTagFilter) || item.badges?.includes(itemTagFilter)) &&
+          matchesPrepBand(item.prepTime, itemPrepFilter)
         );
       })
       .sort((first, second) => {
@@ -249,10 +300,12 @@ export function OwnerMenuManagementFlow() {
         if (itemSort === "category") return first.category.localeCompare(second.category) || first.name.localeCompare(second.name);
         return first.name.localeCompare(second.name);
       });
-  }, [itemAvailabilityFilter, itemCategoryFilter, itemChannelFilter, itemFoodFilter, itemImageFilter, itemModifierFilter, itemPriceFilter, itemSearch, itemSort, itemVisibilityFilter, menuItems]);
+  }, [debouncedItemSearch, itemAllergenFilter, itemAvailabilityFilter, itemCategoryFilter, itemChannelFilter, itemCuisineFilter, itemFoodFilter, itemImageFilter, itemModifierFilter, itemPrepFilter, itemPriceFilter, itemQuickFilter, itemSort, itemTagFilter, itemVisibilityFilter, menuItems]);
   const filterActive = Boolean(
     itemSearch ||
+      itemQuickFilter !== "all" ||
       itemCategoryFilter !== "all" ||
+      itemCuisineFilter !== "all" ||
       itemFoodFilter !== "all" ||
       itemChannelFilter !== "all" ||
       itemVisibilityFilter !== "all" ||
@@ -260,8 +313,23 @@ export function OwnerMenuManagementFlow() {
       itemPriceFilter !== "all" ||
       itemImageFilter !== "all" ||
       itemModifierFilter !== "all" ||
+      itemAllergenFilter !== "all" ||
+      itemTagFilter !== "all" ||
+      itemPrepFilter !== "all" ||
       itemSort !== "name",
   );
+  const totalItemPages = Math.max(1, Math.ceil(filteredMenuItems.length / itemListPageSize));
+  const currentItemPage = Math.min(itemPage, totalItemPages);
+  const paginatedMenuItems = useMemo(
+    () => filteredMenuItems.slice((currentItemPage - 1) * itemListPageSize, currentItemPage * itemListPageSize),
+    [currentItemPage, filteredMenuItems],
+  );
+  const selectedItems = useMemo(
+    () => menuItems.filter((item) => selectedItemIds.includes(item.id)),
+    [menuItems, selectedItemIds],
+  );
+  const currentPageSelected = paginatedMenuItems.length > 0 && paginatedMenuItems.every((item) => selectedItemIds.includes(item.id));
+
   const form = useForm<MenuFormValues>({
     resolver: zodResolver(advancedMenuItemSchema) as Resolver<MenuFormValues>,
     defaultValues: createEmptyMenuDraft(),
@@ -280,10 +348,18 @@ export function OwnerMenuManagementFlow() {
   const watchedVisibility = buildChannelVisibility(watchedDineInPrice, watchedParcelPrice, watchedDeliveryPrice);
   const watchedDisplayPrice = firstPositivePrice(watchedDeliveryPrice, watchedDineInPrice, watchedParcelPrice, watchedBasePrice) ?? 0;
   const activeItemStepIndex = Math.max(0, ITEM_WIZARD_STEPS.findIndex((step) => step.id === activeItemStep));
+  const visibleCuisineChoices = useMemo(() => {
+    const query = cuisineQuery.trim().toLowerCase();
+    if (!query) return cuisineChoices;
+    return cuisineChoices.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(query));
+  }, [cuisineChoices, cuisineQuery]);
 
   function resetItemFilters() {
     setItemSearch("");
+    setDebouncedItemSearch("");
+    setItemQuickFilter("all");
     setItemCategoryFilter("all");
+    setItemCuisineFilter("all");
     setItemFoodFilter("all");
     setItemChannelFilter("all");
     setItemVisibilityFilter("all");
@@ -291,13 +367,55 @@ export function OwnerMenuManagementFlow() {
     setItemPriceFilter("all");
     setItemImageFilter("all");
     setItemModifierFilter("all");
+    setItemAllergenFilter("all");
+    setItemTagFilter("all");
+    setItemPrepFilter("all");
     setItemSort("name");
+  }
+
+  function toggleItemSelection(itemId: string, selected: boolean) {
+    setSelectedItemIds((current) => selected ? unique([...current, itemId]) : current.filter((id) => id !== itemId));
+  }
+
+  function toggleCurrentPageSelection(selected: boolean) {
+    const pageIds = paginatedMenuItems.map((item) => item.id);
+    setSelectedItemIds((current) => selected ? unique([...current, ...pageIds]) : current.filter((id) => !pageIds.includes(id)));
+  }
+
+  async function applyBulkAction(action: "active" | "sold-out" | "enable-delivery" | "disable-delivery" | "enable-parcel" | "disable-parcel" | "delete") {
+    if (!selectedItems.length) return;
+    if (action === "delete" && !window.confirm(`Delete ${selectedItems.length} selected menu item${selectedItems.length === 1 ? "" : "s"}?`)) return;
+
+    await Promise.all(selectedItems.map((item) => {
+      if (action === "active") return item.soldOut ? toggleSoldOut(item.id) : Promise.resolve();
+      if (action === "sold-out") return item.soldOut ? Promise.resolve() : toggleSoldOut(item.id);
+      if (action === "enable-delivery") return updateMenuItem(applyChannelAvailability(item, "delivery", true));
+      if (action === "disable-delivery") return updateMenuItem(applyChannelAvailability(item, "delivery", false));
+      if (action === "enable-parcel") return updateMenuItem(applyChannelAvailability(item, "parcel", true));
+      if (action === "disable-parcel") return updateMenuItem(applyChannelAvailability(item, "parcel", false));
+      return deleteMenuItem(item.id);
+    }));
+    toast.success(`Bulk action applied to ${selectedItems.length} item${selectedItems.length === 1 ? "" : "s"}.`);
+    setSelectedItemIds([]);
+  }
+
+  async function duplicateMenuItem(item: MenuItem) {
+    const draft = { ...item } as Partial<MenuItem>;
+    delete draft.id;
+    await createMenuItem({
+      ...(draft as Omit<MenuItem, "id">),
+      name: uniqueCloneName(item.name, menuItems),
+      soldOut: item.soldOut ?? false,
+    });
+    toast.success(`${item.name} duplicated.`);
   }
 
   function beginCreateItem() {
     setEditing(null);
     form.reset(createEmptyMenuDraft());
     setImagePreview(fallbackImage);
+    setImageGallery([]);
+    setCuisineQuery("");
     setActiveItemStep("basic");
     setItemEditorOpen(true);
   }
@@ -306,6 +424,8 @@ export function OwnerMenuManagementFlow() {
     setEditing(null);
     form.reset(createEmptyMenuDraft());
     setImagePreview(fallbackImage);
+    setImageGallery([]);
+    setCuisineQuery("");
     setActiveItemStep("basic");
     setItemEditorOpen(false);
   }
@@ -342,9 +462,25 @@ export function OwnerMenuManagementFlow() {
       menuVisibility: item.menuVisibility ?? buildChannelVisibility(item.dineInPrice, item.parcelPrice, item.deliveryPrice),
     });
     setImagePreview(item.image);
+    setImageGallery(uniqueImageUrls([item.image, ...(item.images ?? [])]));
+    setCuisineQuery("");
+  }
+
+  function addMenuImage(url: string) {
+    const next = url.trim();
+    if (!next) return;
+    setImagePreview(next);
+    setImageGallery((current) => uniqueImageUrls([next, ...current]));
+  }
+
+  function removeMenuImage(url: string) {
+    const next = imageGallery.filter((item) => item !== url);
+    setImageGallery(next);
+    if (imagePreview === url) setImagePreview(next[0] ?? fallbackImage);
   }
 
   async function handleSubmit(values: MenuFormValues) {
+    const galleryImages = uniqueImageUrls([imagePreview, ...imageGallery]);
     const validationError = validateMenuDraft(values, imagePreview, menuItems, editing?.id);
     if (validationError) {
       setActiveItemStep(validationError.step);
@@ -388,6 +524,7 @@ export function OwnerMenuManagementFlow() {
       modifierGroups,
       recipeLinks,
       image: imagePreview,
+      images: galleryImages,
       dineInPrice: dineInPrice ?? 0,
       parcelPrice: parcelPrice ?? 0,
       deliveryPrice: deliveryPrice ?? 0,
@@ -804,7 +941,7 @@ export function OwnerMenuManagementFlow() {
                           <SafeImage src={imagePreview} alt="Menu image preview" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="720px" className="object-cover" />
                           <Badge className="absolute left-3 top-3 bg-primary text-primary-foreground">Cover</Badge>
                           {imagePreview !== fallbackImage ? (
-                            <Button type="button" size="icon" variant="secondary" className="absolute right-3 top-3" aria-label="Remove image" onClick={() => setImagePreview(fallbackImage)}>
+                            <Button type="button" size="icon" variant="secondary" className="absolute right-3 top-3" aria-label="Remove image" onClick={() => removeMenuImage(imagePreview)}>
                               <Trash2 className="size-4" />
                             </Button>
                           ) : null}
@@ -820,7 +957,7 @@ export function OwnerMenuManagementFlow() {
                             tags={["menu-item"]}
                             label="Add image"
                             className="min-h-24 border-dashed"
-                            onUpload={(url) => setImagePreview(url)}
+                            onUpload={addMenuImage}
                           />
                           <div className="grid gap-2">
                             <FieldLabel htmlFor="menu-image-url" help="Use this if upload is unavailable. Paste a public image URL from Cloudinary or another HTTPS image source. Example: https://res.cloudinary.com/.../alfaham.webp">Image URL</FieldLabel>
@@ -830,8 +967,41 @@ export function OwnerMenuManagementFlow() {
                               placeholder="https://res.cloudinary.com/.../item.webp"
                               className="font-semibold text-foreground"
                               onChange={(event) => setImagePreview(event.target.value.trim() || fallbackImage)}
+                              onBlur={(event) => addMenuImage(event.target.value)}
                             />
                           </div>
+                          {imageGallery.length ? (
+                            <div className="grid gap-2">
+                              <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Item images</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {imageGallery.map((url) => (
+                                  <div
+                                    key={url}
+                                    className={`relative aspect-square overflow-hidden rounded-md bg-muted shadow-sm transition hover:-translate-y-0.5 ${url === imagePreview ? "ring-2 ring-primary" : ""}`}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="absolute inset-0"
+                                      onClick={() => setImagePreview(url)}
+                                      aria-label="Use image as cover"
+                                      title="Use as cover image"
+                                    >
+                                      <SafeImage src={url} alt="Menu item gallery image" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="80px" className="object-cover" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-full bg-white/90 text-red-600 shadow"
+                                      onClick={() => removeMenuImage(url)}
+                                      aria-label="Remove image"
+                                      title="Remove image"
+                                    >
+                                      <X className="size-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -879,18 +1049,59 @@ export function OwnerMenuManagementFlow() {
                           <FieldError message={form.formState.errors.foodType?.message} />
                         </div>
                         <div className="grid gap-2 md:col-span-2">
-                          <FieldLabel help="Optional cuisine tags for search and filters. Hold Ctrl to select multiple. Example: Arabic, Grills.">Cuisines</FieldLabel>
-                          <select
-                            multiple
-                            className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm font-semibold text-foreground"
-                            value={selectedCuisineIds}
-                            onChange={(event) => {
-                              const selected = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
-                              form.setValue("cuisineIds", selected);
-                            }}
-                          >
-                            {cuisineChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                          </select>
+                          <FieldLabel help="Required cuisine tags used for customer search and filters. Search and select at least one. Example: Arabic, Grills.">Cuisines</FieldLabel>
+                          <div className="rounded-md border bg-background p-2">
+                            <div className="flex items-center gap-2 rounded-md bg-white px-3">
+                              <Search className="size-4 text-muted-foreground" />
+                              <input
+                                value={cuisineQuery}
+                                onChange={(event) => setCuisineQuery(event.target.value)}
+                                placeholder="Search cuisines"
+                                className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none"
+                              />
+                            </div>
+                            {selectedCuisineIds.length ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {selectedCuisineIds.map((id) => {
+                                  const choice = cuisineChoices.find((item) => item.id === id);
+                                  return (
+                                    <button
+                                      key={id}
+                                      type="button"
+                                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary"
+                                      onClick={() => form.setValue("cuisineIds", selectedCuisineIds.filter((item) => item !== id), { shouldValidate: true })}
+                                      title="Remove cuisine"
+                                    >
+                                      {choice?.name ?? id}
+                                      <X className="size-3" />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                            <div className="mt-2 grid max-h-40 gap-1 overflow-y-auto">
+                              {visibleCuisineChoices.map((item) => {
+                                const checked = selectedCuisineIds.includes(item.id);
+                                return (
+                                  <label key={item.id} className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-orange-50">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(event) => {
+                                        const next = event.target.checked
+                                          ? unique([...selectedCuisineIds, item.id])
+                                          : selectedCuisineIds.filter((id) => id !== item.id);
+                                        form.setValue("cuisineIds", next, { shouldValidate: true });
+                                      }}
+                                    />
+                                    <span>{item.name}</span>
+                                  </label>
+                                );
+                              })}
+                              {!visibleCuisineChoices.length ? <p className="px-3 py-2 text-sm font-semibold text-muted-foreground">No cuisines match this search.</p> : null}
+                            </div>
+                          </div>
+                          <FieldError message={form.formState.errors.cuisineIds?.message} />
                         </div>
                       </div>
                     </div>
@@ -1077,134 +1288,265 @@ export function OwnerMenuManagementFlow() {
         ) : null}
 
         {!itemEditorOpen ? (
-        <section className="space-y-4">
-          <SectionHeader
-            title="Menu items"
-            description="Review created items, filter by every operational status, and keep dine-in, parcel, and delivery prices visible before publishing to customers."
-            action={
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={downloadExcelTemplate}>
-                  <Download className="size-4" />
-                  Template
-                </Button>
-                <Button type="button" onClick={beginCreateItem}>
-                  <Plus className="size-4" />
-                  Add item
-                </Button>
-              </div>
-            }
-          />
-          <div className="grid gap-3 md:grid-cols-4">
-            <Metric icon={PackageCheck} label="Customer visible" value={menuItems.filter((item) => isItemVisible(item, "delivery") && !item.soldOut).length} />
-            <Metric icon={BarChart3} label={`${activeChannel} value`} value={formatCurrency(channelRevenuePreview)} />
-            <Metric icon={AlertTriangle} label="Stock risks" value={menuItems.filter((item) => shouldAutoSoldOut(item, inventoryItems)).length} />
-            <Metric icon={Eye} label="Filtered" value={`${filteredMenuItems.length}/${menuItems.length}`} />
-          </div>
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground/60" />
-                  <Input
-                    className="h-11 pl-10 font-semibold text-foreground placeholder:text-foreground/50"
-                    placeholder="Search item, category, tag, allergen, cuisine..."
-                    value={itemSearch}
-                    onChange={(event) => setItemSearch(event.target.value)}
-                  />
+        <TooltipProvider>
+          <section className="space-y-4">
+            <div className="sticky top-0 z-20 -mx-1 rounded-lg bg-background/95 px-1 py-2 backdrop-blur">
+              <SectionHeader
+                title="Menu Management"
+                description="Manage menu items, prices, modifiers and visibility."
+                action={
+                  <div className="flex flex-wrap gap-2">
+                    <Tip label="Download the current menu import template">
+                      <Button type="button" variant="outline" onClick={downloadExcelTemplate}>
+                        <Download className="size-4" />
+                        Download Template
+                      </Button>
+                    </Tip>
+                    <Tip label="Import menu items from Excel or CSV">
+                      <Button type="button" variant="outline" asChild>
+                        <label>
+                          <Upload className="size-4" />
+                          Import
+                          <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(event) => void previewImportFile(event.target.files?.[0])} />
+                        </label>
+                      </Button>
+                    </Tip>
+                    <Tip label="Create a new menu item">
+                      <Button type="button" onClick={beginCreateItem}>
+                        <Plus className="size-4" />
+                        Create Item
+                      </Button>
+                    </Tip>
+                  </div>
+                }
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+              <CompactMetric label="Total items" value={menuItems.length} icon={FileSpreadsheet} />
+              <CompactMetric label="Active items" value={menuItems.filter((item) => !item.soldOut).length} icon={CheckCircle2} />
+              <CompactMetric label="Sold out" value={menuItems.filter((item) => item.soldOut).length} icon={AlertTriangle} />
+              <CompactMetric label="Categories" value={itemCategoryFilters.length} icon={Boxes} />
+              <CompactMetric label="Delivery enabled" value={menuItems.filter((item) => isItemVisible(item, "delivery")).length} icon={PackageCheck} />
+              <CompactMetric label="Parcel enabled" value={menuItems.filter((item) => isItemVisible(item, "parcel")).length} icon={PackageCheck} />
+            </div>
+
+            <div className="rounded-lg border bg-card p-3 shadow-sm">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+                <Tip label="Search by item name, category, tag, cuisine or allergen">
+                  <label className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground/60" />
+                    <Input
+                      className="h-11 pl-10 font-semibold text-foreground placeholder:text-foreground/50"
+                      placeholder="Search item name, category, tag, cuisine..."
+                      value={itemSearch}
+                      onChange={(event) => setItemSearch(event.target.value)}
+                    />
+                  </label>
+                </Tip>
+                <div className="customer-scroll flex gap-2 overflow-x-auto pb-1 xl:pb-0">
+                  {quickFilterOptions.map((option) => (
+                    <Tip key={option.value} label={option.help}>
+                      <button
+                        type="button"
+                        className={itemQuickFilter === option.value ? "h-10 shrink-0 rounded-md bg-primary px-3 text-sm font-black text-primary-foreground" : "h-10 shrink-0 rounded-md border bg-background px-3 text-sm font-black text-foreground hover:bg-muted"}
+                        onClick={() => setItemQuickFilter(option.value)}
+                        aria-pressed={itemQuickFilter === option.value}
+                      >
+                        {option.label}
+                      </button>
+                    </Tip>
+                  ))}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(["dine-in", "parcel", "delivery"] as MenuChannel[]).map((channel) => (
-                    <Button key={channel} type="button" size="sm" variant={activeChannel === channel ? "default" : "outline"} onClick={() => setActiveChannel(channel)}>
-                      {channel}
-                    </Button>
+                    <Tip key={channel} label={`Audit ${channel} prices and channel value`}>
+                      <Button type="button" size="sm" variant={activeChannel === channel ? "default" : "outline"} onClick={() => setActiveChannel(channel)}>
+                        {channel}
+                      </Button>
+                    </Tip>
                   ))}
-                  <Button type="button" variant={filterActive ? "secondary" : "outline"} onClick={resetItemFilters}>
-                    {filterActive ? <X className="size-4" /> : <SlidersHorizontal className="size-4" />}
-                    {filterActive ? "Clear filters" : "Filters ready"}
-                  </Button>
+                  <Tip label="Open advanced filters">
+                    <Button type="button" variant={filterActive ? "secondary" : "outline"} onClick={() => setAdvancedFiltersOpen(true)}>
+                      <SlidersHorizontal className="size-4" />
+                      Filters
+                    </Button>
+                  </Tip>
+                  {filterActive ? (
+                    <Tip label="Reset all menu filters">
+                      <Button type="button" variant="outline" onClick={resetItemFilters}>
+                        <X className="size-4" />
+                        Clear
+                      </Button>
+                    </Tip>
+                  ) : null}
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-                <FilterSelect label="Category" value={itemCategoryFilter} onChange={setItemCategoryFilter} options={[{ value: "all", label: "All categories" }, ...itemCategoryFilters.map((item) => ({ value: item, label: item }))]} />
-                <FilterSelect label="Food type" value={itemFoodFilter} onChange={setItemFoodFilter} options={[
-                  { value: "all", label: "All food types" },
-                  { value: "veg", label: "Veg" },
-                  { value: "nonveg", label: "Non-veg" },
-                  { value: "egg", label: "Egg" },
-                  { value: "vegan", label: "Vegan" },
-                  { value: "jain", label: "Jain" },
-                ]} />
-                <FilterSelect label="Channel" value={itemChannelFilter} onChange={(value) => setItemChannelFilter(value as ItemFilterChannel)} options={[
-                  { value: "all", label: "All channels" },
-                  { value: "dine-in", label: "Dine-in visible" },
-                  { value: "parcel", label: "Parcel visible" },
-                  { value: "delivery", label: "Delivery visible" },
-                ]} />
-                <FilterSelect label="Customer visibility" value={itemVisibilityFilter} onChange={setItemVisibilityFilter} options={[
-                  { value: "all", label: "All visibility" },
-                  { value: "customer-visible", label: "Visible to customer" },
-                  { value: "customer-hidden", label: "Hidden from customer" },
-                ]} />
-                <FilterSelect label="Availability" value={itemAvailabilityFilter} onChange={setItemAvailabilityFilter} options={[
-                  { value: "all", label: "All availability" },
-                  { value: "available", label: "Available" },
-                  { value: "sold-out", label: "Sold out" },
-                ]} />
-                <FilterSelect label="Delivery price" value={itemPriceFilter} onChange={setItemPriceFilter} options={[
-                  { value: "all", label: "Any price" },
-                  { value: "under-150", label: "Under Rs 150" },
-                  { value: "150-300", label: "Rs 150 - Rs 300" },
-                  { value: "300-500", label: "Rs 300 - Rs 500" },
-                  { value: "above-500", label: "Above Rs 500" },
-                ]} />
-                <FilterSelect label="Image" value={itemImageFilter} onChange={setItemImageFilter} options={[
-                  { value: "all", label: "All images" },
-                  { value: "with-image", label: "Has image" },
-                  { value: "missing-image", label: "Missing image" },
-                ]} />
-                <FilterSelect label="Modifiers" value={itemModifierFilter} onChange={setItemModifierFilter} options={[
-                  { value: "all", label: "All modifier states" },
-                  { value: "with-modifiers", label: "Has modifiers" },
-                  { value: "without-modifiers", label: "No modifiers" },
-                ]} />
-                <FilterSelect label="Sort" value={itemSort} onChange={setItemSort} options={[
-                  { value: "name", label: "Name A-Z" },
-                  { value: "category", label: "Category" },
-                  { value: "price-low", label: "Price low-high" },
-                  { value: "price-high", label: "Price high-low" },
-                ]} />
+            </div>
+
+            {selectedItems.length ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 p-3">
+                <p className="mr-auto text-sm font-black text-foreground">{selectedItems.length} selected</p>
+                <BulkAction label="Mark Active" onClick={() => void applyBulkAction("active")} />
+                <BulkAction label="Mark Sold Out" onClick={() => void applyBulkAction("sold-out")} />
+                <BulkAction label="Enable Delivery" onClick={() => void applyBulkAction("enable-delivery")} />
+                <BulkAction label="Disable Delivery" onClick={() => void applyBulkAction("disable-delivery")} />
+                <BulkAction label="Enable Parcel" onClick={() => void applyBulkAction("enable-parcel")} />
+                <BulkAction label="Disable Parcel" onClick={() => void applyBulkAction("disable-parcel")} />
+                <BulkAction label="Delete" destructive onClick={() => void applyBulkAction("delete")} />
               </div>
-            </CardContent>
-          </Card>
-          <div className="grid gap-4">
-            {filteredMenuItems.length ? filteredMenuItems.map((item) => (
-              <MenuItemRow
-                key={item.id}
-                item={item}
-                activeChannel={activeChannel}
-                taxRate={taxSettings.defaultGstRate}
-                onEdit={() => beginEdit(item)}
-                onToggleSoldOut={() => void toggleSoldOut(item.id)}
-                onToggleDelivery={() => void updateMenuItem(applyChannelAvailability(item, "delivery", !isItemVisible(item, "delivery")))}
-                onToggleParcel={() => void updateMenuItem(applyChannelAvailability(item, "parcel", !isItemVisible(item, "parcel")))}
-                onClonePrice={() => void updateMenuItem(cloneMenuForChannel(item, "dine-in", activeChannel))}
-                onDelete={() => void deleteMenuItem(item.id)}
-              />
-            )) : (
+            ) : null}
+
+            <AdvancedFilterSheet
+              open={advancedFiltersOpen}
+              onOpenChange={setAdvancedFiltersOpen}
+              categoryValue={itemCategoryFilter}
+              categoryOptions={itemCategoryFilters}
+              onCategoryChange={setItemCategoryFilter}
+              cuisineValue={itemCuisineFilter}
+              cuisineOptions={itemCuisineFilters}
+              onCuisineChange={setItemCuisineFilter}
+              foodValue={itemFoodFilter}
+              onFoodChange={setItemFoodFilter}
+              channelValue={itemChannelFilter}
+              onChannelChange={(value) => setItemChannelFilter(value as ItemFilterChannel)}
+              visibilityValue={itemVisibilityFilter}
+              onVisibilityChange={setItemVisibilityFilter}
+              availabilityValue={itemAvailabilityFilter}
+              onAvailabilityChange={setItemAvailabilityFilter}
+              modifierValue={itemModifierFilter}
+              onModifierChange={setItemModifierFilter}
+              allergenValue={itemAllergenFilter}
+              allergenOptions={itemAllergenFilters}
+              onAllergenChange={setItemAllergenFilter}
+              tagValue={itemTagFilter}
+              tagOptions={itemTagFilters}
+              onTagChange={setItemTagFilter}
+              priceValue={itemPriceFilter}
+              onPriceChange={setItemPriceFilter}
+              imageValue={itemImageFilter}
+              onImageChange={setItemImageFilter}
+              prepValue={itemPrepFilter}
+              onPrepChange={setItemPrepFilter}
+              sortValue={itemSort}
+              onSortChange={setItemSort}
+              onReset={resetItemFilters}
+            />
+
+            {filteredMenuItems.length ? (
+              <>
+                <div className="hidden overflow-hidden rounded-lg border bg-card shadow-sm xl:block">
+                  <div className="grid grid-cols-[42px_76px_minmax(220px,1.45fr)_minmax(120px,0.75fr)_92px_92px_92px_76px_96px_minmax(220px,0.9fr)] items-center gap-2 border-b bg-muted/40 px-3 py-3 text-xs font-black uppercase text-muted-foreground">
+                    <input type="checkbox" className="size-4" checked={currentPageSelected} onChange={(event) => toggleCurrentPageSelection(event.target.checked)} aria-label="Select all visible menu items" />
+                    <span>Image</span>
+                    <span>Item</span>
+                    <span>Category</span>
+                    <Tip label="Price shown for dine-in orders"><span>Dine-In</span></Tip>
+                    <Tip label="Price shown for takeaway orders"><span>Parcel</span></Tip>
+                    <Tip label="Price shown for delivery orders"><span>Delivery</span></Tip>
+                    <span>Prep</span>
+                    <Tip label="Current customer visibility state"><span>Status</span></Tip>
+                    <span>Actions</span>
+                  </div>
+                  {paginatedMenuItems.map((item) => (
+                    <MenuItemRow
+                      key={item.id}
+                      variant="table"
+                      item={item}
+                      selected={selectedItemIds.includes(item.id)}
+                      activeChannel={activeChannel}
+                      taxRate={taxSettings.defaultGstRate}
+                      onSelect={(selected) => toggleItemSelection(item.id, selected)}
+                      onPreviewImage={() => setImagePreviewItem(item)}
+                      onEdit={() => beginEdit(item)}
+                      onCopyLink={() => void copyCustomerItemLink(item)}
+                      onShareWhatsApp={() => void whatsappShare.openShare({ item })}
+                      onToggleSoldOut={() => void toggleSoldOut(item.id)}
+                      onCloneItem={() => void duplicateMenuItem(item)}
+                      onDelete={() => void deleteMenuItem(item.id)}
+                    />
+                  ))}
+                </div>
+
+                <div className="grid gap-3 xl:hidden">
+                  {paginatedMenuItems.map((item) => (
+                    <MenuItemRow
+                      key={item.id}
+                      variant="card"
+                      item={item}
+                      selected={selectedItemIds.includes(item.id)}
+                      activeChannel={activeChannel}
+                      taxRate={taxSettings.defaultGstRate}
+                      onSelect={(selected) => toggleItemSelection(item.id, selected)}
+                      onPreviewImage={() => setImagePreviewItem(item)}
+                      onEdit={() => beginEdit(item)}
+                      onCopyLink={() => void copyCustomerItemLink(item)}
+                      onShareWhatsApp={() => void whatsappShare.openShare({ item })}
+                      onToggleSoldOut={() => void toggleSoldOut(item.id)}
+                      onCloneItem={() => void duplicateMenuItem(item)}
+                      onDelete={() => void deleteMenuItem(item.id)}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3">
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    Showing {(currentItemPage - 1) * itemListPageSize + 1} to {Math.min(currentItemPage * itemListPageSize, filteredMenuItems.length)} of {filteredMenuItems.length} items
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Tip label="Previous page">
+                      <Button type="button" variant="outline" size="icon-sm" disabled={currentItemPage <= 1} onClick={() => setItemPage(Math.max(1, currentItemPage - 1))}>
+                        <ChevronLeft className="size-4" />
+                      </Button>
+                    </Tip>
+                    <span className="rounded-md bg-primary px-3 py-2 text-sm font-black text-primary-foreground">{currentItemPage}</span>
+                    <span className="text-sm font-bold text-muted-foreground">/ {totalItemPages}</span>
+                    <Tip label="Next page">
+                      <Button type="button" variant="outline" size="icon-sm" disabled={currentItemPage >= totalItemPages} onClick={() => setItemPage(Math.min(totalItemPages, currentItemPage + 1))}>
+                        <ChevronRight className="size-4" />
+                      </Button>
+                    </Tip>
+                  </div>
+                </div>
+              </>
+            ) : (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-                  <Search className="size-10 text-foreground/50" />
-                  <h3 className="text-lg font-black text-foreground">No menu items match these filters</h3>
-                  <p className="max-w-xl text-sm font-semibold text-foreground/70">Clear filters or add a new item. Customer pages only show items that are available and delivery-visible.</p>
+                  <FileSpreadsheet className="size-12 text-primary/70" />
+                  <h3 className="text-lg font-black text-foreground">No menu items found</h3>
+                  <p className="max-w-xl text-sm font-semibold text-foreground/70">Clear filters or create the first item for this restaurant.</p>
                   <div className="flex flex-wrap justify-center gap-2">
                     <Button type="button" variant="outline" onClick={resetItemFilters}>Clear filters</Button>
-                    <Button type="button" onClick={beginCreateItem}>Add item</Button>
+                    <Button type="button" onClick={beginCreateItem}>Create First Menu Item</Button>
                   </div>
                 </CardContent>
               </Card>
             )}
-          </div>
-        </section>
+          </section>
+
+          <WhatsAppShareModal
+            preview={whatsappShare.preview}
+            open={Boolean(whatsappShare.preview) || whatsappShare.isPreparing}
+            preparing={whatsappShare.isPreparing}
+            onOpenChange={(open) => {
+              if (!open) whatsappShare.closeShare();
+            }}
+            onCopy={() => void whatsappShare.copyMessage()}
+            onWhatsApp={whatsappShare.openWhatsApp}
+          />
+
+          <Dialog open={Boolean(imagePreviewItem)} onOpenChange={(open) => !open && setImagePreviewItem(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{imagePreviewItem?.name ?? "Menu item image"}</DialogTitle>
+                <DialogDescription>Image preview</DialogDescription>
+              </DialogHeader>
+              <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
+                <SafeImage src={imagePreviewItem?.image} alt={imagePreviewItem?.name ?? "Menu item"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="720px" className="object-cover" />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </TooltipProvider>
         ) : null}
 
         <section className="rounded-lg border bg-card p-4">
@@ -1667,16 +2009,16 @@ function EngineGrid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-5 xl:grid-cols-2">{children}</div>;
 }
 
-function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
+function CompactMetric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <span className="grid size-10 place-items-center rounded-md bg-primary/10 text-primary">
-          <Icon className="size-5" />
+    <Card className="rounded-lg">
+      <CardContent className="flex items-center gap-3 p-3">
+        <span className="grid size-9 place-items-center rounded-md bg-primary/10 text-primary">
+          <Icon className="size-4" />
         </span>
         <div>
-          <p className="text-xs font-bold uppercase text-muted-foreground">{label}</p>
-          <p className="text-xl font-black">{value}</p>
+          <p className="text-[11px] font-black uppercase text-muted-foreground">{label}</p>
+          <p className="text-lg font-black">{value}</p>
         </div>
       </CardContent>
     </Card>
@@ -1728,86 +2070,331 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
+function Tip({ label, children }: { label: string; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function BulkAction({ label, destructive = false, onClick }: { label: string; destructive?: boolean; onClick: () => void }) {
+  return (
+    <Tip label={label}>
+      <Button type="button" size="sm" variant={destructive ? "destructive" : "outline"} onClick={onClick}>
+        {label}
+      </Button>
+    </Tip>
+  );
+}
+
+function AdvancedFilterSheet({
+  open,
+  onOpenChange,
+  categoryValue,
+  categoryOptions,
+  onCategoryChange,
+  cuisineValue,
+  cuisineOptions,
+  onCuisineChange,
+  foodValue,
+  onFoodChange,
+  channelValue,
+  onChannelChange,
+  visibilityValue,
+  onVisibilityChange,
+  availabilityValue,
+  onAvailabilityChange,
+  modifierValue,
+  onModifierChange,
+  allergenValue,
+  allergenOptions,
+  onAllergenChange,
+  tagValue,
+  tagOptions,
+  onTagChange,
+  priceValue,
+  onPriceChange,
+  imageValue,
+  onImageChange,
+  prepValue,
+  onPrepChange,
+  sortValue,
+  onSortChange,
+  onReset,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categoryValue: string;
+  categoryOptions: string[];
+  onCategoryChange: (value: string) => void;
+  cuisineValue: string;
+  cuisineOptions: string[];
+  onCuisineChange: (value: string) => void;
+  foodValue: string;
+  onFoodChange: (value: string) => void;
+  channelValue: string;
+  onChannelChange: (value: string) => void;
+  visibilityValue: string;
+  onVisibilityChange: (value: string) => void;
+  availabilityValue: string;
+  onAvailabilityChange: (value: string) => void;
+  modifierValue: string;
+  onModifierChange: (value: string) => void;
+  allergenValue: string;
+  allergenOptions: string[];
+  onAllergenChange: (value: string) => void;
+  tagValue: string;
+  tagOptions: string[];
+  onTagChange: (value: string) => void;
+  priceValue: string;
+  onPriceChange: (value: string) => void;
+  imageValue: string;
+  onImageChange: (value: string) => void;
+  prepValue: string;
+  onPrepChange: (value: string) => void;
+  sortValue: string;
+  onSortChange: (value: string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[min(100vw,560px)] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Advanced filters</SheetTitle>
+          <SheetDescription>Refine a large menu without taking space on the main page.</SheetDescription>
+        </SheetHeader>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <FilterSelect label="Category" value={categoryValue} onChange={onCategoryChange} options={[{ value: "all", label: "All categories" }, ...categoryOptions.map((item) => ({ value: item, label: item }))]} />
+          <FilterSelect label="Cuisine" value={cuisineValue} onChange={onCuisineChange} options={[{ value: "all", label: "All cuisines" }, ...cuisineOptions.map((item) => ({ value: item, label: humanizeFilterLabel(item) }))]} />
+          <FilterSelect label="Food type" value={foodValue} onChange={onFoodChange} options={[
+            { value: "all", label: "All food types" },
+            { value: "veg", label: "Veg" },
+            { value: "nonveg", label: "Non-veg" },
+            { value: "egg", label: "Egg" },
+            { value: "vegan", label: "Vegan" },
+            { value: "jain", label: "Jain" },
+          ]} />
+          <FilterSelect label="Channel" value={channelValue} onChange={onChannelChange} options={[
+            { value: "all", label: "All channels" },
+            { value: "dine-in", label: "Dine-in visible" },
+            { value: "parcel", label: "Parcel visible" },
+            { value: "delivery", label: "Delivery visible" },
+          ]} />
+          <FilterSelect label="Availability" value={availabilityValue} onChange={onAvailabilityChange} options={[
+            { value: "all", label: "All availability" },
+            { value: "available", label: "Available" },
+            { value: "sold-out", label: "Sold out" },
+          ]} />
+          <FilterSelect label="Modifier status" value={modifierValue} onChange={onModifierChange} options={[
+            { value: "all", label: "All modifier states" },
+            { value: "with-modifiers", label: "Has modifiers" },
+            { value: "without-modifiers", label: "No modifiers" },
+          ]} />
+          <FilterSelect label="Allergen" value={allergenValue} onChange={onAllergenChange} options={[{ value: "all", label: "All allergens" }, ...allergenOptions.map((item) => ({ value: item, label: item }))]} />
+          <FilterSelect label="Tags" value={tagValue} onChange={onTagChange} options={[{ value: "all", label: "All tags" }, ...tagOptions.map((item) => ({ value: item, label: item }))]} />
+          <FilterSelect label="Price range" value={priceValue} onChange={onPriceChange} options={[
+            { value: "all", label: "Any price" },
+            { value: "under-150", label: "Under Rs 150" },
+            { value: "150-300", label: "Rs 150 - Rs 300" },
+            { value: "300-500", label: "Rs 300 - Rs 500" },
+            { value: "above-500", label: "Above Rs 500" },
+          ]} />
+          <FilterSelect label="Prep time" value={prepValue} onChange={onPrepChange} options={[
+            { value: "all", label: "Any prep time" },
+            { value: "under-10", label: "Under 10 min" },
+            { value: "10-20", label: "10 - 20 min" },
+            { value: "20-plus", label: "20+ min" },
+          ]} />
+          <FilterSelect label="Image" value={imageValue} onChange={onImageChange} options={[
+            { value: "all", label: "All images" },
+            { value: "with-image", label: "Has image" },
+            { value: "missing-image", label: "Missing image" },
+          ]} />
+          <FilterSelect label="Customer visibility" value={visibilityValue} onChange={onVisibilityChange} options={[
+            { value: "all", label: "All visibility" },
+            { value: "customer-visible", label: "Visible to customer" },
+            { value: "customer-hidden", label: "Hidden from customer" },
+          ]} />
+          <FilterSelect label="Sort by" value={sortValue} onChange={onSortChange} options={[
+            { value: "name", label: "Name A-Z" },
+            { value: "category", label: "Category" },
+            { value: "price-low", label: "Price low-high" },
+            { value: "price-high", label: "Price high-low" },
+          ]} />
+        </div>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onReset}>Reset</Button>
+          <Button type="button" onClick={() => onOpenChange(false)}>Apply filters</Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ActionIcon({ label, children }: { label: string; children: React.ReactElement }) {
+  return <Tip label={label}>{children}</Tip>;
+}
+
+function ChannelPriceCell({ item, channel }: { item: MenuItem; channel: MenuChannel }) {
+  const active = isItemVisible(item, channel);
+  return (
+    <span className={`rounded-md px-2 py-2 text-center text-xs font-black ${active ? "bg-primary/8 text-foreground" : "bg-muted text-muted-foreground"}`}>
+      {formatChannelItemPrice(item, channel)}
+    </span>
+  );
+}
+
+function MiniPrice({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="rounded-md bg-muted px-2 py-2">
+      <span className="block font-black text-muted-foreground">{label}</span>
+      <span className="mt-1 block truncate font-black text-foreground">{value}</span>
+    </span>
+  );
+}
+
 function MenuItemRow({
+  variant,
   item,
+  selected,
   activeChannel,
   taxRate,
+  onSelect,
+  onPreviewImage,
   onEdit,
+  onCopyLink,
+  onShareWhatsApp,
   onToggleSoldOut,
-  onToggleDelivery,
-  onToggleParcel,
-  onClonePrice,
+  onCloneItem,
   onDelete,
 }: {
+  variant: "table" | "card";
   item: MenuItem;
+  selected: boolean;
   activeChannel: MenuChannel;
   taxRate: number;
+  onSelect: (selected: boolean) => void;
+  onPreviewImage: () => void;
   onEdit: () => void;
+  onCopyLink: () => void;
+  onShareWhatsApp: () => void;
   onToggleSoldOut: () => void;
-  onToggleDelivery: () => void;
-  onToggleParcel: () => void;
-  onClonePrice: () => void;
+  onCloneItem: () => void;
   onDelete: () => void;
 }) {
   const customerVisible = isItemVisible(item, "delivery") && !item.soldOut;
-  return (
-    <Card>
-      <CardContent className="grid gap-4 p-3 lg:grid-cols-[112px_minmax(0,1fr)_minmax(280px,360px)_auto] lg:items-center">
-        <div className="relative min-h-28 overflow-hidden rounded-md bg-muted">
-          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="160px" className="object-cover" />
-        </div>
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{item.category}</Badge>
-            <Badge variant={customerVisible ? "success" : "warning"}>{customerVisible ? "Customer visible" : "Customer hidden"}</Badge>
-            <Badge variant={item.isVeg ? "success" : "warning"}>{item.foodType ?? (item.isVeg ? "veg" : "nonveg")}</Badge>
-            {item.soldOut ? <Badge variant="destructive">Sold out</Badge> : null}
+  const statusLabel = item.soldOut ? "Sold Out" : customerVisible ? "Active" : "Hidden";
+  const statusVariant = item.soldOut ? "destructive" : customerVisible ? "success" : "warning";
+  const metadata = [
+    formatFoodTypeLabel(item.foodType ?? (item.isVeg ? "veg" : "nonveg")),
+    item.prepTime,
+    `GST ${item.taxRate ?? taxRate}%`,
+    `${activeChannel} ${formatCurrency(getChannelPrice(item, activeChannel))}`,
+  ].filter(Boolean).join(" · ");
+  const itemUrl = buildCustomerItemPath(item);
+  const actions = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <ActionIcon label="Open customer view">
+        <Button size="icon-sm" variant="outline" asChild>
+          <a href={itemUrl} target="_blank" rel="noreferrer" aria-label="Open customer view">
+            <Eye className="size-4" />
+          </a>
+        </Button>
+      </ActionIcon>
+      <ActionIcon label="Share on WhatsApp">
+        <Button size="icon-sm" variant="outline" onClick={onShareWhatsApp} aria-label="Share on WhatsApp">
+          <MessageCircle className="size-4" />
+        </Button>
+      </ActionIcon>
+      <ActionIcon label="Edit menu item">
+        <Button size="icon-sm" variant="outline" onClick={onEdit} aria-label="Edit menu item">
+          <Edit3 className="size-4" />
+        </Button>
+      </ActionIcon>
+      <ActionIcon label="Copy customer item link">
+        <Button size="icon-sm" variant="outline" onClick={onCopyLink} aria-label="Copy customer item link">
+          <Link2 className="size-4" />
+        </Button>
+      </ActionIcon>
+      <ActionIcon label="Create a copy of this menu item">
+        <Button size="icon-sm" variant="outline" onClick={onCloneItem} aria-label="Create a copy of this menu item">
+          <Copy className="size-4" />
+        </Button>
+      </ActionIcon>
+      <ActionIcon label="Permanently remove menu item">
+        <Button size="icon-sm" variant="outline" onClick={onDelete} aria-label="Permanently remove menu item">
+          <Trash2 className="size-4 text-destructive" />
+        </Button>
+      </ActionIcon>
+      <ActionIcon label="Hide item from customers temporarily">
+        <Button size="icon-sm" variant={item.soldOut ? "secondary" : "outline"} onClick={onToggleSoldOut} aria-label="Toggle sold out state" aria-pressed={Boolean(item.soldOut)}>
+          {item.soldOut ? <ToggleRight className="size-4" /> : <ToggleLeft className="size-4" />}
+        </Button>
+      </ActionIcon>
+    </div>
+  );
+
+  if (variant === "table") {
+    return (
+      <div className="grid grid-cols-[42px_76px_minmax(220px,1.45fr)_minmax(120px,0.75fr)_92px_92px_92px_76px_96px_minmax(220px,0.9fr)] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+        <input type="checkbox" className="size-4" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.name}`} />
+        <Tip label="Click to preview image">
+          <button type="button" className="relative size-[60px] overflow-hidden rounded-md bg-muted" onClick={onPreviewImage} aria-label={`Preview ${item.name} image`}>
+            <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="60px" className="object-cover" />
+          </button>
+        </Tip>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate font-black text-foreground">{item.name}</h2>
+            {item.tags?.slice(0, 1).map((tag) => <Badge key={tag} variant="secondary" className="hidden shrink-0 md:inline-flex">{tag}</Badge>)}
           </div>
-          <h2 className="line-clamp-1 text-base font-black text-foreground">{item.name}</h2>
-          <p className="line-clamp-2 text-sm font-semibold text-foreground/70">{item.description || "No description added."}</p>
-          <p className="text-xs font-bold text-foreground/70">GST {item.taxRate ?? taxRate}% · Prep {item.prepTime} · Active audit: {activeChannel} {formatCurrency(getChannelPrice(item, activeChannel))}</p>
+          <p className="line-clamp-1 text-xs font-semibold text-muted-foreground">{item.description || "No description added."}</p>
+          <p className="mt-1 truncate text-xs font-bold text-muted-foreground">{metadata}</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-          <PricePill label="Dine-in" value={formatChannelItemPrice(item, "dine-in")} active={isItemVisible(item, "dine-in")} />
-          <PricePill label="Parcel" value={formatChannelItemPrice(item, "parcel")} active={isItemVisible(item, "parcel")} />
-          <PricePill label="Delivery" value={formatChannelItemPrice(item, "delivery")} active={isItemVisible(item, "delivery")} />
+        <span className="truncate font-semibold text-foreground">{item.category || "Uncategorised"}</span>
+        <ChannelPriceCell item={item} channel="dine-in" />
+        <ChannelPriceCell item={item} channel="parcel" />
+        <ChannelPriceCell item={item} channel="delivery" />
+        <span className="text-xs font-black text-foreground">{item.prepTime || "-"}</span>
+        <Tip label="Current customer visibility state">
+          <span>
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
+          </span>
+        </Tip>
+        {actions}
+      </div>
+    );
+  }
+
+  return (
+    <article className="rounded-lg border bg-card p-3 shadow-sm">
+      <div className="grid grid-cols-[auto_72px_minmax(0,1fr)_auto] gap-3">
+        <input type="checkbox" className="mt-6 size-4" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.name}`} />
+        <Tip label="Click to preview image">
+          <button type="button" className="relative size-[72px] overflow-hidden rounded-md bg-muted" onClick={onPreviewImage} aria-label={`Preview ${item.name} image`}>
+            <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="72px" className="object-cover" />
+          </button>
+        </Tip>
+        <div className="min-w-0">
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
+            <Badge variant={item.isVeg ? "success" : "warning"}>{formatFoodTypeLabel(item.foodType ?? (item.isVeg ? "veg" : "nonveg"))}</Badge>
+          </div>
+          <h2 className="mt-1 line-clamp-1 font-black text-foreground">{item.name}</h2>
+          <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-muted-foreground">{item.category || "Uncategorised"} · {item.prepTime || "Prep pending"}</p>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+            <MiniPrice label="Dine-In" value={formatChannelItemPrice(item, "dine-in")} />
+            <MiniPrice label="Parcel" value={formatChannelItemPrice(item, "parcel")} />
+            <MiniPrice label="Delivery" value={formatChannelItemPrice(item, "delivery")} />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button size="sm" variant="outline" onClick={() => void copyCustomerItemLink(item)}>
-            <Link2 className="size-4" />
-            Copy link
-          </Button>
-          <Button size="sm" variant="outline" asChild>
-            <a href={buildCustomerItemPath(item)} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-4" />
-              Open
-            </a>
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => shareCustomerItemOnWhatsApp(item)}>
-            <MessageCircle className="size-4" />
-            WhatsApp
-          </Button>
-          <Button size="sm" variant="outline" onClick={onEdit}>
-            <Edit3 className="size-4" />
-            Edit
-          </Button>
-          <Button size="sm" variant="secondary" onClick={onToggleSoldOut}>
-            {item.soldOut ? <ToggleRight className="size-4" /> : <ToggleLeft className="size-4" />}
-            {item.soldOut ? "Restock" : "Sold out"}
-          </Button>
-          <Button size="sm" variant="outline" onClick={onToggleDelivery}>Delivery {isItemVisible(item, "delivery") ? "off" : "on"}</Button>
-          <Button size="sm" variant="outline" onClick={onToggleParcel}>Parcel {isItemVisible(item, "parcel") ? "off" : "on"}</Button>
-          <Button size="sm" variant="outline" onClick={onClonePrice}>
-            <Copy className="size-4" />
-            Clone
-          </Button>
-          <Button size="sm" variant="outline" onClick={onDelete}>
-            <Trash2 className="size-4" />
-            Delete
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          {actions}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   );
 }
 
@@ -1835,40 +2422,9 @@ async function copyCustomerItemLink(item: MenuItem) {
   }
 }
 
-function shareCustomerItemOnWhatsApp(item: MenuItem) {
-  const url = buildCustomerItemUrl(item);
-  const href = `https://wa.me/?text=${encodeURIComponent(buildMenuItemPromotionMessage(item, url))}`;
-  if (typeof window !== "undefined") {
-    window.open(href, "_blank", "noopener,noreferrer");
-  }
-}
-
-function buildMenuItemPromotionMessage(item: MenuItem, url: string) {
-  const restaurantName = humanizeRestaurantSlug(item.restaurantSlug || DEFAULT_RESTAURANT_ID);
-  const price = firstPositivePrice(item.deliveryPrice, item.parcelPrice, item.dineInPrice, item.price);
-  return [
-    `Try ${item.name} from ${restaurantName}.`,
-    item.description ? item.description.slice(0, 140) : "",
-    price ? `Price starts at ${formatCurrency(price)}.` : "",
-    `Order now or schedule later: ${url}`,
-  ].filter(Boolean).join("\n");
-}
-
-function humanizeRestaurantSlug(value: string) {
-  return value.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function PricePill({ label, value, active }: { label: string; value: string; active: boolean }) {
-  return (
-    <div className={`rounded-md border p-3 ${active ? "bg-primary/5" : "bg-muted/40 opacity-70"}`}>
-      <p className="text-xs font-black uppercase text-foreground/70">{label}</p>
-      <p className="mt-1 text-base font-black text-foreground">{value}</p>
-    </div>
-  );
-}
-
 function validateMenuDraft(values: MenuFormValues, image: string, menuItems: MenuItem[], editingId?: string): { step: ItemWizardStepId; message: string } | null {
   if (!hasCustomImage(image)) return { step: "basic", message: "Add a real item image by upload or image URL." };
+  if (!values.cuisineIds.length) return { step: "basic", message: "Select at least one cuisine." };
   if (menuItems.some((item) => item.id !== editingId && item.name.trim().toLowerCase() === values.name.trim().toLowerCase())) {
     return { step: "basic", message: "An item with this name already exists." };
   }
@@ -1883,7 +2439,7 @@ function validateMenuDraft(values: MenuFormValues, image: string, menuItems: Men
 
 function stepForFormErrors(errors: ReturnType<typeof useForm<MenuFormValues>>["formState"]["errors"]): ItemWizardStepId {
   const keys = Object.keys(errors);
-  if (keys.some((key) => ["name", "category", "categoryId", "price", "foodType"].includes(key))) return "basic";
+  if (keys.some((key) => ["name", "category", "categoryId", "cuisineIds", "price", "foodType"].includes(key))) return "basic";
   if (keys.some((key) => ["description", "longDescription", "prepTime", "spiceLevel"].includes(key))) return "description";
   if (keys.some((key) => ["modifiers", "addOns", "modifierGroups"].includes(key))) return "customization";
   if (keys.some((key) => ["tags", "badges", "searchKeywords", "allergens"].includes(key))) return "info";
@@ -1902,6 +2458,18 @@ function hasCustomImage(value?: string) {
   return Boolean(value && value !== fallbackImage && value !== IMAGE_FALLBACKS.food && value.trim().length > 8);
 }
 
+function uniqueImageUrls(values: string[]) {
+  const seen = new Set<string>();
+  return values
+    .map((value) => value.trim())
+    .filter(hasCustomImage)
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+}
+
 function matchesPriceBand(price: number, band: string) {
   if (band === "under-150") return price < 150;
   if (band === "150-300") return price >= 150 && price <= 300;
@@ -1910,8 +2478,33 @@ function matchesPriceBand(price: number, band: string) {
   return true;
 }
 
+function matchesPrepBand(prepTime: string | undefined, band: string) {
+  if (band === "all") return true;
+  const minutes = Number((prepTime ?? "").match(/\d+/)?.[0] ?? 0);
+  if (!minutes) return band === "under-10";
+  if (band === "under-10") return minutes < 10;
+  if (band === "10-20") return minutes >= 10 && minutes <= 20;
+  if (band === "20-plus") return minutes > 20;
+  return true;
+}
+
 function unique(values: string[]) {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+}
+
+function uniqueCloneName(name: string, items: MenuItem[]) {
+  const existing = new Set(items.map((item) => item.name.trim().toLowerCase()));
+  let nextName = `${name} Copy`;
+  let index = 2;
+  while (existing.has(nextName.toLowerCase())) {
+    nextName = `${name} Copy ${index}`;
+    index += 1;
+  }
+  return nextName;
+}
+
+function humanizeFilterLabel(value: string) {
+  return value.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function saveTaxDraft(

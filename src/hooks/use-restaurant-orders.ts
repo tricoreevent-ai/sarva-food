@@ -4,25 +4,63 @@ import { useEffect, useMemo, useState } from "react";
 import { listenToRestaurantOrders } from "@/services/order-service";
 import type { OrderDoc, OrderStatus } from "@/types/firebase";
 
-export function useRestaurantOrders(restaurantId?: string, statuses?: OrderStatus[]) {
+export function useRestaurantOrders(restaurantId?: string | string[], statuses?: OrderStatus[]) {
   const [orders, setOrders] = useState<OrderDoc[]>([]);
   const [loading, setLoading] = useState(Boolean(restaurantId));
   const statusKey = statuses?.join(",") ?? "new,accepted,preparing,ready";
+  const restaurantIds = useMemo(
+    () => Array.from(new Set((Array.isArray(restaurantId) ? restaurantId : [restaurantId]).filter((id): id is string => Boolean(id)))),
+    [restaurantId],
+  );
+  const restaurantKey = restaurantIds.join(",");
   const stableStatuses = useMemo(
     () => statusKey.split(",") as OrderStatus[],
     [statusKey],
   );
 
   useEffect(() => {
-    if (!restaurantId) {
-      return;
+    if (!restaurantIds.length) {
+      const resetTimer = window.setTimeout(() => {
+        setOrders([]);
+        setLoading(false);
+      }, 0);
+      return () => window.clearTimeout(resetTimer);
     }
 
-    return listenToRestaurantOrders(restaurantId, stableStatuses, (nextOrders) => {
-      setOrders(nextOrders);
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0);
+    const scopedOrders = new Map<string, OrderDoc[]>();
+    const emit = () => {
+      setOrders(dedupeOrders([...scopedOrders.values()].flat()));
       setLoading(false);
-    });
-  }, [restaurantId, stableStatuses]);
+    };
+    const unsubscribers = restaurantIds.map((id) => listenToRestaurantOrders(id, stableStatuses, (nextOrders) => {
+      scopedOrders.set(id, nextOrders);
+      emit();
+    }));
+    return () => {
+      window.clearTimeout(loadingTimer);
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [restaurantIds, restaurantKey, stableStatuses]);
 
-  return { orders: restaurantId ? orders : [], loading: restaurantId ? loading : false };
+  return { orders: restaurantIds.length ? orders : [], loading: restaurantIds.length ? loading : false };
+}
+
+function dedupeOrders(orders: OrderDoc[]) {
+  return Array.from(new Map(orders.map((order) => [order.id, order])).values()).sort((first, second) => {
+    return orderCreatedAtMs(second.createdAt) - orderCreatedAtMs(first.createdAt);
+  });
+}
+
+function orderCreatedAtMs(value: unknown) {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.getTime() : 0;
+  }
+  if (typeof (value as { toDate?: () => Date }).toDate === "function") {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+  return 0;
 }

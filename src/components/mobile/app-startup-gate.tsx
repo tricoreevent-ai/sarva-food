@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Database, Wifi, WifiOff } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { getFirebaseApp, isFirebaseConfigured } from "@/firebase/client";
-import { useAppStore } from "@/lib/app-store";
+import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { startOfflineSyncEngine } from "@/lib/offline";
 import { getInitials } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ const SPLASH_SEEN_KEY = "sarva-startup-splash-seen";
 
 export function AppStartupGate() {
   const pathname = usePathname();
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = usePublicAppName();
   const [visible, setVisible] = useState(false);
   const [label, setLabel] = useState("Starting mobile app");
   const [online, setOnline] = useState(true);

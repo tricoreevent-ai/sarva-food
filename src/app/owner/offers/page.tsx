@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarClock, Eye, EyeOff, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
+import { CalendarClock, Eye, EyeOff, MessageCircle, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
+import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { OfferBadge } from "@/components/commerce/offer-badge";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
@@ -12,10 +13,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { defaultRestaurantMarketingSettings } from "@/features/marketing/messageTemplates";
+import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
-import type { Offer } from "@/lib/types";
+import type { MenuItem, Offer } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import { readStoredRestaurantMarketingSettings, writeStoredRestaurantMarketingSettings } from "@/services/whatsappTemplate";
 
 type OfferForm = {
   code: string;
@@ -115,6 +119,7 @@ export default function OwnerOffersPage() {
   const apiMessage = useAppStore((state) => state.apiMessage);
   const restaurantSlug = authUser.restaurantSlug ?? restaurants[0]?.slug ?? "cafe-al-arab-thanisandra";
   const restaurant = restaurants.find((item) => item.slug === restaurantSlug) ?? restaurants[0];
+  const whatsappShare = useWhatsAppShare();
   const [form, setForm] = useState<OfferForm>(emptyForm);
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -129,6 +134,10 @@ export default function OwnerOffersPage() {
     acceptsPreorder: restaurant?.advancedFeatures?.preorder ?? true,
     maxPreorderDays: 14,
     cateringNegotiationEnabled: true,
+  }));
+  const [restaurantMarketingSettings, setRestaurantMarketingSettings] = useState(() => ({
+    ...defaultRestaurantMarketingSettings,
+    ...readStoredRestaurantMarketingSettings(restaurantSlug),
   }));
   const ownerOffers = useMemo(() => sortOffers(offers.filter((offer) => !offer.restaurantSlug || offer.restaurantSlug === restaurantSlug)), [offers, restaurantSlug]);
   const categories = useMemo(() => {
@@ -238,6 +247,11 @@ export default function OwnerOffersPage() {
     toast.success("Restaurant customer options saved.");
   }
 
+  function saveRestaurantMarketingSettings() {
+    writeStoredRestaurantMarketingSettings(restaurantSlug, restaurantMarketingSettings);
+    toast.success("WhatsApp marketing settings saved.");
+  }
+
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -305,6 +319,7 @@ export default function OwnerOffersPage() {
               <OfferLibraryCard
                 key={offer.code}
                 offer={offer}
+                relatedMenuItems={menuItems.filter((item) => offer.applicableItemIds?.includes(item.id)).slice(0, 3)}
                 onEdit={() => editOffer(offer)}
                 onReuse={() => reuseOffer(offer)}
                 onActivate={() => void changeStatus(offer, "active")}
@@ -312,6 +327,7 @@ export default function OwnerOffersPage() {
                 onToggleHomepage={() => void toggleVisibility(offer, "showOnHomepage")}
                 onToggleFeatured={() => void toggleVisibility(offer, "featured")}
                 onDelete={() => void removeOffer(offer)}
+                onShareItem={(item) => void whatsappShare.openShare({ item, restaurant, template: offer.offerType === "festival" ? "festival" : "promotional" })}
               />
             ))}
           </div>
@@ -330,24 +346,57 @@ export default function OwnerOffersPage() {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="space-y-4 p-5">
-            <SectionHeader title="Restaurant special options" description="These settings control schedule, catering, bulk, preorder, and negotiation visibility in customer screens." />
-            <div className="grid gap-3">
-              <Toggle label="Accept scheduled orders" checked={settings.acceptsScheduledOrders} onChange={(acceptsScheduledOrders) => setSettings({ ...settings, acceptsScheduledOrders })} />
-              <Toggle label="Accept catering" checked={settings.acceptsCatering} onChange={(acceptsCatering) => setSettings({ ...settings, acceptsCatering })} />
-              <Toggle label="Accept bulk orders" checked={settings.acceptsBulkOrders} onChange={(acceptsBulkOrders) => setSettings({ ...settings, acceptsBulkOrders })} />
-              <Toggle label="Accept preorder" checked={settings.acceptsPreorder} onChange={(acceptsPreorder) => setSettings({ ...settings, acceptsPreorder })} />
-              <Field label="Max preorder days" type="number" value={String(settings.maxPreorderDays)} onChange={(value) => setSettings({ ...settings, maxPreorderDays: Number(value) || 0 })} />
-              <Toggle label="Catering negotiation" checked={settings.cateringNegotiationEnabled} onChange={(cateringNegotiationEnabled) => setSettings({ ...settings, cateringNegotiationEnabled })} />
-            </div>
-            <Button onClick={saveSettings} className="w-full">
-              <CalendarClock className="size-4" />
-              Save customer options
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <SectionHeader title="WhatsApp marketing settings" description="Restaurant defaults used by item share messages." />
+              <Field label="Default CTA" value={restaurantMarketingSettings.defaultCtaText} onChange={(defaultCtaText) => setRestaurantMarketingSettings({ ...restaurantMarketingSettings, defaultCtaText })} placeholder="Order Now" />
+              <div className="grid gap-2">
+                <Label>Restaurant WhatsApp footer</Label>
+                <Textarea
+                  value={restaurantMarketingSettings.whatsappFooter}
+                  onChange={(event) => setRestaurantMarketingSettings({ ...restaurantMarketingSettings, whatsappFooter: event.target.value })}
+                  placeholder={"📍 Cafe Al Arab, Thanisandra\n📞 +91XXXXXXXXXX"}
+                  rows={4}
+                />
+              </div>
+              <Button onClick={saveRestaurantMarketingSettings} className="w-full">
+                <MessageCircle className="size-4" />
+                Save WhatsApp settings
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <SectionHeader title="Restaurant special options" description="These settings control schedule, catering, bulk, preorder, and negotiation visibility in customer screens." />
+              <div className="grid gap-3">
+                <Toggle label="Accept scheduled orders" checked={settings.acceptsScheduledOrders} onChange={(acceptsScheduledOrders) => setSettings({ ...settings, acceptsScheduledOrders })} />
+                <Toggle label="Accept catering" checked={settings.acceptsCatering} onChange={(acceptsCatering) => setSettings({ ...settings, acceptsCatering })} />
+                <Toggle label="Accept bulk orders" checked={settings.acceptsBulkOrders} onChange={(acceptsBulkOrders) => setSettings({ ...settings, acceptsBulkOrders })} />
+                <Toggle label="Accept preorder" checked={settings.acceptsPreorder} onChange={(acceptsPreorder) => setSettings({ ...settings, acceptsPreorder })} />
+                <Field label="Max preorder days" type="number" value={String(settings.maxPreorderDays)} onChange={(value) => setSettings({ ...settings, maxPreorderDays: Number(value) || 0 })} />
+                <Toggle label="Catering negotiation" checked={settings.cateringNegotiationEnabled} onChange={(cateringNegotiationEnabled) => setSettings({ ...settings, cateringNegotiationEnabled })} />
+              </div>
+              <Button onClick={saveSettings} className="w-full">
+                <CalendarClock className="size-4" />
+                Save customer options
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </section>
+
+      <WhatsAppShareModal
+        preview={whatsappShare.preview}
+        open={Boolean(whatsappShare.preview) || whatsappShare.isPreparing}
+        preparing={whatsappShare.isPreparing}
+        onOpenChange={(open) => {
+          if (!open) whatsappShare.closeShare();
+        }}
+        onCopy={() => void whatsappShare.copyMessage()}
+        onWhatsApp={whatsappShare.openWhatsApp}
+      />
     </div>
   );
 }
@@ -476,6 +525,7 @@ function OfferConfigurator({
 
 function OfferLibraryCard({
   offer,
+  relatedMenuItems,
   onEdit,
   onReuse,
   onActivate,
@@ -483,8 +533,10 @@ function OfferLibraryCard({
   onToggleHomepage,
   onToggleFeatured,
   onDelete,
+  onShareItem,
 }: {
   offer: Offer;
+  relatedMenuItems: MenuItem[];
   onEdit: () => void;
   onReuse: () => void;
   onActivate: () => void;
@@ -492,6 +544,7 @@ function OfferLibraryCard({
   onToggleHomepage: () => void;
   onToggleFeatured: () => void;
   onDelete: () => void;
+  onShareItem: (item: MenuItem) => void;
 }) {
   const active = isOfferActive(offer) && (offer.status ?? "active") === "active";
   return (
@@ -522,6 +575,19 @@ function OfferLibraryCard({
           <Button variant="outline" size="sm" onClick={onToggleFeatured}><Star className="size-4" />Featured</Button>
           <Button variant="ghost" size="sm" className="text-destructive" onClick={onDelete}><Trash2 className="size-4" />Delete</Button>
         </div>
+        {relatedMenuItems.length ? (
+          <div className="rounded-lg border bg-orange-50/50 p-3">
+            <p className="text-xs font-black uppercase text-orange-700">Share campaign items</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {relatedMenuItems.map((item) => (
+                <Button key={item.id} type="button" variant="outline" size="sm" onClick={() => onShareItem(item)}>
+                  <MessageCircle className="size-4" />
+                  {item.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

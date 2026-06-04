@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAppStore } from "@/lib/app-store";
+import { usePublicAppName } from "@/hooks/use-public-app-name";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -11,7 +11,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 export function InstallPrompt() {
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = usePublicAppName();
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
 

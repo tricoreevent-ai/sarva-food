@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { memo } from "react";
-import { Bike, Clock, MapPin, Star, TicketPercent } from "lucide-react";
+import { Bike, Clock, MapPin, Star } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
+import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
 import type { Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { distanceKm?: number } }) {
+  const operatingStatus = getRestaurantOperatingStatus(restaurant);
+
   return (
     <Link
       href={`/restaurant/${restaurant.slug}`}
@@ -29,22 +32,14 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
                 {restaurant.rating}
               </Badge>
             ) : null}
-            <Badge className="rounded-full" variant={restaurant.isOpen ? "success" : "warning"}>
-              {restaurant.isOpen ? "Open" : "Preorder"}
+            <Badge className="rounded-full" variant={operatingStatus.open ? "success" : "warning"}>
+              {operatingStatus.label}
             </Badge>
           </div>
           {restaurant.deliveryEligible !== undefined ? (
             <div className="absolute bottom-3 right-3">
               <Badge className="rounded-full bg-white text-primary">
                 {restaurant.deliveryEligible ? "Delivers here" : "Out of range"}
-              </Badge>
-            </div>
-          ) : null}
-          {restaurant.tags.some((tag) => tag.toLowerCase().includes("offer")) ? (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3">
-              <Badge className="rounded-full bg-secondary text-secondary-foreground">
-                <TicketPercent className="mr-1 size-3" aria-hidden="true" />
-                Offers available
               </Badge>
             </div>
           ) : null}
@@ -57,7 +52,7 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
           <div className="flex flex-wrap gap-3 text-xs font-semibold text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="size-3" aria-hidden="true" />
-              {restaurant.deliveryTime || "Timing pending"}
+              {operatingStatus.detail || restaurant.deliveryTime || "Timing pending"}
             </span>
             {restaurant.deliveryRadiusKm ? (
               <span className="inline-flex items-center gap-1">

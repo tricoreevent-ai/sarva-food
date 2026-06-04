@@ -1,20 +1,42 @@
 # Sarva Food Task Tracker
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
 ## In Progress
 
-- [ ] None.
+- [ ] Live Firestore data integrity verification for Cafe Al Arab owner/menu/offer/schedule mappings. Code paths and seed/demo leakage were fixed locally on 2026-06-04; final live database audit/repair still needs authenticated Firestore execution against the target environment.
 
 ## Blocked / External Access Required
 
+- [ ] Verify and repair the live Cafe Al Arab Firestore relationship so `Cafe Al Arab` / `cafe-al-arab-thanisandra` is owned by `divakdi@gmail.com` only, with no Test Owner records, duplicate active restaurants, orphan menu items, or stale seeded offers. Requires running the audit/repair against the intended Firebase project.
 - [ ] Deploy the latest verified application build to Hostinger. Local build verification passed on 2026-06-01; final deployment requires Hostinger hPanel/GitHub deployment access.
 - [ ] Configure and verify the production outage alert recipient in Hostinger and Admin CMS. The Hostinger env template is ready; final setup requires Hostinger environment access and production Admin CMS login.
 
 ## Completed
 
+- [x] Customer home width/category cleanup completed on 2026-06-04: the fixed `1180px` homepage restaurant/item sections now use the full shared page width, Admin-master categories render without hard borders, and category chips include lighter hover animation.
+- [x] Public header/profile cleanup completed on 2026-06-04: desktop address/search controls are right-aligned, the stale/fake `Gold Member` profile card row was removed, logout immediately hides the customer profile state, and the extra desktop create-account action was removed from the header.
+- [x] Customer login/profile completion cleanup completed on 2026-06-04: Google/customer login defaults to the homepage, while missing customer phone numbers still route to `/profile?phoneRequired=1` and now focus the phone number field.
+- [x] Theme/font/fullscreen preference cleanup completed on 2026-06-04: visible theme color controls are hidden, compact font-size choices use icon buttons with tooltips, and compact fullscreen uses an icon-only control with explanatory title text.
+- [x] Deals and loyalty configuration cleanup completed on 2026-06-04: Deals now uses the same owner-configured public offers fallback as the homepage, Admin CMS includes loyalty earning/redemption/tier settings, and the customer loyalty page reads those settings instead of fixed thresholds.
+- [x] Owner menu item media/taxonomy cleanup completed on 2026-06-04: menu items can keep multiple food images with a cover image, cuisines are a searchable required selector backed by Admin master cuisines, and cuisine/food-type validation blocks incomplete item publishing.
+- [x] Cafe Al Arab public duplicate normalization completed on 2026-06-04: customer-side public restaurant data now collapses Cafe Al Arab variants to the `Cafe Al Arab UL` launch identity to reduce duplicate/confusing listings while the live Firestore relationship audit remains external.
+- [x] Owner profile tooltip cleanup completed on 2026-06-04: the owner avatar no longer opens the generic tooltip alongside the profile menu, and Firebase UID/session ids are no longer used as visible owner/email fallback text.
+- [x] Restaurant page width and border cleanup completed on 2026-06-04: shared `container-page` now uses full available page width, the Cafe Al Arab restaurant hero renders as a full-width band, and restaurant menu/order/about/offer/cart panels were simplified with lighter spacing and fewer hard borders.
+- [x] Restaurant discovery/data cleanup pass completed on 2026-06-04: public restaurant cards and detail pages now calculate Open/Closed from operating hours, optional holiday/temporary/emergency closure fields, and ordering enablement instead of treating `active`/`isOpen` as live status.
+- [x] Restaurant browser filters redesigned on 2026-06-04: `/restaurants` now keeps search, quick chips, and the filter button on-page while advanced filters open in a desktop right drawer/mobile bottom sheet with reset and result count.
+- [x] Hardcoded offer/demo leakage cleanup completed on 2026-06-04: seeded offer documents/coupons and default CMS sponsored offer cards were removed from seed/default paths, public menu offer cache was invalidated, restaurant cards no longer infer offers from tags, and targeted hardcoded offer/name search returned no matches.
+- [x] Cafe Al Arab local fallback mapping cleanup completed on 2026-06-04: client fallback owner profile and bootstrap scripts no longer use `Test Owner`, stale persisted Test Owner profiles are purged, and Cafe Al Arab fallback contact email now resolves to `divakdi@gmail.com`.
+- [x] Owner profile hover card fixed on 2026-06-04: hovering/clicking the owner profile icon now opens an owner information card with owner, restaurant, mobile, email, plan, restaurant status, joined date, and the expected profile/settings/billing/support/logout actions.
+- [x] Duplicate owner restaurant-name guard added on 2026-06-04: owner profile saves now reject another active restaurant with the same normalized name for the same owner.
+- [x] Restaurant schedule validation strengthened on 2026-06-04: customer scheduled orders still use native `date` and `time` inputs and now validate against restaurant hours plus configured prep/cutoff minutes.
+- [x] Discovery cleanup verification completed on 2026-06-04: targeted hardcoded-offer/Test Owner search passed, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed.
+- [x] Owner/admin login speed pass completed on 2026-06-03: owner/admin portal login screens no longer import the heavy persisted app store just to redirect after module login cookies are written.
+- [x] Owner Menu landing page compact redesign completed on 2026-06-03: menu items now use a POS-style dense desktop table, stacked mobile rows, compact KPIs, quick filters, advanced filter drawer, bulk actions, pagination, image preview, tooltipped icon actions, and preserved item wizard/import/export behavior.
+- [x] Reusable WhatsApp marketing generator completed on 2026-06-03: added reusable templates, TinyURL shortening with original URL fallback, preview/copy/WhatsApp modal, share hook, admin marketing settings, owner restaurant WhatsApp settings, and share actions across owner menu, item detail, owner offers/campaigns, admin campaigns, and owner dashboard top items.
+- [x] Menu redesign and WhatsApp marketing verification completed on 2026-06-03: `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed.
 - [x] Customer public page width alignment fixed on 2026-06-02: restaurant detail and restaurant item detail pages now use the shared `container-page` width so the header and body align consistently.
 - [x] Live hardcoded menu leakage guard strengthened on 2026-06-02: public menu cache was invalidated, legacy seeded Cafe Al Arab item names were removed from fallback popular items, and production/client seed scripts no longer create sample menu items or sample menu-linked orders unless `SEED_SAMPLE_MENU_ITEMS=true` is explicitly set.
 - [x] Hosted Cafe Al Arab legacy menu cleanup completed on 2026-06-02: 16 exact seeded menu documents were deleted from Firestore across `menuItems`, `dineInMenus`, `parcelMenus`, and `deliveryMenus`; hosted `/api/public/menu?restaurantId=cafe-al-arab-thanisandra` now returns an empty menu instead of the four hardcoded dishes.

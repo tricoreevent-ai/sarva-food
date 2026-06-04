@@ -10,17 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
+import { useAppStore } from "@/lib/app-store";
+import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { formatCurrency } from "@/lib/utils";
 
 export default function LoyaltyPage() {
   const { user, loading } = useAuthUser();
   const customer = useCustomerData(user?.uid);
+  const cmsSettings = useAppStore((state) => state.cmsSettings);
+  const loyaltySettings = cmsSettings.loyalty ?? defaultCmsSettings.loyalty!;
   const points = customer.loyalty?.points ?? 0;
   const totalOrders = customer.loyalty?.totalOrders ?? customer.orders.length;
-  const rewardValue = Math.floor(points / 10);
-  const tier = tierForPoints(points);
-  const nextTier = nextTierForPoints(points);
-  const progress = nextTier ? Math.min(100, Math.round((points / nextTier.min) * 100)) : 100;
+  const rewardValue = Math.floor(points / Math.max(1, loyaltySettings.redemptionPointsPerRupee));
+  const tier = tierForPoints(points, loyaltySettings.tiers);
+  const nextTier = nextTierForPoints(points, loyaltySettings.tiers);
+  const progress = nextTier ? Math.min(100, Math.round((points / nextTier.minPoints) * 100)) : 100;
   const coupons = customer.coupons.filter((coupon) => coupon.active !== false && coupon.status !== "expired" && coupon.status !== "used");
   const activeCoupons = coupons.length;
   const savings = activeCoupons * 50 + rewardValue;
@@ -28,7 +32,7 @@ export default function LoyaltyPage() {
     id: order.id,
     restaurant: "restaurantName" in order && typeof order.restaurantName === "string" ? order.restaurantName : "Sarva restaurant",
     amount: order.total,
-    points: Math.max(10, Math.floor(order.total / 10)),
+    points: earnedPointsForOrder(order.total, loyaltySettings),
     status: order.status === "delivered" || order.status === "completed" ? "Delivered" : order.status,
   }));
 
@@ -68,8 +72,8 @@ export default function LoyaltyPage() {
               <Badge className="mt-3 bg-orange-100 text-primary">Worth {formatCurrency(rewardValue)}</Badge>
               <div className="mt-6">
                 <div className="flex justify-between text-xs font-bold text-muted-foreground">
-                  <span>{nextTier ? `${nextTier.min - points} more points to unlock ${nextTier.name}` : "Top membership unlocked"}</span>
-                  <span>{nextTier?.min ?? points} pts</span>
+                  <span>{nextTier ? `${nextTier.minPoints - points} more points to unlock ${nextTier.name}` : "Top membership unlocked"}</span>
+                  <span>{nextTier?.minPoints ?? points} pts</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
@@ -104,7 +108,7 @@ export default function LoyaltyPage() {
               <Card className="customer-surface">
                 <CardContent className="space-y-4 p-5">
                   <h2 className="text-xl font-black">How You Earn</h2>
-                  <EarnRow icon={ShoppingBag} title="Order Rewards" text="10 points for every ₹100 spent on all orders." />
+                  <EarnRow icon={ShoppingBag} title="Order Rewards" text={`${loyaltySettings.earnPoints} points for every ${formatCurrency(loyaltySettings.earnAmount)} spent on orders.`} />
                   <EarnRow icon={PartyPopper} title="Festival Bonus" text="Weekend offers, festival sales, and restaurant promotions." />
                   <EarnRow icon={Award} title="Review Rewards" text="Rate restaurants, write reviews, and upload food photos." />
                 </CardContent>
@@ -148,9 +152,16 @@ export default function LoyaltyPage() {
             </Card>
 
             <section className="grid gap-4 md:grid-cols-3">
-              <TierCard icon={ShieldCheck} title="Bronze" range="0 - 499 points" items={["Basic rewards", "Birthday offers"]} active={tier.name === "Bronze"} />
-              <TierCard icon={Sparkles} title="Silver" range="500 - 1499 points" items={["Extra reward multiplier", "Priority support", "Faster reward unlocks"]} active={tier.name === "Silver"} />
-              <TierCard icon={Trophy} title="Gold" range="1500+ points" items={["Premium coupons", "Free delivery benefits", "Exclusive restaurant offers", "Early access deals"]} active={tier.name === "Gold"} />
+              {loyaltySettings.tiers.map((item, index) => (
+                <TierCard
+                  key={item.name}
+                  icon={index === 0 ? ShieldCheck : index === loyaltySettings.tiers.length - 1 ? Trophy : Sparkles}
+                  title={item.name}
+                  range={tierRange(item, loyaltySettings.tiers[index + 1])}
+                  items={item.benefits}
+                  active={tier.name === item.name}
+                />
+              ))}
             </section>
           </>
         )}
@@ -208,14 +219,20 @@ function TierCard({ icon: Icon, title, range, items, active }: { icon: typeof Tr
   );
 }
 
-function tierForPoints(points: number) {
-  if (points >= 1500) return { name: "Gold", min: 1500 };
-  if (points >= 500) return { name: "Silver", min: 500 };
-  return { name: "Bronze", min: 0 };
+function earnedPointsForOrder(total: number, settings: NonNullable<typeof defaultCmsSettings.loyalty>) {
+  const earnAmount = Math.max(1, settings.earnAmount);
+  const earnPoints = Math.max(0, settings.earnPoints);
+  return Math.max(earnPoints, Math.floor(total / earnAmount) * earnPoints);
 }
 
-function nextTierForPoints(points: number) {
-  if (points < 500) return { name: "Silver", min: 500 };
-  if (points < 1500) return { name: "Gold", min: 1500 };
-  return null;
+function tierForPoints(points: number, tiers: NonNullable<typeof defaultCmsSettings.loyalty>["tiers"]) {
+  return [...tiers].sort((first, second) => second.minPoints - first.minPoints).find((tier) => points >= tier.minPoints) ?? tiers[0];
+}
+
+function nextTierForPoints(points: number, tiers: NonNullable<typeof defaultCmsSettings.loyalty>["tiers"]) {
+  return [...tiers].sort((first, second) => first.minPoints - second.minPoints).find((tier) => points < tier.minPoints) ?? null;
+}
+
+function tierRange(tier: NonNullable<typeof defaultCmsSettings.loyalty>["tiers"][number], next?: NonNullable<typeof defaultCmsSettings.loyalty>["tiers"][number]) {
+  return next ? `${tier.minPoints} - ${Math.max(tier.minPoints, next.minPoints - 1)} points` : `${tier.minPoints}+ points`;
 }

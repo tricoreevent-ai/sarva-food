@@ -12,10 +12,14 @@ import {
 } from "@/lib/server-auth";
 
 function getCookieOptions(request: NextRequest) {
+  const host = request.headers.get("host") ?? request.nextUrl.host;
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const isLocalHost = /^localhost(?::\d+)?$|^127\.0\.0\.1(?::\d+)?$|^\[::1\](?::\d+)?$/i.test(host);
+  const isHttps = request.nextUrl.protocol === "https:" || forwardedProto === "https";
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production" || request.nextUrl.protocol === "https:",
+    secure: isHttps || (process.env.NODE_ENV === "production" && !isLocalHost),
     path: "/",
     maxAge: 60 * 60 * 24 * 5,
   };

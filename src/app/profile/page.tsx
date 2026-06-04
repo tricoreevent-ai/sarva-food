@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
-import { updateEmail, updatePassword, updateProfile } from "firebase/auth";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { updateEmail, updatePassword, updateProfile, type User } from "firebase/auth";
 import { deleteDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   Bell,
@@ -37,7 +37,6 @@ import { AppPreferences } from "@/components/settings/app-preferences";
 import { AddressAutocomplete, type MapboxPickedLocation } from "@/components/maps/address-autocomplete";
 import { useMapbox } from "@/components/maps/mapbox-provider";
 import { CustomerShell } from "@/components/layout/customer-shell";
-import { EmptyStateCard } from "@/components/layout/empty-state";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { InlineLoading, RetryState } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
@@ -47,16 +46,20 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData, type CustomerCouponDoc } from "@/hooks/use-customer-data";
+import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { COLLECTIONS } from "@/firebase/collections";
-import { signOutUser } from "@/services/auth-service";
+import { ensureCustomerProfile, signOutUser } from "@/services/auth-service";
+import { signOutStackCustomer } from "@/services/auth/stack-auth-client";
+import { deleteCustomerFavoriteRestaurant } from "@/services/customer-favorites-service";
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
+import { useCartStore } from "@/lib/cart-store";
 import { readLocalAddresses, readLocalProfile, writeLocalAddresses, writeLocalProfile, type LocalProfileDraft } from "@/lib/customer-address-storage";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatCurrency, getInitials } from "@/lib/utils";
 import type { CateringQuote } from "@/lib/types";
-import type { CustomerAddressDoc, CustomerOrderDoc, FirestoreDate } from "@/types/firebase";
+import type { CustomerAddressDoc, CustomerOrderDoc, CustomerProfileDoc, FirestoreDate } from "@/types/firebase";
 
 type CustomerProfileDetails = {
   photoURL?: string;
@@ -87,12 +90,16 @@ export default function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const auth = useAuthUser();
+  const appName = usePublicAppName();
   const mapbox = useMapbox();
   const { user, loading } = auth;
   const customer = useCustomerData(user?.uid);
+  const { profile: customerProfile, retry: retryCustomer, status: customerStatus } = customer;
   const setAuthUser = useAppStore((state) => state.setAuthUser);
+  const clearCart = useCartStore((state) => state.clearCart);
   const cateringInquiries = useAppStore((state) => state.cateringInquiries);
-  const [activeTab, setActiveTab] = useState(() => profileTabFromUrl(searchParams.get("tab")));
+  const phoneRequired = searchParams.get("phoneRequired") === "1";
+  const [activeTab, setActiveTab] = useState(() => phoneRequired ? "settings" : profileTabFromUrl(searchParams.get("tab")));
   const [signingOut, setSigningOut] = useState(false);
   const [addressDraft, setAddressDraft] = useState<AddressDraft>(emptyAddressDraft);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
@@ -107,9 +114,30 @@ export default function ProfilePage() {
   const blockedByRole = Boolean(user && auth.profileState === "success" && auth.profile?.role !== "customer");
 
   useEffect(() => {
+    if (!user?.uid || customerStatus === "loading" || customerProfile || auth.profile?.role === "customer") return;
+    if (!shouldUseFirebase() || !isFirebaseConfigured) return;
+    const expectedUid = user.uid;
+    const id = window.setTimeout(() => {
+      const authUser = getFirebaseAuth().currentUser;
+      if (!authUser || authUser.uid !== expectedUid) return;
+      void ensureCustomerProfile(authUser, "customer")
+        .then(() => retryCustomer())
+        .catch(() => undefined);
+    }, 250);
+    return () => window.clearTimeout(id);
+  }, [auth.profile?.role, customerProfile, customerStatus, retryCustomer, user?.uid]);
+
+  useEffect(() => {
     if (!blockedByRole) return;
-    void signOutUser().finally(() => router.replace("/login?next=/profile"));
-  }, [blockedByRole, router]);
+    void Promise.all([
+      signOutUser().catch(() => undefined),
+      signOutStackCustomer().catch(() => undefined),
+    ]).finally(() => {
+      clearCart();
+      setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
+      router.replace("/login?next=/profile");
+    });
+  }, [blockedByRole, clearCart, router, setAuthUser]);
 
   useEffect(() => {
     if (!user) return;
@@ -122,8 +150,13 @@ export default function ProfilePage() {
 
   async function handleLogout() {
     setSigningOut(true);
-    await signOutUser().catch(() => undefined);
-    await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
+    await Promise.all([
+      signOutUser().catch(() => undefined),
+      signOutStackCustomer().catch(() => undefined),
+      fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
+    ]);
+    clearCart();
+    window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
     setSigningOut(false);
     router.replace("/login?next=/profile");
@@ -223,6 +256,18 @@ export default function ProfilePage() {
     setLocalAddresses(nextAddresses);
     writeLocalAddresses(user.uid, nextAddresses);
     setAddressMessage("Address deleted.");
+  }
+
+  async function handleDeleteSavedRestaurant(favoriteId: string) {
+    if (!user) return;
+    const confirmed = window.confirm("Remove this restaurant from favorites?");
+    if (!confirmed) return;
+    try {
+      await deleteCustomerFavoriteRestaurant(favoriteId);
+      customer.retry();
+    } catch {
+      customer.retry();
+    }
   }
 
   function handleEditAddress(address: CustomerAddressDoc) {
@@ -340,31 +385,17 @@ export default function ProfilePage() {
     );
   }
 
-  const baseProfile = customer.profile ?? (auth.profile?.role === "customer" ? auth.profile : null);
-  const effectiveProfile = baseProfile ? { ...baseProfile, ...localProfile } : null;
+  const fallbackProfile = createCustomerProfileFallback(user, localProfile);
+  const baseProfile = customer.profile ?? (auth.profile?.role === "customer" ? auth.profile : null) ?? fallbackProfile;
+  const effectiveProfile = { ...baseProfile, ...localProfile };
   const effectiveAddresses = customer.addresses.length ? customer.addresses : localAddresses;
-
-  if (!effectiveProfile) {
-    return (
-      <CustomerShell>
-        <main className="container-page py-6">
-          <EmptyStateCard
-            icon={UserRound}
-            title="Customer profile not ready"
-            description="This signed-in account does not have a customer profile document in Firestore yet."
-            actionLabel="Sign in again"
-            actionHref="/login?next=/profile"
-          />
-        </main>
-      </CustomerShell>
-    );
-  }
 
   const profileDetails = effectiveProfile as typeof effectiveProfile & CustomerProfileDetails;
   const stableProfile = effectiveProfile;
   const activeCoupons = customer.coupons.filter(isCouponActive);
   const currentEmail = effectiveProfile.email ?? "";
   const currentPhone = effectiveProfile.phone ?? "";
+  const phoneMissing = !currentPhone.trim();
   const profileCateringInquiries = filterProfileCatering(cateringInquiries, currentEmail, currentPhone, effectiveProfile.displayName);
 
   function selectProfileTab(tab: string) {
@@ -469,6 +500,8 @@ export default function ProfilePage() {
           </div>
         ) : null}
 
+        {phoneMissing ? <PhoneRequiredNotice onOpenSettings={() => selectProfileTab("settings")} /> : null}
+
         <Tabs value={activeTab} onValueChange={selectProfileTab} className="grid gap-5 lg:grid-cols-[260px_1fr]">
           <aside className="hidden space-y-4 lg:block">
             <Card className="customer-surface">
@@ -491,7 +524,7 @@ export default function ProfilePage() {
                 <div className="grid size-11 place-items-center rounded-full bg-orange-100 text-primary">
                   <WalletCards className="size-5" />
                 </div>
-                <h2 className="text-lg font-black">Sarva Food One</h2>
+                <h2 className="text-lg font-black">{appName} One</h2>
                 <p className="text-sm leading-6 text-muted-foreground">Wallet rewards, loyalty points, and better offers after every purchase.</p>
                 <Button asChild size="sm">
                   <Link href="/loyalty">Explore Now</Link>
@@ -550,7 +583,7 @@ export default function ProfilePage() {
               <CateringRequestsPanel inquiries={profileCateringInquiries} />
             </TabsContent>
             <TabsContent value="saved" className="mt-0">
-              <SavedPanel savedRestaurants={customer.savedRestaurants} />
+              <SavedPanel savedRestaurants={customer.savedRestaurants} onDelete={handleDeleteSavedRestaurant} />
             </TabsContent>
             <TabsContent value="reviews" className="mt-0">
               <ReviewsPanel reviews={customer.reviews} />
@@ -571,6 +604,7 @@ export default function ProfilePage() {
                 currentPhotoURL={profileDetails.photoURL}
                 message={accountMessage}
                 saving={savingAccount}
+                focusPhone={phoneRequired && phoneMissing}
                 onChange={setAccountDraft}
                 onSave={handleSaveAccount}
               />
@@ -607,6 +641,25 @@ function LoggedOutProfile() {
         <AppPreferences compact />
       </section>
     </main>
+  );
+}
+
+function PhoneRequiredNotice({ onOpenSettings }: { onOpenSettings: () => void }) {
+  return (
+    <Card className="border-orange-200 bg-orange-50/70 shadow-sm">
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-black">Add your mobile number to complete your profile</p>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">
+            We need it for delivery updates, order support, and restaurant callback confirmation.
+          </p>
+        </div>
+        <Button type="button" onClick={onOpenSettings}>
+          <Plus className="size-4" />
+          Add mobile number
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1023,16 +1076,27 @@ function CateringRequestsPanel({ inquiries }: { inquiries: CateringQuote[] }) {
   );
 }
 
-function SavedPanel({ savedRestaurants }: { savedRestaurants: Array<{ id: string; name?: string; slug?: string; restaurantId?: string }> }) {
+function SavedPanel({
+  savedRestaurants,
+  onDelete,
+}: {
+  savedRestaurants: Array<{ id: string; name?: string; slug?: string; restaurantId?: string }>;
+  onDelete: (favoriteId: string) => void;
+}) {
   return (
     <ProfileSection title="Saved restaurants" icon={Heart}>
       {savedRestaurants.length ? savedRestaurants.map((restaurant) => {
         const href = restaurant.slug ? `/restaurant/${restaurant.slug}` : restaurant.restaurantId ? `/restaurant/${restaurant.restaurantId}` : "/restaurants";
         return (
-          <Link key={restaurant.id} href={href} className="flex items-center justify-between rounded-md border p-3 text-sm">
-            <span className="font-black">{restaurant.name ?? restaurant.slug ?? restaurant.restaurantId ?? restaurant.id}</span>
-            <ChevronRight className="size-4 text-muted-foreground" />
-          </Link>
+          <div key={restaurant.id} className="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <Link href={href} className="flex min-w-0 flex-1 items-center justify-between gap-3">
+              <span className="truncate font-black">{restaurant.name ?? restaurant.slug ?? restaurant.restaurantId ?? restaurant.id}</span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
+            <Button type="button" variant="ghost" size="icon" aria-label="Remove saved restaurant" onClick={() => onDelete(restaurant.id)}>
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          </div>
         );
       }) : (
         <ProfileEmpty icon={Heart} title="No saved restaurants" description="Restaurants saved from live listings will appear here." />
@@ -1089,6 +1153,7 @@ function SettingsPanel({
   currentPhotoURL,
   message,
   saving,
+  focusPhone,
   onChange,
   onSave,
 }: {
@@ -1103,9 +1168,18 @@ function SettingsPanel({
   currentPhotoURL?: string;
   message: string;
   saving: boolean;
+  focusPhone?: boolean;
   onChange: (next: { displayName: string; email: string; phone: string; photoURL: string; password: string }) => void;
   onSave: () => void;
 }) {
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!focusPhone) return;
+    const timerId = window.setTimeout(() => phoneInputRef.current?.focus(), 120);
+    return () => window.clearTimeout(timerId);
+  }, [focusPhone]);
+
   return (
     <ProfileSection title="App settings" icon={Settings2}>
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
@@ -1127,7 +1201,9 @@ function SettingsPanel({
               onChange={(event) => onChange({ displayName, email: event.target.value, phone, photoURL, password })}
             />
             <Input
+              ref={phoneInputRef}
               type="tel"
+              id="customer-profile-phone"
               placeholder={currentPhone || "Add phone number"}
               value={phone}
               onChange={(event) => onChange({ displayName, email, phone: event.target.value, photoURL, password })}
@@ -1243,6 +1319,24 @@ function buildFullAddress(draft: AddressDraft) {
     draft.address.trim(),
     draft.landmark.trim() ? `Near ${draft.landmark.trim()}` : "",
   ].filter(Boolean).join(", ");
+}
+
+function createCustomerProfileFallback(user: User, localProfile: LocalProfileDraft | null): CustomerProfileDoc {
+  const now = new Date();
+  const displayName = localProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Customer";
+  return {
+    id: user.uid,
+    createdAt: now,
+    updatedAt: now,
+    uid: user.uid,
+    displayName,
+    email: localProfile?.email ?? user.email ?? undefined,
+    phone: localProfile?.phone,
+    photoURL: localProfile?.photoURL ?? user.photoURL ?? undefined,
+    emailVerified: user.emailVerified,
+    phoneVerified: Boolean(localProfile?.phone),
+    active: true,
+  };
 }
 
 function upsertById<T extends { id: string }>(items: T[], nextItem: T) {

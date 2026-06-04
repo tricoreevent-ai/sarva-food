@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import { getUserProfile, subscribeToAuth } from "@/services/auth-service";
-import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
+import { shouldUseFirebase } from "@/lib/env";
 import { isFirebaseConfigured } from "@/firebase/client";
 import { useAppStore } from "@/lib/app-store";
 import type { UserDoc } from "@/types/firebase";
@@ -47,7 +47,7 @@ export function useAuthUser() {
   }, []);
 
   useEffect(() => {
-    const localProfile = localAuthUser.id !== "anonymous" && shouldEnableDevLogin()
+    const localProfile = shouldUseLocalCustomerProfile(localAuthUser)
       ? createLocalProfile(localAuthUser)
       : null;
 
@@ -74,10 +74,10 @@ export function useAuthUser() {
       if (!active) return;
       window.clearTimeout(checkingTimerId);
       setTimedOut(true);
-      setUser(null);
-      setProfile(null);
-      setState("guest");
-      setProfileState("idle");
+      setUser(localProfile ? createLocalUser(localProfile) : null);
+      setProfile(localProfile);
+      setState(localProfile ? "authenticated" : "guest");
+      setProfileState(localProfile ? "success" : "idle");
       setError(null);
     }, AUTH_CHECK_TIMEOUT_MS);
 
@@ -169,7 +169,6 @@ function createLocalProfile(user: ReturnType<typeof useAppStore.getState>["authU
     updatedAt: now,
     uid: user.id,
     displayName: user.name,
-    email: user.id === "demo-customer" ? "demo@sarva.test" : undefined,
     role: user.role,
     roleId: user.role,
     tenantId: user.restaurantSlug,
@@ -179,4 +178,11 @@ function createLocalProfile(user: ReturnType<typeof useAppStore.getState>["authU
     permissions: user.role === "customer" ? ["customer:profile", "customer:orders"] : [],
     active: true,
   } as UserDoc;
+}
+
+function shouldUseLocalCustomerProfile(user: ReturnType<typeof useAppStore.getState>["authUser"]) {
+  return user.role === "customer" &&
+    user.id !== "anonymous" &&
+    user.id !== "demo-customer" &&
+    user.name.trim().toLowerCase() !== "demo customer";
 }

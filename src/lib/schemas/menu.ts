@@ -134,7 +134,7 @@ export const advancedMenuItemSchema = z.object({
   category: z.string().trim().min(2),
   categoryId: z.string().optional(),
   subcategory: z.string().optional(),
-  cuisineIds: z.array(z.string()).default([]),
+  cuisineIds: z.array(z.string()).min(1, "Select at least one cuisine").default([]),
   description: z.string().trim().min(8),
   longDescription: z.string().optional(),
   price: requiredPositivePriceSchema,

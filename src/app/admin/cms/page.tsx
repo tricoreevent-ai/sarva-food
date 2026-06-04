@@ -25,6 +25,14 @@ const surfaces: Array<{ key: BannerSurface; title: string; description: string }
   { key: "sponsoredAds", title: "Sponsored ads", description: "Future paid placements; payment is not active yet." },
 ];
 
+const footerSocialPlatforms = [
+  { id: "facebook", label: "Facebook", platform: "facebook" },
+  { id: "instagram", label: "Instagram", platform: "instagram" },
+  { id: "twitter", label: "X / Twitter", platform: "twitter" },
+  { id: "linkedin", label: "LinkedIn", platform: "linkedin" },
+  { id: "youtube", label: "YouTube", platform: "youtube" },
+];
+
 const emptyBanner: CmsBanner = {
   id: "",
   title: "",
@@ -146,7 +154,7 @@ export default function AdminCmsPage() {
             <h2 className="text-lg font-black">Platform copy</h2>
             <Field
               label="Application name"
-              value={settings.branding?.appName ?? settings.appName ?? "Sarva Food"}
+              value={settings.branding?.appName ?? settings.appName ?? defaultCmsSettings.appName ?? ""}
               onChange={(appName) => setSettings({
                 ...settings,
                 appName,
@@ -197,6 +205,47 @@ export default function AdminCmsPage() {
                     onChange={(event) => setSettings({ ...settings, operations: { ...settings.operations!, customerUnavailableMessage: event.target.value } })}
                   />
                 </div>
+              </div>
+            </div>
+            <div className="rounded-xl border bg-background/60 p-3">
+              <h3 className="font-black">Loyalty points</h3>
+              <p className="mt-1 text-xs font-semibold leading-5 text-muted-foreground">
+                Configure how customers earn and redeem reward points across the customer portal.
+              </p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <Field
+                  label="Points earned"
+                  type="number"
+                  value={String(settings.loyalty?.earnPoints ?? defaultCmsSettings.loyalty?.earnPoints ?? 10)}
+                  onChange={(earnPoints) => setSettings({ ...settings, loyalty: { ...settings.loyalty!, earnPoints: Number(earnPoints) || 0 } })}
+                />
+                <Field
+                  label="Per order amount"
+                  type="number"
+                  value={String(settings.loyalty?.earnAmount ?? defaultCmsSettings.loyalty?.earnAmount ?? 100)}
+                  onChange={(earnAmount) => setSettings({ ...settings, loyalty: { ...settings.loyalty!, earnAmount: Number(earnAmount) || 1 } })}
+                />
+                <Field
+                  label="Points per ₹1 redemption"
+                  type="number"
+                  value={String(settings.loyalty?.redemptionPointsPerRupee ?? defaultCmsSettings.loyalty?.redemptionPointsPerRupee ?? 10)}
+                  onChange={(redemptionPointsPerRupee) => setSettings({ ...settings, loyalty: { ...settings.loyalty!, redemptionPointsPerRupee: Number(redemptionPointsPerRupee) || 1 } })}
+                />
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+                {(settings.loyalty?.tiers ?? defaultCmsSettings.loyalty?.tiers ?? []).map((tier, index) => (
+                  <Field
+                    key={tier.name}
+                    label={`${tier.name} starts at`}
+                    type="number"
+                    value={String(tier.minPoints)}
+                    onChange={(minPoints) => {
+                      const tiers = [...(settings.loyalty?.tiers ?? defaultCmsSettings.loyalty?.tiers ?? [])];
+                      tiers[index] = { ...tier, minPoints: Number(minPoints) || 0 };
+                      setSettings({ ...settings, loyalty: { ...settings.loyalty!, tiers } });
+                    }}
+                  />
+                ))}
               </div>
             </div>
             <Field label="Homepage title" value={settings.homepage.title} onChange={(title) => setSettings({ ...settings, homepage: { ...settings.homepage, title } })} />
@@ -265,6 +314,25 @@ export default function AdminCmsPage() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <Field label="Support email" value={settings.footer.supportEmail ?? ""} onChange={(supportEmail) => setSettings({ ...settings, footer: { ...settings.footer, supportEmail } })} />
               <Field label="Copyright" value={settings.footer.copyright ?? ""} onChange={(copyright) => setSettings({ ...settings, footer: { ...settings.footer, copyright } })} />
+            </div>
+            <div className="rounded-xl border bg-background/60 p-3">
+              <h3 className="font-black">Customer footer</h3>
+              <div className="mt-3 grid gap-3">
+                <Toggle label="Show customer footer" checked={settings.footer.visible !== false} onChange={(visible) => setSettings({ ...settings, footer: { ...settings.footer, visible } })} />
+                <Field label="Trust badge text" value={settings.footer.trustText ?? ""} onChange={(trustText) => setSettings({ ...settings, footer: { ...settings.footer, trustText } })} />
+                <Field label="Partner card title" value={settings.footer.partnerCard?.title ?? ""} onChange={(title) => setSettings({ ...settings, footer: { ...settings.footer, partnerCard: { ...settings.footer.partnerCard, title } } })} />
+                <Field label="Partner card description" value={settings.footer.partnerCard?.description ?? ""} onChange={(description) => setSettings({ ...settings, footer: { ...settings.footer, partnerCard: { ...settings.footer.partnerCard, description } } })} />
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  <Field label="Primary button text" value={settings.footer.partnerCard?.primaryLabel ?? ""} onChange={(primaryLabel) => setSettings({ ...settings, footer: { ...settings.footer, partnerCard: { ...settings.footer.partnerCard, primaryLabel } } })} />
+                  <Field label="Primary button link" value={settings.footer.partnerCard?.primaryHref ?? ""} onChange={(primaryHref) => setSettings({ ...settings, footer: { ...settings.footer, partnerCard: { ...settings.footer.partnerCard, primaryHref } } })} />
+                  <Field label="Secondary button text" value={settings.footer.partnerCard?.secondaryLabel ?? ""} onChange={(secondaryLabel) => setSettings({ ...settings, footer: { ...settings.footer, partnerCard: { ...settings.footer.partnerCard, secondaryLabel } } })} />
+                  <Field label="Secondary button link" value={settings.footer.partnerCard?.secondaryHref ?? ""} onChange={(secondaryHref) => setSettings({ ...settings, footer: { ...settings.footer, partnerCard: { ...settings.footer.partnerCard, secondaryHref } } })} />
+                </div>
+                <FooterSocialLinksEditor
+                  links={settings.footer.socialLinks ?? defaultCmsSettings.footer.socialLinks ?? []}
+                  onChange={(socialLinks) => setSettings({ ...settings, footer: { ...settings.footer, socialLinks } })}
+                />
+              </div>
             </div>
             <RichTextEditor label="Terms & Conditions" value={settings.legalPages.terms ?? ""} onChange={(terms) => setSettings({ ...settings, legalPages: { ...settings.legalPages, terms } })} />
             <RichTextEditor label="Privacy Policy" value={settings.legalPages.privacy ?? ""} onChange={(privacy) => setSettings({ ...settings, legalPages: { ...settings.legalPages, privacy } })} />
@@ -372,6 +440,43 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
       {label}
     </label>
+  );
+}
+
+function FooterSocialLinksEditor({
+  links,
+  onChange,
+}: {
+  links: NonNullable<CmsSettings["footer"]["socialLinks"]>;
+  onChange: (links: NonNullable<CmsSettings["footer"]["socialLinks"]>) => void;
+}) {
+  const normalized = footerSocialPlatforms.map((platform) => {
+    const match = links.find((link) => (link.id ?? link.platform ?? link.label).toLowerCase() === platform.id);
+    return {
+      id: platform.id,
+      platform: platform.platform,
+      label: match?.label ?? platform.label,
+      url: match?.url ?? "",
+      enabled: match?.enabled ?? true,
+    };
+  });
+
+  function update(id: string, patch: Partial<NonNullable<CmsSettings["footer"]["socialLinks"]>[number]>) {
+    onChange(normalized.map((link) => link.id === id ? { ...link, ...patch } : link));
+  }
+
+  return (
+    <div className="grid gap-2">
+      <Label>Social media handles</Label>
+      <div className="grid gap-3">
+        {normalized.map((link) => (
+          <div key={link.id} className="grid gap-2 rounded-md border bg-background p-3">
+            <Toggle label={`Show ${link.label}`} checked={link.enabled !== false} onChange={(enabled) => update(link.id, { enabled })} />
+            <Field label={`${link.label} URL`} value={link.url} onChange={(url) => update(link.id, { url })} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

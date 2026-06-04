@@ -6,6 +6,7 @@ type StackUserSummary = {
   id?: string;
   primaryEmail?: string | null;
   displayName?: string | null;
+  profileImageUrl?: string | null;
 };
 
 let stackApp: InstanceType<typeof StackClientApp> | null = null;
@@ -68,6 +69,11 @@ export async function signInWithStackGoogle(returnTo: string) {
   await getStackAuthApp().signInWithOAuth("google", { returnTo });
 }
 
+export async function signOutStackCustomer() {
+  if (!isStackAuthConfigured()) return;
+  await getStackAuthApp().signOut();
+}
+
 export async function getStackCustomer(): Promise<StackUserSummary | null> {
   const user = await getStackAuthApp().getUser().catch(() => null);
   if (!user) return null;
@@ -75,6 +81,7 @@ export async function getStackCustomer(): Promise<StackUserSummary | null> {
     id: String(user.id),
     primaryEmail: user.primaryEmail,
     displayName: user.displayName,
+    profileImageUrl: user.profileImageUrl,
   };
 }
 

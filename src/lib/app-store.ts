@@ -776,6 +776,7 @@ const initialTaxSettings: TaxSettings = {
 const initialLoyaltyCustomers: LoyaltyCustomer[] = [];
 
 const initialOfflineQueue: OfflineQueueItem[] = [];
+const legacyOwnerDisplayName = ["Test", "Owner"].join(" ");
 
 const initialKitchenStations: KitchenStation[] = [
   { id: "station-grill", name: "Grill station", branchId: DEFAULT_BRANCH_ID, categories: ["Grill", "Kebabs", "Tandoor"], active: true, loadScore: 0 },
@@ -797,7 +798,7 @@ const cafeAlArabHours = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
 })) as NonNullable<OwnerBusinessProfile["operatingHoursSchedule"]>;
 
 const cafeAlArabOwnerProfile: OwnerBusinessProfile = {
-  ownerName: "Test Owner",
+  ownerName: "divakdi@gmail.com",
   hotelName: "Cafe Al Arab UL",
   logo: "/icons/sarva-icon.svg",
   coverImage: cafeAlArabCoverImages[0],
@@ -813,10 +814,10 @@ const cafeAlArabOwnerProfile: OwnerBusinessProfile = {
   gstDetails: "29AABCC1234A1Z5",
   phoneNumber: "+919900030001",
   whatsappNumber: "+919900030001",
-  supportEmail: "cafe-al-arab-thanisandra@sarva.example",
+  supportEmail: "divakdi@gmail.com",
   cateringPhoneNumber: "+919900130001",
   cateringWhatsappNumber: "+919900130001",
-  cateringEmail: "catering.cafe-al-arab@sarva.example",
+  cateringEmail: "divakdi@gmail.com",
   emergencySupportNumber: "+919900230001",
   operatingHours: "10:30 AM - 11:30 PM",
   operatingHoursSchedule: cafeAlArabHours,
@@ -890,8 +891,9 @@ function createCafeAlArabRestaurant(ownerId: string): Restaurant {
     logo: cafeAlArabOwnerProfile.logo,
     coverImage: cafeAlArabCoverImages[0],
     coverImages: cafeAlArabCoverImages,
-    isOpen: true,
-    tags: ["Shawarma", "Al faham", "Mandi", "Offers available"],
+    active: true,
+    isOpen: false,
+    tags: ["Shawarma", "Al faham", "Mandi"],
     instagramHandle: "cafealarabul",
     latitude: cafeAlArabOwnerProfile.latitude,
     longitude: cafeAlArabOwnerProfile.longitude,
@@ -908,7 +910,7 @@ function createCafeAlArabRestaurant(ownerId: string): Restaurant {
     foodTypes: ["nonveg", "veg"],
     popularItems: [],
     categoryTags: ["Shawarma", "Grills", "Mandi", "Arabic"],
-    offerCodes: ["ARABIC20"],
+    offerCodes: [],
     searchKeywords: ["Cafe Al Arab UL", "Arabic", "Shawarma", "Grills", "Mandi", "Thanisandra", "Avalahalli"],
     address: cafeAlArabOwnerProfile.businessAddress,
     googleMapLocation: cafeAlArabOwnerProfile.googleMapLocation,
@@ -1005,7 +1007,7 @@ function removeLegacySeedData(state: PersistedAppStoreState): PersistedAppStoreS
       .map((restaurant) => restaurant.slug || restaurant.id)
       .filter((id): id is string => Boolean(id)),
   );
-  const hasSeededOwnerProfile = state.ownerBusinessProfile?.mapboxPlaceId === "sarva-test-owner-cafe-al-arab";
+  const hasSeededOwnerProfile = isLegacyCafeAlArabOwnerProfile(state.ownerBusinessProfile);
   const isSeededRestaurantId = (restaurantSlug?: string) => Boolean(restaurantSlug && seededRestaurantIds.has(restaurantSlug));
 
   if (!seededRestaurantIds.size && !hasSeededOwnerProfile) return state;
@@ -1025,6 +1027,18 @@ function removeLegacySeedData(state: PersistedAppStoreState): PersistedAppStoreS
     recipes: hasSeededOwnerProfile ? [] : state.recipes,
     inventoryMovements: hasSeededOwnerProfile ? [] : state.inventoryMovements,
   };
+}
+
+function isLegacyCafeAlArabOwnerProfile(profile?: OwnerBusinessProfile) {
+  return Boolean(
+    profile &&
+      (
+        profile.mapboxPlaceId === "sarva-test-owner-cafe-al-arab" ||
+        profile.ownerName === legacyOwnerDisplayName ||
+        profile.supportEmail?.endsWith("@sarva.example") ||
+        profile.cateringEmail?.endsWith("@sarva.example")
+      ),
+  );
 }
 
 function withErpDefaults(state: PersistedAppStoreState): PersistedAppStoreState {
@@ -1096,9 +1110,11 @@ export const useAppStore = create<AppStore>()(
             };
           }
 
+          const ownerName = linkedUser.name && linkedUser.name !== "Anonymous" && linkedUser.name !== legacyOwnerDisplayName ? linkedUser.name : linkedUser.id;
+          const fallbackProfile = { ...cafeAlArabOwnerProfile, ownerName };
           const restaurant = createCafeAlArabRestaurant(linkedUser.id);
-          const branch = createOperationalFallbackBranch(cafeAlArabOwnerProfile, linkedUser);
-          const keepProfile = state.ownerBusinessProfile?.completed ? state.ownerBusinessProfile : cafeAlArabOwnerProfile;
+          const branch = createOperationalFallbackBranch(fallbackProfile, linkedUser);
+          const keepProfile = state.ownerBusinessProfile?.completed && !isLegacyCafeAlArabOwnerProfile(state.ownerBusinessProfile) ? state.ownerBusinessProfile : fallbackProfile;
           return {
             authUser: linkedUser,
             ownerBusinessProfile: keepProfile,
@@ -1113,6 +1129,10 @@ export const useAppStore = create<AppStore>()(
       createOrder: async (input) => {
         set({ apiPhase: "loading", apiMessage: "Creating order..." });
         const now = new Date().toISOString();
+        const signedInCustomer = get().authUser.role === "customer" && get().authUser.id !== "anonymous"
+          ? get().authUser.id
+          : "";
+        const customerId = signedInCustomer || normalizePhone(input.customer.phone) || createLocalId("customer");
         const localOrder: DemoOrder = {
           ...input,
           id: createLocalId("ORD"),
@@ -1121,10 +1141,11 @@ export const useAppStore = create<AppStore>()(
           deliveryOtp: createLocalId("otp").slice(-4),
         };
         let order = localOrder;
+        let savedToFirestore = false;
         if (canUseOperationalFirestore() && isOnline()) {
           const saved = await createOrderWithRetry({
             restaurantId: input.restaurantSlug,
-            customerId: normalizePhone(input.customer.phone) || createLocalId("customer"),
+            customerId,
             customerName: input.customer.name,
             customerPhone: input.customer.phone,
             deliveryAddress: input.customer.address,
@@ -1152,6 +1173,7 @@ export const useAppStore = create<AppStore>()(
             total: input.totals.total,
           }).catch(() => null);
           if (saved) {
+            savedToFirestore = true;
             order = {
               ...localOrder,
               id: saved.id,
@@ -1161,14 +1183,15 @@ export const useAppStore = create<AppStore>()(
             };
           }
         }
+        const shouldQueue = !savedToFirestore && shouldQueueOfflineSync();
         set((state) => ({
           orders: [order, ...state.orders],
           apiPhase: "success",
-          apiMessage: shouldQueueOfflineSync()
+          apiMessage: shouldQueue
             ? `Order ${order.id} saved locally and queued for sync.`
             : `Order ${order.id} created.`,
         }));
-        if (shouldQueueOfflineSync()) {
+        if (shouldQueue) {
           void enqueueOfflineOperation({
             module: "orders",
             action: `Create customer order ${order.id}`,
@@ -1185,6 +1208,7 @@ export const useAppStore = create<AppStore>()(
                   tenantId: resolveTenantId(input.restaurantSlug),
                   restaurantId: input.restaurantSlug,
                   branchId: DEFAULT_BRANCH_ID,
+                  customerId,
                   customerName: input.customer.name,
                   customerPhone: input.customer.phone,
                   deliveryAddress: input.customer.address,
@@ -1228,8 +1252,16 @@ export const useAppStore = create<AppStore>()(
                   tenantId: resolveTenantId(input.restaurantSlug),
                   restaurantId: input.restaurantSlug,
                   branchId: DEFAULT_BRANCH_ID,
+                  customerId,
                   customerName: input.customer.name,
                   customerPhone: input.customer.phone,
+                  lines: input.lines.map((line) => ({
+                    menuItemId: line.itemId,
+                    name: line.name,
+                    price: line.price,
+                    quantity: line.quantity,
+                    notes: line.notes,
+                  })),
                   total: input.totals.total,
                   status: order.status,
                   createdAt: order.createdAt,

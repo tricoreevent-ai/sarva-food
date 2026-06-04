@@ -24,7 +24,7 @@ type SyncRequest = {
 };
 
 export async function POST(request: NextRequest) {
-  const session = await getSessionFromRequest(request);
+  const session = await getOwnerSyncSession(request);
 
   if (!session || !operationalRoles.has(session.role)) {
     return NextResponse.json(
@@ -50,11 +50,22 @@ export async function POST(request: NextRequest) {
     if (error instanceof SyncConflictError) {
       return NextResponse.json({ error: error.message, conflict: error.conflict }, { status: 409 });
     }
+    if (error instanceof OwnerSyncAccessError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
 
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Owner sync failed." },
       { status: 500 },
     );
+  }
+}
+
+async function getOwnerSyncSession(request: NextRequest) {
+  try {
+    return await getSessionFromRequest(request, "owner");
+  } catch {
+    return null;
   }
 }
 
@@ -112,11 +123,11 @@ function assertSessionAccess(
 ) {
   const allowedTenants = new Set([session.tenantId, ...session.tenantIds, ...session.restaurantIds].filter(Boolean));
   if (!allowedTenants.has(tenantId)) {
-    throw new Error(`Access setup required: this user is not linked to restaurant ${tenantId}.`);
+    throw new OwnerSyncAccessError(`Access setup required: this user is not linked to restaurant ${tenantId}.`);
   }
 
   if (session.branchIds.length && !session.branchIds.includes(branchId)) {
-    throw new Error(`Access setup required: this user is not linked to branch ${branchId}.`);
+    throw new OwnerSyncAccessError(`Access setup required: this user is not linked to branch ${branchId}.`);
   }
 }
 
@@ -206,3 +217,5 @@ class SyncConflictError extends Error {
     this.conflict = conflict;
   }
 }
+
+class OwnerSyncAccessError extends Error {}

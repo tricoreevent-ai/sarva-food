@@ -21,7 +21,7 @@ import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicMenu } from "@/hooks/use-public-data";
-import { useAppStore } from "@/lib/app-store";
+import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
 import { cn, formatCurrency, getInitials } from "@/lib/utils";
 
@@ -191,7 +191,7 @@ export function DashboardQuickActions({ app }: { app: "owner" | "pos" | "admin" 
 
 export function PremiumSplash() {
   const router = useRouter();
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = usePublicAppName();
   const [progress, setProgress] = useState(8);
   const [networkLabel, setNetworkLabel] = useState("Checking connection");
   const [installReady, setInstallReady] = useState(false);

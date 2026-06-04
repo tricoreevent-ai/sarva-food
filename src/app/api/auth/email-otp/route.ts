@@ -87,8 +87,8 @@ async function requestOtp(email: string, purpose: OtpPurpose) {
   }
 
   if (purpose === "reset") {
-    const existing = await adminAuth().getUserByEmail(email).catch(() => null);
-    if (!existing) return jsonError("No customer account exists for this email.", 404);
+    const existing = await getCustomerResetAccount(email);
+    if (!existing) return jsonError("No customer account exists for this email. Use the correct portal password reset for owner or admin accounts.", 404);
   }
 
   const ref = otpRef(email, purpose);
@@ -239,6 +239,10 @@ async function completeOtp(
   } else {
     userRecord = await auth.getUserByEmail(email).catch(() => null);
     if (!userRecord) return jsonError("No customer account exists for this email.", 404);
+    const customerAccount = await getCustomerResetAccount(email);
+    if (!customerAccount || customerAccount.uid !== userRecord.uid) {
+      return jsonError("This email belongs to another Sarva module. Use the correct portal password reset.", 403);
+    }
     await auth.updateUser(userRecord.uid, {
       password,
       emailVerified: true,
@@ -288,6 +292,15 @@ async function upsertCustomerAuthDocs(uid: string, input: { email: string; displ
 
   await db.collection("users").doc(uid).set({ ...userProfile, createdAt: now }, { merge: true });
   await db.collection("customerProfiles").doc(uid).set({ ...customerProfile, createdAt: now }, { merge: true });
+}
+
+async function getCustomerResetAccount(email: string) {
+  const authUser = await adminAuth().getUserByEmail(email).catch(() => null);
+  if (!authUser) return null;
+  const profile = await adminDb().collection("users").doc(authUser.uid).get();
+  const data = profile.data() as { role?: string; active?: boolean } | undefined;
+  if (!profile.exists || data?.role !== "customer" || data.active === false) return null;
+  return authUser;
 }
 
 async function sendOtpEmail(

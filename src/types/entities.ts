@@ -18,6 +18,7 @@ export type Restaurant = {
   logo?: string;
   coverImage?: string;
   coverImages?: string[];
+  active?: boolean;
   isOpen: boolean;
   tags: string[];
   instagramHandle: string;
@@ -396,7 +397,23 @@ export type CmsSettings = {
     note: string;
     supportEmail?: string;
     copyright?: string;
-    socialLinks?: Array<{ label: string; url: string }>;
+    trustText?: string;
+    socialLinks?: Array<{ id?: string; label: string; platform?: string; url: string; enabled?: boolean }>;
+    sections?: Array<{
+      id: string;
+      title: string;
+      enabled?: boolean;
+      links: Array<{ id?: string; label: string; href: string; enabled?: boolean; openInNewTab?: boolean }>;
+    }>;
+    partnerCard?: {
+      visible?: boolean;
+      title?: string;
+      description?: string;
+      primaryLabel?: string;
+      primaryHref?: string;
+      secondaryLabel?: string;
+      secondaryHref?: string;
+    };
   };
   announcements: CmsBanner[];
   sponsoredAds: CmsBanner[];
@@ -432,6 +449,16 @@ export type CmsSettings = {
     databaseAlertEmail?: string;
     customerUnavailableTitle: string;
     customerUnavailableMessage: string;
+  };
+  loyalty?: {
+    earnPoints: number;
+    earnAmount: number;
+    redemptionPointsPerRupee: number;
+    tiers: Array<{
+      name: string;
+      minPoints: number;
+      benefits: string[];
+    }>;
   };
   seo?: {
     title?: string;

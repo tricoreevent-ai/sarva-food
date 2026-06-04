@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { UserRole } from "@/types/firebase";
 
 const routeRoles: Array<{ prefix: string; roles: UserRole[] }> = [
-  { prefix: "/admin", roles: ["admin"] },
-  { prefix: "/owner", roles: ["owner", "manager", "cashier", "chef", "waiter", "accountant", "inventory-manager"] },
+  { prefix: "/admin", roles: ["admin", "super_admin"] },
+  { prefix: "/owner", roles: ["owner", "manager", "cashier", "chef", "waiter", "kitchen-manager", "accountant", "inventory-manager", "delivery-staff", "delivery"] },
   { prefix: "/delivery", roles: ["delivery", "delivery-staff"] },
   { prefix: "/pos", roles: ["cashier", "owner", "manager", "waiter"] },
   { prefix: "/studio", roles: ["owner", "manager"] },
@@ -25,7 +25,7 @@ export function proxy(request: NextRequest) {
   const matched = routeRoles.find((route) => request.nextUrl.pathname.startsWith(route.prefix));
   if (!matched) return NextResponse.next();
 
-  const role = request.cookies.get("sarva_role")?.value as UserRole | undefined;
+  const role = readScopedRole(request, matched.prefix);
   if (role && matched.roles.includes(role)) {
     return NextResponse.next();
   }
@@ -38,3 +38,8 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: ["/admin/:path*", "/owner/:path*", "/delivery/:path*", "/pos/:path*", "/studio/:path*"],
 };
+
+function readScopedRole(request: NextRequest, prefix: string) {
+  const scopedName = prefix === "/admin" ? "sarva_admin_role" : "sarva_owner_role";
+  return (request.cookies.get(scopedName)?.value ?? request.cookies.get("sarva_role")?.value) as UserRole | undefined;
+}

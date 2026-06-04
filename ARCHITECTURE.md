@@ -22,6 +22,39 @@ The architecture is intentionally modular:
 - `functions/`: Firebase Cloud Functions backend code.
 - `docs/`: architecture, feature, Firebase, and optimization documentation.
 
+## Repository Structure
+
+The repo is organized around a core frontend source tree in `src/`, documentation in `docs/`, and operational tooling at the root.
+
+### Root-level layout
+- Root config and metadata: `package.json`, `package-lock.json`, `tsconfig.json`, `next.config.ts`, `firebase.json`, `vercel.json`.
+- Environment and Firebase control: `.env*`, `.firebaserc.example`, `firestore.rules`, `firestore.indexes.json`, `storage.rules`.
+- Static/public assets: `public/`.
+- Supporting scripts and utilities: `scripts/`, `tools/`, `templates/`.
+- Firebase backend package: `functions/`.
+- Documentation and architecture reference: `docs/`.
+
+### Frontend source (`src/`)
+- `src/app`: App Router route segments, page components, layouts, and route metadata.
+- `src/components`: reusable UI primitives, layout components, shared widgets, and cross-surface display elements.
+- `src/components/flows`: composed feature flows that stitch smaller components into screen-level experiences.
+- `src/context`: React context providers and shared context wiring used across routes and components.
+- `src/features`: feature-specific domain code and entrypoints for larger application capabilities.
+- `src/firebase`: Firebase initialization, client configuration, and auth helpers.
+- `src/hooks`: reusable React hooks for auth, realtime listeners, public data, and domain-specific behavior.
+- `src/lib`: shared utilities, cache helpers, validation schemas, tenant/RBAC helpers, and server-only helpers.
+- `src/modules`: surface-specific module architecture, currently containing `admin/`, `customer/`, and `owner/` modules.
+- `src/services`: service adapters and Firebase query wrappers that keep UI code decoupled from backend data access.
+- `src/stores`: migration-safe Zustand store facades and domain selector entrypoints.
+- `src/themes`: theme tokens, shared color/palette values, and styling helpers.
+- `src/types`: shared TypeScript models, Firestore entity typings, and domain type definitions.
+- `src/proxy.ts`: local request proxy entry point used during development.
+
+### Module-level organization
+- `src/modules/admin`: admin surface code, configuration, and auth helpers.
+- `src/modules/customer`: customer-facing module configuration and auth helpers.
+- `src/modules/owner`: owner operations module with POS support, auth helpers, and point-of-sale subdomain files.
+
 ## Key Layers
 
 ### 1. Presentation Layer

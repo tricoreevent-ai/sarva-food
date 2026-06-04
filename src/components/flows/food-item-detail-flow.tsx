@@ -26,6 +26,7 @@ import {
   Utensils,
   Zap,
 } from "lucide-react";
+import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { OfferBadge } from "@/components/commerce/offer-badge";
 import { EmptyStateCard } from "@/components/layout/empty-state";
@@ -35,6 +36,7 @@ import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicMenu, usePublicRestaurant, usePublicReviews } from "@/hooks/use-public-data";
+import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useCartStore } from "@/lib/cart-store";
 import { ROUTES } from "@/lib/constants";
 import type { MenuItem, Offer, Restaurant, Review } from "@/lib/types";
@@ -76,6 +78,7 @@ export function FoodItemDetailFlow({
   const { reviews, summary: reviewSummary } = usePublicReviews(activeRestaurant?.slug, activeItem?.id);
   const activeOffer = offers.find((offer) => offer.code === offerCode);
   const addItem = useCartStore((state) => state.addItem);
+  const whatsappShare = useWhatsAppShare();
   const cartQuantity = useCartStore((state) => {
     if (!activeItem?.id) return 0;
     return state.items
@@ -200,23 +203,9 @@ export function FoodItemDetailFlow({
     router.push(`${ROUTES.restaurant(slug)}?intent=schedule`);
   }
 
-  async function shareItem() {
-    if (!activeItem || typeof window === "undefined") return;
-    const shareData = {
-      title: activeItem.name,
-      text: `Order ${activeItem.name} from ${activeRestaurant?.name ?? "Sarva Food"}.`,
-      url: window.location.href,
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        return;
-      }
-      await navigator.clipboard?.writeText(shareData.url);
-    } catch {
-      // Sharing is optional; closing the native sheet should not interrupt ordering.
-    }
+  function shareItem() {
+    if (!activeItem || !activeRestaurant) return;
+    void whatsappShare.openShare({ item: activeItem, restaurant: activeRestaurant });
   }
 
   if (restaurantStatus === "loading" || menuStatus === "loading") {
@@ -367,6 +356,16 @@ export function FoodItemDetailFlow({
           onQuantityChange={changeQuantity}
           onAddToCart={addSelectionToCart}
           onScheduleOrder={scheduleOrder}
+        />
+        <WhatsAppShareModal
+          preview={whatsappShare.preview}
+          open={Boolean(whatsappShare.preview) || whatsappShare.isPreparing}
+          preparing={whatsappShare.isPreparing}
+          onOpenChange={(open) => {
+            if (!open) whatsappShare.closeShare();
+          }}
+          onCopy={() => void whatsappShare.copyMessage()}
+          onWhatsApp={whatsappShare.openWhatsApp}
         />
       </main>
     </CustomerShell>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Filter, LocateFixed, MapPin, Search, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Filter, LocateFixed, MapPin, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { RestaurantCard } from "@/components/commerce/restaurant-card";
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { LocationHydrationBoundary } from "@/components/location/location-hydration-boundary";
@@ -241,72 +241,36 @@ export function RestaurantBrowserFlow() {
               <SlidersHorizontal className="size-5" />
             </Button>
           </div>
-          {filtersOpen ? (
-            <div className="glass-card grid gap-3 rounded-lg bg-white/94 p-3 text-foreground shadow-xl md:grid-cols-2 lg:grid-cols-4">
-              <FilterGroup label="Food type">
-                <SegmentedControl
-                  value={dietFilter}
-                  options={[
-                    { label: "All", value: "all" },
-                    { label: "Veg", value: "veg" },
-                    { label: "Non-veg", value: "nonveg" },
-                  ]}
-                  onChange={(value) => setDietFilter(value as DietFilter)}
-                />
-              </FilterGroup>
-              <FilterGroup label="Price for two">
-                <select className="h-10 rounded-md border bg-background px-3 text-sm font-bold" value={priceFilter} onChange={(event) => setPriceFilter(event.target.value)}>
-                  {priceFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </FilterGroup>
-              <FilterGroup label="Rating">
-                <select className="h-10 rounded-md border bg-background px-3 text-sm font-bold" value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)}>
-                  {ratingFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </FilterGroup>
-              <FilterGroup label="Delivery time">
-                <select className="h-10 rounded-md border bg-background px-3 text-sm font-bold" value={etaFilter} onChange={(event) => setEtaFilter(event.target.value)}>
-                  {etaFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </FilterGroup>
-              <FilterGroup label="Discovery">
-                <div className="grid grid-cols-2 gap-2">
-                  <ToggleButton active={offerOnly} onClick={() => setOfferOnly((value) => !value)}>Offers</ToggleButton>
-                  <ToggleButton active={nearbyOnly} onClick={() => setNearbyOnly((value) => !value)}>Nearby</ToggleButton>
-                </div>
-              </FilterGroup>
-              <FilterGroup label="Sort">
-                <SegmentedControl
-                  value={sortMode}
-                  options={[
-                    { label: "Distance", value: "distance" },
-                    { label: "Rating", value: "rating" },
-                    { label: "ETA", value: "eta" },
-                  ]}
-                  onChange={(value) => setSortMode(value as SortMode)}
-                />
-              </FilterGroup>
-              <div className="flex items-end md:col-span-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-background"
-                  onClick={() => {
-                    setDietFilter("all");
-                    setPriceFilter("any");
-                    setRatingFilter("0");
-                    setEtaFilter("any");
-                    setOfferOnly(false);
-                    setNearbyOnly(true);
-                    setActiveChip("All");
-                    setSortMode("distance");
-                  }}
-                >
-                  Reset filters{activeFiltersCount ? ` (${activeFiltersCount})` : ""}
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          <RestaurantFilterPanel
+            open={filtersOpen}
+            onClose={() => setFiltersOpen(false)}
+            dietFilter={dietFilter}
+            setDietFilter={setDietFilter}
+            priceFilter={priceFilter}
+            setPriceFilter={setPriceFilter}
+            ratingFilter={ratingFilter}
+            setRatingFilter={setRatingFilter}
+            etaFilter={etaFilter}
+            setEtaFilter={setEtaFilter}
+            offerOnly={offerOnly}
+            setOfferOnly={setOfferOnly}
+            nearbyOnly={nearbyOnly}
+            setNearbyOnly={setNearbyOnly}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            activeFiltersCount={activeFiltersCount}
+            resultCount={results.length}
+            onReset={() => {
+              setDietFilter("all");
+              setPriceFilter("any");
+              setRatingFilter("0");
+              setEtaFilter("any");
+              setOfferOnly(false);
+              setNearbyOnly(true);
+              setActiveChip("All");
+              setSortMode("distance");
+            }}
+          />
           <div className="relative">
             <div className="customer-scroll flex gap-2 overflow-x-auto pr-10">
               {chips.map((chip) => (
@@ -367,6 +331,155 @@ export function RestaurantBrowserFlow() {
         )}
       </section>
     </main>
+  );
+}
+
+function RestaurantFilterPanel({
+  open,
+  onClose,
+  dietFilter,
+  setDietFilter,
+  priceFilter,
+  setPriceFilter,
+  ratingFilter,
+  setRatingFilter,
+  etaFilter,
+  setEtaFilter,
+  offerOnly,
+  setOfferOnly,
+  nearbyOnly,
+  setNearbyOnly,
+  sortMode,
+  setSortMode,
+  activeFiltersCount,
+  resultCount,
+  onReset,
+}: {
+  open: boolean;
+  onClose: () => void;
+  dietFilter: DietFilter;
+  setDietFilter: (value: DietFilter) => void;
+  priceFilter: string;
+  setPriceFilter: (value: string) => void;
+  ratingFilter: string;
+  setRatingFilter: (value: string) => void;
+  etaFilter: string;
+  setEtaFilter: (value: string) => void;
+  offerOnly: boolean;
+  setOfferOnly: (value: boolean) => void;
+  nearbyOnly: boolean;
+  setNearbyOnly: (value: boolean) => void;
+  sortMode: SortMode;
+  setSortMode: (value: SortMode) => void;
+  activeFiltersCount: number;
+  resultCount: number;
+  onReset: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose, open]);
+
+  if (!open) return null;
+
+  function handleOverlayClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]" onClick={handleOverlayClick}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Restaurant filters"
+        className="absolute inset-x-0 bottom-0 flex max-h-[84vh] flex-col overflow-hidden rounded-t-lg bg-white text-foreground shadow-2xl md:inset-y-4 md:left-auto md:right-4 md:max-h-none md:w-[460px] md:rounded-lg"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-slate-200 md:hidden" />
+        <header className="sticky top-0 z-10 border-b bg-white px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-600">
+              <SlidersHorizontal className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-black">Filters</h2>
+              <p className="text-sm font-semibold text-muted-foreground">{activeFiltersCount ? `${activeFiltersCount} active` : "All restaurants"}</p>
+            </div>
+            <Button type="button" variant="ghost" className="h-10 rounded-lg px-3 font-black text-primary" onClick={onReset}>
+              Reset
+            </Button>
+            <Button size="icon" variant="ghost" className="rounded-lg" onClick={onClose} aria-label="Close filters">
+              <X className="size-5" />
+            </Button>
+          </div>
+        </header>
+
+        <div className="grid flex-1 gap-4 overflow-y-auto px-5 py-4">
+          <FilterGroup label="Food type">
+            <SegmentedControl
+              value={dietFilter}
+              options={[
+                { label: "All", value: "all" },
+                { label: "Veg", value: "veg" },
+                { label: "Non-veg", value: "nonveg" },
+              ]}
+              onChange={(value) => setDietFilter(value as DietFilter)}
+            />
+          </FilterGroup>
+          <FilterGroup label="Price for two">
+            <select className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={priceFilter} onChange={(event) => setPriceFilter(event.target.value)}>
+              {priceFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </FilterGroup>
+          <FilterGroup label="Rating">
+            <select className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)}>
+              {ratingFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </FilterGroup>
+          <FilterGroup label="Delivery time">
+            <select className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={etaFilter} onChange={(event) => setEtaFilter(event.target.value)}>
+              {etaFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </FilterGroup>
+          <FilterGroup label="Discovery">
+            <div className="grid grid-cols-2 gap-2">
+              <ToggleButton active={offerOnly} onClick={() => setOfferOnly(!offerOnly)}>Offers</ToggleButton>
+              <ToggleButton active={nearbyOnly} onClick={() => setNearbyOnly(!nearbyOnly)}>Nearby</ToggleButton>
+            </div>
+          </FilterGroup>
+          <FilterGroup label="Sort">
+            <SegmentedControl
+              value={sortMode}
+              options={[
+                { label: "Distance", value: "distance" },
+                { label: "Rating", value: "rating" },
+                { label: "ETA", value: "eta" },
+              ]}
+              onChange={(value) => setSortMode(value as SortMode)}
+            />
+          </FilterGroup>
+        </div>
+
+        <footer className="sticky bottom-0 grid grid-cols-[minmax(0,1fr)_1.35fr] gap-3 border-t bg-white p-4">
+          <Button type="button" variant="outline" className="h-12 rounded-lg bg-slate-100 font-black text-slate-950 hover:bg-slate-200" onClick={onReset}>
+            Clear
+          </Button>
+          <Button type="button" className="h-12 rounded-lg font-black" onClick={onClose}>
+            Show {resultCount} result{resultCount === 1 ? "" : "s"}
+            <SlidersHorizontal className="size-4" />
+          </Button>
+        </footer>
+      </section>
+    </div>
   );
 }
 

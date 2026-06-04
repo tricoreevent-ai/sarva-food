@@ -171,19 +171,72 @@ export function listenToRestaurantOrders(
   callback: (orders: OrderDoc[]) => void,
 ): Unsubscribe {
   const db = getFirebaseDb();
-  const q = query(
+  const activeStatuses = statuses.slice(0, 10);
+  const tenantId = resolveTenantId(restaurantId);
+  const scopedResults = new Map<string, OrderDoc[]>();
+  const emit = () => {
+    callback(dedupeAndSortOrders([...scopedResults.values()].flat()).slice(0, FIRESTORE_LIMITS.restaurantOrders));
+  };
+  const tenantQuery = query(
     refs.orders(db),
-    where("tenantId", "==", resolveTenantId(restaurantId)),
-    where("status", "in", statuses.slice(0, 10)),
+    where("tenantId", "==", tenantId),
+    where("status", "in", activeStatuses),
     orderBy("createdAt", "desc"),
     limit(FIRESTORE_LIMITS.restaurantOrders),
   );
+  const unsubscribers: Unsubscribe[] = [
+    listenToQueryShared(
+      `restaurant-orders:tenant:${tenantId}:${activeStatuses.join(",")}`,
+      tenantQuery,
+      (orders) => {
+        scopedResults.set("tenant", orders);
+        emit();
+      },
+    ),
+  ];
 
-  return listenToQueryShared(
-    `restaurant-orders:${restaurantId}:${statuses.join(",")}`,
-    q,
-    callback,
+  if (restaurantId !== tenantId) {
+    const restaurantQuery = query(
+      refs.orders(db),
+      where("restaurantId", "==", restaurantId),
+      where("status", "in", activeStatuses),
+      orderBy("createdAt", "desc"),
+      limit(FIRESTORE_LIMITS.restaurantOrders),
+    );
+    unsubscribers.push(
+      listenToQueryShared(
+        `restaurant-orders:restaurant:${restaurantId}:${activeStatuses.join(",")}`,
+        restaurantQuery,
+        (orders) => {
+          scopedResults.set("restaurant", orders);
+          emit();
+        },
+      ),
+    );
+  }
+
+  return () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
+}
+
+function dedupeAndSortOrders(orders: OrderDoc[]) {
+  return Array.from(new Map(orders.map((order) => [order.id, order])).values()).sort(
+    (first, second) => orderCreatedAtMs(second.createdAt) - orderCreatedAtMs(first.createdAt),
   );
+}
+
+function orderCreatedAtMs(value: unknown) {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.getTime() : 0;
+  }
+  if (typeof (value as { toDate?: () => Date }).toDate === "function") {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+  return 0;
 }
 
 export async function getOrderHistory(

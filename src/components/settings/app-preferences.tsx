@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CaseSensitive, MonitorSmartphone, Palette } from "lucide-react";
+import { CaseSensitive, MonitorSmartphone } from "lucide-react";
 import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Button } from "@/components/ui/button";
-import { useThemeMode } from "@/lib/theme-provider";
 import { cn } from "@/lib/utils";
 
 type FontScale = "comfortable" | "large" | "compact";
@@ -18,7 +17,6 @@ const fontOptions: Array<{ value: FontScale; label: string }> = [
 ];
 
 export function AppPreferences({ compact = false }: { compact?: boolean }) {
-  const { theme, setTheme } = useThemeMode();
   const [fontScale, setFontScale] = useState<FontScale>(() => {
     if (typeof window === "undefined") return "comfortable";
     const saved = window.localStorage.getItem(FONT_KEY) as FontScale | null;
@@ -36,30 +34,6 @@ export function AppPreferences({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className={cn("grid gap-3", compact && "gap-2")}>
-      <section className="rounded-lg border bg-orange-50/70 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-sm font-black">
-            <Palette className="size-4 text-primary" />
-            Theme color
-          </p>
-          <InfoTooltip label="Choose how Sarva Food looks on this device. System follows your browser or phone setting." />
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {(["light", "dark", "system"] as const).map((item) => (
-            <Button
-              key={item}
-              type="button"
-              size="sm"
-              variant={theme === item ? "default" : "outline"}
-              className="h-9 text-xs capitalize"
-              onClick={() => setTheme(item)}
-            >
-              {item}
-            </Button>
-          ))}
-        </div>
-      </section>
-
       <section className="rounded-lg border bg-white p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-sm font-black">
@@ -73,12 +47,15 @@ export function AppPreferences({ compact = false }: { compact?: boolean }) {
             <Button
               key={item.value}
               type="button"
-              size="sm"
+              size={compact ? "icon" : "sm"}
               variant={fontScale === item.value ? "default" : "outline"}
-              className="h-9 text-xs"
+              className={cn("h-9 text-xs", compact && "w-full")}
               onClick={() => changeFontScale(item.value)}
+              title={`Set app font size to ${item.label}`}
+              aria-label={`Set app font size to ${item.label}`}
             >
-              {item.label}
+              <CaseSensitive className={item.value === "compact" ? "size-3.5" : item.value === "large" ? "size-5" : "size-4"} />
+              {!compact ? <span>{item.label}</span> : null}
             </Button>
           ))}
         </div>

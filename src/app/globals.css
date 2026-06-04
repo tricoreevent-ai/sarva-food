@@ -393,14 +393,15 @@ textarea::selection,
 }
 
 .container-page {
-  width: min(100% - 2rem, 1180px);
-  max-width: 100%;
+  width: 100%;
+  max-width: none;
   margin-inline: auto;
+  padding-inline: clamp(1rem, 2vw, 2rem);
 }
 
 @media (max-width: 640px) {
   .container-page {
-    width: min(calc(100% - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right)), 1180px);
+    padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
   }
 }
 

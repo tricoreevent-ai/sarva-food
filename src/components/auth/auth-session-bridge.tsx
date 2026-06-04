@@ -6,6 +6,7 @@ import { subscribeToAuth, syncAuthSession } from "@/services/auth-service";
 import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
+import { getStackCustomer, isStackAuthConfigured } from "@/services/auth/stack-auth-client";
 import type { MockUser } from "@/lib/types";
 import type { UserRole } from "@/types/firebase";
 
@@ -34,8 +35,21 @@ export function AuthSessionBridge() {
 
     return subscribeToAuth(async (user) => {
       if (!user) {
+        if (isStackAuthConfigured()) {
+          const stackUser = await getStackCustomer().catch(() => null);
+          if (stackUser?.id) {
+            setScopedAuthUser({
+              id: stackUser.id,
+              name: stackUser.displayName || stackUser.primaryEmail || "Sarva Customer",
+              role: "customer",
+              restaurantSlug: DEFAULT_TENANT_ID,
+            });
+            return;
+          }
+        }
         if (shouldEnableDevLogin()) return;
         await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
+        setScopedAuthUser(anonymousCustomer());
         return;
       }
 
@@ -45,6 +59,10 @@ export function AuthSessionBridge() {
   }, [setScopedAuthUser, surface]);
 
   return null;
+}
+
+function anonymousCustomer(): MockUser {
+  return { id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID };
 }
 
 async function hydrateCookieSession(setAuthUser: (user: MockUser) => void, surface: SessionSurface) {
@@ -76,8 +94,9 @@ function surfaceForPath(pathname: string): SessionSurface {
 
 function displayNameForSession(uid: string, role: UserRole) {
   if (uid === "dinucd@gmail.com" || role === "admin" || role === "super_admin") return "Platform Admin";
-  if (uid === "divakdi@gmail.com" || role === "owner") return "Test Owner";
-  if (role === "customer") return "Demo Customer";
+  if (uid === "divakdi@gmail.com") return "divakdi@gmail.com";
+  if (role === "owner") return uid || "Owner";
+  if (role === "customer") return "Customer";
   return role
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

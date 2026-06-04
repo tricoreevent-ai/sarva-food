@@ -23,7 +23,8 @@ export default function OffersPage() {
     permission,
     detectLocation,
   } = useLocationCommerce(restaurants);
-  const { offers, status: offersStatus } = usePublicOffers(nearbyRestaurants);
+  const offerRestaurants = nearbyRestaurants.length ? nearbyRestaurants : restaurants;
+  const { offers, status: offersStatus } = usePublicOffers(offerRestaurants);
   const loading = restaurantsStatus === "loading" || offersStatus === "loading";
 
   return (
@@ -58,7 +59,7 @@ export default function OffersPage() {
 
         {restaurantsStatus === "error" ? <RetryState onRetry={retry} /> : null}
         {loading ? <SkeletonGrid count={3} /> : null}
-        {!loading && !nearbyRestaurants.length ? (
+        {!loading && !offerRestaurants.length ? (
           <EmptyStateCard
             title="No nearby offers"
             description="Choose another delivery area or refresh GPS to find restaurants with active offers."
@@ -67,7 +68,7 @@ export default function OffersPage() {
           />
         ) : null}
 
-        {!loading && nearbyRestaurants.length ? (
+        {!loading && offerRestaurants.length ? (
           <section className="grid gap-4 md:grid-cols-3">
           {offers.length ? offers.map((offer) => (
             <Card key={`${offer.restaurantSlug ?? "restaurant"}-${offer.code}`} className="customer-surface overflow-hidden">
@@ -91,7 +92,7 @@ export default function OffersPage() {
                   Min order {formatCurrency(offer.minimumOrder)}
                 </div>
                 <Button asChild className="w-full" size="lg">
-                  <Link href={`/restaurant/${offer.restaurantSlug ?? nearbyRestaurants[0].slug}/menu?offer=${offer.code}`}>
+                  <Link href={`/restaurant/${offer.restaurantSlug ?? offerRestaurants[0].slug}/menu?offer=${offer.code}`}>
                     Use offer
                     <ArrowRight className="size-4" />
                   </Link>

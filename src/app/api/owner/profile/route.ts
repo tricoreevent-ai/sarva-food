@@ -38,6 +38,14 @@ export async function POST(request: NextRequest) {
   const tenantId = resolveTenantId(restaurantId);
   const branchId = body.branch.id || session.branchIds[0] || DEFAULT_BRANCH_ID;
   const profileComplete = isPublicProfileComplete(body.profile);
+  const restaurantName = body.profile.hotelName || body.restaurant.name;
+  const duplicate = await findDuplicateRestaurantNameForOwner(session.uid, restaurantName, restaurantId);
+  if (duplicate) {
+    return NextResponse.json(
+      { error: `Restaurant name already exists for this owner: ${duplicate.name}.` },
+      { status: 409 },
+    );
+  }
   const configuredCoverImagePaths = [
     ...(body.profile.coverImages ?? []),
     body.profile.coverImage,
@@ -132,6 +140,32 @@ export async function POST(request: NextRequest) {
   ]);
 
   return NextResponse.json({ ok: true, restaurantId, branchId });
+}
+
+async function findDuplicateRestaurantNameForOwner(ownerId: string, name: string, currentRestaurantId: string) {
+  const normalizedName = normalizeRestaurantName(name);
+  if (!ownerId || !normalizedName) return null;
+
+  const snapshot = await adminDb()
+    .collection("restaurants")
+    .where("ownerIds", "array-contains", ownerId)
+    .limit(25)
+    .get();
+
+  const duplicate = snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() } as { id: string; name?: string; displayName?: string; active?: boolean; isDeleted?: boolean }))
+    .find((doc) =>
+      doc.id !== currentRestaurantId &&
+      doc.active !== false &&
+      !doc.isDeleted &&
+      normalizeRestaurantName(doc.name || doc.displayName || "") === normalizedName
+    );
+
+  return duplicate ? { id: duplicate.id, name: duplicate.name || duplicate.displayName || duplicate.id } : null;
+}
+
+function normalizeRestaurantName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function assertRestaurantAccess(

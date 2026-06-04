@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import {
   Check,
   ChevronDown,
   CircleHelp,
-  Crown,
   Heart,
   LocateFixed,
   LogOut,
@@ -34,14 +33,24 @@ import { useAuthUser } from "@/hooks/use-auth-user";
 import { defaultLocation, useLocationCommerce, type CommerceLocation } from "@/hooks/use-location-commerce";
 import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
+import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { APP_NAME } from "@/lib/constants";
-import { readLocalAddresses } from "@/lib/customer-address-storage";
+import {
+  CUSTOMER_LOCAL_ADDRESSES_EVENT,
+  CUSTOMER_LOCAL_PROFILE_EVENT,
+  localAddressesKey,
+  localProfileKey,
+  readLocalAddresses,
+  readLocalProfile,
+  type LocalProfileDraft,
+} from "@/lib/customer-address-storage";
 import { shouldUseFirebase } from "@/lib/env";
 import { customerNav } from "@/lib/navigation";
-import { readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
+import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import { signOutUser } from "@/services/auth-service";
+import { signOutStackCustomer } from "@/services/auth/stack-auth-client";
 import type { CmsSettings } from "@/lib/types";
 import type { CustomerAddressDoc } from "@/types/firebase";
 
@@ -51,10 +60,12 @@ export function PublicHeader() {
   const auth = useAuthUser();
   const localAuthUser = useAppStore((state) => state.authUser);
   const storeCmsSettings = useAppStore((state) => state.cmsSettings);
-  const [cachedCmsSettings] = useState<CmsSettings | null>(() => readCachedPublicCmsSettings());
+  const cachedCmsSettings = useSyncExternalStore(subscribePublicCmsSettings, readCachedPublicCmsSettings, emptyPublicCmsSnapshot);
+  const hydrated = useSyncExternalStore(subscribeHydration, browserHydratedSnapshot, serverHydratedSnapshot);
+  const cmsSettingsSource = hydrated ? cachedCmsSettings ?? storeCmsSettings : defaultCmsSettings;
   const cmsSettings = useMemo(
-    () => resolveCmsSettings(cachedCmsSettings ?? storeCmsSettings),
-    [cachedCmsSettings, storeCmsSettings],
+    () => resolveCmsSettings(cmsSettingsSource),
+    [cmsSettingsSource],
   );
   const branding = cmsSettings.branding;
   const productName = branding?.appName?.trim() || cmsSettings.appName?.trim() || APP_NAME;
@@ -63,15 +74,16 @@ export function PublicHeader() {
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const clearCart = useCartStore((state) => state.clearCart);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationQuery, setLocationQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [localProfile, setLocalProfile] = useState<LocalProfileDraft | null>(null);
   const [localAddresses, setLocalAddresses] = useState<CustomerAddressDoc[]>([]);
   const [remoteAddresses, setRemoteAddresses] = useState<CustomerAddressDoc[]>([]);
   const {
     location,
     suggestions,
-    recentLocations,
     status: locationStatus,
     detecting,
     detectLocation,
@@ -79,51 +91,75 @@ export function PublicHeader() {
     selectLocation,
   } = useLocationCommerce([]);
 
-  const loggedIn = auth.user
-    ? auth.profile?.role === "customer"
-    : localAuthUser.role === "customer" && localAuthUser.id !== "anonymous";
+  const resolvedProfile = auth.profile;
+  const customerProfile = resolvedProfile?.role === "customer" ? resolvedProfile : null;
+  const profileResolvedToOtherRole = auth.profileState === "success" && resolvedProfile !== null && resolvedProfile.role !== "customer";
+  const localCustomerSession = localAuthUser.role === "customer" && localAuthUser.id !== "anonymous";
+  const loggedIn = !signingOut && Boolean(customerProfile || (auth.user && !profileResolvedToOtherRole) || localCustomerSession);
   const restaurantRoute = pathname.startsWith("/restaurant/");
-  const customerId = loggedIn ? (auth.user?.uid || localAuthUser.id) : null;
-  const displayName = loggedIn ? (auth.profile?.displayName ?? localAuthUser.name) : "Guest";
-  const initials = getInitials(displayName);
-  const savedAddresses = useMemo(() => uniqueAddresses([...remoteAddresses, ...localAddresses]), [localAddresses, remoteAddresses]);
-  const locationOptions = useMemo(
-    () => uniqueCommerceLocations([
-      location,
-      ...savedAddresses.map(addressToCommerceLocation),
-      ...recentLocations,
-      ...suggestions,
-      defaultLocation,
-    ]),
-    [location, recentLocations, savedAddresses, suggestions],
+  const customerId = loggedIn ? (customerProfile?.uid || customerProfile?.id || auth.user?.uid || localAuthUser.id) : null;
+  const displayName = loggedIn
+    ? customerProfile?.displayName?.trim()
+      || auth.user?.displayName?.trim()
+      || localProfile?.displayName?.trim()
+      || localAuthUser.name?.trim()
+      || "Customer"
+    : "Guest";
+  const profileImageUrl = loggedIn
+    ? (customerProfile?.photoURL || auth.user?.photoURL || localProfile?.photoURL || "").trim() || undefined
+    : undefined;
+  const savedAddresses = useMemo(
+    () => uniqueAddresses(remoteAddresses.length ? remoteAddresses : localAddresses),
+    [localAddresses, remoteAddresses],
   );
+  const locationOptions = useMemo(() => {
+    const currentLocation = location.source === "fallback" ? [] : [location];
+    const searchResults = locationQuery.trim() ? suggestions : [];
+    const fallbackLocations = currentLocation.length || savedAddresses.length || searchResults.length ? [] : [defaultLocation];
+    return uniqueCommerceLocations([
+      ...currentLocation,
+      ...savedAddresses.map(addressToCommerceLocation),
+      ...searchResults,
+      ...fallbackLocations,
+    ]);
+  }, [location, locationQuery, savedAddresses, suggestions]);
 
   useEffect(() => {
-    let active = true;
-    const localTimerId = window.setTimeout(() => {
-      if (!active) return;
-      if (!customerId || customerId === "anonymous") {
+    if (!customerId || customerId === "anonymous") {
+      const resetTimerId = window.setTimeout(() => {
         setLocalAddresses([]);
         setRemoteAddresses([]);
-        return;
-      }
+      }, 0);
+      return () => window.clearTimeout(resetTimerId);
+    }
+
+    let active = true;
+    const refreshLocalAddresses = () => {
+      if (!active) return;
       setLocalAddresses(readLocalAddresses(customerId));
+    };
+    const localTimerId = window.setTimeout(() => {
+      refreshLocalAddresses();
       if (!shouldUseFirebase() || !isFirebaseConfigured) {
         setRemoteAddresses([]);
       }
     }, 0);
-
-    if (!customerId || customerId === "anonymous") {
-      return () => {
-        active = false;
-        window.clearTimeout(localTimerId);
-      };
-    }
+    const handleLocalAddressUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ customerId?: string }>).detail;
+      if (!detail?.customerId || detail.customerId === customerId) refreshLocalAddresses();
+    };
+    const handleAddressStorage = (event: StorageEvent) => {
+      if (event.key === localAddressesKey(customerId)) refreshLocalAddresses();
+    };
+    window.addEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalAddressUpdate);
+    window.addEventListener("storage", handleAddressStorage);
 
     if (!shouldUseFirebase() || !isFirebaseConfigured) {
       return () => {
         active = false;
         window.clearTimeout(localTimerId);
+        window.removeEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalAddressUpdate);
+        window.removeEventListener("storage", handleAddressStorage);
       };
     }
 
@@ -140,7 +176,39 @@ export function PublicHeader() {
     return () => {
       active = false;
       window.clearTimeout(localTimerId);
+      window.removeEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalAddressUpdate);
+      window.removeEventListener("storage", handleAddressStorage);
       unsubscribe();
+    };
+  }, [customerId]);
+
+  useEffect(() => {
+    if (!customerId || customerId === "anonymous") {
+      const resetTimerId = window.setTimeout(() => setLocalProfile(null), 0);
+      return () => window.clearTimeout(resetTimerId);
+    }
+
+    let active = true;
+    const refreshLocalProfile = () => {
+      if (!active) return;
+      setLocalProfile(readLocalProfile(customerId));
+    };
+    const timerId = window.setTimeout(refreshLocalProfile, 0);
+    const handleLocalProfileUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ customerId?: string }>).detail;
+      if (!detail?.customerId || detail.customerId === customerId) refreshLocalProfile();
+    };
+    const handleProfileStorage = (event: StorageEvent) => {
+      if (event.key === localProfileKey(customerId)) refreshLocalProfile();
+    };
+    window.addEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalProfileUpdate);
+    window.addEventListener("storage", handleProfileStorage);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timerId);
+      window.removeEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalProfileUpdate);
+      window.removeEventListener("storage", handleProfileStorage);
     };
   }, [customerId]);
 
@@ -152,10 +220,17 @@ export function PublicHeader() {
   }, [locationQuery, searchPlaces]);
 
   async function handleLogout() {
+    setSigningOut(true);
     setProfileOpen(false);
-    await signOutUser().catch(() => undefined);
-    await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
+    await Promise.all([
+      signOutUser().catch(() => undefined),
+      signOutStackCustomer().catch(() => undefined),
+      fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
+    ]);
     clearCart();
+    setLocalProfile(null);
+    setLocalAddresses([]);
+    setRemoteAddresses([]);
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
     window.location.href = "/";
@@ -183,7 +258,7 @@ export function PublicHeader() {
           </span>
         </Link>
 
-        <div className="hidden min-w-0 flex-1 items-center justify-center gap-3 md:flex">
+        <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
           <LocationPicker
             compact={false}
             open={locationOpen}
@@ -199,7 +274,7 @@ export function PublicHeader() {
             loggedIn={loggedIn}
           />
           <form
-            className="flex h-11 min-w-[20rem] max-w-xl flex-1 items-center gap-3 rounded-lg border bg-white px-4 text-sm font-semibold text-muted-foreground shadow-sm transition focus-within:border-primary/40"
+            className="flex h-11 min-w-[20rem] max-w-2xl flex-1 items-center gap-3 rounded-lg border bg-white px-4 text-sm font-semibold text-muted-foreground shadow-sm transition focus-within:border-primary/40"
             onSubmit={(event) => {
               event.preventDefault();
               const queryText = searchQuery.trim();
@@ -263,22 +338,22 @@ export function PublicHeader() {
                 onClick={() => setProfileOpen((value) => !value)}
                 aria-expanded={profileOpen}
               >
-                <span className="grid size-7 place-items-center rounded-full bg-primary text-xs font-black text-white">{initials}</span>
+                <CustomerAvatar displayName={displayName} photoURL={profileImageUrl} />
                 <span className="max-w-28 truncate">{displayName}</span>
                 <ChevronDown className="size-4" />
               </Button>
               {profileOpen ? (
                 <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border bg-white p-3 shadow-2xl">
                   <div className="flex items-center gap-3 border-b pb-3">
-                    <span className="grid size-11 place-items-center rounded-full bg-primary text-sm font-black text-white">{initials}</span>
+                    <CustomerAvatar displayName={displayName} photoURL={profileImageUrl} size="md" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black">{displayName}</p>
                       <p className="text-xs font-semibold text-muted-foreground">Customer account</p>
                     </div>
                   </div>
-                  <Link href="/loyalty" className="my-3 flex items-center justify-between rounded-xl border border-orange-100 bg-orange-50 p-3 text-sm font-bold hover:bg-orange-100">
-                    <span className="flex items-center gap-2"><Crown className="size-4 text-orange-600" /> Gold Member</span>
-                    <span className="text-xs text-muted-foreground">120 pts</span>
+                  <Link href="/loyalty" className="my-3 flex items-center justify-between rounded-xl bg-orange-50 p-3 text-sm font-bold hover:bg-orange-100">
+                    <span className="flex items-center gap-2"><WalletCards className="size-4 text-orange-600" /> Loyalty rewards</span>
+                    <span className="text-xs text-muted-foreground">View points</span>
                   </Link>
                   <div className="grid gap-1 py-2">
                     <HeaderMenuLink href="/account/profile" icon={UserRound} label="Profile" description="Manage your personal info" />
@@ -299,9 +374,6 @@ export function PublicHeader() {
             </div>
           ) : (
             <div className="hidden items-center gap-2 md:flex">
-              <Button asChild variant="outline" size="sm" className="h-11 rounded-lg bg-white px-4">
-                <Link href="/signup">Create account</Link>
-              </Button>
               <Button asChild size="sm" className="h-11 rounded-lg px-5 shadow-lg shadow-primary/20">
                 <Link href="/login">
                   <UserRound className="size-4" />
@@ -324,7 +396,7 @@ export function PublicHeader() {
                 {loggedIn ? (
                   <div className="mb-3 rounded-2xl border bg-orange-50 p-4">
                     <div className="flex items-center gap-3">
-                      <span className="grid size-12 place-items-center rounded-full bg-primary text-sm font-black text-white">{initials}</span>
+                      <CustomerAvatar displayName={displayName} photoURL={profileImageUrl} size="lg" />
                       <div>
                         <p className="font-black">{displayName}</p>
                         <p className="text-xs font-semibold text-muted-foreground">Customer account</p>
@@ -390,6 +462,35 @@ export function PublicHeader() {
       </div>
     </header>
   );
+}
+
+function subscribePublicCmsSettings(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === PUBLIC_CMS_CACHE_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(PUBLIC_CMS_CACHE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(PUBLIC_CMS_CACHE_EVENT, onStoreChange);
+  };
+}
+
+function emptyPublicCmsSnapshot(): CmsSettings | null {
+  return null;
+}
+
+function subscribeHydration() {
+  return () => undefined;
+}
+
+function browserHydratedSnapshot() {
+  return true;
+}
+
+function serverHydratedSnapshot() {
+  return false;
 }
 
 function LocationPicker({
@@ -524,6 +625,35 @@ function QuickMenuLink({
       <Icon className="mx-auto size-5 text-primary" />
       <span>{label}</span>
     </Link>
+  );
+}
+
+function CustomerAvatar({
+  displayName,
+  photoURL,
+  size = "sm",
+}: {
+  displayName: string;
+  photoURL?: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const sizeClass = size === "lg" ? "size-12" : size === "md" ? "size-11" : "size-7";
+  const iconClass = size === "sm" ? "size-4" : "size-5";
+  const imageSize = size === "lg" ? "48px" : size === "md" ? "44px" : "28px";
+
+  if (photoURL) {
+    return (
+      <span className={`relative grid ${sizeClass} shrink-0 place-items-center overflow-hidden rounded-full bg-orange-50 text-primary`}>
+        <SafeImage src={photoURL} alt="" fill sizes={imageSize} className="object-cover" />
+      </span>
+    );
+  }
+
+  return (
+    <span className={`grid ${sizeClass} shrink-0 place-items-center rounded-full bg-primary text-white`}>
+      <UserRound className={iconClass} aria-hidden="true" />
+      <span className="sr-only">{displayName}</span>
+    </span>
   );
 }
 

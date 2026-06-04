@@ -25,6 +25,7 @@ import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { shouldUseFirebase } from "@/lib/env";
+import { writeLocalProfile } from "@/lib/customer-address-storage";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { toastManager } from "@/lib/toast-manager";
 import { cn } from "@/lib/utils";
@@ -75,10 +76,11 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   const searchParams = useSearchParams();
   const isCustomerSurface = surface === "customer-login" || surface === "customer-signup";
   const defaultNext = isCustomerSurface
-    ? "/account/profile"
+    ? "/"
     : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext;
   const requestedNext = searchParams.get("redirect") ?? searchParams.get("next");
   const next = useMemo(() => normalizeNextPath(requestedNext, defaultNext), [defaultNext, requestedNext]);
+  const phoneCompletionNext = "/profile?phoneRequired=1";
   const initialMode: CustomerMode = pathname.startsWith("/forgot-password") || searchParams.get("reset") === "true"
     ? "forgot"
     : surface === "customer-signup"
@@ -119,24 +121,35 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     return () => window.clearTimeout(id);
   }, []);
 
-  const finish = useCallback(async () => {
+  const finish = useCallback(async (target = next) => {
     if (typeof window !== "undefined") {
-      window.location.replace(next);
+      window.location.replace(target);
       return;
     }
-    router.replace(next);
+    router.replace(target);
   }, [next, router]);
 
-  const syncStoreUser = useCallback(async (uid: string) => {
+  const syncStoreUser = useCallback(async (uid: string, fallback?: { displayName?: string | null; email?: string | null; photoURL?: string | null }) => {
     const profile = await getUserProfile(uid).catch(() => null);
-    if (!profile) return;
+    const fallbackRole = isCustomerSurface ? "customer" : surface === "admin-login" ? "admin" : "owner";
+    const role = profile?.role ?? fallbackRole;
+    const displayName = profile?.displayName ?? fallback?.displayName ?? fallback?.email ?? "Sarva Customer";
     setAuthUser({
-      id: profile.id,
-      name: profile.displayName,
-      role: profile.role,
-      restaurantSlug: profile.tenantId ?? profile.restaurantIds?.[0] ?? DEFAULT_TENANT_ID,
+      id: profile?.id ?? uid,
+      name: displayName,
+      role,
+      restaurantSlug: profile?.tenantId ?? profile?.restaurantIds?.[0] ?? DEFAULT_TENANT_ID,
     });
-  }, [setAuthUser]);
+    if (role === "customer") {
+      writeLocalProfile(uid, {
+        displayName,
+        email: profile?.email ?? fallback?.email ?? undefined,
+        phone: profile?.phone,
+        photoURL: profile?.photoURL ?? fallback?.photoURL ?? undefined,
+      });
+    }
+    return { role, phone: profile?.phone ?? "" };
+  }, [isCustomerSurface, setAuthUser, surface]);
 
   useEffect(() => {
     if (!firebaseEnabled || !isCustomerSurface) return;
@@ -145,10 +158,10 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
         if (!user) return;
         setMessage("Email verified. Opening your account...");
         toastManager.successOnce(`login-success-${user.uid}`, "Signed in with magic link.");
-        void syncStoreUser(user.uid).then(finish);
+        void syncStoreUser(user.uid).then((syncedUser) => finish(isCustomerSurface && !syncedUser?.phone ? phoneCompletionNext : next));
       })
       .catch((error) => setMessage(friendlyAuthMessage(error)));
-  }, [firebaseEnabled, finish, isCustomerSurface, syncStoreUser]);
+  }, [firebaseEnabled, finish, isCustomerSurface, next, syncStoreUser]);
 
   async function syncStackCustomer() {
     const user = await getStackCustomer();
@@ -158,6 +171,13 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       role: "customer",
       restaurantSlug: DEFAULT_TENANT_ID,
     });
+    if (user?.id) {
+      writeLocalProfile(user.id, {
+        displayName: user.displayName || name.trim() || user.primaryEmail || "Sarva Customer",
+        email: user.primaryEmail ?? undefined,
+        photoURL: user.profileImageUrl ?? undefined,
+      });
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -194,10 +214,10 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           await syncStackCustomer();
         } else {
           const user = await signUpWithEmail(email.trim(), password, "customer", name.trim());
-          await syncStoreUser(user.uid);
+          await syncStoreUser(user.uid, { displayName: user.displayName || name.trim(), email: user.email, photoURL: user.photoURL });
         }
         toastManager.successOnce(`signup-success-${email.trim().toLowerCase()}`, "Account created.");
-        await finish();
+        await finish(isCustomerSurface ? phoneCompletionNext : next);
         return;
       }
 
@@ -210,7 +230,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           : surface === "admin-login"
             ? await signInAdminWithEmail(email.trim(), password)
             : await signInOperationalWithEmail(email.trim(), password);
-        await syncStoreUser(user.uid);
+        await syncStoreUser(user.uid, { displayName: user.displayName, email: user.email, photoURL: user.photoURL });
       }
       if (surface !== "portal-login") {
         toastManager.successOnce(`login-success-${email.trim().toLowerCase()}`, "Signed in.");
@@ -276,15 +296,15 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setIsSubmitting(true);
     setMessage("Opening Google sign in...");
     try {
-      if (customerStackEnabled) {
-        await signInWithStackGoogle(`${window.location.origin}${next}`);
+      if (!firebaseEnabled && customerStackEnabled) {
+        await signInWithStackGoogle(`${window.location.origin}${phoneCompletionNext}`);
         return;
       }
       if (!firebaseEnabled) throw new Error("Google sign-in is not configured.");
       const user = await signInWithGoogle("customer");
-      await syncStoreUser(user.uid);
+      const syncedUser = await syncStoreUser(user.uid, { displayName: user.displayName, email: user.email, photoURL: user.photoURL });
       toastManager.successOnce(`login-success-${user.uid}`, "Signed in with Google.");
-      await finish();
+      await finish(isCustomerSurface && !syncedUser?.phone ? phoneCompletionNext : next);
     } catch (error) {
       const text = friendlyAuthMessage(error);
       setMessage(text);
@@ -458,7 +478,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
               {mode === "sign-up" ? (
                 <label className={cn("flex items-start gap-2 text-xs font-semibold leading-5", authDark ? "text-white/70" : "text-muted-foreground")}>
                   <input className="mt-1" type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
-                  I agree to Sarva Food terms, privacy, restaurant responsibility, and account security rules.
+                  I agree to {branding.appName} terms, privacy, restaurant responsibility, and account security rules.
                 </label>
               ) : null}
 

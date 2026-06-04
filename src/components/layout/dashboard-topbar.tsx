@@ -42,6 +42,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { playOperationalSound } from "@/lib/operational-sounds";
+import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
 import type { DemoOrder, NavItem, TableOrder } from "@/lib/types";
 import { cn, formatCurrency, getInitials } from "@/lib/utils";
 
@@ -84,6 +85,7 @@ export function DashboardTopbar(props: DashboardTopbarProps) {
 function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTopbarProps) {
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
+  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
   const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
@@ -109,7 +111,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const productInitials = getInitials(productName);
-  const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner";
+  const ownerName = ownerBusinessProfile?.ownerName || (authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner");
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -323,20 +325,24 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
             />
 
             <div ref={profileMenuRef} className="relative hidden sm:block">
-              <HeaderIconTooltip title="Account Menu" description="Open profile, plan, billing, settings, support, and sign-out options.">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileOpen((value) => !value);
-                    setQuickActionsOpen(false);
-                    setNotificationsOpen(false);
-                  }}
-                  className="grid size-10 place-items-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
-                  aria-label="Open account menu"
-                >
-                  <span className="food-gradient grid size-8 place-items-center rounded-full text-xs font-black text-white">{getInitials(ownerName)}</span>
-                </button>
-              </HeaderIconTooltip>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileOpen((value) => !value);
+                  setQuickActionsOpen(false);
+                  setNotificationsOpen(false);
+                }}
+                onMouseEnter={() => {
+                  setProfileOpen(true);
+                  setQuickActionsOpen(false);
+                  setNotificationsOpen(false);
+                }}
+                className="grid size-10 place-items-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200"
+                aria-label="Open account menu"
+                title="Owner profile"
+              >
+                <span className="food-gradient grid size-8 place-items-center rounded-full text-xs font-black text-white">{getInitials(ownerName)}</span>
+              </button>
               {profileOpen ? <OwnerProfileMenu onClose={() => setProfileOpen(false)} onLogout={handleLogout} /> : null}
             </div>
 
@@ -492,11 +498,36 @@ function OwnerProfileSheet({ onClose, onLogout }: { onClose: () => void; onLogou
 }
 
 function OwnerProfileMenuContent({ onClose, onLogout }: { onClose: () => void; onLogout: () => void | Promise<void> }) {
+  const authUser = useAppStore((state) => state.authUser);
+  const restaurants = useAppStore((state) => state.restaurants);
+  const ownerProfile = useAppStore((state) => state.ownerBusinessProfile);
+  const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
+  const sessionEmail = isEmailLike(authUser.id) ? authUser.id : "";
+  const ownerName = ownerProfile?.ownerName || (authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner");
+  const restaurantName = ownerProfile?.hotelName || currentRestaurant?.displayName || currentRestaurant?.name || "Restaurant";
+  const mobile = ownerProfile?.phoneNumber || currentRestaurant?.contact?.phone || currentRestaurant?.ownerProfile?.businessPhone || "Not set";
+  const email = ownerProfile?.supportEmail || currentRestaurant?.ownerProfile?.businessEmail || sessionEmail || "Not set";
+  const plan = currentRestaurant?.subscriptionPlan || "Starter";
+  const status = currentRestaurant ? getRestaurantOperatingStatus(currentRestaurant) : null;
+  const joinedDate = formatJoinedDate((currentRestaurant as { createdAt?: string | Date } | undefined)?.createdAt);
+
   return (
     <div>
       <div className="border-b border-slate-100 p-4">
-        <p className="font-black text-slate-950">Profile</p>
-        <p className="mt-0.5 text-sm font-semibold text-slate-500">Manage your account</p>
+        <div className="flex items-start gap-3">
+          <span className="food-gradient grid size-12 shrink-0 place-items-center rounded-2xl text-sm font-black text-white">{getInitials(ownerName)}</span>
+          <span className="min-w-0">
+            <span className="block truncate font-black text-slate-950">{ownerName}</span>
+            <span className="block truncate text-sm font-semibold text-slate-500">{restaurantName}</span>
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-600">
+          <OwnerProfileFact label="Mobile" value={mobile} />
+          <OwnerProfileFact label="Email" value={email} />
+          <OwnerProfileFact label="Plan" value={plan} />
+          <OwnerProfileFact label="Status" value={status ? `${status.label}${status.detail ? `, ${status.detail}` : ""}` : "Not available"} />
+          <OwnerProfileFact label="Joined" value={joinedDate} />
+        </div>
       </div>
       <ProfileLink href="/owner/settings?tab=profile" icon={UserRound} label="Profile" description="View and manage your account" onClick={onClose} />
       <ProfileLink href="/owner/settings?tab=payments" icon={WalletCards} label="My Plan" description="View subscription plan" onClick={onClose} />
@@ -519,6 +550,26 @@ function OwnerProfileMenuContent({ onClose, onLogout }: { onClose: () => void; o
       </button>
     </div>
   );
+}
+
+function OwnerProfileFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
+      <span className="text-slate-400">{label}</span>
+      <span className="truncate font-black text-slate-800">{value}</span>
+    </div>
+  );
+}
+
+function formatJoinedDate(value?: string | Date) {
+  if (!value) return "Not available";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available";
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function isEmailLike(value?: string) {
+  return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
 }
 
 type AdminAlert = {

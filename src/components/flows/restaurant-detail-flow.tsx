@@ -37,11 +37,14 @@ import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuthUser } from "@/hooks/use-auth-user";
+import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
+import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -79,6 +82,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const { items: menu, offers, status: menuStatus, retry: retryMenu } = usePublicMenu(restaurant?.slug);
   const { categories: masterCategories } = usePublicCategories();
   const { cuisines: masterCuisines } = usePublicCuisines();
+  const auth = useAuthUser();
+  const customerData = useCustomerData(auth.user?.uid);
   const createOrder = useAppStore((state) => state.createOrder);
   const cartItems = useCartStore((state) => state.items);
   const offerCode = useCartStore((state) => state.offerCode);
@@ -197,6 +202,33 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   }, [restaurant, restaurantLocationKey]);
 
   useEffect(() => {
+    const profile = customerData.profile ?? (auth.profile?.role === "customer" ? auth.profile : null);
+    const profileDetails = profile as { displayName?: string; phone?: string } | null;
+    const defaultAddress = customerData.addresses.find((address) => address.isDefault) ?? customerData.addresses[0];
+    const addressDetails = defaultAddress as { fullAddress?: string; landmark?: string } | undefined;
+    const nextName = profileDetails?.displayName || auth.user?.displayName || "";
+    const nextPhone = profileDetails?.phone || "";
+    const nextAddress = addressDetails?.fullAddress || defaultAddress?.address || "";
+    const nextLandmark = addressDetails?.landmark || "";
+
+    if (!nextName && !nextPhone && !nextAddress && !nextLandmark) return;
+
+    const timerId = window.setTimeout(() => {
+      setCustomer((current) => {
+        const next = {
+          ...current,
+          name: current.name || nextName,
+          phone: current.phone || nextPhone,
+          address: current.address || nextAddress,
+          landmark: current.landmark || nextLandmark,
+        };
+        return next.name === current.name && next.phone === current.phone && next.address === current.address && next.landmark === current.landmark ? current : next;
+      });
+    }, 0);
+    return () => window.clearTimeout(timerId);
+  }, [auth.profile, auth.user?.displayName, customerData.addresses, customerData.profile]);
+
+  useEffect(() => {
     if (!scheduleLaunch) return;
     window.setTimeout(() => {
       document.getElementById("restaurant-menu-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -237,7 +269,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const contactPhone = restaurant.contact?.phone ?? restaurant.ownerProfile?.businessPhone ?? "";
   const contactWhatsApp = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? contactPhone;
   const heroTitle = restaurant.displayName ?? restaurant.name;
-  const operatingStatus = getOperatingStatus(restaurant);
+  const operatingStatus = getRestaurantOperatingStatus(restaurant);
   const activeFilterCount = getActiveFilterCount({
     categoryFilters,
     foodTypeFilters,
@@ -305,7 +337,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   };
 
   const validateDetails = () => {
-    const scheduleError = validateOrderSchedule(orderTiming, scheduledDate, scheduledTime);
+    const scheduleError = validateOrderSchedule(orderTiming, scheduledDate, scheduledTime, restaurant);
     if (scheduleError) return scheduleError;
     if (customer.name.trim().length < 2) return "Enter customer name.";
     if (customer.phone.replace(/\D/g, "").length < 10) return "Enter a valid phone number.";
@@ -427,8 +459,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       {step === "success" && successOrder ? (
         <SuccessStep order={successOrder} restaurant={restaurant} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} onNewOrder={() => setStep("menu")} />
       ) : (
-        <div className="container-page grid gap-5 py-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="min-w-0 space-y-5">
+        <div className="container-page grid gap-6 py-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section className="min-w-0 space-y-6">
             {step !== "menu" ? <StepIndicator current={step} onSelect={goTo} /> : null}
 
             {step === "menu" ? (
@@ -443,8 +475,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                   onTimeChange={setScheduledTime}
                 />
 
-                <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-                  <aside className="order-2 space-y-5 xl:order-1">
+                <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]">
+                  <aside className="order-2 space-y-6 xl:order-1">
                     <OfferStrip offers={visibleOffers} onApply={(code) => {
                       applyOffer(code);
                       toast.success(`${code} applied.`);
@@ -452,7 +484,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                     <RestaurantInfoCard restaurant={restaurant} contactWhatsApp={contactWhatsApp} />
                   </aside>
 
-                  <div id="restaurant-menu-panel" className="order-1 rounded-3xl border bg-white p-3 shadow-sm sm:p-4 xl:order-2">
+                  <div id="restaurant-menu-panel" className="order-1 rounded-2xl bg-white/95 p-3 shadow-sm sm:p-4 xl:order-2">
                     <div className="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
                       <div className="relative">
                         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -682,7 +714,7 @@ function MobileRestaurantLanding({
   onAdd: (item: MenuItem) => void;
   onQty: (id: string, quantity: number) => void;
 }) {
-  const status = getOperatingStatus(restaurant);
+  const status = getRestaurantOperatingStatus(restaurant);
   const address = restaurant.address || restaurant.location;
   const heroImage = normalizeHeroImages(restaurant)[0] ?? IMAGE_FALLBACKS.restaurant;
   const eta = restaurant.deliveryTime || (typeof customerDistanceKm === "number" ? `${estimateDeliveryMinutes(customerDistanceKm)} mins` : "");
@@ -857,7 +889,7 @@ function MobileOfferRail({ offers, onApply }: { offers: Offer[]; onApply: (code:
             key={offer.code}
             type="button"
             onClick={() => onApply(offer.code)}
-            className="relative min-h-28 w-[min(82vw,360px)] shrink-0 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-left"
+            className="relative min-h-28 w-[min(82vw,360px)] shrink-0 overflow-hidden rounded-2xl bg-emerald-50 p-4 text-left shadow-sm"
           >
             {(offer.mobileBanner ?? offer.banner ?? offer.image) ? (
               <SafeImage src={offer.mobileBanner ?? offer.banner ?? offer.image} alt={offer.title} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="360px" className="object-cover opacity-25" />
@@ -897,7 +929,7 @@ function MobileMenuItemCard({
 }) {
   const price = itemPrice(item, fulfillmentType);
   return (
-    <article className="grid grid-cols-[minmax(0,1fr)_92px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
+    <article className="grid grid-cols-[minmax(0,1fr)_92px] gap-3 rounded-2xl bg-white p-3 shadow-sm">
       <div className="min-w-0">
         <span
           aria-label={item.isVeg ? "Vegetarian item" : "Non-vegetarian item"}
@@ -953,7 +985,7 @@ function MobileQtyButton({ quantity, soldOut, onAdd, onQty }: { quantity: number
 
 function MobileMenuSkeleton() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_92px] gap-3 rounded-2xl border border-orange-100 bg-white p-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_92px] gap-3 rounded-2xl bg-white p-3 shadow-sm">
       <div className="space-y-3">
         <div className="h-4 w-20 rounded-full bg-orange-100" />
         <div className="h-5 w-40 rounded-full bg-slate-100" />
@@ -967,7 +999,7 @@ function MobileMenuSkeleton() {
 
 function MobileRestaurantAbout({ restaurant }: { restaurant: Restaurant }) {
   return (
-    <section className="mt-6 border-t border-orange-100 pt-5">
+    <section className="mt-6 pt-5">
       <h2 className="text-2xl font-black">About this restaurant</h2>
       <div className="mt-3 flex gap-3 overflow-x-auto pb-1 text-sm font-bold text-slate-700 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-3 py-2"><CheckCircle2 className="size-4 text-emerald-600" />Hygienic packaging</span>
@@ -999,15 +1031,15 @@ function HeroSection({
   const minOrder = restaurant.minPrice;
   const deliveryFee = restaurant.deliverySettings?.baseFee ?? restaurant.deliveryFee;
   const freeAbove = restaurant.deliverySettings?.freeDeliveryAbove;
-  const status = getOperatingStatus(restaurant);
+  const status = getRestaurantOperatingStatus(restaurant);
   const address = restaurant.address || restaurant.location;
   const mapsHref = restaurant.googleMapLocation || mapsUrl(restaurant);
   const eta = restaurant.deliveryTime || (typeof customerDistanceKm === "number" ? `${estimateDeliveryMinutes(customerDistanceKm)} min` : "");
   const heroImages = useMemo(() => normalizeHeroImages(restaurant), [restaurant]);
 
   return (
-    <section className="md:container-page md:pt-5">
-      <div className="relative overflow-hidden bg-slate-950 text-white shadow-xl shadow-orange-950/10 md:rounded-[1.75rem]">
+    <section className="pt-0 md:pt-4">
+      <div className="relative overflow-hidden bg-slate-950 text-white shadow-xl shadow-orange-950/10">
         <HeroBannerCarousel images={heroImages} title={title} />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/68 to-black/10" />
         <div className="relative grid min-h-[30svh] max-h-[260px] content-end gap-2 px-4 py-4 md:min-h-[380px] md:max-h-none md:gap-4 md:px-8 md:py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
@@ -1071,7 +1103,7 @@ function HeroSection({
             ) : null}
           </div>
         </div>
-        <div className="hidden grid-cols-2 gap-2 rounded-2xl bg-black/32 p-3 ring-1 ring-white/12 backdrop-blur md:grid md:grid-cols-4 lg:grid-cols-2">
+        <div className="hidden grid-cols-2 gap-2 rounded-2xl bg-black/32 p-3 backdrop-blur md:grid md:grid-cols-4 lg:grid-cols-2">
           {typeof minOrder === "number" ? <HeroFact icon={ShoppingBag} label="Minimum order" value={formatCurrency(minOrder)} /> : null}
           {typeof deliveryFee === "number" ? <HeroFact icon={Bike} label="Delivery fee" value={formatCurrency(deliveryFee)} /> : null}
           {typeof freeAbove === "number" ? <HeroFact icon={Sparkles} label="Free delivery" value={`above ${formatCurrency(freeAbove)}`} /> : null}
@@ -1113,12 +1145,12 @@ function OrderTimingStrip({
   onTimeChange: (value: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border bg-white p-2 shadow-sm sm:rounded-3xl sm:p-4">
+    <section className="rounded-2xl bg-white/95 p-2 shadow-sm sm:p-4">
       <div className="grid grid-cols-2 gap-2 md:gap-3">
         <button
           type="button"
           onClick={() => onModeChange("now")}
-          className={`flex min-h-14 items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "now" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+          className={`flex min-h-14 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "now" ? "bg-orange-50 text-slate-950 shadow-inner" : "bg-slate-50 text-slate-800 hover:bg-orange-50/50"}`}
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
             <ZapIcon />
@@ -1131,7 +1163,7 @@ function OrderTimingStrip({
         <button
           type="button"
           onClick={() => onModeChange("scheduled")}
-          className={`flex min-h-14 items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "scheduled" ? "border-orange-600 bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+          className={`flex min-h-14 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "scheduled" ? "bg-orange-50 text-slate-950 shadow-inner" : "bg-slate-50 text-slate-800 hover:bg-orange-50/50"}`}
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
             <CalendarClock className="size-4 sm:size-5" />
@@ -1143,7 +1175,7 @@ function OrderTimingStrip({
         </button>
       </div>
       {mode === "scheduled" ? (
-        <div className="mt-3 grid gap-3 rounded-2xl border border-orange-100 bg-orange-50/60 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="mt-3 grid gap-3 rounded-2xl bg-orange-50/60 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="grid gap-2">
             <span className="text-sm font-black text-slate-950">Date</span>
             <input
@@ -1238,7 +1270,7 @@ function HeroBannerCarousel({ images, title }: { images: string[]; title: string
 function StepIndicator({ current, onSelect }: { current: WizardStep; onSelect: (step: WizardStep) => void }) {
   const currentIndex = STEP_LABELS.findIndex((step) => step.id === current);
   return (
-    <div className="rounded-3xl border bg-white p-2 shadow-sm">
+    <div className="rounded-2xl bg-white p-2 shadow-sm">
       <div className="grid grid-cols-4 gap-1">
         {STEP_LABELS.map((step, index) => {
           const active = step.id === current;
@@ -1267,7 +1299,7 @@ function StepIndicator({ current, onSelect }: { current: WizardStep; onSelect: (
 function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: string) => void }) {
   if (!offers.length) return null;
   return (
-    <section className="rounded-3xl border bg-white p-4 shadow-sm">
+    <section className="rounded-2xl bg-white p-4 shadow-sm">
       <h2 className="text-xl font-black">Offers for you</h2>
       <div className="mt-4 grid gap-3">
         {offers.slice(0, 3).map((offer, index) => (
@@ -1275,7 +1307,7 @@ function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: stri
             key={offer.code}
             type="button"
             onClick={() => onApply(offer.code)}
-            className="group relative min-h-32 overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="group relative min-h-32 overflow-hidden rounded-2xl bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-emerald-50" />
             {(offer.mobileBanner ?? offer.banner ?? offer.image) ? (
@@ -1303,7 +1335,7 @@ function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: stri
 function RestaurantInfoCard({ restaurant, contactWhatsApp }: { restaurant: Restaurant; contactWhatsApp: string }) {
   const address = restaurant.address || restaurant.location;
   return (
-    <section className="rounded-3xl border bg-white p-5 shadow-sm">
+    <section className="rounded-2xl bg-white p-5 shadow-sm">
       <h2 className="text-xl font-black">About {restaurant.displayName ?? restaurant.name}</h2>
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
         Serving {restaurant.cuisine || "fresh food"} with restaurant-managed menus, direct ordering, and live availability.
@@ -1356,7 +1388,7 @@ function MenuCard({
   const price = itemPrice(item, fulfillmentType);
   if (viewMode === "list") {
     return (
-      <div className="flex gap-3 rounded-2xl border bg-white p-2 shadow-sm transition-transform duration-200">
+      <div className="flex gap-3 rounded-2xl bg-white p-2 shadow-sm transition-transform duration-200">
         <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} aria-label={`View ${item.name} details`}>
           <MenuImage item={item} className="size-20 shrink-0" />
         </Link>
@@ -1371,7 +1403,7 @@ function MenuCard({
     );
   }
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block aspect-[1.18/1] overflow-hidden bg-orange-50" aria-label={`View ${item.name} details`}>
         <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="(max-width: 768px) 50vw, 260px" className="object-cover transition duration-300 group-hover:scale-105" />
         <span className={`absolute left-2 top-2 grid size-5 place-items-center rounded-md border bg-white ${item.isVeg ? "text-emerald-600" : "text-red-600"}`}>
@@ -1465,7 +1497,7 @@ function OfferValidationStep({
   };
 
   return (
-    <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
+    <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <SectionTitle eyebrow="Step 2" title="Validate offers" description="Apply owner-created coupons and review eligibility before entering customer details." />
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
@@ -1494,23 +1526,22 @@ function OfferValidationStep({
               const eligible = offerEligible(offer, cartItems, fulfillmentType);
               const selected = selectedOfferCode === offer.code.toUpperCase();
               return (
-                <button key={offer.code} type="button" onClick={() => (selected ? removeOffer() : selectOffer(offer.code))} className={`rounded-2xl border p-4 text-left transition hover:border-orange-300 ${selected ? "border-orange-600 bg-orange-50" : "bg-white"}`}>
+                <button key={offer.code} type="button" onClick={() => (selected ? removeOffer() : selectOffer(offer.code))} className={`rounded-2xl border p-4 text-left transition hover:border-orange-300 ${selected ? "border-orange-600 bg-orange-50 shadow-sm" : "bg-white"}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <Badge className={eligible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>{eligible ? "Eligible" : "Rules apply"}</Badge>
-                      <h3 className="mt-2 font-black">{offer.title}</h3>
-                      <p className="text-sm text-muted-foreground">{offer.description}</p>
-                    </div>
-                    <span className="rounded-xl bg-orange-600 px-2 py-1 text-xs font-black text-white">{offer.code}</span>
-                  </div>
-                  <div className="mt-3 flex items-end justify-between gap-3">
-                    <p className="text-xs font-bold text-muted-foreground">
-                      Min {formatCurrency(offer.minimumOrder)} {offer.appliesTo?.length ? `• ${offer.appliesTo.join(", ")}` : ""}
-                    </p>
+                    <Badge className={eligible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>{eligible ? "Eligible" : "Rules apply"}</Badge>
                     <span className={`shrink-0 rounded-xl px-3 py-1 text-xs font-black ${selected ? "bg-white text-orange-700" : "bg-orange-600 text-white"}`}>
                       {selected ? "Remove" : "Apply"}
                     </span>
                   </div>
+                  <h3 className="mt-3 line-clamp-2 text-lg font-black">{offer.title}</h3>
+                  <p className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">{offer.description}</p>
+                  <div className="mt-4 rounded-xl border border-dashed border-orange-300 bg-orange-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-orange-700">Offer code</p>
+                    <p className="mt-1 break-all text-base font-black text-orange-700">{offer.code}</p>
+                  </div>
+                  <p className="mt-3 text-xs font-bold leading-5 text-muted-foreground">
+                    Min {formatCurrency(offer.minimumOrder)} {offer.appliesTo?.length ? `• ${offer.appliesTo.join(", ")}` : ""}
+                  </p>
                 </button>
               );
             }) : (
@@ -1558,7 +1589,7 @@ function CustomerDetailsStep({
 }) {
   const update = (key: keyof CustomerForm, value: string) => setCustomer({ ...customer, [key]: value });
   return (
-    <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
+    <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <SectionTitle eyebrow="Step 3" title="Customer details" description="Delivery needs an address. Pickup and dine-in can be completed with name and phone." />
       <div className="mt-5">
         <OrderTimingStrip
@@ -1627,11 +1658,11 @@ function ConfirmStep({
   onSubmit: () => void;
 }) {
   return (
-    <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
+    <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <SectionTitle eyebrow="Step 4" title={orderTiming === "scheduled" ? "Confirm scheduled order" : "Confirm order"} description="Review items, taxes, charges, contact details, and send the order to the restaurant." />
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-3">
-          <div className="rounded-2xl border bg-orange-50/60 p-4">
+          <div className="rounded-2xl bg-orange-50/60 p-4">
             <p className="text-sm font-black">{restaurant.displayName ?? restaurant.name}</p>
             <p className="text-sm text-muted-foreground">
               {fulfillmentLabel(fulfillmentType)} for {customer.name} • {customer.phone}
@@ -1643,7 +1674,7 @@ function ConfirmStep({
             {customer.address ? <p className="mt-2 text-sm font-semibold">{customer.address}{customer.landmark ? `, ${customer.landmark}` : ""}</p> : null}
           </div>
           {cartItems.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 rounded-2xl border p-3">
+            <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
               <MenuImage item={item} className="size-16 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-1 font-black">{item.name}</p>
@@ -1708,7 +1739,7 @@ function SuccessStep({
 }) {
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-      <div className="rounded-3xl border bg-white p-6 text-center shadow-sm">
+      <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
         <div className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-100 text-emerald-700">
           <CheckCircle2 className="size-10" />
         </div>
@@ -1761,13 +1792,13 @@ function CartSummary({
   actionLabel: string;
 }) {
   return (
-    <div className="sticky top-24 rounded-3xl border bg-white p-4 shadow-sm">
+    <div className="sticky top-24 rounded-2xl bg-white p-4 shadow-sm">
       <h2 className="font-black">Your Order</h2>
       <p className="text-sm text-muted-foreground">{restaurant.displayName ?? restaurant.name}</p>
       {items.length ? (
         <div className="mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
           {items.map((item) => (
-            <div key={item.id} className="rounded-2xl border p-3">
+            <div key={item.id} className="rounded-2xl bg-slate-50 p-3">
               <div className="flex items-start gap-3">
                 <MenuImage item={item} className="size-14 shrink-0" />
                 <div className="min-w-0 flex-1">
@@ -1786,7 +1817,7 @@ function CartSummary({
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-dashed p-6 text-center">
+        <div className="mt-4 rounded-2xl bg-orange-50/50 p-6 text-center">
           <ShoppingBag className="mx-auto size-10 text-orange-400" />
           <p className="mt-2 font-black">Your cart is empty</p>
           <p className="text-sm text-muted-foreground">Add items to continue.</p>
@@ -1805,7 +1836,7 @@ function CartSummary({
 
 function MiniCart({ items, totals }: { items: CartLine[]; totals: CartTotals }) {
   return (
-    <div className="rounded-3xl border border-orange-200 bg-orange-50/70 p-4">
+    <div className="rounded-2xl bg-orange-50/70 p-4">
       <h3 className="text-lg font-black">Cart review</h3>
       <div className="mt-3 space-y-2">
         {items.map((item) => (
@@ -1871,13 +1902,40 @@ function buildScheduledDateTime(dateValue: string, timeValue: string) {
   return Number.isNaN(value.getTime()) ? null : value;
 }
 
-function validateOrderSchedule(mode: OrderTiming, dateValue: string, timeValue: string) {
+function validateOrderSchedule(mode: OrderTiming, dateValue: string, timeValue: string, restaurant: Restaurant) {
   if (mode === "now") return "";
   const scheduledFor = buildScheduledDateTime(dateValue, timeValue);
   if (!scheduledFor) return "Choose a schedule date and time.";
-  const earliest = Date.now() + 45 * 60_000;
-  if (scheduledFor.getTime() < earliest) return "Schedule at least 45 minutes from now.";
+  const cutoffMinutes = restaurant.scheduling?.cutoffMinutes ?? restaurant.scheduling?.minPrepMinutes ?? 45;
+  const earliest = Date.now() + cutoffMinutes * 60_000;
+  if (scheduledFor.getTime() < earliest) return `Schedule at least ${cutoffMinutes} minutes from now.`;
+  if (!isScheduledForOpenSlot(restaurant, scheduledFor)) {
+    return "Choose a time inside the restaurant's operating hours.";
+  }
   return "";
+}
+
+function isScheduledForOpenSlot(restaurant: Restaurant, scheduledFor: Date) {
+  const schedule = restaurant.operatingHoursSchedule;
+  if (!schedule?.length || restaurant.operatingHoursPreference === "not-specified") return false;
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const day = days[(scheduledFor.getDay() + 6) % 7];
+  const daySchedule = schedule.find((entry) => entry.day === day);
+  if (!daySchedule?.open) return false;
+  const minutes = scheduledFor.getHours() * 60 + scheduledFor.getMinutes();
+  const prepMinutes = restaurant.scheduling?.minPrepMinutes ?? 30;
+  return daySchedule.slots.some((slot) => {
+    const start = scheduleTimeMinutes(slot.start);
+    const end = scheduleTimeMinutes(slot.end);
+    const latest = end > start ? end - prepMinutes : end;
+    if (end > start) return minutes >= start && minutes <= latest;
+    return minutes >= start || minutes <= latest;
+  });
+}
+
+function scheduleTimeMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map((item) => Number(item));
+  return (hours || 0) * 60 + (minutes || 0);
 }
 
 function formatScheduleDateTime(value: Date) {
@@ -1907,54 +1965,6 @@ function estimateDeliveryMinutes(distanceKm: number) {
 function mapsUrl(restaurant: Restaurant) {
   if (typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number") return "";
   return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
-}
-
-function getOperatingStatus(restaurant: Restaurant) {
-  const schedule = restaurant.operatingHoursSchedule;
-  if (!schedule?.length || restaurant.operatingHoursPreference === "not-specified") {
-    return {
-      open: restaurant.isOpen,
-      label: restaurant.isOpen ? "Open now" : "Taking preorders",
-      detail: restaurant.operatingHours || "",
-    };
-  }
-
-  const now = new Date();
-  const todayIndex = (now.getDay() + 6) % 7;
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const today = schedule.find((day) => day.day === days[todayIndex]);
-  const activeSlot = today?.open ? today.slots.find((slot) => minutes >= timeMinutes(slot.start) && minutes < timeMinutes(slot.end)) : undefined;
-  if (activeSlot) {
-    return { open: true, label: "Open now", detail: `Closes at ${formatTime(activeSlot.end)}` };
-  }
-
-  for (let offset = 0; offset < 7; offset += 1) {
-    const dayName = days[(todayIndex + offset) % 7];
-    const day = schedule.find((entry) => entry.day === dayName);
-    const nextSlot = day?.open ? day.slots.find((slot) => offset > 0 || timeMinutes(slot.start) > minutes) : undefined;
-    if (nextSlot) {
-      return {
-        open: false,
-        label: "Closed now",
-        detail: offset === 0 ? `Opens at ${formatTime(nextSlot.start)}` : `Opens ${offset === 1 ? "tomorrow" : dayName} at ${formatTime(nextSlot.start)}`,
-      };
-    }
-  }
-
-  return { open: false, label: "Closed now", detail: "" };
-}
-
-function timeMinutes(value: string) {
-  const [hours, minutes] = value.split(":").map((item) => Number(item));
-  return (hours || 0) * 60 + (minutes || 0);
-}
-
-function formatTime(value: string) {
-  const [rawHours, rawMinutes] = value.split(":").map((item) => Number(item));
-  const period = rawHours >= 12 ? "PM" : "AM";
-  const hours = rawHours % 12 || 12;
-  return `${hours}:${String(rawMinutes || 0).padStart(2, "0")} ${period}`;
 }
 
 function showClosedRestaurantPrompt(status: { detail?: string }, onSchedule: () => void) {

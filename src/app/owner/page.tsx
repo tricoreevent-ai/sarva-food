@@ -13,6 +13,7 @@ import {
   CreditCard,
   GripVertical,
   IndianRupee,
+  MessageCircle,
   PackageCheck,
   Printer,
   ReceiptText,
@@ -29,12 +30,14 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
+import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { QuickActionButton } from "@/components/owner/quick-action";
 import { StatusBadge } from "@/components/owner/status-badge";
 import { Button } from "@/components/ui/button";
+import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
-import type { DemoOrder, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
+import type { DemoOrder, MenuItem, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const dashboardPrefsKey = "sarva-owner-dashboard-prefs:v2";
@@ -58,6 +61,8 @@ export default function OwnerDashboardPage() {
   const authUser = useAppStore((state) => state.authUser);
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
+  const menuItems = useAppStore((state) => state.menuItems);
+  const restaurants = useAppStore((state) => state.restaurants);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
   const staffMembers = useAppStore((state) => state.staffMembers);
   const posTables = useAppStore((state) => state.posTables);
@@ -68,18 +73,20 @@ export default function OwnerDashboardPage() {
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([...widgetIds]);
   const [prefsReady, setPrefsReady] = useState(false);
   const [updatedSeconds, setUpdatedSeconds] = useState(0);
+  const whatsappShare = useWhatsAppShare();
 
   const metrics = useMemo(
     () => buildDashboardMetrics({
       orders,
       tableOrders,
+      menuItems,
       customerCount: loyaltyCustomers.length,
       staffMembers,
       posTables,
       offlineQueue,
       printerSettings,
     }),
-    [loyaltyCustomers.length, offlineQueue, orders, posTables, printerSettings, staffMembers, tableOrders],
+    [loyaltyCustomers.length, menuItems, offlineQueue, orders, posTables, printerSettings, staffMembers, tableOrders],
   );
   const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner";
 
@@ -145,7 +152,7 @@ export default function OwnerDashboardPage() {
       case "type":
         return <OrderTypePanel metrics={metrics} />;
       case "top":
-        return <TopItemsPanel items={metrics.topItems} />;
+        return <TopItemsPanel items={metrics.topItems} onShareItem={(item) => void whatsappShare.openShare({ item, restaurant: restaurants.find((restaurant) => restaurant.slug === item.restaurantSlug) })} />;
       case "actions":
         return <QuickActionsPanel />;
       case "system":
@@ -232,6 +239,17 @@ export default function OwnerDashboardPage() {
           ))}
         </section>
       ) : null}
+
+      <WhatsAppShareModal
+        preview={whatsappShare.preview}
+        open={Boolean(whatsappShare.preview) || whatsappShare.isPreparing}
+        preparing={whatsappShare.isPreparing}
+        onOpenChange={(open) => {
+          if (!open) whatsappShare.closeShare();
+        }}
+        onCopy={() => void whatsappShare.copyMessage()}
+        onWhatsApp={whatsappShare.openWhatsApp}
+      />
     </div>
   );
 }
@@ -444,7 +462,7 @@ function OrderTypePanel({ metrics }: { metrics: DashboardMetrics }) {
   );
 }
 
-function TopItemsPanel({ items }: { items: Array<{ name: string; quantity: number; revenue: number }> }) {
+function TopItemsPanel({ items, onShareItem }: { items: TopDashboardItem[]; onShareItem: (item: MenuItem) => void }) {
   return (
     <DashboardCard
       title="Top Selling Items"
@@ -460,7 +478,14 @@ function TopItemsPanel({ items }: { items: Array<{ name: string; quantity: numbe
                 <p className="truncate font-black text-slate-950">{item.name}</p>
                 <p className="text-xs font-semibold text-slate-500">{item.quantity} orders</p>
               </div>
-              <p className="font-black text-slate-950">{formatCurrency(item.revenue)}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-black text-slate-950">{formatCurrency(item.revenue)}</p>
+                {item.item ? (
+                  <Button type="button" variant="outline" size="icon-sm" onClick={() => item.item && onShareItem(item.item)} aria-label={`Share ${item.name} on WhatsApp`}>
+                    <MessageCircle className="size-4" />
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -581,6 +606,12 @@ type DashboardOrder = {
   table?: string;
   lines: OrderLine[];
   type: string;
+};
+type TopDashboardItem = {
+  name: string;
+  quantity: number;
+  revenue: number;
+  item?: MenuItem;
 };
 type DashboardMetrics = ReturnType<typeof buildDashboardMetrics>;
 
@@ -744,6 +775,7 @@ function EmptyState({ title, text }: { title: string; text: string }) {
 function buildDashboardMetrics({
   orders,
   tableOrders,
+  menuItems,
   customerCount,
   staffMembers,
   posTables,
@@ -752,6 +784,7 @@ function buildDashboardMetrics({
 }: {
   orders: DemoOrder[];
   tableOrders: TableOrder[];
+  menuItems: MenuItem[];
   customerCount: number;
   staffMembers: StaffMember[];
   posTables: PosTable[];
@@ -828,7 +861,7 @@ function buildDashboardMetrics({
     }),
     customerSpark: week.map(() => customerCount),
     weekLabels: week.map((date) => date.toLocaleDateString("en-IN", { weekday: "short" })),
-    topItems: buildTopItems(combined.flatMap((order) => order.lines)),
+    topItems: buildTopItems(combined.flatMap((order) => order.lines), menuItems),
     liveRows: activeOrders.slice(0, 5),
     typeCounts,
     typeTotal: sum(typeCounts.map((item) => item.value)),
@@ -942,13 +975,18 @@ function buildTypeCounts(orders: DashboardOrder[]) {
   return counts;
 }
 
-function buildTopItems(lines: OrderLine[]) {
-  const items = new Map<string, { name: string; quantity: number; revenue: number }>();
+function buildTopItems(lines: OrderLine[], menuItems: MenuItem[]): TopDashboardItem[] {
+  const byId = new Map(menuItems.map((item) => [item.id, item]));
+  const byName = new Map(menuItems.map((item) => [item.name.trim().toLowerCase(), item]));
+  const items = new Map<string, TopDashboardItem>();
   lines.forEach((line) => {
-    const current = items.get(line.name) ?? { name: line.name, quantity: 0, revenue: 0 };
+    const baseId = line.itemId.split("::")[0];
+    const sourceItem = byId.get(baseId) ?? byName.get(line.name.trim().toLowerCase());
+    const key = sourceItem?.id ?? line.name;
+    const current = items.get(key) ?? { name: sourceItem?.name ?? line.name, quantity: 0, revenue: 0, item: sourceItem };
     current.quantity += line.quantity;
     current.revenue += line.quantity * line.price;
-    items.set(line.name, current);
+    items.set(key, current);
   });
   return Array.from(items.values()).sort((first, second) => second.quantity - first.quantity).slice(0, 4);
 }

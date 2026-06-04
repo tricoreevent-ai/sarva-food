@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import {
   Bell,
   ChevronDown,
@@ -24,6 +26,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CustomerHomeLoading, RetryState } from "@/components/state/page-state";
+import { useAuthUser } from "@/hooks/use-auth-user";
+import { useCustomerData } from "@/hooks/use-customer-data";
 import { useLocationCommerce } from "@/hooks/use-location-commerce";
 import { usePublicCategories, usePublicMenu, usePublicOffers, usePublicRestaurants } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
@@ -32,11 +36,15 @@ import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { isOfferForSurface } from "@/lib/offer-engine";
 import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
 import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
+import { customerFavoriteId, deleteCustomerFavoriteRestaurant, saveCustomerFavoriteRestaurant } from "@/services/customer-favorites-service";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export function CustomerDiscoveryHome() {
+  const router = useRouter();
   const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants({ preloadPrimaryMenu: true });
+  const auth = useAuthUser();
+  const customer = useCustomerData(auth.user?.uid);
   const { categories: appCategories } = usePublicCategories();
   const {
     location,
@@ -59,6 +67,8 @@ export function CustomerDiscoveryHome() {
   const cmsSettings = useMemo(() => resolveCmsSettings(rawCmsSettings), [rawCmsSettings]);
   const unavailableCopy = cmsSettings.operations ?? defaultCmsSettings.operations!;
   const cartSubtotal = getCartSubtotal(cartItems);
+  const customerDisplayName = customer.profile?.displayName || (auth.profile?.role === "customer" ? auth.profile?.displayName : "") || auth.user?.displayName || "";
+  const customerFirstName = customerDisplayName.trim().split(/\s+/)[0] ?? "";
   const heroRestaurant = nearbyRestaurants[0] ?? restaurants[0];
   const { items: menuItems } = usePublicMenu(heroRestaurant?.slug);
   const { offers: nearbyOffers } = usePublicOffers(nearbyRestaurants.length ? nearbyRestaurants : restaurants);
@@ -96,6 +106,24 @@ export function CustomerDiscoveryHome() {
     },
     [cmsSettings.featuredRestaurants, nearbyRestaurants, restaurants],
   );
+  const savedRestaurantMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const saved of customer.savedRestaurants) {
+      if (saved.slug) map.set(saved.slug, saved.id);
+      if (saved.restaurantId) map.set(saved.restaurantId, saved.id);
+    }
+    return map;
+  }, [customer.savedRestaurants]);
+  const favoriteRestaurants = useMemo(() => {
+    const seen = new Set<string>();
+    return customer.savedRestaurants
+      .map((saved) => restaurants.find((restaurant) => restaurant.slug === saved.slug || restaurant.id === saved.restaurantId))
+      .filter((restaurant): restaurant is Restaurant => {
+        if (!restaurant || seen.has(restaurant.id)) return false;
+        seen.add(restaurant.id);
+        return true;
+      });
+  }, [customer.savedRestaurants, restaurants]);
 
   const popularItems = useMemo(() => {
     const nearbySlugs = new Set(recommendedRestaurants.map((restaurant) => restaurant.slug));
@@ -126,6 +154,29 @@ export function CustomerDiscoveryHome() {
     selectLocation(nextLocation);
     setLocationQuery(nextLocation.label);
     setLocationResultsOpen(false);
+  }
+
+  async function handleFavoriteToggle(restaurant: Restaurant) {
+    const customerId = auth.user?.uid;
+    if (!customerId) {
+      router.push(`/login?next=${encodeURIComponent("/")}`);
+      return;
+    }
+
+    const favoriteId = savedRestaurantMap.get(restaurant.slug) ?? savedRestaurantMap.get(restaurant.id) ?? customerFavoriteId(customerId, restaurant);
+    const alreadySaved = savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id);
+    try {
+      if (alreadySaved) {
+        await deleteCustomerFavoriteRestaurant(favoriteId);
+        toast.success(`${restaurant.name} removed from favorites.`);
+      } else {
+        await saveCustomerFavoriteRestaurant(customerId, restaurant);
+        toast.success(`${restaurant.name} saved to favorites.`);
+      }
+      customer.retry();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update favorite.");
+    }
   }
 
   if (restaurantsStatus === "loading") {
@@ -207,7 +258,7 @@ export function CustomerDiscoveryHome() {
 
         <div className="relative mt-4 grid grid-cols-[1fr_7.6rem] items-end gap-1">
           <div className="pb-2">
-            <p className="text-[0.98rem] font-black tracking-normal">Good Morning, Ananya!</p>
+            <p className="text-[0.98rem] font-black tracking-normal">{customerFirstName ? `Good Morning, ${customerFirstName}!` : "Good Morning!"}</p>
             <h1 className="mt-2 max-w-[14.5rem] text-[1.95rem] font-black leading-[1.04] tracking-normal">
               What&apos;s on your <span className="text-primary">mind today?</span>
             </h1>
@@ -334,9 +385,9 @@ export function CustomerDiscoveryHome() {
           <Link
             key={chip.id}
             href={`/restaurants?query=${encodeURIComponent(chip.name)}`}
-            className="flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center"
+            className="group flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center"
           >
-            <span className="grid size-14 place-items-center overflow-hidden rounded-full border bg-white shadow-md" style={{ borderColor: chip.colorTheme ?? undefined }}>
+            <span className="grid size-14 place-items-center overflow-hidden rounded-full bg-white shadow-md transition duration-200 group-hover:-translate-y-1 group-hover:scale-105 group-hover:shadow-xl">
               <SafeImage
                 src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food}
                 alt={chip.name}
@@ -356,7 +407,7 @@ export function CustomerDiscoveryHome() {
       <section className="container-page hidden gap-4 py-5 md:flex">
         <Link
           href="/restaurants"
-          className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/5 text-center text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+          className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-primary/5 text-center text-primary shadow-sm transition duration-200 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl"
         >
           <span className="grid size-10 place-items-center overflow-hidden rounded-full text-primary">
             <Grid2X2 className="size-6" />
@@ -367,7 +418,7 @@ export function CustomerDiscoveryHome() {
           <Link
             key={chip.id}
             href={`/restaurants?query=${encodeURIComponent(chip.name)}`}
-            className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl border bg-white text-center shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+            className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-white text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl"
           >
             <span className="grid size-10 place-items-center overflow-hidden rounded-full bg-orange-50">
               <SafeImage
@@ -448,12 +499,35 @@ export function CustomerDiscoveryHome() {
         </section>
       ) : null}
 
+      {favoriteRestaurants.length > 3 ? (
+        <>
+          <MobileSectionHeader title="Your favorite restaurants" href="/profile?tab=saved" />
+          <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+            {favoriteRestaurants.slice(0, 8).map((restaurant, index) => (
+              <MobileRestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                priority={index === 0}
+                saved
+                onFavorite={() => void handleFavoriteToggle(restaurant)}
+              />
+            ))}
+          </section>
+        </>
+      ) : null}
+
       {cmsSettings.sections?.featuredRestaurantsVisible !== false ? (
         <>
           <MobileSectionHeader title={cmsSettings.sections?.recommendedTitle || "Recommended for you"} href="/restaurants" />
-          <section className="customer-scroll mx-auto flex w-full max-w-[1180px] gap-4 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+          <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
             {recommendedRestaurants.slice(0, 8).map((restaurant, index) => (
-              <MobileRestaurantCard key={restaurant.id} restaurant={restaurant} priority={index === 0} />
+              <MobileRestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                priority={index === 0}
+                saved={savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id)}
+                onFavorite={() => void handleFavoriteToggle(restaurant)}
+              />
             ))}
           </section>
         </>
@@ -462,7 +536,7 @@ export function CustomerDiscoveryHome() {
       {cmsSettings.sections?.popularItemsVisible !== false && popularItems.length ? (
         <>
           <MobileSectionHeader title={cmsSettings.sections?.popularTitle || "What's popular"} href={`/restaurant/${heroRestaurant.slug}/menu`} />
-          <section className="customer-scroll mx-auto flex w-full max-w-[1180px] gap-4 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-3">
+          <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-3">
             {popularItems.slice(0, 8).map((item) => (
               <PopularDishCard key={item.id} item={item} onAdd={() => addItem(item)} />
             ))}
@@ -540,7 +614,7 @@ function DesktopPromoCard({
 
 function MobileSectionHeader({ title, href }: { title: string; href: string }) {
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-4 pb-3 pt-5 md:pb-5 md:pt-2">
+    <div className="container-page flex w-full items-center justify-between pb-3 pt-5 md:pb-5 md:pt-2">
       <h2 className="text-[1.2rem] font-black tracking-normal md:text-2xl">{title}</h2>
       <Link href={href} className="inline-flex items-center gap-1 text-sm font-black text-primary md:text-base">
         <span className="md:hidden">See all</span>
@@ -551,27 +625,45 @@ function MobileSectionHeader({ title, href }: { title: string; href: string }) {
   );
 }
 
-function MobileRestaurantCard({ restaurant, priority = false }: { restaurant: Restaurant; priority?: boolean }) {
-  const badge = restaurant.offerCodes?.[0] ?? (restaurant.deliveryFee === 0 ? "Free delivery" : restaurant.isOpen ? "Open" : "Preorder");
+function MobileRestaurantCard({
+  restaurant,
+  priority = false,
+  saved = false,
+  onFavorite,
+}: {
+  restaurant: Restaurant;
+  priority?: boolean;
+  saved?: boolean;
+  onFavorite?: () => void;
+}) {
+  const badge = restaurant.deliveryFee === 0 ? "Free delivery" : restaurant.isOpen ? "Open" : "Preorder";
   return (
-    <Link href={`/restaurant/${restaurant.slug}`} className="w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
+    <article className="w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
       <div className="relative h-28 overflow-hidden bg-muted md:h-36">
-        <SafeImage
-          src={restaurant.image}
-          alt={restaurant.name}
-          fill
-          priority={priority}
-          loading={priority ? "eager" : "lazy"}
-          fallbackSrc={IMAGE_FALLBACKS.restaurant}
-          sizes="250px"
-          className="object-cover"
-        />
+        <Link href={`/restaurant/${restaurant.slug}`} className="block h-full">
+          <SafeImage
+            src={restaurant.image}
+            alt={restaurant.name}
+            fill
+            priority={priority}
+            loading={priority ? "eager" : "lazy"}
+            fallbackSrc={IMAGE_FALLBACKS.restaurant}
+            sizes="250px"
+            className="object-cover"
+          />
+        </Link>
         <Badge className="absolute left-3 top-3 rounded-md bg-green-600 text-white">{badge}</Badge>
-        <span className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-black/24 text-white backdrop-blur">
-          <Heart className="size-5" />
-        </span>
+        <button
+          type="button"
+          onClick={onFavorite}
+          aria-label={saved ? `Remove ${restaurant.name} from favorites` : `Save ${restaurant.name} to favorites`}
+          aria-pressed={saved}
+          className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-black/24 text-white backdrop-blur transition hover:bg-primary"
+        >
+          <Heart className={cn("size-5", saved && "fill-current")} />
+        </button>
       </div>
-      <div className="space-y-2 p-3">
+      <Link href={`/restaurant/${restaurant.slug}`} className="block space-y-2 p-3">
         <h3 className="truncate text-base font-black md:text-lg">{restaurant.name}</h3>
         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground md:text-sm">
           <Star className="size-4 fill-green-600 text-green-600" />
@@ -582,8 +674,8 @@ function MobileRestaurantCard({ restaurant, priority = false }: { restaurant: Re
         <p className="truncate text-xs font-semibold text-muted-foreground md:text-sm">
           {restaurant.deliveryFee ? formatCurrency(restaurant.deliveryFee) : "Free"} • {cuisineLabel(restaurant)}
         </p>
-      </div>
-    </Link>
+      </Link>
+    </article>
   );
 }
 

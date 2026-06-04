@@ -51,7 +51,7 @@ try {
   signInError = error;
   try {
     credential = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(credential.user, { displayName: "Test Owner" });
+    await updateProfile(credential.user, { displayName: email });
     console.log(`Created bootstrap owner: ${email}`);
   } catch (createError) {
     if (createError?.code === "auth/email-already-in-use") {
@@ -67,7 +67,7 @@ const userProfile = {
   id: uid,
   uid,
   email,
-  displayName: credential.user.displayName || "Test Owner",
+  displayName: credential.user.displayName || email,
   role: "owner",
   active: true,
   restaurantIds: [restaurantId],
@@ -139,7 +139,7 @@ batch.set(doc(db, "restaurants", restaurantId), {
     "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1400&q=80",
     "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1400&q=80",
   ],
-  contact: { phone: "+919900030001", whatsapp: "+919900030001", supportEmail: "cafe-al-arab-thanisandra@sarva.example", callbackEnabled: true },
+  contact: { phone: "+919900030001", whatsapp: "+919900030001", supportEmail: email, callbackEnabled: true },
   createdAt: now,
   updatedAt: now,
 }, { merge: true });
@@ -182,7 +182,7 @@ batch.set(doc(db, "loyaltyCustomers", "cust-aanya"), { id: "cust-aanya", restaur
 if (includeSampleOrders) {
   batch.set(doc(db, "orders", "order-pos-1001"), { id: "order-pos-1001", restaurantId, branchId, customerId: "cust-aanya", customerName: "Aanya Rao", customerPhone: "+919900001111", channel: "pos", orderType: "dine-in", tableNumber: "T03", status: "completed", lines: [{ menuItemId: "menu-chicken-shawarma-roll", name: "Chicken Shawarma Roll", price: 220, quantity: 2 }, { menuItemId: "menu-mint-lime", name: "Mint Lime", price: 90, quantity: 2 }], subtotal: 620, discount: 0, tax: 31, deliveryFee: 0, total: 651, paymentStatus: "paid", createdAt: now, updatedAt: now }, { merge: true });
   batch.set(doc(db, "orderItems", "order-pos-1001-item-1"), { id: "order-pos-1001-item-1", restaurantId, branchId, orderId: "order-pos-1001", menuItemId: "menu-chicken-shawarma-roll", name: "Chicken Shawarma Roll", quantity: 2, price: 220, gstPercent: 5, createdAt: now, updatedAt: now }, { merge: true });
-  batch.set(doc(db, "kitchenOrders", "DIN-T03-260522-001"), { id: "DIN-T03-260522-001", restaurantId, branchId, orderType: "dine-in", source: "pos", tableNumber: "T03", customerName: "Aanya Rao", customerPhone: "+919900001111", waiterId: uid, waiterName: "Test Owner", status: "new", lines: [{ menuItemId: "menu-al-faham-half", name: "Al Faham Chicken Half", price: 360, quantity: 1 }], total: 378, priority: "normal", etaMinutes: 12, createdAt: now, updatedAt: now }, { merge: true });
+  batch.set(doc(db, "kitchenOrders", "DIN-T03-260522-001"), { id: "DIN-T03-260522-001", restaurantId, branchId, orderType: "dine-in", source: "pos", tableNumber: "T03", customerName: "Aanya Rao", customerPhone: "+919900001111", waiterId: uid, waiterName: credential.user.displayName || email, status: "new", lines: [{ menuItemId: "menu-al-faham-half", name: "Al Faham Chicken Half", price: 360, quantity: 1 }], total: 378, priority: "normal", etaMinutes: 12, createdAt: now, updatedAt: now }, { merge: true });
   batch.set(doc(db, "accountingEntries", "acc-sales-1001"), { id: "acc-sales-1001", restaurantId, branchId, type: "income", category: "sales income", amount: 567, gst: 27, paymentMode: "upi", approvalStatus: "approved", createdBy: uid, notes: "POS order order-pos-1001", createdAt: now, updatedAt: now }, { merge: true });
 }
 batch.set(doc(db, "expenses", "exp-opening-stock"), { id: "exp-opening-stock", restaurantId, branchId, category: "ingredient purchase", amount: 12450, gst: 592.86, paymentMode: "upi", approvalStatus: "approved", createdBy: uid, notes: "Opening stock purchase", createdAt: now, updatedAt: now }, { merge: true });
@@ -190,8 +190,6 @@ batch.set(doc(db, "purchaseOrders", "po-opening-stock"), { id: "po-opening-stock
 batch.set(doc(db, "reports", "report-today-sales"), { id: "report-today-sales", restaurantId, branchId, type: "sales-summary", grossSales: 567, gst: 27, orderCount: 1, from: now, to: now, createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "printerProfiles", "printer-billing-80mm"), { id: "printer-billing-80mm", restaurantId, branchId, name: "Billing thermal printer", type: "billing", paperWidth: "80mm", connection: "browser", status: "test", createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "receiptTemplates", "receipt-standard-80mm"), { id: "receipt-standard-80mm", restaurantId, branchId, name: "Standard 80mm receipt", paperWidth: "80mm", compactMode: false, premiumMode: true, createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "offers", "offer-lunch10"), { id: "offer-lunch10", restaurantId, code: "LUNCH10", title: "Weekday lunch 10%", discountType: "percentage", discountValue: 10, active: true, startsAt: now, endsAt: now, createdAt: now, updatedAt: now }, { merge: true });
-batch.set(doc(db, "coupons", "coupon-gold-50"), { id: "coupon-gold-50", restaurantId, customerId: "cust-aanya", code: "GOLD50", value: 50, status: "available", createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "settings", `settings-${restaurantId}-map`), { id: `settings-${restaurantId}-map`, restaurantId, branchId, mapsEnabled: true, deliveryRadiusKm: 7, tax: { gstPercent: 5, parcelCharge: 12 }, mapDefaults: { latitude: 12.9719, longitude: 77.6412, zoom: 14, country: "in" }, createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "notifications", "notif-kitchen-new"), { id: "notif-kitchen-new", restaurantId, branchId, targetRole: "chef", title: "New kitchen ticket received", body: "Table T03 has a new live kitchen ticket.", read: false, createdAt: now, updatedAt: now }, { merge: true });
 batch.set(doc(db, "staffActivityLogs", "activity-owner-client-seed"), { id: "activity-owner-client-seed", restaurantId, branchId, userId: uid, action: "seeded production backend with owner login", module: "firebase", createdAt: now, updatedAt: now }, { merge: true });
