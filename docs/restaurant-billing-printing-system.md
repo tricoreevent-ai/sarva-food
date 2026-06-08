@@ -1,6 +1,6 @@
 # Restaurant Billing And Printing System
 
-Sarva now uses a shared thermal print engine for POS bills, GST invoices, KOT tickets, print previews, printer settings, and audit-ready print records.
+Nammude now uses a shared thermal print engine for POS bills, GST invoices, KOT tickets, print previews, printer settings, and audit-ready print records.
 
 ## Receipt Workflow
 

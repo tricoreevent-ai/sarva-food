@@ -1,8 +1,8 @@
-# Sarva Food App Architecture Reference
+# Nammude App Architecture Reference
 
 ## Scope
 
-This reference covers the core architecture of the Sarva Food App repository. It describes the main frontend and backend layers, route layout organization, reusable UI patterns, data/service separation, Firebase integration, and the key user surfaces supported by the project.
+This reference covers the core architecture of the Nammude repository. It describes the main frontend and backend layers, route layout organization, reusable UI patterns, data/service separation, Firebase integration, and the key user surfaces supported by the project.
 
 It is intended for developers who need a quick map of where features live and how the project is structured.
 
@@ -259,4 +259,4 @@ Use `docs/developer-guide.md` and `docs/architecture-audit.md` as the canonical 
 
 ---
 
-Created as a project architecture reference for the `Sarva Food App` repository.
+Created as a project architecture reference for the `Nammude` repository.

@@ -82,6 +82,8 @@ const nextConfig: NextConfig = {
       { source: "/orders/:path*", headers: publicHtmlHeaders },
       { source: "/profile/:path*", headers: publicHtmlHeaders },
       { source: "/checkout/:path*", headers: publicHtmlHeaders },
+      { source: "/manifest.json", headers: publicHtmlHeaders },
+      { source: "/api/release-info", headers: publicHtmlHeaders },
       {
         source: "/:path*",
         headers: securityHeaders,

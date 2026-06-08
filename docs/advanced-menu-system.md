@@ -1,6 +1,6 @@
 # Advanced Menu System
 
-Sarva's restaurant menu engine extends the existing Firebase and Zustand architecture instead of replacing it. The owner menu surface now models categories, cuisines, dual menus, GST, modifiers, combos, inventory signals, QR menus, translations, imports, and analytics from one operational screen.
+Nammude's restaurant menu engine extends the existing Firebase and Zustand architecture instead of replacing it. The owner menu surface now models categories, cuisines, dual menus, GST, modifiers, combos, inventory signals, QR menus, translations, imports, and analytics from one operational screen.
 
 ## Firestore Architecture
 

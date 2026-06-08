@@ -1,6 +1,6 @@
 # Restaurant Printing System
 
-Sarva now uses a shared print engine for POS bills, printable invoices, KOT previews, printer settings, ESC/POS command planning, and audit-ready print records.
+Nammude now uses a shared print engine for POS bills, printable invoices, KOT previews, printer settings, ESC/POS command planning, and audit-ready print records.
 
 ## Bill Workflow
 

@@ -1,6 +1,6 @@
 # Owner Module User Manual
 
-Welcome to the Sarva Food App Owner Module. This guide explains how to manage your restaurant's digital presence, operations, and growth tools.
+Welcome to the Nammude Owner Module. This guide explains how to manage your restaurant's digital presence, operations, and growth tools.
 
 ## 1. Access Control
 As an **Owner**, your access is securely scoped to your specific `restaurantIds`. You have full read/write permissions for your restaurant's documents, including menus, orders, and social posts.
@@ -66,4 +66,4 @@ The platform automatically compresses images before they are uploaded to Firebas
 - **Real-time Updates**: If order statuses aren't updating, ensure you have a stable internet connection for the Firestore listeners.
 
 ---
-*For advanced platform repairs or role assignments, contact the Sarva System Admin.*
+*For advanced platform repairs or role assignments, contact the Nammude System Admin.*

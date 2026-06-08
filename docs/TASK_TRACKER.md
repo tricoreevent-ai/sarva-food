@@ -1,4 +1,4 @@
-# Sarva Food Task Tracker
+# Nammude Task Tracker
 
 Last updated: 2026-06-08
 
@@ -12,14 +12,16 @@ This file is the project-visible source of truth for implementation progress. Up
 
 - [ ] Explicit approval required to apply the live Firebase repair: soft-delete `restaurants/test-owner`, related seeded docs under tenant/restaurant/owner `test-owner`, and normalize `restaurants/cafe-al-arab-thanisandra` display name to `Cafe Al Arab UL`. Audit found Cafe Al Arab is owned by Firebase uid `7EFvpGe3tqNpMHOcmPMFFmq8bGk1`; `test-owner` is still active and linked to `divakdi@gmail.com`; Cafe Al Arab currently has only menu header documents and no public food item docs in `menus`/`menuItems`.
 - [ ] Deploy the latest verified application build to Hostinger. GitHub `main` was verified on 2026-06-08 with the latest SEO/customer-home code, but the hosted root page still returned old prerendered HTML with `x-nextjs-cache: HIT` and long CDN/shared cache headers. Final refresh requires Hostinger cache clear plus redeploy/no-cache preview validation.
+- [ ] Switch Hostinger production deployment to `release/production-nammude`. On 2026-06-08, the hosted site still returned old-brand manifest/homepage content and `/api/release-info` returned 404, proving Hostinger is not running the release branch or latest app build.
 - [ ] Configure and verify the production outage alert recipient in Hostinger and Admin CMS. The Hostinger env template is ready; final setup requires Hostinger environment access and production Admin CMS login.
 
 ## Completed
 
 - [x] Unfinished work audit completed on 2026-06-08: reviewed tracker and codebase pending markers, confirmed local `main` and `origin/main` both point to `313ed0fb6cefebbc3db5ee8274919bc7e5daa2d3`, and confirmed remaining open tasks require Firebase/Hostinger/Admin CMS access rather than local code changes.
 - [x] Hostinger stale homepage diagnosis and cache guard completed on 2026-06-08: live hosted HTML was verified as older than GitHub `main`, public/customer page routes were forced dynamic/no-store, and HTML route responses now emit no-store CDN headers while static assets remain cacheable.
+- [x] Nammude release verification endpoint completed on 2026-06-08: `release/production-nammude` now exposes `/api/release-info`, hardcodes the release app name to `Nammude`, and sends no-store headers for release/manifest verification.
 - [x] SEO/title/restaurant indexing update completed on 2026-06-04: root metadata, Open Graph/Twitter descriptions, keywords, PWA manifest copy, CMS default homepage copy, visible homepage direct-restaurant messaging, restaurant detail dynamic metadata, and restaurant sitemap entries now use the direct restaurant-to-customer positioning.
-- [x] Cafe Al Arab restaurant detail console cleanup completed on 2026-06-04: customer footer CMS branding now renders the same fallback snapshot during server/client hydration, then switches to cached CMS after hydration, removing the `NAMMUDE` vs `Sarva Food` mismatch.
+- [x] Cafe Al Arab restaurant detail console cleanup completed on 2026-06-04: customer footer CMS branding now renders the same fallback snapshot during server/client hydration, then switches to cached CMS after hydration, removing the old-brand hydration mismatch.
 - [x] Cafe Al Arab public mapping hardening completed on 2026-06-04: server public restaurant/menu/offer APIs now collapse Cafe Al Arab aliases to `cafe-al-arab-thanisandra`/`Cafe Al Arab UL`, bridge Cafe alias menu and offer tenant ids, and block legacy demo tenants such as `test-owner` from public restaurant/menu responses.
 - [x] Live Cafe Al Arab Firestore audit completed on 2026-06-04: verified `/api/public/restaurants?slug=cafe-al-arab-thanisandra` returns the normalized Cafe Al Arab UL launch record, `/api/public/menu?restaurantId=cafe-al-arab-thanisandra` returns no food items because no Cafe public item docs exist, and the stale active `test-owner` tenant remains a separate live-data repair.
 - [x] Customer home width/category cleanup completed on 2026-06-04: the fixed `1180px` homepage restaurant/item sections now use the full shared page width, Admin-master categories render without hard borders, and category chips include lighter hover animation.
@@ -175,7 +177,7 @@ This file is the project-visible source of truth for implementation progress. Up
 - [ ] Confirm SMTP settings in Hostinger so outage alerts and credentials email can be delivered.
 - [ ] Run `npm run firebase:seed:production` after deploying if hosted Firestore still contains old test-owner records.
 - [ ] Clear Hostinger cache, then redeploy the latest GitHub commit to Hostinger.
-- [ ] After redeploy, verify the hosted root page no longer returns old `Sarva Food Commerce Ecosystem` metadata or `Craving something delicious?` hero copy.
+- [ ] After redeploy, verify the hosted root page no longer returns old commerce-ecosystem metadata or `Craving something delicious?` hero copy.
 - [ ] Verify customer homepage, `/owner/login`, `/owner/pos`, and `/admin/login` on the hosted URL.
 
 ## Notes
