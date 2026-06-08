@@ -25,6 +25,22 @@ NEXT_PUBLIC_BRAND_NAME=Nammude
 
 After each deployment, clear Hostinger cache and verify the hosted HTML, manifest, and header show `Nammude`.
 
+Verify the active deployment with:
+
+```text
+https://mistyrose-butterfly-740173.hostingersite.com/api/release-info
+```
+
+The response must include:
+
+```json
+{
+  "appName": "Nammude",
+  "releaseBranch": "release/production-nammude",
+  "releaseMarker": "nammude-production-release"
+}
+```
+
 ## Local Verification
 
 Run these before pushing release changes:
