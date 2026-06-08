@@ -12,6 +12,7 @@ const PUBLIC_RESTAURANT_LIMIT = 100;
 const PUBLIC_MENU_LIMIT = 200;
 const PUBLIC_MENU_FALLBACK_LIMIT = 500;
 const PUBLIC_REST_LIMIT = 500;
+const PUBLIC_DATA_LOG_PREFIX = "[Nammude public data]";
 const LEGACY_DEMO_TENANT_IDS = new Set(["test-owner", "demo-owner", "sample-owner"]);
 const CAFE_AL_ARAB_PUBLIC_TENANT_ALIASES = [
   DEFAULT_RESTAURANT_ID,
@@ -268,6 +269,10 @@ export function logPublicDataError(scope: string, error: unknown) {
   console.error(`[Nammude public API] ${scope} failed${code ? ` (${code})` : ""}: ${message}${hint ? ` ${hint}` : ""}`);
 }
 
+export function logPublicDataInfo(scope: string, message: string, details?: Record<string, unknown>) {
+  console.info(`${PUBLIC_DATA_LOG_PREFIX} ${scope}: ${message}${details ? ` ${JSON.stringify(details)}` : ""}`);
+}
+
 function publicDataErrorHint(message: string) {
   if (/DECODER|PEM|private key|invalid_grant|credential/i.test(message)) {
     return "Check FIREBASE_ADMIN_PRIVATE_KEY in hosting. In Hostinger hPanel paste the value without wrapping quotes; escaped \\n line breaks are supported.";
@@ -282,7 +287,14 @@ function publicDataErrorHint(message: string) {
 }
 
 export async function getPublicRestaurantDocs(slug?: string) {
-  if (!hasAdminFirestoreCredentials()) return getPublicRestaurantDocsFromRest(slug);
+  if (!hasAdminFirestoreCredentials()) {
+    logPublicDataInfo("restaurants", "Firebase Admin credentials not detected; using public REST fallback.", {
+      slug: slug ?? null,
+      hasPublicProjectId: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+      hasPublicApiKey: Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+    });
+    return getPublicRestaurantDocsFromRest(slug);
+  }
 
   try {
     let restaurantsQuery = adminDb()
@@ -296,10 +308,18 @@ export async function getPublicRestaurantDocs(slug?: string) {
     }
 
     const snapshot = await restaurantsQuery.limit(slug ? 1 : PUBLIC_RESTAURANT_LIMIT).get();
-    return toPublicRestaurantDocs(await applyRestaurantStats(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item))), slug);
+    const rawDocs = snapshot.docs.map((item) => docToJson<RestaurantDoc>(item));
+    const docsWithStats = await applyRestaurantStats(rawDocs);
+    return toPublicRestaurantDocs(docsWithStats, slug, "admin");
   } catch (error) {
-    if (isMissingIndexError(error)) return getPublicRestaurantDocsWithoutCompositeIndex(slug);
-    if (isAdminCredentialError(error)) return getPublicRestaurantDocsFromRest(slug);
+    if (isMissingIndexError(error)) {
+      logPublicDataInfo("restaurants", "Composite index unavailable; using simpler Admin query.", { slug: slug ?? null });
+      return getPublicRestaurantDocsWithoutCompositeIndex(slug);
+    }
+    if (isAdminCredentialError(error)) {
+      logPublicDataError("restaurants-admin-credentials", error);
+      return getPublicRestaurantDocsFromRest(slug);
+    }
     throw error;
   }
 }
@@ -312,7 +332,7 @@ async function getPublicRestaurantDocsFromRest(slug?: string) {
       limit: PUBLIC_RESTAURANT_LIMIT,
     });
   const stats = await Promise.all(docs.map((doc) => getPublicFirestoreDocument<RestaurantStatsDoc>("restaurant_stats", doc.tenantId || doc.id).catch(() => null)));
-  return toPublicRestaurantDocs(mergeRestaurantStats(docs, stats.filter((item): item is RestaurantStatsDoc => Boolean(item))), slug);
+  return toPublicRestaurantDocs(mergeRestaurantStats(docs, stats.filter((item): item is RestaurantStatsDoc => Boolean(item))), slug, "rest");
 }
 
 async function getPublicRestaurantDocsBySlugFromRest(slug: string) {
@@ -338,7 +358,7 @@ async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
     : adminDb().collection("restaurants").where("active", "==", true).limit(PUBLIC_RESTAURANT_LIMIT);
 
   const snapshot = await restaurantsQuery.get();
-  return toPublicRestaurantDocs(await applyRestaurantStats(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item))), slug);
+  return toPublicRestaurantDocs(await applyRestaurantStats(snapshot.docs.map((item) => docToJson<RestaurantDoc>(item))), slug, "admin-simple");
 }
 
 async function applyRestaurantStats(docs: RestaurantDoc[]) {
@@ -368,14 +388,60 @@ function mergeRestaurantStats(docs: RestaurantDoc[], stats: RestaurantStatsDoc[]
   });
 }
 
-function toPublicRestaurantDocs(docs: RestaurantDoc[], slug?: string) {
+function toPublicRestaurantDocs(docs: RestaurantDoc[], slug?: string, source = "unknown") {
   const publicDocs = docs
     .filter((item) => !item.isDeleted && item.active === true && isPublicRestaurantListable(item) && matchesPublicRestaurantSlug(item, slug))
     .map(toPublicRestaurantDoc);
 
-  return dedupePublicRestaurantDocs(publicDocs)
+  const deduped = dedupePublicRestaurantDocs(publicDocs)
     .sort((first, second) => first.name.localeCompare(second.name))
     .slice(0, slug ? 1 : PUBLIC_RESTAURANT_LIMIT);
+
+  logPublicRestaurantDiagnostics(docs, deduped, slug, source);
+  return deduped;
+}
+
+function logPublicRestaurantDiagnostics(rawDocs: RestaurantDoc[], publicDocs: RestaurantDoc[], slug?: string, source = "unknown") {
+  const rejectionSummary = summarizeRestaurantVisibilityRejections(rawDocs, slug);
+  const shouldLog = !publicDocs.length || process.env.NEXT_PUBLIC_APP_ENV !== "production";
+  if (!shouldLog) return;
+
+  logPublicDataInfo("restaurants", publicDocs.length ? "Loaded public restaurants." : "No public restaurants passed visibility filters.", {
+    source,
+    slug: slug ?? null,
+    rawCount: rawDocs.length,
+    publicCount: publicDocs.length,
+    rejectionSummary,
+  });
+}
+
+function summarizeRestaurantVisibilityRejections(docs: RestaurantDoc[], slug?: string) {
+  const summary: Record<string, number> = {};
+  for (const doc of docs) {
+    const reasons = restaurantVisibilityRejectionReasons(doc, slug);
+    for (const reason of reasons) summary[reason] = (summary[reason] ?? 0) + 1;
+  }
+  return summary;
+}
+
+function restaurantVisibilityRejectionReasons(doc: RestaurantDoc, slug?: string) {
+  const reasons: string[] = [];
+  const extra = doc as RestaurantDoc & { approved?: boolean; profileComplete?: boolean; publicListingEnabled?: boolean; phone?: string };
+  if (doc.isDeleted) reasons.push("deleted");
+  if (doc.active !== true) reasons.push("inactive");
+  if (isLegacyDemoTenant(doc.tenantId ?? doc.id ?? doc.slug)) reasons.push("legacy-demo-tenant");
+  if (extra.approved === false) reasons.push("approval-disabled");
+  if (extra.publicListingEnabled === false) reasons.push("public-listing-disabled");
+  if (extra.profileComplete === false) reasons.push("profile-incomplete");
+  if (!doc.name?.trim()) reasons.push("missing-name");
+  if (!((doc.address || doc.location)?.trim())) reasons.push("missing-address");
+  if (!((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation)) reasons.push("missing-location");
+  if (!(Array.isArray(doc.cuisine) ? doc.cuisine.length : String(doc.cuisine ?? "").trim())) reasons.push("missing-cuisine");
+  if (!(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath)) reasons.push("missing-media");
+  if (!(doc.contact?.phone || doc.ownerProfile?.businessPhone || extra.phone)) reasons.push("missing-contact");
+  if (!doc.deliveryRadiusKm) reasons.push("missing-delivery-radius");
+  if (!matchesPublicRestaurantSlug(doc, slug)) reasons.push("slug-mismatch");
+  return reasons;
 }
 
 function matchesPublicRestaurantSlug(doc: RestaurantDoc, slug?: string) {

@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { ArrowRight, Gift, LocateFixed, MapPin, Sparkles } from "lucide-react";
 import { OfferBadge } from "@/components/commerce/offer-badge";
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocationCommerce } from "@/hooks/use-location-commerce";
 import { usePublicOffers, usePublicRestaurants } from "@/hooks/use-public-data";
-import { formatCurrency } from "@/lib/utils";
+import { isOfferForSurface } from "@/lib/offer-engine";
+import type { Offer } from "@/lib/types";
+import { cn, formatCurrency } from "@/lib/utils";
 
 export default function OffersPage() {
   const { restaurants, status: restaurantsStatus, retry } = usePublicRestaurants();
@@ -26,6 +30,10 @@ export default function OffersPage() {
   const offerRestaurants = nearbyRestaurants.length ? nearbyRestaurants : restaurants;
   const { offers, status: offersStatus } = usePublicOffers(offerRestaurants);
   const loading = restaurantsStatus === "loading" || offersStatus === "loading";
+  const featuredOffers = useMemo(
+    () => offers.filter((offer) => isOfferForSurface(offer, "homepage") || offer.featured || offer.sponsored).slice(0, 6),
+    [offers],
+  );
 
   return (
     <CustomerShell>
@@ -66,6 +74,19 @@ export default function OffersPage() {
             actionLabel="Browse restaurants"
             actionHref="/restaurants"
           />
+        ) : null}
+
+        {!loading && featuredOffers.length ? (
+          <section className="customer-scroll -mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+            {featuredOffers.map((offer, index) => (
+              <FeaturedDealCard
+                key={`featured-${offer.restaurantSlug ?? "restaurant"}-${offer.code}`}
+                offer={offer}
+                tone={(["green", "orange", "blue"] as const)[index % 3]}
+                href={`/restaurant/${offer.restaurantSlug ?? offerRestaurants[0]?.slug ?? ""}/menu?offer=${offer.code}`}
+              />
+            ))}
+          </section>
         ) : null}
 
         {!loading && offerRestaurants.length ? (
@@ -109,4 +130,55 @@ export default function OffersPage() {
       </main>
     </CustomerShell>
   );
+}
+
+function FeaturedDealCard({
+  offer,
+  tone,
+  href,
+}: {
+  offer: Offer;
+  tone: "green" | "orange" | "blue";
+  href: string;
+}) {
+  const tones = {
+    green: "from-green-50 via-lime-50 to-white text-green-700",
+    orange: "from-orange-50 via-amber-50 to-white text-orange-700",
+    blue: "from-blue-50 via-sky-50 to-white text-blue-700",
+  };
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group relative min-h-36 min-w-[19rem] flex-1 overflow-hidden rounded-xl bg-gradient-to-r p-5 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl sm:min-w-[24rem] sm:p-6",
+        tones[tone],
+      )}
+    >
+      <div className="relative z-10 max-w-[58%]">
+        <p className="text-xs font-black uppercase tracking-normal">Featured deal</p>
+        <h2 className="mt-2 text-3xl font-black leading-none">{offerTitle(offer)}</h2>
+        <p className="mt-2 line-clamp-2 text-sm font-semibold text-foreground">{offer.title}</p>
+        <span className="mt-4 inline-flex rounded-md border border-current/30 bg-white/65 px-4 py-2 text-sm font-black">
+          {offer.code}
+        </span>
+      </div>
+      <div className="absolute -right-7 bottom-0 h-32 w-48 overflow-hidden rounded-tl-full bg-white/45">
+        <SafeImage
+          src={offer.mobileBanner ?? offer.banner ?? offer.image ?? IMAGE_FALLBACKS.food}
+          alt=""
+          fill
+          fallbackSrc={IMAGE_FALLBACKS.food}
+          sizes="220px"
+          className="object-cover transition duration-500 group-hover:scale-105"
+        />
+      </div>
+    </Link>
+  );
+}
+
+function offerTitle(offer: Offer) {
+  if (offer.discountType === "free-delivery" || offer.offerType === "free-delivery") return "Free delivery";
+  if (offer.discountType === "flat" || offer.offerType === "flat") return `${formatCurrency(offer.discount)} OFF`;
+  return `${offer.discount}% OFF`;
 }

@@ -6,7 +6,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## In Progress
 
-- [ ] Live Firestore Cafe Al Arab cleanup approval. Authenticated audit against `sarva-food-app` completed on 2026-06-04; application guards are fixed and local/GitHub code was re-audited on 2026-06-08, but the targeted live soft-delete of `restaurants/test-owner` and its seeded related docs requires explicit approval because it changes shared Firebase data.
+None.
 
 ## Blocked / External Access Required
 
@@ -17,6 +17,9 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Hostinger public restaurant diagnostics completed on 2026-06-08: public restaurant API responses now include request ids/counts, server logs report source/raw/public counts and visibility-filter rejection summaries, browser logs identify empty API responses or client-side filtering, and local `/api/public/restaurants` returned 13 restaurants.
+- [x] Homepage performance/offers relocation completed on 2026-06-08: root customer homepage no longer fetches/renders public offers or preloads menu/offers, the global public offers hydrator runs only on `/offers`, and featured offer cards were moved to the deals page.
+- [x] Hostinger restaurant diagnostics verification completed on 2026-06-08: `npm run typecheck`, `npm run lint`, `npm run build`, local `/` HTTP 200 timing, and local public restaurants API smoke test passed before GitHub push.
 - [x] Public restaurant launch-list env removal completed on 2026-06-08: removed the public restaurant whitelist env setting, deleted the hardcoded non-launch cleanup script, and changed Firestore REST fallback listings/offers to derive visible restaurants from active database records.
 - [x] Unfinished work audit completed on 2026-06-08: reviewed tracker and codebase pending markers, confirmed local `main` and `origin/main` both point to `313ed0fb6cefebbc3db5ee8274919bc7e5daa2d3`, and confirmed remaining open tasks require Firebase/Hostinger/Admin CMS access rather than local code changes.
 - [x] Hostinger stale homepage diagnosis and cache guard completed on 2026-06-08: live hosted HTML was verified as older than GitHub `main`, public/customer page routes were forced dynamic/no-store, and HTML route responses now emit no-store CDN headers while static assets remain cacheable.

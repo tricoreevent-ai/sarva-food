@@ -17,7 +17,7 @@ export function FirestoreStoreHydrator() {
   const publicSurface = !adminSurface && !loginSurface && !ownerSurface;
   const publicDiscoverySurface = publicSurface && (pathname === "/" || pathname === "/restaurants" || pathname === "/offers");
   const publicCmsSurface = publicSurface;
-  const publicOffersSurface = publicSurface && (pathname === "/" || pathname === "/offers");
+  const publicOffersSurface = publicSurface && pathname === "/offers";
 
   useEffect(() => {
     if (adminSurface || loginSurface) return;

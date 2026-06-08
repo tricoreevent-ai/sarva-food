@@ -29,15 +29,14 @@ import { CustomerHomeLoading, RetryState } from "@/components/state/page-state";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
 import { useLocationCommerce } from "@/hooks/use-location-commerce";
-import { usePublicCategories, usePublicMenu, usePublicOffers, usePublicRestaurants } from "@/hooks/use-public-data";
+import { usePublicCategories, usePublicMenu, usePublicRestaurants } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { getCartSubtotal, useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
-import { isOfferForSurface } from "@/lib/offer-engine";
 import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
 import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import { customerFavoriteId, deleteCustomerFavoriteRestaurant, saveCustomerFavoriteRestaurant } from "@/services/customer-favorites-service";
-import type { MenuItem, Offer, Restaurant } from "@/lib/types";
+import type { MenuItem, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const DIRECT_HOMEPAGE_TITLE = "Connect Directly with Restaurants";
@@ -54,7 +53,7 @@ const STALE_DEFAULT_HOME_SUBTITLES = new Set([
 
 export function CustomerDiscoveryHome() {
   const router = useRouter();
-  const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants({ preloadPrimaryMenu: true });
+  const { restaurants, status: restaurantsStatus, retry: retryRestaurants } = usePublicRestaurants();
   const auth = useAuthUser();
   const customer = useCustomerData(auth.user?.uid);
   const { categories: appCategories } = usePublicCategories();
@@ -83,11 +82,6 @@ export function CustomerDiscoveryHome() {
   const customerFirstName = customerDisplayName.trim().split(/\s+/)[0] ?? "";
   const heroRestaurant = nearbyRestaurants[0] ?? restaurants[0];
   const { items: menuItems } = usePublicMenu(heroRestaurant?.slug);
-  const { offers: nearbyOffers } = usePublicOffers(nearbyRestaurants.length ? nearbyRestaurants : restaurants);
-  const homepageOffers = useMemo(
-    () => nearbyOffers.filter((item) => isOfferForSurface(item, "homepage")).slice(0, 6),
-    [nearbyOffers],
-  );
   const cmsBanners = useMemo(
     () => {
       const homepage = getHomepageCmsItems(cmsSettings);
@@ -219,7 +213,6 @@ export function CustomerDiscoveryHome() {
     );
   }
 
-  const offer = homepageOffers[0];
   const heroItem = popularItems[0];
   const freeDeliveryTarget = heroRestaurant.deliverySettings?.freeDeliveryAbove;
   const freeDeliveryProgress = freeDeliveryTarget ? Math.min(100, Math.round((cartSubtotal / freeDeliveryTarget) * 100)) : 0;
@@ -488,48 +481,6 @@ export function CustomerDiscoveryHome() {
         </section>
       ) : null}
 
-      {cmsSettings.sections?.offersVisible !== false && offer ? (
-      <section className="px-4 md:hidden">
-        <Link href={offer?.restaurantSlug ? `/restaurant/${offer.restaurantSlug}/menu?offer=${offer.code}` : "/offers"} className="relative block min-h-34 overflow-hidden rounded-[1.2rem] food-gradient p-4 text-white shadow-xl">
-          <div className="relative z-10 max-w-[56%]">
-            <p className="text-xs font-black uppercase">{cmsSettings.sections?.offerTitle || "Today&apos;s special"}</p>
-            <h2 className="mt-2 text-2xl font-black leading-none">
-              {offerTitle(offer)}
-            </h2>
-            <p className="mt-2 text-sm font-bold">{offer.title}</p>
-            <span className="mt-3 inline-flex items-center gap-3 rounded-xl border border-white/60 px-4 py-2 text-sm font-black">
-              {offer.code}
-              <ChevronRight className="size-4" />
-            </span>
-          </div>
-          <div className="absolute -right-7 bottom-0 size-36 overflow-hidden rounded-full bg-white/18">
-            <SafeImage src={heroItem?.image ?? heroRestaurant.image} alt={heroItem?.name ?? heroRestaurant.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="150px" className="object-cover" />
-          </div>
-        </Link>
-        <div className="mt-4 flex justify-center gap-2" aria-hidden="true">
-          {[0, 1, 2, 3, 4].map((item) => (
-            <span key={item} className={cn("h-2 rounded-full", item === 0 ? "w-5 bg-primary" : "w-2 bg-border")} />
-          ))}
-        </div>
-      </section>
-      ) : null}
-
-      {cmsSettings.sections?.offersVisible !== false && homepageOffers.length ? (
-        <section className="customer-scroll container-page hidden gap-5 overflow-x-auto pb-6 md:flex">
-          {homepageOffers.map((item, index) => (
-            <DesktopPromoCard
-              key={item.code}
-              tone={(["green", "orange", "blue"] as const)[index % 3]}
-              title={offerTitle(item)}
-              subtitle={item.title}
-              code={item.code}
-              image={item.banner ?? item.image ?? popularItems[index + 1]?.image ?? heroRestaurant.image}
-              href={item.restaurantSlug ? `/restaurant/${item.restaurantSlug}/menu?offer=${item.code}` : "/offers"}
-            />
-          ))}
-        </section>
-      ) : null}
-
       {favoriteRestaurants.length > 3 ? (
         <>
           <MobileSectionHeader title="Your favorite restaurants" href="/profile?tab=saved" />
@@ -590,56 +541,6 @@ export function CustomerDiscoveryHome() {
       </section>
       ) : null}
     </main>
-  );
-}
-
-function DesktopPromoCard({
-  tone,
-  title,
-  subtitle,
-  code,
-  image,
-  href,
-}: {
-  tone: "green" | "orange" | "blue";
-  title: string;
-  subtitle: string;
-  code: string;
-  image: string;
-  href: string;
-}) {
-  const tones = {
-    green: "from-green-50 via-lime-50 to-white text-green-700",
-    orange: "from-orange-50 via-amber-50 to-white text-orange-700",
-    blue: "from-blue-50 via-sky-50 to-white text-blue-700",
-  };
-
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group relative min-h-36 min-w-[22rem] flex-1 overflow-hidden rounded-xl bg-gradient-to-r p-6 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl",
-        tones[tone],
-      )}
-    >
-      <div className="relative z-10 max-w-[55%]">
-        <h2 className="text-3xl font-black leading-none">{title}</h2>
-        <p className="mt-2 text-base font-semibold text-foreground">{subtitle}</p>
-        <span className="mt-4 inline-flex rounded-md border border-current/30 bg-white/65 px-4 py-2 text-sm font-black">
-          {code}
-        </span>
-      </div>
-      <div className="absolute -right-7 bottom-0 h-32 w-48 overflow-hidden rounded-tl-full bg-white/45">
-        <SafeImage
-          src={image}
-          alt=""
-          fill
-          fallbackSrc={IMAGE_FALLBACKS.food}
-          sizes="220px"
-          className="object-cover transition duration-500 group-hover:scale-105"
-        />
-      </div>
-    </Link>
   );
 }
 
@@ -730,12 +631,6 @@ function PopularDishCard({ item, onAdd }: { item: MenuItem; onAdd: () => void })
 
 function cuisineLabel(restaurant: Restaurant) {
   return Array.isArray(restaurant.cuisine) ? restaurant.cuisine.join(", ") : restaurant.cuisine;
-}
-
-function offerTitle(offer: Offer) {
-  if (offer.discountType === "free-delivery" || offer.offerType === "free-delivery") return "Free delivery";
-  if (offer.discountType === "flat" || offer.offerType === "flat") return `${formatCurrency(offer.discount)} OFF`;
-  return `${offer.discount}% OFF`;
 }
 
 function statusLabel(status: string, permission: string) {

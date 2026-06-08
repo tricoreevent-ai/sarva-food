@@ -13,6 +13,7 @@ type Unsubscribe = () => void;
 
 const FALLBACK_IMAGE = "/icons/sarva-icon.svg";
 type PublicApiResponse<T> = { data?: T[]; error?: string };
+type PublicApiMeta = { requestId?: string; count?: number };
 type PublicSingleResponse<T> = { data?: T; error?: string };
 type PublicReviewSummary = { averageRating: number; ratingCount: number };
 type PublicReviewsResponse = { data?: Review[]; summary?: PublicReviewSummary; error?: string };
@@ -60,7 +61,11 @@ async function fetchPublicDocs<T>(
   if (existing) return existing;
 
   const request = fetchJsonWithRetry<PublicApiResponse<T>>(url)
-    .then((payload) => Array.isArray(payload.data) ? payload.data : [])
+    .then((payload) => {
+      const items = Array.isArray(payload.data) ? payload.data : [];
+      logPublicDataClientResult(path, items.length, (payload as PublicApiResponse<T> & { meta?: PublicApiMeta }).meta);
+      return items;
+    })
     .then((items) => {
       writeMemoryCache(url, items);
       return items;
@@ -78,11 +83,19 @@ async function fetchPublicDocs<T>(
 
 async function fetchPublicRestaurants(slug?: string) {
   const docs = await fetchPublicDocs<RestaurantDoc>("/api/public/restaurants", { slug });
-  return docs
+  const restaurants = docs
     .filter(isPublicRestaurantListable)
     .map((item) => restaurantDocToUi(item))
     .filter((item) => item.approved !== false)
     .reduce<Restaurant[]>((items, item) => mergePublicRestaurant(items, item), []);
+  if (!restaurants.length) {
+    logPublicDataClientWarning("restaurants", "No restaurants are visible after client-side public listing filters.", {
+      slug: slug ?? null,
+      apiCount: docs.length,
+      filterSummary: summarizeClientRestaurantFilters(docs),
+    });
+  }
+  return restaurants;
 }
 
 async function fetchPublicCategories() {
@@ -169,9 +182,10 @@ async function fetchPublicReviews(restaurantId: string, menuItemId?: string): Pr
 }
 
 function warnPublicFallbackFailure(scope: string, error: unknown) {
-  if (process.env.NODE_ENV === "production") return;
   if (isTransientFetchError(error)) return;
-  console.warn(`[Nammude] ${scope} public API request failed; showing empty state.`, error);
+  logPublicDataClientWarning(scope, "Public API request failed; showing recovery state.", {
+    message: error instanceof Error ? error.message : String(error),
+  });
 }
 
 async function fetchJsonWithRetry<T>(url: string): Promise<T> {
@@ -185,6 +199,11 @@ async function fetchJsonWithRetry<T>(url: string): Promise<T> {
       });
       const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
       if (!response.ok) {
+        logPublicDataClientWarning("fetch", "Public API response was not ok.", {
+          path: safeUrlPath(url),
+          status: response.status,
+          error: payload.error,
+        });
         throw new Error(payload.error ?? `Public data request failed with ${response.status}.`);
       }
       return payload;
@@ -200,6 +219,59 @@ async function fetchJsonWithRetry<T>(url: string): Promise<T> {
 
 function isTransientFetchError(error: unknown) {
   return error instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(error.message);
+}
+
+function logPublicDataClientResult(path: string, count: number, meta?: PublicApiMeta) {
+  if (path !== "/api/public/restaurants") return;
+  const payload = { path, count, requestId: meta?.requestId };
+  if (count === 0) {
+    logPublicDataClientWarning("restaurants", "Public restaurants API returned an empty list.", payload);
+    return;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[Nammude public data] restaurants loaded.", payload);
+  }
+}
+
+function logPublicDataClientWarning(scope: string, message: string, details?: Record<string, unknown>) {
+  console.warn(`[Nammude public data] ${scope}: ${message}`, details ?? {});
+}
+
+function safeUrlPath(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
+}
+
+function summarizeClientRestaurantFilters(docs: RestaurantDoc[]) {
+  const summary: Record<string, number> = {};
+  for (const doc of docs) {
+    for (const reason of clientRestaurantFilterReasons(doc)) {
+      summary[reason] = (summary[reason] ?? 0) + 1;
+    }
+  }
+  return summary;
+}
+
+function clientRestaurantFilterReasons(doc: RestaurantDoc) {
+  const reasons: string[] = [];
+  const extra = doc as RestaurantDoc & { approved?: boolean; profileComplete?: boolean; publicListingEnabled?: boolean; phone?: string };
+  if (extra.approved === false) reasons.push("approval-disabled");
+  if (extra.profileComplete === false) reasons.push("profile-incomplete");
+  if (extra.publicListingEnabled === false) reasons.push("public-listing-disabled");
+  if (!doc.active) reasons.push("inactive");
+  if (doc.isDeleted) reasons.push("deleted");
+  if (!doc.name?.trim()) reasons.push("missing-name");
+  if (!((doc.address || doc.location)?.trim())) reasons.push("missing-address");
+  if (!((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation)) reasons.push("missing-location");
+  if (!textList(doc.cuisine)) reasons.push("missing-cuisine");
+  if (!(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath)) reasons.push("missing-media");
+  if (!(doc.contact?.phone || doc.ownerProfile?.businessPhone || extra.phone)) reasons.push("missing-contact");
+  if (!doc.deliveryRadiusKm) reasons.push("missing-delivery-radius");
+  return reasons;
 }
 
 function delay(ms: number) {
