@@ -1,6 +1,6 @@
 # Restaurant Enterprise Features
 
-This document records the production-readiness coverage added on top of the existing Sarva Food architecture. The implementation stays incremental: persisted mock state models the workflows now, while Firebase collections and Cloud Functions can replace the mock store later.
+This document records the production-readiness coverage added on top of the existing Nammude architecture. The implementation stays incremental: persisted mock state models the workflows now, while Firebase collections and Cloud Functions can replace the mock store later.
 
 ## Operational Workflows
 
@@ -99,4 +99,4 @@ Offline-safe placeholders include cached menu intent, optimistic updates, and re
 
 The flow remains:
 
-Owner creates post -> Admin approves -> Sarva social account publishes -> Customer clicks deep link -> Food page opens -> Offer auto applies -> Fast checkout.
+Owner creates post -> Admin approves -> Nammude social account publishes -> Customer clicks deep link -> Food page opens -> Offer auto applies -> Fast checkout.

@@ -2,7 +2,7 @@
 
 ## Product Scope
 
-Sarva Food is structured as a modular restaurant and hospitality commerce ecosystem. This foundation focuses on UX/UI, navigation, responsive layout, reusable components, mock data, and wireframe-level interactions only.
+Nammude is structured as a modular restaurant and hospitality commerce ecosystem. This foundation focuses on UX/UI, navigation, responsive layout, reusable components, mock data, and wireframe-level interactions only.
 
 The ecosystem includes:
 
