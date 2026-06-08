@@ -27,6 +27,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 ```env
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
+NEXT_PUBLIC_APP_NAME=Nammude
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
 
@@ -86,7 +87,7 @@ Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual 
 
 For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
 
-For customer Google sign-in, add the same OAuth client id to `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_ID`, and add the OAuth secret to `GOOGLE_OAUTH_CLIENT_SECRET`. In Firebase Authentication, enable the Google provider and add both `mistyrose-butterfly-740173.hostingersite.com` and the final custom domain under authorized domains.
+For customer Google sign-in, add the same OAuth client id to `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_ID`, and add the OAuth secret to `GOOGLE_OAUTH_CLIENT_SECRET`. In Firebase Authentication, enable the Google provider and add both `violet-squid-380447.hostingersite.com` and the final custom domain under authorized domains.
 
 The customer public pages read active, complete restaurant records directly from Firestore. Owner/admin APIs still require the Firebase Admin variables. If `/api/public/restaurants` returns 500 on Hostinger, first confirm these required server keys exist in hPanel:
 
@@ -141,3 +142,4 @@ npm run firebase:seed:production
 - The repo intentionally ignores `.env*`, `.next/`, `node_modules/`, local certs, Firebase service account JSON files, and provider local state.
 - Commit-safe env templates are kept as `.env.example`, `.env.production.example`, `.env.staging.example`, and `.env.hostinger.example`.
 - Hostinger deployment does not use `vercel.json`; it can remain in the repo for reference/alternate deployment without affecting Hostinger.
+- If the browser shows 403 after a clean Node.js redeploy, open Hostinger File Manager and confirm `public_html/.htaccess` exists and routes to the generated `nodejs` application directory. Hostinger documents this as the expected routing file for server-side frameworks like Next.js, and a redeploy should regenerate it.

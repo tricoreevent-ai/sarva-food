@@ -12,20 +12,24 @@ const child = spawn(process.execPath, [nextBin, "build"], {
 });
 
 let buildOutput = "";
+let traceRecoveryInterval;
 
 child.stdout.on("data", (chunk) => {
   const text = chunk.toString();
   buildOutput += text;
+  maybeStartTraceRecovery();
   process.stdout.write(text);
 });
 
 child.stderr.on("data", (chunk) => {
   const text = chunk.toString();
   buildOutput += text;
+  maybeStartTraceRecovery();
   process.stderr.write(text);
 });
 
 child.on("close", (code) => {
+  if (traceRecoveryInterval) clearInterval(traceRecoveryInterval);
   const recovered = ensureMiddlewareTrace();
   if (code === 0) {
     process.exit(0);
@@ -39,6 +43,13 @@ child.on("close", (code) => {
 
   process.exit(code ?? 1);
 });
+
+function maybeStartTraceRecovery() {
+  if (traceRecoveryInterval) return;
+  if (!/Generating static pages|Finalizing page optimization/i.test(buildOutput)) return;
+  ensureMiddlewareTrace();
+  traceRecoveryInterval = setInterval(ensureMiddlewareTrace, 250);
+}
 
 function ensureMiddlewareTrace() {
   const serverDir = path.join(root, ".next", "server");
