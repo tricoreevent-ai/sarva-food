@@ -37,20 +37,20 @@ export async function notifyPublicDatabaseFailure(scope: string, error: unknown)
 
     const smtp = getSmtpConfig();
     if (!smtp) {
-      console.error("[Sarva] Database outage alert email skipped because SMTP is not configured.");
+      console.error("[Nammude] Database outage alert email skipped because SMTP is not configured.");
       return;
     }
 
     state.lastSentAt = now;
     const transporter = nodemailer.createTransport(smtp);
     const timestamp = new Date(now).toISOString();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "Sarva Food customer application";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "Nammude customer application";
     const message = safeErrorMessage(error);
 
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: config.email,
-      subject: `[Sarva Food] Customer database connection issue`,
+      subject: `[Nammude] Customer database connection issue`,
       text: [
         "The customer application could not load public restaurant data.",
         "",
@@ -64,7 +64,7 @@ export async function notifyPublicDatabaseFailure(scope: string, error: unknown)
       ].join("\n"),
     });
   } catch (alertError) {
-    console.error("[Sarva] Database outage alert could not be sent.", alertError);
+    console.error("[Nammude] Database outage alert could not be sent.", alertError);
   }
 }
 

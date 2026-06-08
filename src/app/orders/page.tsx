@@ -41,7 +41,7 @@ export default function OrdersPage() {
                 <LogIn className="mx-auto size-10 text-primary" />
                 <h2 className="mt-4 text-2xl font-black">Sign in to view orders</h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Customer orders are tied to your Sarva account and verified delivery address.
+                  Customer orders are tied to your Nammude account and verified delivery address.
                 </p>
                 <Button asChild size="lg" className="mt-5">
                   <Link href="/login?next=/orders">Sign in</Link>

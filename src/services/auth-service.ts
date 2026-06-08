@@ -281,7 +281,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
     await setDoc(
       userRef,
       omitUndefinedFields({
-        displayName: user.displayName ?? existing.data().displayName ?? "Sarva user",
+        displayName: user.displayName ?? existing.data().displayName ?? "Nammude user",
         email: user.email ?? existing.data().email,
         phone: user.phoneNumber ?? existing.data().phone,
         photoURL: user.photoURL ?? existing.data().photoURL,
@@ -294,7 +294,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
       omitUndefinedFields({
         id: user.uid,
         uid: user.uid,
-        displayName: user.displayName ?? existing.data().displayName ?? "Sarva user",
+        displayName: user.displayName ?? existing.data().displayName ?? "Nammude user",
         email: user.email ?? existing.data().email,
         phone: user.phoneNumber ?? existing.data().phone,
         photoURL: user.photoURL ?? existing.data().photoURL,
@@ -311,7 +311,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
   const profile: Omit<UserDoc, "createdAt" | "updatedAt"> = {
     id: user.uid,
     uid: user.uid,
-    displayName: user.displayName ?? "Sarva user",
+    displayName: user.displayName ?? "Nammude user",
     email: user.email ?? undefined,
     phone: user.phoneNumber ?? undefined,
     photoURL: user.photoURL ?? undefined,
@@ -334,7 +334,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
     omitUndefinedFields({
       id: user.uid,
       uid: user.uid,
-      displayName: user.displayName ?? "Sarva user",
+      displayName: user.displayName ?? "Nammude user",
       email: user.email ?? undefined,
       phone: user.phoneNumber ?? undefined,
       photoURL: user.photoURL ?? undefined,

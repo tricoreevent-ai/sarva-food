@@ -241,7 +241,7 @@ async function completeOtp(
     if (!userRecord) return jsonError("No customer account exists for this email.", 404);
     const customerAccount = await getCustomerResetAccount(email);
     if (!customerAccount || customerAccount.uid !== userRecord.uid) {
-      return jsonError("This email belongs to another Sarva module. Use the correct portal password reset.", 403);
+      return jsonError("This email belongs to another Nammude module. Use the correct portal password reset.", 403);
     }
     await auth.updateUser(userRecord.uid, {
       password,
@@ -310,8 +310,8 @@ async function sendOtpEmail(
   smtp: TransportOptions,
 ) {
   const transporter = nodemailer.createTransport(smtp);
-  const subject = purpose === "signup" ? "Verify your Sarva account" : "Reset your Sarva password";
-  const heading = purpose === "signup" ? "Create your Sarva account" : "Reset your password";
+  const subject = purpose === "signup" ? "Verify your Nammude account" : "Reset your Nammude password";
+  const heading = purpose === "signup" ? "Create your Nammude account" : "Reset your password";
   await retrySmtp(() => (transporter as unknown as { verify: () => Promise<unknown> }).verify());
   await retrySmtp(() => transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -427,7 +427,7 @@ function jsonError(message: string, status: number, extra?: Record<string, unkno
 
 function logOtpFailure(scope: string, error: unknown) {
   const diagnostic = smtpDiagnosticMessage(error);
-  console.warn(`[Sarva] ${scope}: ${diagnostic}`);
+  console.warn(`[Nammude] ${scope}: ${diagnostic}`);
 }
 
 function smtpDiagnosticMessage(error: unknown) {

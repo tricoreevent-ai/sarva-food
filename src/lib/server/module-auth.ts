@@ -65,7 +65,7 @@ export async function handleModuleLogin(request: NextRequest, surface: ModuleSur
   }
 
   const credential = await verifyFirebasePassword(email, password).catch((error) => {
-    console.warn(`[Sarva] ${surface}-login-password-check: ${authDiagnosticMessage(error)}`);
+    console.warn(`[Nammude] ${surface}-login-password-check: ${authDiagnosticMessage(error)}`);
     return null;
   });
   if (!credential?.uid) {
@@ -113,7 +113,7 @@ export async function handleModulePasswordOtp(request: NextRequest, surface: Mod
     if (action === "verify") return verifyModuleOtp(email, surface, body.code);
     return completeModuleOtp(email, surface, body.verificationToken, body.password);
   } catch (error) {
-    console.warn(`[Sarva] ${surface}-password-otp: ${authDiagnosticMessage(error)}`);
+    console.warn(`[Nammude] ${surface}-password-otp: ${authDiagnosticMessage(error)}`);
     return jsonError("Password reset is temporarily unavailable.", 500);
   }
 }
@@ -150,7 +150,7 @@ async function requestModuleOtp(email: string, surface: ModuleSurface) {
 
   const smtp = getSmtpConfig();
   if (!smtp.ok) {
-    console.warn(`[Sarva] ${surface}-otp-smtp-config: ${smtp.error}`);
+    console.warn(`[Nammude] ${surface}-otp-smtp-config: ${smtp.error}`);
     return jsonError(OTP_DELIVERY_ERROR, 503, { code: "smtp_unavailable" });
   }
 
@@ -196,7 +196,7 @@ async function requestModuleOtp(email: string, surface: ModuleSurface) {
   try {
     await sendModuleOtpEmail(email, otp, surface, smtp.options);
   } catch (error) {
-    console.warn(`[Sarva] ${surface}-otp-smtp-send: ${authDiagnosticMessage(error)}`);
+    console.warn(`[Nammude] ${surface}-otp-smtp-send: ${authDiagnosticMessage(error)}`);
     await ref.delete().catch(() => undefined);
     return jsonError(OTP_DELIVERY_ERROR, 503, { code: "smtp_delivery_failed" });
   }
@@ -372,11 +372,11 @@ async function sendModuleOtpEmail(email: string, otp: string, surface: ModuleSur
   await retrySmtp(() => transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
-    subject: `Reset your Sarva ${moduleName} password`,
-    text: `Reset your Sarva ${moduleName} password\n\nYour OTP is ${otp}. It expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`,
+    subject: `Reset your Nammude ${moduleName} password`,
+    text: `Reset your Nammude ${moduleName} password\n\nYour OTP is ${otp}. It expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#241812">
-        <h1 style="font-size:24px;margin:0 0 12px">Reset your Sarva ${moduleName} password</h1>
+        <h1 style="font-size:24px;margin:0 0 12px">Reset your Nammude ${moduleName} password</h1>
         <p style="font-size:15px;line-height:1.6">Use this one-time password to set a new ${moduleName.toLowerCase()} portal password. It expires in 10 minutes.</p>
         <div style="font-size:32px;font-weight:800;letter-spacing:8px;background:#fff0e2;border-radius:12px;padding:18px 20px;text-align:center">${otp}</div>
         <p style="font-size:13px;line-height:1.5;color:#7c5f50">For your safety, do not share this code with anyone.</p>

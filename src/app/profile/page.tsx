@@ -999,7 +999,7 @@ function PaymentsPanel({ payments, walletValue = 0, points = 0 }: { payments: Ar
     <ProfileSection title="Payment methods" icon={CreditCard}>
       <div className="grid gap-3 rounded-lg border bg-primary/5 p-4 sm:grid-cols-2">
         <div>
-          <p className="text-sm font-bold text-muted-foreground">Sarva Wallet</p>
+          <p className="text-sm font-bold text-muted-foreground">Nammude Wallet</p>
           <p className="mt-1 text-2xl font-black">{formatCurrency(walletValue)}</p>
         </div>
         <div>

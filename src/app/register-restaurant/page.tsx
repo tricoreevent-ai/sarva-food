@@ -37,7 +37,7 @@ export default function RegisterRestaurantPage() {
           </div>
           <SectionHeader
             title="Register Your Restaurant"
-            description="Submit the public inquiry. Sarva admin reviews the details, then creates the tenant, owner account, primary branch, and subscription record."
+            description="Submit the public inquiry. Nammude admin reviews the details, then creates the tenant, owner account, primary branch, and subscription record."
           />
         </section>
         <Card className="customer-surface">

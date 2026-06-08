@@ -94,7 +94,7 @@ export function InstagramPostCreatorFlow() {
       <section className="space-y-5">
           <SectionHeader
             title="Create post"
-            description="Owners create posts and submit them to Sarva admin review. Publishing happens only from official accounts."
+            description="Owners create posts and submit them to Nammude admin review. Publishing happens only from official accounts."
           />
         <Card>
           <CardContent className="grid gap-5 p-5">

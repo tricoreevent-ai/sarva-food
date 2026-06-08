@@ -86,7 +86,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
@@ -585,7 +585,7 @@ type AdminAlert = {
 function AdminConsoleTopbar({ appName, navItems, homeHref }: DashboardTopbarProps) {
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
   const restaurants = useAppStore((state) => state.restaurants);
   const applications = useAppStore((state) => state.businessApplications);
   const socialPosts = useAppStore((state) => state.socialPosts);

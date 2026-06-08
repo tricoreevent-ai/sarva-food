@@ -16,7 +16,7 @@ export const defaultMarketingSettings: MarketingSettings = {
   defaultTemplate: "todays-special",
   defaultCtaText: "Buy Now",
   tinyUrlEnabled: true,
-  promotionalFooter: "❤️ Order directly from Sarva Food",
+  promotionalFooter: "❤️ Order directly from Nammude",
 };
 
 export const defaultRestaurantMarketingSettings: RestaurantMarketingSettings = {

@@ -278,7 +278,7 @@ export function logPublicDataError(scope: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : undefined;
   const hint = publicDataErrorHint(message);
-  console.error(`[Sarva public API] ${scope} failed${code ? ` (${code})` : ""}: ${message}${hint ? ` ${hint}` : ""}`);
+  console.error(`[Nammude public API] ${scope} failed${code ? ` (${code})` : ""}: ${message}${hint ? ` ${hint}` : ""}`);
 }
 
 function publicDataErrorHint(message: string) {

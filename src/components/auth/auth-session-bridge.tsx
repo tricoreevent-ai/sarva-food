@@ -40,7 +40,7 @@ export function AuthSessionBridge() {
           if (stackUser?.id) {
             setScopedAuthUser({
               id: stackUser.id,
-              name: stackUser.displayName || stackUser.primaryEmail || "Sarva Customer",
+              name: stackUser.displayName || stackUser.primaryEmail || "Nammude Customer",
               role: "customer",
               restaurantSlug: DEFAULT_TENANT_ID,
             });

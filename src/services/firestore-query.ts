@@ -118,7 +118,7 @@ export function listenToQueryShared<T extends DocumentData>(
         emit(snapshot.docs.map((entry) => entry.data()));
       }, (error) => {
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[Sarva] Firestore listener stopped.", error.message);
+          console.warn("[Nammude] Firestore listener stopped.", error.message);
         }
         emit([]);
       }),

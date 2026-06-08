@@ -41,7 +41,7 @@ export default function AdminDashboardPage() {
       </section>
       <section className="grid gap-4 lg:grid-cols-3">
         {[
-          ["Social approvals", "Owner promotions waiting for Sarva publishing", "/admin/social-queue"],
+          ["Social approvals", "Owner promotions waiting for Nammude publishing", "/admin/social-queue"],
           ["Meta accounts", "Instagram, Facebook, Graph API and tokens", "/admin/meta"],
           ["Restaurant quality", "Review onboarding, menus, and service zones", "/admin/restaurants"],
         ].map(([title, copy, href]) => (

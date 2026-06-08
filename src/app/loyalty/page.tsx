@@ -30,7 +30,7 @@ export default function LoyaltyPage() {
   const savings = activeCoupons * 50 + rewardValue;
   const recentRows = customer.orders.slice(0, 4).map((order) => ({
     id: order.id,
-    restaurant: "restaurantName" in order && typeof order.restaurantName === "string" ? order.restaurantName : "Sarva restaurant",
+    restaurant: "restaurantName" in order && typeof order.restaurantName === "string" ? order.restaurantName : "Nammude restaurant",
     amount: order.total,
     points: earnedPointsForOrder(order.total, loyaltySettings),
     status: order.status === "delivered" || order.status === "completed" ? "Delivered" : order.status,
@@ -52,7 +52,7 @@ export default function LoyaltyPage() {
         <section className="relative overflow-hidden rounded-2xl bg-[linear-gradient(120deg,#ff6a2f_0%,#ffb23f_48%,#0b8f6f_100%)] p-7 text-white shadow-2xl md:p-10">
           <div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_320px] lg:items-center">
             <div>
-              <Badge className="bg-white text-primary"><Star className="mr-1 size-3 fill-current" />Sarva Rewards</Badge>
+              <Badge className="bg-white text-primary"><Star className="mr-1 size-3 fill-current" />Nammude Rewards</Badge>
               <h1 className="mt-5 max-w-2xl text-4xl font-black leading-tight md:text-5xl">Rewards linked to your orders</h1>
               <p className="mt-3 max-w-2xl text-base font-semibold text-white/90">Earn points every time you order food, unlock exciting benefits, and enjoy exclusive member rewards.</p>
               <div className="mt-8 grid gap-4 md:grid-cols-3">

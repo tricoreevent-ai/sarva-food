@@ -171,7 +171,7 @@ async function fetchPublicReviews(restaurantId: string, menuItemId?: string): Pr
 function warnPublicFallbackFailure(scope: string, error: unknown) {
   if (process.env.NODE_ENV === "production") return;
   if (isTransientFetchError(error)) return;
-  console.warn(`[Sarva] ${scope} public API request failed; showing empty state.`, error);
+  console.warn(`[Nammude] ${scope} public API request failed; showing empty state.`, error);
 }
 
 async function fetchJsonWithRetry<T>(url: string): Promise<T> {

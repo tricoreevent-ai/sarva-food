@@ -128,7 +128,7 @@ async function ensureCustomerProfileFromAuth(uid: string) {
   }
 
   const now = new Date().toISOString();
-  const displayName = authUser.displayName || existingData?.displayName || authUser.email?.split("@")[0] || "Sarva user";
+  const displayName = authUser.displayName || existingData?.displayName || authUser.email?.split("@")[0] || "Nammude user";
   const email = authUser.email || existingData?.email;
   const phone = authUser.phoneNumber || existingData?.phone;
   const photoURL = authUser.photoURL || existingData?.photoURL;

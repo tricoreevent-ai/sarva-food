@@ -294,7 +294,7 @@ function CateringInquiryList({
     const body = encodeURIComponent([
       `Hello ${quote.name},`,
       "",
-      "Thank you for your catering request with Sarva Food.",
+      "Thank you for your catering request with Nammude.",
       `Revised quotation: ${formatCurrency(amount)}`,
       `Guests: ${quote.guestCount}`,
       `Event: ${quote.eventType ?? "Catering event"}`,

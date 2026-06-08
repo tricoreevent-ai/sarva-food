@@ -45,7 +45,7 @@ export function buildUpiPaymentUri(input: {
     pn: input.merchantName,
     am: input.amount.toFixed(2),
     tr: input.transactionRef,
-    tn: input.note ?? "Sarva Food order",
+    tn: input.note ?? "Nammude order",
     cu: "INR",
   });
 

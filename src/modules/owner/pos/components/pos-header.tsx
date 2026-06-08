@@ -19,7 +19,7 @@ export function PosHeader({
   notificationCount: number;
   profileName: string;
 }) {
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
 
   return (
     <header className="grid gap-3 border-b border-slate-200 bg-white p-4 xl:grid-cols-[auto_1fr_auto] xl:items-center">

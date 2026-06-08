@@ -3,7 +3,7 @@ import { getPublicRestaurantDocs } from "@/lib/server/public-firestore";
 import { ROUTES } from "@/lib/constants";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://sarva-food.example";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://nammude.example";
   const staticRoutes = ["", "/restaurants", "/offers", "/catering"];
   const now = new Date();
   const restaurantRoutes = await getRestaurantSitemapRoutes(baseUrl, now);

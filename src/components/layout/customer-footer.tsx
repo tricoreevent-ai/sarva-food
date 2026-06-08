@@ -28,7 +28,7 @@ export function CustomerFooter() {
   if (cmsSettings.footer?.visible === false) return null;
 
   const branding = cmsSettings.branding ?? defaultCmsSettings.branding!;
-  const appName = branding.appName || cmsSettings.appName || defaultCmsSettings.appName || "Sarva";
+  const appName = branding.appName || cmsSettings.appName || defaultCmsSettings.appName || "Nammude";
   const brandInitials = (branding.shortName || appName).slice(0, 2).toUpperCase();
   const sections = footerSections(cmsSettings);
   const partnerCard = { ...defaultCmsSettings.footer.partnerCard, ...(cmsSettings.footer.partnerCard ?? {}) };

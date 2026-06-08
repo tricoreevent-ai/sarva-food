@@ -16,7 +16,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://sarva-food.example"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://nammude.example"),
   title: {
     default: APP_DEFAULT_TITLE,
     template: `%s | ${APP_NAME}`,

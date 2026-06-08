@@ -157,7 +157,7 @@ export function CateringFlow() {
               Generate quote
             </Button>
             <Button type="button" variant="outline" className="w-full" asChild>
-              <a href={`https://wa.me/?text=${encodeURIComponent("I want a catering callback from Sarva Food.")}`} target="_blank" rel="noreferrer">
+              <a href={`https://wa.me/?text=${encodeURIComponent("I want a catering callback from Nammude.")}`} target="_blank" rel="noreferrer">
                 <MessageCircle className="size-4" />
                 WhatsApp quick contact
               </a>

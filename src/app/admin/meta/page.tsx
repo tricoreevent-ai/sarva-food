@@ -13,12 +13,12 @@ export default function AdminMetaPage() {
     <div className="space-y-6">
       <SectionHeader
         title="Meta integrations"
-        description="Official Sarva account connection, token storage, page selection, and posting history."
+        description="Official Nammude account connection, token storage, page selection, and posting history."
         action={<Badge variant="muted">Graph API ready</Badge>}
       />
       <section className="grid gap-4 lg:grid-cols-2">
         <IntegrationCard icon={<Camera className="size-5" />} title="Instagram" account="@sarva.food" />
-        <IntegrationCard icon={<MessageCircle className="size-5" />} title="Facebook" account="Sarva Food Official" />
+        <IntegrationCard icon={<MessageCircle className="size-5" />} title="Facebook" account="Nammude Official" />
       </section>
       <Card>
         <CardHeader>

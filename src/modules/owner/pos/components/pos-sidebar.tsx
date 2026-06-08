@@ -32,7 +32,7 @@ export function PosSidebar({
   onPastOrders,
   onCustomers,
 }: PosSidebarProps) {
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Sarva Food");
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
   const initials = productName.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "SF";
 
   return (

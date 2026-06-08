@@ -133,7 +133,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     const profile = await getUserProfile(uid).catch(() => null);
     const fallbackRole = isCustomerSurface ? "customer" : surface === "admin-login" ? "admin" : "owner";
     const role = profile?.role ?? fallbackRole;
-    const displayName = profile?.displayName ?? fallback?.displayName ?? fallback?.email ?? "Sarva Customer";
+    const displayName = profile?.displayName ?? fallback?.displayName ?? fallback?.email ?? "Nammude Customer";
     setAuthUser({
       id: profile?.id ?? uid,
       name: displayName,
@@ -167,13 +167,13 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     const user = await getStackCustomer();
     setAuthUser({
       id: user?.id || email.trim().toLowerCase() || "stack-customer",
-      name: user?.displayName || name.trim() || user?.primaryEmail || "Sarva Customer",
+      name: user?.displayName || name.trim() || user?.primaryEmail || "Nammude Customer",
       role: "customer",
       restaurantSlug: DEFAULT_TENANT_ID,
     });
     if (user?.id) {
       writeLocalProfile(user.id, {
-        displayName: user.displayName || name.trim() || user.primaryEmail || "Sarva Customer",
+        displayName: user.displayName || name.trim() || user.primaryEmail || "Nammude Customer",
         email: user.primaryEmail ?? undefined,
         photoURL: user.profileImageUrl ?? undefined,
       });

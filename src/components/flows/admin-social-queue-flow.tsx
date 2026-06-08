@@ -16,7 +16,7 @@ export function AdminSocialQueueFlow() {
     <div className="space-y-6">
       <SectionHeader
         title="Social approval queue"
-        description="Owners submit promotional content. Admin approves and publishes from official Sarva Instagram and Facebook accounts."
+        description="Owners submit promotional content. Admin approves and publishes from official Nammude Instagram and Facebook accounts."
         action={<Badge variant="warning">{posts.filter((post) => post.status === "pending").length} pending</Badge>}
       />
       <section className="grid gap-4 lg:grid-cols-2">
@@ -44,7 +44,7 @@ export function AdminSocialQueueFlow() {
                     <CheckCircle2 className="size-4" />
                     Approve
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => reviewSocialPost(post.id, "published", "Published from Sarva official Meta accounts.")}>
+                  <Button size="sm" variant="secondary" onClick={() => reviewSocialPost(post.id, "published", "Published from Nammude official Meta accounts.")}>
                     <Send className="size-4" />
                     Publish
                   </Button>

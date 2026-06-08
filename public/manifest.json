@@ -1,7 +1,7 @@
 {
-  "name": "Sarva Food",
-  "short_name": "Sarva",
-  "description": "Sarva Food connects customers directly with local restaurant owners for transparent ordering, real-time menus, exclusive offers, and no third-party intermediaries.",
+  "name": "Nammude",
+  "short_name": "Nammude",
+  "description": "Nammude connects customers directly with local restaurant owners for transparent ordering, real-time menus, exclusive offers, and no third-party intermediaries.",
   "start_url": "/splash",
   "scope": "/",
   "display": "standalone",

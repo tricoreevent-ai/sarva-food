@@ -26,23 +26,45 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
     },
   };
 
+  const appName = normalizeBrandName(settings.branding?.appName?.trim() || settings.appName?.trim(), defaultCmsSettings.appName || "Nammude");
+  const shortName = normalizeBrandName(settings.branding?.shortName?.trim(), "Nammude");
+  const description = normalizeBrandText(
+    settings.branding?.appDescription?.trim() || defaultCmsSettings.branding!.appDescription || "",
+  );
+  const copyright = normalizeBrandText(settings.footer.copyright || defaultCmsSettings.footer.copyright || "");
+  const partnerDescription = normalizeBrandText(
+    settings.footer.partnerCard?.description || defaultCmsSettings.footer.partnerCard?.description || "",
+  );
+  const legalPages = Object.fromEntries(
+    Object.entries(settings.legalPages).map(([key, value]) => [key, typeof value === "string" ? normalizeBrandText(value) : value]),
+  ) as CmsSettings["legalPages"];
+
   return {
     ...settings,
     cmsVersion: settings.cmsVersion ?? CMS_VERSION,
-    appName: settings.branding?.appName?.trim() || settings.appName?.trim() || defaultCmsSettings.appName,
+    appName,
     branding: {
       ...defaultCmsSettings.branding!,
       ...(settings.branding ?? {}),
-      appName: settings.branding?.appName?.trim() || settings.appName?.trim() || defaultCmsSettings.branding!.appName,
-      shortName: settings.branding?.shortName?.trim() || defaultCmsSettings.branding!.shortName,
+      appName,
+      shortName,
       logoUrl: settings.branding?.logoUrl?.trim() || defaultCmsSettings.branding!.logoUrl,
       faviconUrl: settings.branding?.faviconUrl?.trim() || defaultCmsSettings.branding!.faviconUrl,
-      appDescription: settings.branding?.appDescription?.trim() || defaultCmsSettings.branding!.appDescription,
+      appDescription: description,
       supportEmail: settings.branding?.supportEmail?.trim() || defaultCmsSettings.branding!.supportEmail,
       supportPhone: settings.branding?.supportPhone?.trim() || defaultCmsSettings.branding!.supportPhone,
       onboardingEmail: settings.branding?.onboardingEmail?.trim() || defaultCmsSettings.branding!.onboardingEmail,
       onboardingWhatsapp: settings.branding?.onboardingWhatsapp?.trim() || defaultCmsSettings.branding!.onboardingWhatsapp,
     },
+    footer: {
+      ...settings.footer,
+      copyright,
+      partnerCard: {
+        ...settings.footer.partnerCard,
+        description: partnerDescription,
+      },
+    },
+    legalPages,
     homepage: {
       ...settings.homepage,
       title: settings.homepage.title?.trim() || defaultCmsSettings.homepage.title,
@@ -110,4 +132,18 @@ export function getHomepageCmsItems(settings: CmsSettings) {
     announcements: getVisibleCmsBanners(settings.announcements),
     sponsoredAds: getVisibleCmsBanners(settings.sponsoredAds),
   };
+}
+
+function normalizeBrandName(value?: string, fallback = "Nammude") {
+  const trimmed = value?.trim();
+  if (!trimmed || /^sarva(?:\s+food)?$/i.test(trimmed)) return fallback;
+  return normalizeBrandText(trimmed);
+}
+
+function normalizeBrandText(value: string) {
+  return value
+    .replace(/\bSarva Food\b/g, "Nammude")
+    .replace(/\bSarva\b/g, "Nammude")
+    .replace(/\bsarva food\b/g, "Nammude")
+    .replace(/\bsarva\b/g, "Nammude");
 }
