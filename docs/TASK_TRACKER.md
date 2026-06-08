@@ -17,6 +17,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Public restaurant launch-list env removal completed on 2026-06-08: removed the public restaurant whitelist env setting, deleted the hardcoded non-launch cleanup script, and changed Firestore REST fallback listings/offers to derive visible restaurants from active database records.
 - [x] Unfinished work audit completed on 2026-06-08: reviewed tracker and codebase pending markers, confirmed local `main` and `origin/main` both point to `313ed0fb6cefebbc3db5ee8274919bc7e5daa2d3`, and confirmed remaining open tasks require Firebase/Hostinger/Admin CMS access rather than local code changes.
 - [x] Hostinger stale homepage diagnosis and cache guard completed on 2026-06-08: live hosted HTML was verified as older than GitHub `main`, public/customer page routes were forced dynamic/no-store, and HTML route responses now emit no-store CDN headers while static assets remain cacheable.
 - [x] Nammude release verification endpoint completed on 2026-06-08: `release/production-nammude` now exposes `/api/release-info`, hardcodes the release app name to `Nammude`, and sends no-store headers for release/manifest verification.

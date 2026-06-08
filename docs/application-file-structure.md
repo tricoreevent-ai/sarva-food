@@ -96,7 +96,6 @@ This document records the current structure of the Nammude repository.
 │   ├── firestore-production-cleanup.mjs
 │   ├── generate-dev-cert.mjs
 │   ├── https-dev-server.mjs
-│   ├── remove-non-launch-restaurants.mjs
 │   ├── run-dev-preflight.ps1
 │   ├── seed-firebase-owner-client.mjs
 │   ├── seed-firebase-production.mjs

@@ -12,7 +12,6 @@ const PUBLIC_RESTAURANT_LIMIT = 100;
 const PUBLIC_MENU_LIMIT = 200;
 const PUBLIC_MENU_FALLBACK_LIMIT = 500;
 const PUBLIC_REST_LIMIT = 500;
-const DEFAULT_PUBLIC_RESTAURANT_IDS = ["cafe-al-arab-thanisandra", "falak-leela-bhartiya"];
 const LEGACY_DEMO_TENANT_IDS = new Set(["test-owner", "demo-owner", "sample-owner"]);
 const CAFE_AL_ARAB_PUBLIC_TENANT_ALIASES = [
   DEFAULT_RESTAURANT_ID,
@@ -181,18 +180,6 @@ async function getPublicFirestoreDocument<T extends { id: string }>(collectionId
   return restDocumentToJson<T>(payload);
 }
 
-function publicRestaurantIds() {
-  const configured = process.env.NEXT_PUBLIC_LAUNCH_RESTAURANT_IDS
-    ?.split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return configured?.length ? configured : DEFAULT_PUBLIC_RESTAURANT_IDS;
-}
-
-function expandedPublicRestaurantIds() {
-  return Array.from(new Set(publicRestaurantIds().flatMap(publicTenantAliases)));
-}
-
 function publicTenantAliases(tenantId: string) {
   return isCafeAlArabTenantId(tenantId) ? CAFE_AL_ARAB_PUBLIC_TENANT_ALIASES : [tenantId];
 }
@@ -318,12 +305,31 @@ export async function getPublicRestaurantDocs(slug?: string) {
 }
 
 async function getPublicRestaurantDocsFromRest(slug?: string) {
-  const restaurantIds = slug ? publicTenantAliases(slug) : expandedPublicRestaurantIds();
-  const docs = (await Promise.all(
-    restaurantIds.map((id) => getPublicFirestoreDocument<RestaurantDoc>("restaurants", id)),
-  )).filter((doc): doc is RestaurantDoc => Boolean(doc));
+  const docs = slug
+    ? await getPublicRestaurantDocsBySlugFromRest(slug)
+    : await runPublicFirestoreQuery<RestaurantDoc>("restaurants", {
+      filters: [{ fieldPath: "active", value: true }],
+      limit: PUBLIC_RESTAURANT_LIMIT,
+    });
   const stats = await Promise.all(docs.map((doc) => getPublicFirestoreDocument<RestaurantStatsDoc>("restaurant_stats", doc.tenantId || doc.id).catch(() => null)));
   return toPublicRestaurantDocs(mergeRestaurantStats(docs, stats.filter((item): item is RestaurantStatsDoc => Boolean(item))), slug);
+}
+
+async function getPublicRestaurantDocsBySlugFromRest(slug: string) {
+  const [directDocs, slugMatches] = await Promise.all([
+    Promise.all(publicTenantAliases(slug).map((id) => getPublicFirestoreDocument<RestaurantDoc>("restaurants", id))),
+    runPublicFirestoreQuery<RestaurantDoc>("restaurants", {
+      filters: [{ fieldPath: "slug", value: slug }],
+      limit: PUBLIC_RESTAURANT_LIMIT,
+    }).catch(() => []),
+  ]);
+
+  return Array.from(
+    new Map(
+      [...directDocs.filter((doc): doc is RestaurantDoc => Boolean(doc)), ...slugMatches]
+        .map((doc) => [doc.id, doc]),
+    ).values(),
+  );
 }
 
 async function getPublicRestaurantDocsWithoutCompositeIndex(slug?: string) {
@@ -601,7 +607,10 @@ export async function getPublicOfferDocs(restaurantId?: string) {
 
 async function getPublicOfferDocsFromRest(restaurantId?: string) {
   const tenantId = restaurantId ? resolveTenantId(restaurantId) : undefined;
-  const tenantIds = tenantId ? publicTenantAliases(tenantId) : expandedPublicRestaurantIds().map(resolveTenantId);
+  const tenantIds = tenantId
+    ? publicTenantAliases(tenantId).map(resolveTenantId)
+    : publicRestaurantTenantIds(await getPublicRestaurantDocsFromRest());
+  if (!tenantIds.length) return [];
   const docs = (await Promise.all(
     tenantIds.map((id) =>
       runPublicFirestoreQuery<OfferDoc>("offers", {
@@ -617,6 +626,14 @@ async function getPublicOfferDocsFromRest(restaurantId?: string) {
   return dedupePublicOffers(docs
     .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && (!tenantId || isSameTenant(item, tenantId)) && isOfferCurrentlyVisible(item))
     .map((item) => toPublicOfferDoc(normalizePublicOfferTenant(item, tenantId))));
+}
+
+function publicRestaurantTenantIds(docs: RestaurantDoc[]) {
+  return Array.from(new Set(docs.flatMap((doc) =>
+    [doc.tenantId, doc.id, doc.slug]
+      .filter((value): value is string => Boolean(value))
+      .flatMap((value) => publicTenantAliases(resolveTenantId(value)).map(resolveTenantId)),
+  )));
 }
 
 export async function getPublicCategoryDocs() {

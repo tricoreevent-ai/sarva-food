@@ -30,8 +30,6 @@
     "firebase:cleanup:apply": "node scripts/firestore-production-cleanup.mjs --apply",
     "firebase:legacy-menu:dry-run": "node scripts/remove-legacy-seeded-menu-items.mjs",
     "firebase:legacy-menu:apply": "node scripts/remove-legacy-seeded-menu-items.mjs --apply",
-    "firebase:launch-cleanup:dry-run": "node scripts/remove-non-launch-restaurants.mjs",
-    "firebase:launch-cleanup:apply": "node scripts/remove-non-launch-restaurants.mjs --apply",
     "firebase:validate:production-data": "node scripts/validate-production-data.mjs",
     "firebase:deploy:functions": "npx firebase-tools deploy --only functions",
     "firebase:deploy:hosting": "npx firebase-tools deploy --only hosting",
