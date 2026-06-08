@@ -1,7 +1,4 @@
-export const APP_NAME =
-  process.env.NEXT_PUBLIC_APP_NAME?.trim() ||
-  process.env.NEXT_PUBLIC_BRAND_NAME?.trim() ||
-  "Nammude";
+export const APP_NAME = "Nammude";
 export const APP_DESCRIPTION =
   "Nammude is a direct restaurant-to-customer platform that connects food lovers with local restaurant owners without third-party intermediaries. Order directly, access exclusive offers, enjoy transparent pricing, and support local businesses.";
 export const APP_DEFAULT_TITLE = "Order Directly From Restaurants Near You";
