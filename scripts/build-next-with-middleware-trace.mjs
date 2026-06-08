@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
-const child = spawn(process.execPath, [nextBin, "build"], {
+const child = spawn(process.execPath, [nextBin, "build", "--webpack"], {
   cwd: root,
   env: process.env,
   stdio: ["inherit", "pipe", "pipe"],
@@ -30,13 +30,13 @@ child.stderr.on("data", (chunk) => {
 
 child.on("close", (code) => {
   if (traceRecoveryInterval) clearInterval(traceRecoveryInterval);
-  const recovered = ensureMiddlewareTrace();
+  const recovered = ensureMiddlewareArtifacts();
   if (code === 0) {
     process.exit(0);
   }
 
-  const middlewareTraceFailure = /middleware\.js\.nft\.json|ENOENT/i.test(buildOutput);
-  if (middlewareTraceFailure && recovered) {
+  const middlewareTraceFailure = /middleware\.js\.nft\.json/i.test(buildOutput);
+  if (middlewareTraceFailure && recovered.trace) {
     console.warn("[build] Recovered missing .next/server/middleware.js.nft.json for hosting file tracing.");
     process.exit(0);
   }
@@ -47,8 +47,33 @@ child.on("close", (code) => {
 function maybeStartTraceRecovery() {
   if (traceRecoveryInterval) return;
   if (!/Generating static pages|Finalizing page optimization/i.test(buildOutput)) return;
-  ensureMiddlewareTrace();
-  traceRecoveryInterval = setInterval(ensureMiddlewareTrace, 250);
+  ensureMiddlewareArtifacts();
+  traceRecoveryInterval = setInterval(ensureMiddlewareArtifacts, 250);
+}
+
+function ensureMiddlewareArtifacts() {
+  return {
+    runtime: ensureMiddlewareRuntime(),
+    trace: ensureMiddlewareTrace(),
+  };
+}
+
+function ensureMiddlewareRuntime() {
+  const serverDir = path.join(root, ".next", "server");
+  if (!existsSync(serverDir)) return false;
+
+  const middlewarePath = path.join(serverDir, "middleware.js");
+  if (existsSync(middlewarePath)) return true;
+
+  const proxyPath = path.join(serverDir, "proxy.js");
+  if (!existsSync(proxyPath)) return false;
+
+  copyFileSync(proxyPath, middlewarePath);
+  const proxyMapPath = `${proxyPath}.map`;
+  if (existsSync(proxyMapPath)) {
+    copyFileSync(proxyMapPath, `${middlewarePath}.map`);
+  }
+  return true;
 }
 
 function ensureMiddlewareTrace() {
@@ -57,6 +82,16 @@ function ensureMiddlewareTrace() {
 
   const tracePath = path.join(serverDir, "middleware.js.nft.json");
   if (existsSync(tracePath)) return true;
+
+  const proxyTracePath = path.join(serverDir, "proxy.js.nft.json");
+  if (existsSync(proxyTracePath)) {
+    const proxyTrace = JSON.parse(readFileSync(proxyTracePath, "utf8"));
+    proxyTrace.files = Array.isArray(proxyTrace.files)
+      ? proxyTrace.files.map((file) => (file === "proxy.js" ? "middleware.js" : file))
+      : [];
+    writeFileSync(tracePath, JSON.stringify(proxyTrace, null, 2));
+    return true;
+  }
 
   mkdirSync(serverDir, { recursive: true });
   writeFileSync(tracePath, JSON.stringify({ version: 1, files: [] }, null, 2));

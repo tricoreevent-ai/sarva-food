@@ -37,6 +37,11 @@
     "deploy:staging": "npm run verify && npx firebase-tools deploy --project staging",
     "deploy:production": "npm run verify && npx firebase-tools deploy --project production"
   },
+  "overrides": {
+    "@stackframe/stack": {
+      "lucide-react": "0.508.0"
+    }
+  },
   "dependencies": {
     "@hookform/resolvers": "5.2.2",
     "@radix-ui/react-dialog": "1.1.15",
