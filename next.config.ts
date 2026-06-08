@@ -57,16 +57,31 @@ const nextConfig: NextConfig = {
         value: "camera=(), microphone=(), geolocation=(self), payment=(self)",
       },
     ];
+    const htmlNoStoreHeaders = [
+      { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0, proxy-revalidate" },
+      { key: "CDN-Cache-Control", value: "no-store" },
+      { key: "Surrogate-Control", value: "no-store" },
+      { key: "Pragma", value: "no-cache" },
+      { key: "Expires", value: "0" },
+    ];
+    const publicHtmlHeaders = [...securityHeaders, ...htmlNoStoreHeaders];
 
     return [
       {
         source: "/admin/:path*",
         headers: [
-          ...securityHeaders,
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+          ...publicHtmlHeaders,
           { key: "Vary", value: "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding" },
         ],
       },
+      { source: "/", headers: publicHtmlHeaders },
+      { source: "/restaurant/:path*", headers: publicHtmlHeaders },
+      { source: "/restaurants/:path*", headers: publicHtmlHeaders },
+      { source: "/offers/:path*", headers: publicHtmlHeaders },
+      { source: "/schedule/:path*", headers: publicHtmlHeaders },
+      { source: "/orders/:path*", headers: publicHtmlHeaders },
+      { source: "/profile/:path*", headers: publicHtmlHeaders },
+      { source: "/checkout/:path*", headers: publicHtmlHeaders },
       {
         source: "/:path*",
         headers: securityHeaders,

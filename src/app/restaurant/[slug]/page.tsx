@@ -1,11 +1,15 @@
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { PageLoading } from "@/components/state/page-state";
 import { getPublicRestaurantDocs } from "@/lib/server/public-firestore";
 import { APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS, ROUTES } from "@/lib/constants";
 
-const RestaurantDetailClient = dynamic(
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+const RestaurantDetailClient = nextDynamic(
   () => import("@/components/flows/restaurant-detail-flow").then((module) => module.RestaurantDetailFlow),
   { loading: () => <PageLoading /> },
 );

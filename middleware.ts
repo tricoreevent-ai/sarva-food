@@ -4,6 +4,13 @@ const ownerRoles = new Set(["owner", "manager", "cashier", "waiter", "chef", "ki
 const adminRoles = new Set(["admin", "super_admin"]);
 const protectedCustomerPrefixes = ["/account", "/profile", "/orders", "/wallet", "/addresses", "/favorites"];
 const publicSystemPrefixes = ["/api", "/_next", "/icons", "/images", "/favicon", "/manifest", "/sw.js"];
+const htmlNoStoreHeaders = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0, proxy-revalidate",
+  "CDN-Cache-Control": "no-store",
+  "Surrogate-Control": "no-store",
+  Pragma: "no-cache",
+  Expires: "0",
+};
 const sessionCookies = {
   admin: "sarva_admin_role",
   owner: "sarva_owner_role",
@@ -24,25 +31,33 @@ export function middleware(request: NextRequest) {
   const isCustomer = customerRole === "customer";
 
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
-    if (isAdmin) return NextResponse.next();
+    if (isAdmin) return withHtmlNoStore();
     return redirectTo(request, `/admin/login?next=${encodeURIComponent(pathname)}`);
   }
 
   if ((pathname.startsWith("/owner") || pathname.startsWith("/pos")) && !pathname.startsWith("/owner/login")) {
-    if (isOwner) return NextResponse.next();
+    if (isOwner) return withHtmlNoStore();
     return redirectTo(request, `/owner/login?next=${encodeURIComponent(pathname)}`);
   }
 
   if (protectedCustomerPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    if (isCustomer) return NextResponse.next();
+    if (isCustomer) return withHtmlNoStore();
     return redirectTo(request, `/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
-  return NextResponse.next();
+  return withHtmlNoStore();
 }
 
 function redirectTo(request: NextRequest, destination: string) {
   return NextResponse.redirect(new URL(destination, request.url));
+}
+
+function withHtmlNoStore() {
+  const response = NextResponse.next();
+  Object.entries(htmlNoStoreHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  return response;
 }
 
 export const config = {
