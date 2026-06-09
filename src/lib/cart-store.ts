@@ -5,6 +5,8 @@ import { persist } from "zustand/middleware";
 import type { MenuItem, Offer } from "@/lib/types";
 import { isOfferActive, offerAppliesToFulfillment } from "@/lib/offer-engine";
 
+type CartFulfillment = "delivery" | "parcel" | "dine-in" | "takeaway";
+
 export type CartLine = MenuItem & {
   quantity: number;
 };
@@ -65,7 +67,7 @@ export function getCartSubtotal(items: CartLine[]) {
   return items.reduce((total, item) => total + item.price * item.quantity, 0);
 }
 
-export function findAppliedOffer(items: CartLine[], offerCode: string, offers: Offer[] = []) {
+export function findAppliedOffer(items: CartLine[], offerCode: string, offers: Offer[] = [], fulfillment: CartFulfillment = "delivery") {
   const code = offerCode.trim().toUpperCase();
   if (!code || !items.length) return null;
   const subtotal = getCartSubtotal(items);
@@ -73,16 +75,16 @@ export function findAppliedOffer(items: CartLine[], offerCode: string, offers: O
     if (offer.code.toUpperCase() !== code) return false;
     if (!isOfferActive(offer)) return false;
     if (subtotal < offer.minimumOrder) return false;
-    if (!offerAppliesToFulfillment(offer, "delivery")) return false;
+    if (!offerAppliesToFulfillment(offer, fulfillment)) return false;
     if (offer.applicableItemIds?.length && !items.some((item) => offer.applicableItemIds?.includes(item.id))) return false;
     if (offer.applicableCategories?.length && !items.some((item) => offer.applicableCategories?.includes(item.category))) return false;
     return true;
   }) ?? null;
 }
 
-export function getCartTotals(items: CartLine[], offerCode: string, offers: Offer[] = []) {
+export function getCartTotals(items: CartLine[], offerCode: string, offers: Offer[] = [], fulfillment: CartFulfillment = "delivery") {
   const subtotal = getCartSubtotal(items);
-  const appliedOffer = findAppliedOffer(items, offerCode, offers);
+  const appliedOffer = findAppliedOffer(items, offerCode, offers, fulfillment);
   const rawDiscount = appliedOffer
     ? appliedOffer.discountType === "flat" || appliedOffer.offerType === "flat"
       ? Math.min(subtotal, appliedOffer.discount)

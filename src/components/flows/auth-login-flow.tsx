@@ -8,7 +8,6 @@ import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
-  CheckCircle2,
   Eye,
   EyeOff,
   Mail,
@@ -494,11 +493,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
               </Button>
             ) : null}
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <SecurityBadge dark={authDark} label={stackEnabled ? "Stack Auth ready" : "Firebase session"} />
-              <SecurityBadge dark={authDark} label={remember ? "Session persists" : "Session only"} />
-            </div>
-
             {message ? (
               <FormAlert className="mt-4" title={messageAlertTitle(message)} message={message} tone={messageAlertTone(message)} />
             ) : null}
@@ -613,15 +607,6 @@ function PasswordStrength({ score, dark }: { score: number; dark: boolean }) {
   );
 }
 
-function SecurityBadge({ label, dark }: { label: string; dark: boolean }) {
-  return (
-    <div className={cn("flex items-center gap-2 rounded-xl border p-2 text-xs font-black", dark ? "border-white/10 bg-white/10 text-white/70" : "bg-white text-muted-foreground")}>
-      <CheckCircle2 className="size-4 text-emerald-400" />
-      {label}
-    </div>
-  );
-}
-
 function messageAlertTone(message: string): "error" | "success" | "info" {
   if (/sent|verified|created|opening|signing|check your email/i.test(message)) return "info";
   if (/success/i.test(message)) return "success";
@@ -637,8 +622,8 @@ function messageAlertTitle(message: string) {
 
 function authInputClass(dark: boolean) {
   return dark
-    ? "border-white/10 bg-white/10 text-white placeholder:text-white/30 focus-visible:ring-emerald-400"
-    : "bg-white";
+    ? "border-white/10 bg-white/10 text-white placeholder:text-white/45 focus-visible:ring-emerald-400"
+    : "bg-white placeholder:text-slate-300";
 }
 
 function normalizeNextPath(value: string | null, fallback: string) {
@@ -680,6 +665,7 @@ function friendlyAuthMessage(error: unknown) {
   if (/operation-not-allowed/i.test(raw)) return "This sign-in method is not enabled yet.";
   if (/Secure account setup is not configured/i.test(raw)) return "Google sign-in is connected, but secure account setup is missing on this server.";
   if (/Customer profile could not be created/i.test(raw)) return "Google sign-in worked, but your customer profile could not be created. Please try again.";
+  if (/permission|insufficient/i.test(raw)) return "Your sign-in reached Firebase, but customer profile permissions were blocked. Please try again after the server redeploy; Google sign-in must use the hosted session repair.";
   if (/not available for your account type/i.test(raw)) return "Please use the correct login screen for this account.";
   if (/network|offline|fetch/i.test(raw)) return "Connection failed. Please check internet and try again.";
   return raw && raw.length < 140 ? raw : "Authentication failed. Please check your details and try again.";

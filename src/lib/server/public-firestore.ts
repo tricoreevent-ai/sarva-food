@@ -697,13 +697,15 @@ export async function getPublicOfferDocs(restaurantId?: string) {
     const requestedTenantId = restaurantId ? resolveTenantId(restaurantId) : undefined;
     const tenantIds = requestedTenantId ? publicTenantAliases(requestedTenantId) : undefined;
     const snapshots = tenantIds?.length
-      ? await Promise.all(tenantIds.map((tenantId) =>
-        adminDb()
-          .collection("offers")
-          .where("active", "==", true)
-          .where("tenantId", "==", tenantId)
-          .limit(50)
-          .get(),
+      ? await Promise.all(tenantIds.flatMap((tenantId) =>
+        (["tenantId", "restaurantId"] as const).map((field) =>
+          adminDb()
+            .collection("offers")
+            .where("active", "==", true)
+            .where(field, "==", tenantId)
+            .limit(50)
+            .get(),
+        ),
       ))
       : [await adminDb()
         .collection("offers")
@@ -729,14 +731,16 @@ async function getPublicOfferDocsFromRest(restaurantId?: string) {
     : publicRestaurantTenantIds(await getPublicRestaurantDocsFromRest());
   if (!tenantIds.length) return [];
   const docs = (await Promise.all(
-    tenantIds.map((id) =>
-      runPublicFirestoreQuery<OfferDoc>("offers", {
-        filters: [
-          { fieldPath: "active", value: true },
-          { fieldPath: "tenantId", value: id },
-        ],
-        limit: 50,
-      }),
+    tenantIds.flatMap((id) =>
+      (["tenantId", "restaurantId"] as const).map((field) =>
+        runPublicFirestoreQuery<OfferDoc>("offers", {
+          filters: [
+            { fieldPath: "active", value: true },
+            { fieldPath: field, value: id },
+          ],
+          limit: 50,
+        }),
+      ),
     ),
   )).flat();
 

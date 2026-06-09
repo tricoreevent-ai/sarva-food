@@ -332,6 +332,10 @@ export default function AdminCmsPage() {
                   links={settings.footer.socialLinks ?? defaultCmsSettings.footer.socialLinks ?? []}
                   onChange={(socialLinks) => setSettings({ ...settings, footer: { ...settings.footer, socialLinks } })}
                 />
+                <FooterSectionsEditor
+                  sections={settings.footer.sections ?? defaultCmsSettings.footer.sections ?? []}
+                  onChange={(sections) => setSettings({ ...settings, footer: { ...settings.footer, sections } })}
+                />
               </div>
             </div>
             <RichTextEditor label="Terms & Conditions" value={settings.legalPages.terms ?? ""} onChange={(terms) => setSettings({ ...settings, legalPages: { ...settings.legalPages, terms } })} />
@@ -473,6 +477,56 @@ function FooterSocialLinksEditor({
           <div key={link.id} className="grid gap-2 rounded-md border bg-background p-3">
             <Toggle label={`Show ${link.label}`} checked={link.enabled !== false} onChange={(enabled) => update(link.id, { enabled })} />
             <Field label={`${link.label} URL`} value={link.url} onChange={(url) => update(link.id, { url })} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FooterSectionsEditor({
+  sections,
+  onChange,
+}: {
+  sections: NonNullable<CmsSettings["footer"]["sections"]>;
+  onChange: (sections: NonNullable<CmsSettings["footer"]["sections"]>) => void;
+}) {
+  function updateSection(sectionId: string, patch: Partial<NonNullable<CmsSettings["footer"]["sections"]>[number]>) {
+    onChange(sections.map((section) => section.id === sectionId ? { ...section, ...patch } : section));
+  }
+
+  function updateLink(sectionId: string, linkId: string, patch: Partial<NonNullable<CmsSettings["footer"]["sections"]>[number]["links"][number]>) {
+    onChange(sections.map((section) => {
+      if (section.id !== sectionId) return section;
+      return {
+        ...section,
+        links: section.links.map((link) => (link.id ?? link.label) === linkId ? { ...link, ...patch } : link),
+      };
+    }));
+  }
+
+  return (
+    <div className="grid gap-2">
+      <Label>Footer navigation links</Label>
+      <div className="grid gap-3">
+        {sections.map((section) => (
+          <div key={section.id} className="grid gap-3 rounded-md border bg-background p-3">
+            <Toggle label={`Show ${section.title} section`} checked={section.enabled !== false} onChange={(enabled) => updateSection(section.id, { enabled })} />
+            <Field label="Section title" value={section.title} onChange={(title) => updateSection(section.id, { title })} />
+            <div className="grid gap-2">
+              {section.links.map((link) => {
+                const linkId = link.id ?? link.label;
+                return (
+                  <div key={linkId} className="grid gap-2 rounded-md border bg-white p-3">
+                    <Toggle label={`Show ${link.label}`} checked={link.enabled !== false} onChange={(enabled) => updateLink(section.id, linkId, { enabled })} />
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <Field label="Label" value={link.label} onChange={(label) => updateLink(section.id, linkId, { label })} />
+                      <Field label="Link" value={link.href} onChange={(href) => updateLink(section.id, linkId, { href })} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>

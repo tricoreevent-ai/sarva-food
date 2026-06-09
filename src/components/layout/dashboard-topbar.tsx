@@ -87,6 +87,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
   const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
+  const restaurants = useAppStore((state) => state.restaurants);
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
@@ -111,7 +112,8 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const productInitials = getInitials(productName);
-  const ownerName = ownerBusinessProfile?.ownerName || (authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner");
+  const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
+  const ownerName = ownerDisplayName(ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -503,7 +505,7 @@ function OwnerProfileMenuContent({ onClose, onLogout }: { onClose: () => void; o
   const ownerProfile = useAppStore((state) => state.ownerBusinessProfile);
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
   const sessionEmail = isEmailLike(authUser.id) ? authUser.id : "";
-  const ownerName = ownerProfile?.ownerName || (authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner");
+  const ownerName = ownerDisplayName(ownerProfile?.ownerName, ownerProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
   const restaurantName = ownerProfile?.hotelName || currentRestaurant?.displayName || currentRestaurant?.name || "Restaurant";
   const mobile = ownerProfile?.phoneNumber || currentRestaurant?.contact?.phone || currentRestaurant?.ownerProfile?.businessPhone || "Not set";
   const email = ownerProfile?.supportEmail || currentRestaurant?.ownerProfile?.businessEmail || sessionEmail || "Not set";
@@ -570,6 +572,17 @@ function formatJoinedDate(value?: string | Date) {
 
 function isEmailLike(value?: string) {
   return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
+}
+
+function ownerDisplayName(ownerName?: string, hotelName?: string, restaurantName?: string, authName?: string) {
+  return [ownerName, hotelName, restaurantName, authName]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value && value !== "Anonymous" && !isMachineDisplayName(value))) || "Owner";
+}
+
+function isMachineDisplayName(value?: string) {
+  const text = value?.trim() ?? "";
+  return Boolean(text && !text.includes("@") && !text.includes(" ") && /^[A-Za-z0-9_-]{20,}$/.test(text));
 }
 
 type AdminAlert = {

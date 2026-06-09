@@ -1,4 +1,4 @@
-export const CMS_VERSION = "2026.05.cms-v2";
+export const CMS_VERSION = "2026.06.cms-v3";
 
 export const CMS_COLLECTIONS = {
   systemSettings: "appSettings",

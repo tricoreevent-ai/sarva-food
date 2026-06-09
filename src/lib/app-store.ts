@@ -950,6 +950,11 @@ function isCafeAlArabOwner(user: MockUser) {
   return user.role === "owner" && (user.id === "divakdi@gmail.com" || user.restaurantSlug === DEFAULT_RESTAURANT_ID || !user.restaurantSlug);
 }
 
+function isOwnerDisplayNameSafe(value?: string) {
+  const text = value?.trim() ?? "";
+  return Boolean(text && text !== "Anonymous" && text !== legacyOwnerDisplayName && (text.includes("@") || text.includes(" ") || !/^[A-Za-z0-9_-]{20,}$/.test(text)));
+}
+
 const initialAuthUser: MockUser = {
   id: "anonymous",
   name: "Anonymous",
@@ -1110,7 +1115,7 @@ export const useAppStore = create<AppStore>()(
             };
           }
 
-          const ownerName = linkedUser.name && linkedUser.name !== "Anonymous" && linkedUser.name !== legacyOwnerDisplayName ? linkedUser.name : linkedUser.id;
+          const ownerName = isOwnerDisplayNameSafe(linkedUser.name) ? linkedUser.name : cafeAlArabOwnerProfile.ownerName;
           const fallbackProfile = { ...cafeAlArabOwnerProfile, ownerName };
           const restaurant = createCafeAlArabRestaurant(linkedUser.id);
           const branch = createOperationalFallbackBranch(fallbackProfile, linkedUser);

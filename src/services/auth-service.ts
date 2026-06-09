@@ -86,9 +86,10 @@ export async function signInWithGoogle(role: UserRole = "customer") {
     return signInWithConfiguredGoogleClient(auth);
   });
   if (role === "customer") {
-    await ensureCustomerProfile(result.user, role);
+    await syncAuthSession("customer", { ensureCustomer: true });
+    return result.user;
   }
-  await syncAuthSession(surfaceForAuthRole(role), { ensureCustomer: role === "customer" });
+  await syncAuthSession(surfaceForAuthRole(role));
   return result.user;
 }
 
@@ -100,14 +101,14 @@ export async function signInWithEmail(
   const auth = getFirebaseAuth();
   await setPersistence(auth, browserLocalPersistence);
   const result = await signInWithEmailAndPassword(auth, email, password);
-  const profile = await getUserProfile(result.user.uid);
   const createCustomerIfMissing = options.createCustomerIfMissing ?? true;
 
-  if (!profile && createCustomerIfMissing) {
-    await ensureCustomerProfile(result.user, "customer");
+  if (createCustomerIfMissing) {
+    await syncAuthSession("customer", { ensureCustomer: true });
+    return result.user;
   }
 
-  const nextProfile = profile ?? (await getUserProfile(result.user.uid));
+  const nextProfile = await getUserProfile(result.user.uid);
   if (!nextProfile?.active) {
     await signOut(auth);
     throw new Error("This account is inactive or has not been approved yet.");
@@ -160,8 +161,12 @@ export async function completeEmailLinkLogin(role: UserRole = "customer") {
   if (!email) return null;
   const result = await signInWithEmailLink(auth, email, window.location.href);
   window.localStorage.removeItem("sarva-email-for-signin");
-  await ensureCustomerProfile(result.user, role);
-  await syncAuthSession(surfaceForAuthRole(role));
+  if (role === "customer") {
+    await syncAuthSession("customer", { ensureCustomer: true });
+  } else {
+    await ensureCustomerProfile(result.user, role);
+    await syncAuthSession(surfaceForAuthRole(role));
+  }
   return result.user;
 }
 
@@ -177,11 +182,15 @@ export async function signUpWithEmail(
   if (displayName?.trim()) {
     await updateProfile(result.user, { displayName: displayName.trim() });
   }
-  await ensureCustomerProfile(result.user, role);
+  if (role === "customer") {
+    await syncAuthSession("customer", { ensureCustomer: true });
+  } else {
+    await ensureCustomerProfile(result.user, role);
+  }
   if (role === "customer") {
     await sendEmailVerification(result.user);
   }
-  await syncAuthSession(surfaceForAuthRole(role));
+  if (role !== "customer") await syncAuthSession(surfaceForAuthRole(role));
   return result.user;
 }
 
@@ -199,8 +208,12 @@ export async function confirmPhoneLogin(
   role: UserRole = "customer",
 ) {
   const result = await confirmation.confirm(code);
-  await ensureCustomerProfile(result.user, role);
-  await syncAuthSession(surfaceForAuthRole(role));
+  if (role === "customer") {
+    await syncAuthSession("customer", { ensureCustomer: true });
+  } else {
+    await ensureCustomerProfile(result.user, role);
+    await syncAuthSession(surfaceForAuthRole(role));
+  }
   return result.user;
 }
 

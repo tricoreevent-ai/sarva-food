@@ -63,6 +63,7 @@ export default function OwnerDashboardPage() {
   const tableOrders = useAppStore((state) => state.tableOrders);
   const menuItems = useAppStore((state) => state.menuItems);
   const restaurants = useAppStore((state) => state.restaurants);
+  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
   const staffMembers = useAppStore((state) => state.staffMembers);
   const posTables = useAppStore((state) => state.posTables);
@@ -88,7 +89,8 @@ export default function OwnerDashboardPage() {
     }),
     [loyaltyCustomers.length, menuItems, offlineQueue, orders, posTables, printerSettings, staffMembers, tableOrders],
   );
-  const ownerName = authUser.name && authUser.name !== "Anonymous" ? authUser.name : "Owner";
+  const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
+  const ownerName = displayOwnerGreetingName(ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -252,6 +254,17 @@ export default function OwnerDashboardPage() {
       />
     </div>
   );
+}
+
+function displayOwnerGreetingName(ownerName?: string, hotelName?: string, restaurantName?: string, authName?: string) {
+  return [ownerName, hotelName, restaurantName, authName]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value && value !== "Anonymous" && !isMachineDisplayName(value))) || "Owner";
+}
+
+function isMachineDisplayName(value?: string) {
+  const text = value?.trim() ?? "";
+  return Boolean(text && !text.includes("@") && !text.includes(" ") && /^[A-Za-z0-9_-]{20,}$/.test(text));
 }
 
 function AnimatedWidget({ children }: { children: React.ReactNode }) {

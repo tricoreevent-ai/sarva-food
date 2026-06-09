@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
@@ -75,6 +75,7 @@ const ORDER_TYPES: Array<{ id: FulfillmentType; label: string; helper: string; i
 ];
 
 export function RestaurantDetailFlow({ slug }: { slug: string }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const launchIntent = searchParams.get("intent") ?? searchParams.get("mode");
   const scheduleLaunch = launchIntent === "schedule" || launchIntent === "scheduled";
@@ -137,6 +138,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     () => sortOffers(offers.filter((offer) => isOfferForSurface(offer, "restaurant") && isOfferActive(offer))),
     [offers],
   );
+  const customerSignedIn = auth.state === "authenticated" && Boolean(auth.user?.uid || auth.profile?.uid) && (auth.profile?.role ? auth.profile.role === "customer" : true);
 
   const filterOptions = useMemo(() => buildFilterOptions(menu, masterCategories, masterCuisines), [masterCategories, masterCuisines, menu]);
   const restaurantLocationKey = restaurant ? `${restaurant.slug}:${restaurant.latitude ?? ""}:${restaurant.longitude ?? ""}` : "";
@@ -306,6 +308,14 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       showClosedRestaurantPrompt(operatingStatus, startScheduledOrder);
       return;
     }
+    if ((next === "details" || next === "confirm") && !customerSignedIn) {
+      const redirectPath = typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}`
+        : `/restaurant/${slug}`;
+      toast.error("Please sign in before entering customer details.");
+      router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
     setStep(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -366,6 +376,12 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     try {
       const createdAt = new Date().toISOString();
       const scheduledIso = scheduledFor?.toISOString();
+      const orderLines = restaurantCart.map((item) => ({
+        itemId: item.id,
+        name: item.name,
+        price: itemPrice(item, fulfillmentType),
+        quantity: item.quantity,
+      }));
       const order = await createOrder({
         restaurantSlug: restaurant.slug,
         customer: {
@@ -373,12 +389,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
           phone: customer.phone.trim(),
           address: [customer.address.trim(), customer.landmark.trim()].filter(Boolean).join(", "),
         },
-        lines: restaurantCart.map((item) => ({
-          itemId: item.id,
-          name: item.name,
-          price: itemPrice(item, fulfillmentType),
-          quantity: item.quantity,
-        })),
+        lines: orderLines,
         totals: {
           subtotal: totals.subtotal,
           discount: totals.discount,
@@ -395,6 +406,33 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         scheduledStatus: orderTiming === "scheduled" ? "requested" : undefined,
         prepEstimateMinutes: estimatePrepMinutes(restaurantCart),
         cutoffAt: scheduledFor ? new Date(scheduledFor.getTime() - 45 * 60_000).toISOString() : undefined,
+      });
+      void notifyOwnerAboutOrder({
+        orderId: order.id,
+        restaurantId: restaurant.id || restaurant.slug,
+        restaurantName: heroTitle,
+        ownerEmail: restaurant.ownerProfile?.businessEmail || restaurant.contact?.supportEmail || "",
+        ownerPhone: restaurant.ownerProfile?.businessPhone || restaurant.contact?.phone || "",
+        fulfillmentType,
+        scheduleMode: orderTiming === "scheduled" ? "scheduled" : "now",
+        scheduledFor: scheduledIso,
+        scheduledLabel: orderTiming === "scheduled" ? scheduledForLabel : "",
+        customer: {
+          name: customer.name.trim(),
+          phone: customer.phone.trim(),
+          address: [customer.address.trim(), customer.landmark.trim()].filter(Boolean).join(", "),
+          notes: customer.notes.trim(),
+        },
+        lines: orderLines,
+        offerCode: totals.appliedOffer?.code || "",
+        totals: {
+          subtotal: totals.subtotal,
+          discount: totals.discount,
+          packingCharge: totals.packingCharge,
+          deliveryFee: totals.deliveryFee,
+          tax: totals.tax,
+          total: totals.total,
+        },
       });
       clearCart();
       setSuccessOrder({
@@ -2172,6 +2210,22 @@ function showClosedRestaurantPrompt(status: { detail?: string }, onSchedule: () 
     ),
     { duration: 7000 },
   );
+}
+
+async function notifyOwnerAboutOrder(payload: Record<string, unknown>) {
+  try {
+    const response = await fetch("/api/public/order-notification", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      console.warn("[Nammude order] Owner email notification was not sent.", body?.error || response.status);
+    }
+  } catch (error) {
+    console.warn("[Nammude order] Owner email notification request failed.", error);
+  }
 }
 
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {

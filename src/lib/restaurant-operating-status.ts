@@ -62,7 +62,7 @@ export function getRestaurantOperatingStatus(restaurant: Restaurant, at = new Da
   const activeSlot = today?.open ? today.slots.find((slot) => slotContainsMinute(slot.start, slot.end, minutes)) : undefined;
 
   if (activeSlot) {
-    return { open: true, label: "Open", detail: `Closing at ${formatOperatingTime(activeSlot.end)}` };
+    return { open: true, label: "Open", detail: `${formatOperatingTime(activeSlot.start)} - ${formatOperatingTime(activeSlot.end)}` };
   }
 
   const nextSlot = findNextOpening(schedule, todayIndex, minutes);

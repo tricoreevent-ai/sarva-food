@@ -61,6 +61,77 @@ const LEGAL_TERMS = `
 <p>For food, delivery, pricing, quality, hygiene, refund, ingredient, allergen, or restaurant-related concerns, customers must contact the respective Restaurant Partner directly using the contact information available on the restaurant page.</p>
 `;
 
+const PRIVACY_POLICY = `
+<p><strong>Last Updated:</strong> June 9, 2026</p>
+<h2>1. Introduction</h2>
+<p>${APP_NAME} respects user privacy and is committed to protecting personal information shared through the platform.</p>
+<p>${APP_NAME} is a technology platform that connects customers with independent Restaurant Partners. Restaurants remain responsible for their own food preparation, pricing, delivery, payment handling, and customer support.</p>
+<h2>2. Information We Collect</h2>
+<p>We may collect account information such as name, phone number, email address, login details, delivery addresses, saved preferences, order history, restaurant interactions, support requests, device information, browser information, IP address, location selected by the user, and platform usage data.</p>
+<p>Restaurant Partners may provide business information, owner contact details, menu information, operating hours, tax identifiers, delivery settings, bank or payment configuration references, and support contact details.</p>
+<h2>3. Information We Do Not Collect</h2>
+<p>${APP_NAME} does not store debit card numbers, credit card numbers, CVV, UPI PINs, internet banking passwords, bank login credentials, payment authentication credentials, or other sensitive payment credentials. Payment information is handled by the relevant restaurant or payment service provider.</p>
+<h2>4. How We Use Information</h2>
+<p>Information is used to create and manage accounts, show restaurant menus, place and track orders, save delivery details, enable restaurant communication, provide support, prevent fraud, secure the platform, improve services, send important updates, and comply with legal obligations.</p>
+<h2>5. Sharing of Information</h2>
+<p>Customer order and contact details may be shared with the selected Restaurant Partner so the restaurant can process, prepare, communicate about, and fulfil the order. We may also share information with hosting, analytics, communication, mapping, authentication, cloud storage, email, SMS, WhatsApp, and other service providers that help operate the platform.</p>
+<p>We may disclose information when required by law, regulation, court order, government authority, or to protect platform security, user safety, legal rights, and fraud prevention.</p>
+<h2>6. Cookies and Local Storage</h2>
+<p>The platform may use cookies, local storage, and similar technologies for sign-in sessions, cart persistence, preferences, analytics, security, and reliable application operation.</p>
+<h2>7. Data Security</h2>
+<p>We use reasonable technical and organizational safeguards to protect user information. No internet-based service can guarantee absolute security, and users should protect their login credentials and device access.</p>
+<h2>8. Data Retention</h2>
+<p>We retain information for as long as needed to provide services, maintain business records, resolve disputes, prevent abuse, meet legal requirements, and support restaurants and customers.</p>
+<h2>9. Third-Party Services</h2>
+<p>The platform may link to or integrate with third-party services such as payment gateways, Google services, Firebase, Mapbox, Cloudinary, email providers, SMS providers, WhatsApp services, and hosting providers. Their privacy practices are governed by their own policies.</p>
+<h2>10. Children's Privacy</h2>
+<p>The platform is not intended for children below the age required by applicable law to use online food ordering services without parental or guardian consent.</p>
+<h2>11. User Rights</h2>
+<p>Users may request access, correction, deletion, or restriction of personal information where applicable by contacting platform support. Some information may be retained where required for legal, security, fraud-prevention, tax, dispute, or operational reasons.</p>
+<h2>12. Marketing Communications</h2>
+<p>Users may receive service messages, transactional updates, and, where enabled, promotional communications. Users may opt out of non-essential marketing communications when supported by the relevant channel.</p>
+<h2>13. Indian Law</h2>
+<p>This Privacy Policy is intended to align with applicable Indian privacy, information technology, and consumer-protection requirements. Additional rights may apply depending on future law, regulation, or jurisdiction.</p>
+<h2>14. Changes to This Policy</h2>
+<p>We may update this Privacy Policy from time to time. Updated versions will be posted on the platform with a revised date.</p>
+<h2>15. Contact</h2>
+<p>For privacy questions or platform-related data requests, contact <a href="mailto:privacy@nammude.com">privacy@nammude.com</a> or <a href="mailto:support@nammude.com">support@nammude.com</a>.</p>
+`;
+
+const REFUND_CANCELLATION_POLICY = `
+<p><strong>Last Updated:</strong> June 9, 2026</p>
+<h2>1. Overview</h2>
+<p>${APP_NAME} is a technology platform that enables customers to discover restaurants and place orders directly with independent Restaurant Partners.</p>
+<p>${APP_NAME} does not prepare food, operate restaurants, collect customer payments, hold funds, or manage restaurant bank accounts. All payments are made directly to the respective Restaurant Partner through payment methods enabled by the restaurant.</p>
+<p>As a result, refunds are generally subject to the restaurant's review and approval process.</p>
+<h2>2. Cancellation Before Order Confirmation</h2>
+<p>Orders may be cancelled before acceptance or confirmation by the Restaurant Partner. Once an order has been accepted, prepared, processed, or dispatched, cancellation may not be possible. Cancellation eligibility is determined by the Restaurant Partner.</p>
+<h2>3. Non-Cancellable Orders</h2>
+<p>Orders may not be eligible for cancellation if food preparation has commenced, the order has been packed or dispatched, customized food items have been prepared, or perishable items have been processed. Restaurants may refuse cancellation in such cases.</p>
+<h2>4. Refund Eligibility</h2>
+<p>Refund requests may be considered when an accepted order is not delivered, an incorrect item is delivered, food items are missing, a duplicate payment is charged, the restaurant is unable to fulfil the order, the restaurant cancels the order, or payment is debited but an order is not generated due to technical failure.</p>
+<p>Refund approval remains subject to verification.</p>
+<h2>5. Situations Where Refunds May Not Be Available</h2>
+<p>Refunds may not be granted for personal taste preferences, change of mind after confirmation, delays caused by weather, traffic, public events, restrictions, incorrect delivery details, customer unavailability, minor food appearance variations, or restaurant-specific preparation styles.</p>
+<h2>6. Food Quality Complaints</h2>
+<p>Food quality concerns, including taste, freshness, ingredients, allergens, packaging, and hygiene, must first be raised directly with the Restaurant Partner. Restaurant contact information is displayed on the restaurant page.</p>
+<p>${APP_NAME} may assist in communication but cannot independently verify food preparation or quality claims.</p>
+<h2>7. Refund Process</h2>
+<p>To request a refund, customers should contact the Restaurant Partner directly, provide order details, provide photographs or supporting evidence where applicable, and allow reasonable time for investigation. The Restaurant Partner may request additional information before making a decision.</p>
+<h2>8. Refund Timelines</h2>
+<p>If approved by the Restaurant Partner or payment provider, UPI refunds may take 1 to 7 business days, bank account refunds may take 3 to 10 business days, and card refunds may take 5 to 15 business days. Actual timelines depend upon banks and payment service providers.</p>
+<h2>9. Payment Gateway and Banking Delays</h2>
+<p>${APP_NAME} is not responsible for delays caused by banks, UPI systems, payment gateways, network failures, settlement systems, or third-party payment providers. Customers should contact their bank or payment provider for transaction status updates.</p>
+<h2>10. Chargebacks</h2>
+<p>If a customer initiates a chargeback through a bank or payment provider, the dispute shall be handled according to the policies of the relevant financial institution. ${APP_NAME} does not control chargeback decisions.</p>
+<h2>11. Limitation of Liability</h2>
+<p>${APP_NAME} does not guarantee refunds and is not liable for refund decisions made by Restaurant Partners. As a technology intermediary, ${APP_NAME}'s role is limited to facilitating order placement and communication.</p>
+<p>All refund obligations, where applicable, remain the responsibility of the Restaurant Partner and relevant payment service providers.</p>
+<h2>12. Contact Information</h2>
+<p>For technical issues related to the platform, contact <a href="mailto:support@nammude.com">support@nammude.com</a>.</p>
+<p>For food quality, pricing, preparation, delivery, refund, cancellation, ingredient, allergen, or restaurant service issues, customers must contact the respective Restaurant Partner directly using the contact details available on the restaurant page.</p>
+`;
+
 export const defaultCmsSettings: CmsSettings = {
   appName: APP_NAME,
   branding: {
@@ -131,8 +202,8 @@ export const defaultCmsSettings: CmsSettings = {
           { id: "about", label: "About Us", href: "/about", enabled: true },
           { id: "careers", label: "Careers", href: "/careers", enabled: true },
           { id: "contact", label: "Contact Us", href: "/help", enabled: true },
-          { id: "press", label: "Press", href: "/press", enabled: true },
-          { id: "blog", label: "Blog", href: "/blog", enabled: true },
+          { id: "press", label: "Press", href: "/press", enabled: false },
+          { id: "blog", label: "Blog", href: "/blog", enabled: false },
         ],
       },
       {
@@ -143,7 +214,7 @@ export const defaultCmsSettings: CmsSettings = {
           { id: "help", label: "Help Center", href: "/help", enabled: true },
           { id: "track", label: "Track Order", href: "/track-order", enabled: true },
           { id: "refund", label: "Refund Policy", href: "/refund-policy", enabled: true },
-          { id: "safety", label: "Safety", href: "/terms", enabled: true },
+          { id: "safety", label: "Safety", href: "/terms", enabled: false },
           { id: "faqs", label: "FAQs", href: "/help#faqs", enabled: true },
         ],
       },
@@ -155,8 +226,8 @@ export const defaultCmsSettings: CmsSettings = {
           { id: "register", label: "Register Restaurant", href: "/register-restaurant", enabled: true },
           { id: "owner-login", label: "Owner Login", href: "/owner/login", enabled: true },
           { id: "pos", label: "POS Features", href: "/owner/login", enabled: true },
-          { id: "delivery", label: "Delivery Tools", href: "/partner-with-us", enabled: true },
-          { id: "marketing", label: "Marketing Tools", href: "/partner-with-us", enabled: true },
+          { id: "delivery", label: "Delivery Tools", href: "/partner-with-us", enabled: false },
+          { id: "marketing", label: "Marketing Tools", href: "/partner-with-us", enabled: false },
         ],
       },
       {
@@ -167,8 +238,8 @@ export const defaultCmsSettings: CmsSettings = {
           { id: "terms", label: "Terms & Conditions", href: "/terms", enabled: true },
           { id: "privacy", label: "Privacy Policy", href: "/privacy", enabled: true },
           { id: "refund", label: "Refund Policy", href: "/refund-policy", enabled: true },
-          { id: "cancellation", label: "Cancellation Policy", href: "/cancellation-policy", enabled: true },
-          { id: "cookie", label: "Cookie Policy", href: "/cookie-policy", enabled: true },
+          { id: "cancellation", label: "Cancellation Policy", href: "/cancellation-policy", enabled: false },
+          { id: "cookie", label: "Cookie Policy", href: "/cookie-policy", enabled: false },
         ],
       },
     ],
@@ -247,9 +318,9 @@ export const defaultCmsSettings: CmsSettings = {
   sponsoredAds: [],
   legalPages: {
     terms: LEGAL_TERMS,
-    privacy: RESPONSIBILITY_DISCLAIMER,
-    refund: "Refunds are reviewed after payment confirmation, restaurant validation, and issue verification. Refunds are not automatic and may be declined when order fulfilment evidence is available.",
-    cancellation: "Cancellation eligibility depends on restaurant acceptance, preparation status, and dispatch status. Orders already prepared or dispatched may not be cancellable.",
+    privacy: PRIVACY_POLICY,
+    refund: REFUND_CANCELLATION_POLICY,
+    cancellation: REFUND_CANCELLATION_POLICY,
     delivery: "Delivery availability, fees, distance limits, and ETA are set by each restaurant and may change based on location, weather, traffic, and operational load.",
     cookie: "Nammude uses cookies and local storage for sign-in, cart persistence, preferences, analytics, and secure application operation.",
   },

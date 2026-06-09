@@ -4,6 +4,7 @@ import type { CmsSettings } from "@/lib/types";
 import { getVisibleCmsBanners, normalizeCmsBanner } from "@/services/cms/cms-banner-service";
 
 export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
+  const sourceCmsVersion = input?.cmsVersion;
   const settings = {
     ...defaultCmsSettings,
     ...(input ?? {}),
@@ -59,6 +60,7 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
     footer: {
       ...settings.footer,
       copyright,
+      sections: normalizeFooterSections(settings.footer.sections, sourceCmsVersion),
       partnerCard: {
         ...settings.footer.partnerCard,
         description: partnerDescription,
@@ -146,4 +148,19 @@ function normalizeBrandText(value: string) {
     .replace(/\bSarva\b/g, "Nammude")
     .replace(/\bsarva food\b/g, "Nammude")
     .replace(/\bsarva\b/g, "Nammude");
+}
+
+const legacyHiddenFooterLinkIds = new Set(["press", "blog", "safety", "delivery", "marketing", "cancellation", "cookie"]);
+
+function normalizeFooterSections(sections: CmsSettings["footer"]["sections"], sourceCmsVersion?: string) {
+  if (!sections?.length) return defaultCmsSettings.footer.sections;
+  const legacyVisibility = sourceCmsVersion !== CMS_VERSION;
+  return sections.map((section) => ({
+    ...section,
+    links: section.links.map((link) => {
+      const id = (link.id ?? "").toLowerCase();
+      if (legacyVisibility && legacyHiddenFooterLinkIds.has(id)) return { ...link, enabled: false };
+      return link;
+    }),
+  }));
 }

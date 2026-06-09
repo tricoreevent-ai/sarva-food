@@ -53,7 +53,7 @@ export function AuthSessionBridge() {
         return;
       }
 
-      await syncAuthSession("customer").catch(() => undefined);
+      await syncAuthSession("customer", { ensureCustomer: true }).catch(() => undefined);
       await hydrateCookieSession(setScopedAuthUser, "customer");
     });
   }, [setScopedAuthUser, surface]);
@@ -73,8 +73,8 @@ async function hydrateCookieSession(setAuthUser: (user: MockUser) => void, surfa
   if (!session?.ok || !session.uid || !session.role) return;
 
   const currentState = useAppStore.getState();
-  const savedOwnerName = session.role === "owner" ? currentState.ownerBusinessProfile?.ownerName : undefined;
-  const currentName = currentState.authUser.id === session.uid && currentState.authUser.name !== "Anonymous"
+  const savedOwnerName = session.role === "owner" ? ownerProfileDisplayName(currentState.ownerBusinessProfile) : undefined;
+  const currentName = currentState.authUser.id === session.uid && currentState.authUser.name !== "Anonymous" && !isMachineDisplayName(currentState.authUser.name)
     ? currentState.authUser.name
     : undefined;
 
@@ -95,10 +95,21 @@ function surfaceForPath(pathname: string): SessionSurface {
 function displayNameForSession(uid: string, role: UserRole) {
   if (uid === "dinucd@gmail.com" || role === "admin" || role === "super_admin") return "Platform Admin";
   if (uid === "divakdi@gmail.com") return "divakdi@gmail.com";
-  if (role === "owner") return uid || "Owner";
+  if (role === "owner") return "Owner";
   if (role === "customer") return "Customer";
   return role
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function ownerProfileDisplayName(profile: ReturnType<typeof useAppStore.getState>["ownerBusinessProfile"]) {
+  const ownerName = profile?.ownerName?.trim();
+  if (ownerName && !isMachineDisplayName(ownerName)) return ownerName;
+  return profile?.hotelName?.trim() || undefined;
+}
+
+function isMachineDisplayName(value?: string) {
+  const text = value?.trim() ?? "";
+  return Boolean(text && !text.includes("@") && !text.includes(" ") && /^[A-Za-z0-9_-]{20,}$/.test(text));
 }
