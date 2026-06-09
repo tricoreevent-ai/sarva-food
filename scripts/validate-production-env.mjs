@@ -112,12 +112,29 @@ if (missing.length || invalid.length) {
 console.log("Production environment validation passed.");
 
 function normalizePrivateKey(value) {
-  const trimmed = value?.trim();
+  let trimmed = value?.trim();
   if (!trimmed) return "";
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.private_key) trimmed = parsed.private_key.trim();
+    } catch {
+      // Fall through to the plain string parser.
+    }
+  }
+  trimmed = trimmed.replace(/^(?:FIREBASE_ADMIN_PRIVATE_KEY|private_key)\s*=\s*/i, "").trim();
   const unquoted =
     (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
       ? trimmed.slice(1, -1)
       : trimmed;
-  return unquoted.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+  const normalized = unquoted.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+  const beginMarker = "-----BEGIN PRIVATE KEY-----";
+  const endMarker = "-----END PRIVATE KEY-----";
+  const beginIndex = normalized.indexOf(beginMarker);
+  const endIndex = normalized.indexOf(endMarker);
+  if (beginIndex >= 0 && endIndex >= beginIndex) {
+    return `${normalized.slice(beginIndex, endIndex + endMarker.length).trim()}\n`;
+  }
+  return normalized.trim();
 }
