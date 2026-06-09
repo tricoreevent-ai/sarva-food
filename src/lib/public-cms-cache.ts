@@ -2,7 +2,7 @@ import { defaultCmsSettings } from "@/lib/cms-defaults";
 import type { CmsSettings } from "@/lib/types";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
-export const PUBLIC_CMS_CACHE_KEY = "sarva-public-cms-cache:v2";
+export const PUBLIC_CMS_CACHE_KEY = "sarva-public-cms-cache:v3";
 export const PUBLIC_CMS_CACHE_EVENT = "sarva-public-cms-cache-updated";
 
 let cachedRawCmsSettings: string | null | undefined;

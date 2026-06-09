@@ -36,9 +36,7 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
   const partnerDescription = normalizeBrandText(
     settings.footer.partnerCard?.description || defaultCmsSettings.footer.partnerCard?.description || "",
   );
-  const legalPages = Object.fromEntries(
-    Object.entries(settings.legalPages).map(([key, value]) => [key, typeof value === "string" ? normalizeBrandText(value) : value]),
-  ) as CmsSettings["legalPages"];
+  const legalPages = normalizeLegalPages(settings.legalPages, sourceCmsVersion);
 
   return {
     ...settings,
@@ -163,4 +161,25 @@ function normalizeFooterSections(sections: CmsSettings["footer"]["sections"], so
       return link;
     }),
   }));
+}
+
+function normalizeLegalPages(pages: CmsSettings["legalPages"], sourceCmsVersion?: string) {
+  const legacyDocument = sourceCmsVersion !== CMS_VERSION;
+  return Object.fromEntries(
+    Object.entries(pages).map(([key, value]) => {
+      const text = typeof value === "string" ? normalizeBrandText(value) : value;
+      if (isPlaceholderLegalText(key, text, legacyDocument)) {
+        return [key, defaultCmsSettings.legalPages[key as keyof CmsSettings["legalPages"]] ?? text];
+      }
+      return [key, text];
+    }),
+  ) as CmsSettings["legalPages"];
+}
+
+function isPlaceholderLegalText(key: string, value: unknown, legacyDocument: boolean) {
+  if (typeof value !== "string") return false;
+  const text = value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return true;
+  if (["terms", "privacy", "refund", "cancellation"].includes(key) && text.length < (legacyDocument ? 500 : 160)) return true;
+  return /solely responsible for food quality|uses account, location, cart, and order data only/i.test(text);
 }

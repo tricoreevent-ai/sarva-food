@@ -32,6 +32,7 @@ const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "menu-chicken-mandi",
   "menu-falafel-pita",
 ]);
+const LEGACY_SEEDED_PUBLIC_OFFER_CODES = new Set(["ARABIC20", "INSTA20"]);
 
 function publicApiUrl(path: string, params?: Record<string, string | undefined>) {
   const url = new URL(path, window.location.origin);
@@ -151,7 +152,7 @@ async function fetchPublicMenu(restaurantId: string) {
 async function fetchPublicOffers(restaurantId?: string) {
   const docs = await fetchPublicDocs<OfferDoc>("/api/public/offers", { restaurantId });
   const remoteOffers = docs
-    .filter((item) => item.active && !item.isDeleted)
+    .filter((item) => item.active && !item.isDeleted && !LEGACY_SEEDED_PUBLIC_OFFER_CODES.has(String(item.code ?? "").toUpperCase()))
     .map(offerDocToUi);
   return sortOffers(remoteOffers.filter((offer) => !restaurantId || offer.restaurantSlug === restaurantId));
 }

@@ -30,6 +30,8 @@ const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "menu-chicken-mandi",
   "menu-falafel-pita",
 ]);
+const LEGACY_SEEDED_PUBLIC_OFFER_CODES = new Set(["ARABIC20", "INSTA20"]);
+const LEGACY_SEEDED_PUBLIC_OFFER_IDS = new Set(["offer-arabic20"]);
 
 type PublicFieldFilter = {
   fieldPath: string;
@@ -690,6 +692,11 @@ function dedupePublicOffers(docs: OfferDoc[]) {
   );
 }
 
+function isLegacySeededPublicOfferDoc(doc: OfferDoc) {
+  return LEGACY_SEEDED_PUBLIC_OFFER_IDS.has(String(doc.id ?? "").toLowerCase()) ||
+    LEGACY_SEEDED_PUBLIC_OFFER_CODES.has(String(doc.code ?? "").toUpperCase());
+}
+
 export async function getPublicOfferDocs(restaurantId?: string) {
   if (!hasAdminFirestoreCredentials()) return getPublicOfferDocsFromRest(restaurantId);
 
@@ -715,7 +722,7 @@ export async function getPublicOfferDocs(restaurantId?: string) {
 
     const docs = snapshots.flatMap((snapshot) => snapshot.docs)
       .map((item) => docToJson<OfferDoc>(item))
-      .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && (!requestedTenantId || isSameTenant(item, requestedTenantId)) && isOfferCurrentlyVisible(item))
+      .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && !isLegacySeededPublicOfferDoc(item) && (!requestedTenantId || isSameTenant(item, requestedTenantId)) && isOfferCurrentlyVisible(item))
       .map((item) => toPublicOfferDoc(normalizePublicOfferTenant(item, requestedTenantId)));
     return dedupePublicOffers(docs);
   } catch (error) {
@@ -745,7 +752,7 @@ async function getPublicOfferDocsFromRest(restaurantId?: string) {
   )).flat();
 
   return dedupePublicOffers(docs
-    .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && (!tenantId || isSameTenant(item, tenantId)) && isOfferCurrentlyVisible(item))
+    .filter((item) => item.active && !item.isDeleted && !isLegacyDemoTenant(item.tenantId ?? item.restaurantId) && !isLegacySeededPublicOfferDoc(item) && (!tenantId || isSameTenant(item, tenantId)) && isOfferCurrentlyVisible(item))
     .map((item) => toPublicOfferDoc(normalizePublicOfferTenant(item, tenantId))));
 }
 
@@ -1080,6 +1087,9 @@ function mergeDefaultDocs<T extends { id: string; slug?: string; active: boolean
 }
 
 function toPublicOfferDoc(doc: OfferDoc): OfferDoc {
+  const legacy = doc as OfferDoc & { discount?: number; validFrom?: unknown; validTo?: unknown };
+  const startsAt = (doc.startsAt ?? legacy.validFrom) as OfferDoc["startsAt"];
+  const endsAt = (doc.endsAt ?? legacy.validTo) as OfferDoc["endsAt"];
   return {
     id: doc.id,
     tenantId: doc.tenantId,
@@ -1093,13 +1103,13 @@ function toPublicOfferDoc(doc: OfferDoc): OfferDoc {
     mobileBanner: doc.mobileBanner,
     discountType: doc.discountType,
     offerType: doc.offerType,
-    discountValue: doc.discountValue,
+    discountValue: Number(doc.discountValue ?? legacy.discount ?? 0),
     minimumOrder: doc.minimumOrder,
     maxDiscount: doc.maxDiscount,
     active: doc.active,
     status: doc.status,
-    startsAt: doc.startsAt,
-    endsAt: doc.endsAt,
+    startsAt,
+    endsAt,
     startTime: doc.startTime,
     endTime: doc.endTime,
     daysOfWeek: doc.daysOfWeek,

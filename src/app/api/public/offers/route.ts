@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=30, s-maxage=30, stale-while-revalidate=180",
+  "Cache-Control": "no-store, no-cache, max-age=0",
 };
 
 export async function GET(request: NextRequest) {

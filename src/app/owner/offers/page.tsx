@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CalendarClock, Eye, EyeOff, MessageCircle, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
@@ -140,6 +140,33 @@ export default function OwnerOffersPage() {
     ...readStoredRestaurantMarketingSettings(restaurantSlug),
   }));
   const ownerOffers = useMemo(() => sortOffers(offers.filter((offer) => !offer.restaurantSlug || offer.restaurantSlug === restaurantSlug)), [offers, restaurantSlug]);
+
+  useEffect(() => {
+    if (!restaurantSlug || authUser.role === "customer") return;
+    let active = true;
+    void fetch(`/api/owner/offers?restaurantId=${encodeURIComponent(restaurantSlug)}`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Owner offers are not available yet.");
+        return response.json() as Promise<{ data?: Offer[] }>;
+      })
+      .then((payload) => {
+        if (!active || !Array.isArray(payload.data)) return;
+        const remoteOffers = payload.data;
+        useAppStore.setState((state) => ({
+          offers: [
+            ...remoteOffers,
+            ...state.offers.filter((offer) => offer.restaurantSlug && offer.restaurantSlug !== restaurantSlug),
+          ],
+        }));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [authUser.role, restaurantSlug]);
   const categories = useMemo(() => {
     const names = menuCategories.map((category) => category.name || category.id);
     const itemCategories = menuItems.map((item) => item.category);

@@ -12,14 +12,13 @@ import {
   type PublicDataStatus,
 } from "@/services/public-data-service";
 import { cacheReport, getCachedReport } from "@/lib/offline/offline-storage";
-import { useAppStore } from "@/lib/app-store";
 import type { AppCategory, AppCuisine, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 
 const PUBLIC_LOAD_TIMEOUT_MS = 1500;
 const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
 const PUBLIC_RESTAURANTS_CACHE_KEY = "sarva-public-restaurants-cache:v3";
-const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v7:";
+const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v8:";
 const PUBLIC_CUISINES_CACHE_KEY = "sarva-public-cuisines-cache:v1";
 const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "cafe-al-arab-thanisandra-chicken-shawarma-roll",
@@ -31,6 +30,7 @@ const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "menu-chicken-mandi",
   "menu-falafel-pita",
 ]);
+const LEGACY_SEEDED_PUBLIC_OFFER_CODES = new Set(["ARABIC20", "INSTA20"]);
 
 function readCache<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -272,7 +272,6 @@ export function usePublicRestaurant(slug: string) {
 }
 
 export function usePublicMenu(restaurantId?: string) {
-  const ownerMenuItems = useAppStore((state) => state.menuItems);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [status, setStatus] = useState<PublicDataStatus>(restaurantId ? "loading" : "idle");
@@ -312,16 +311,16 @@ export function usePublicMenu(restaurantId?: string) {
       const cached = readCache<{ items: MenuItem[]; offers: Offer[] }>(cacheKey, { items: [], offers: [] });
       if (!cancelled && (cached.items.length || cached.offers.length)) {
         window.clearTimeout(timeoutId);
-        setItems(cached.items);
-        setOffers(cached.offers);
+        setItems(filterPublicMenuItems(cached.items));
+        setOffers(filterPublicOffers(cached.offers));
         setStatus("success");
       }
       void readIndexedCache<{ items: MenuItem[]; offers: Offer[] }>(cacheKey, { items: [], offers: [] })
         .then((indexed) => {
           if (!cancelled && (indexed.items.length || indexed.offers.length)) {
             window.clearTimeout(timeoutId);
-            setItems(indexed.items);
-            setOffers(indexed.offers);
+            setItems(filterPublicMenuItems(indexed.items));
+            setOffers(filterPublicOffers(indexed.offers));
             setStatus("success");
           }
         });
@@ -355,8 +354,8 @@ export function usePublicMenu(restaurantId?: string) {
       (nextItems) => {
         if (cancelled) return;
         menuLoaded = true;
-        latestItems = nextItems;
-        setItems(nextItems);
+        latestItems = filterPublicMenuItems(nextItems);
+        setItems(latestItems);
         markLoaded();
       },
     );
@@ -365,8 +364,8 @@ export function usePublicMenu(restaurantId?: string) {
       (nextOffers) => {
         if (cancelled) return;
         offersLoaded = true;
-        latestOffers = nextOffers;
-        setOffers(nextOffers);
+        latestOffers = filterPublicOffers(nextOffers);
+        setOffers(latestOffers);
         markLoaded();
       },
     );
@@ -381,18 +380,8 @@ export function usePublicMenu(restaurantId?: string) {
     };
   }, [restaurantId, version]);
 
-  const localOwnerItems = useMemo(
-    () => ownerMenuItems.filter((item) => isCustomerVisibleOwnerMenuItem(item, restaurantId)),
-    [ownerMenuItems, restaurantId],
-  );
-  const publicItems = useMemo(() => items.filter((item) => !isLegacySeededPublicMenuItem(item)), [items]);
-  const mergedItems = useMemo(() => mergeMenuItems(publicItems, localOwnerItems), [publicItems, localOwnerItems]);
-  const effectiveStatus: PublicDataStatus = restaurantId && localOwnerItems.length && (status === "loading" || status === "error")
-    ? "success"
-    : status;
-  const effectiveError = effectiveStatus === "success" ? null : error;
-
-  return { items: mergedItems, offers, status: effectiveStatus, error: effectiveError, retry, loadingForMs };
+  const publicItems = useMemo(() => filterPublicMenuItems(items), [items]);
+  return { items: publicItems, offers, status, error, retry, loadingForMs };
 }
 
 export function usePublicOffers(restaurants?: Restaurant[]) {
@@ -498,31 +487,17 @@ export function usePublicReviews(restaurantId?: string, menuItemId?: string) {
 }
 
 function isOfferLive(offer: Offer) {
-  return isOfferActive(offer);
+  return isOfferActive(offer) && !LEGACY_SEEDED_PUBLIC_OFFER_CODES.has(offer.code.toUpperCase());
 }
 
-function isCustomerVisibleOwnerMenuItem(item: MenuItem, restaurantId?: string) {
-  return Boolean(
-    restaurantId &&
-      item.restaurantSlug === restaurantId &&
-      !item.soldOut &&
-      isVisibleOnAnyCustomerMenuChannel(item) &&
-      item.name?.trim() &&
-      item.price > 0,
-  );
+function filterPublicMenuItems(items: MenuItem[]) {
+  return items.filter((item) => !isLegacySeededPublicMenuItem(item));
 }
 
-function mergeMenuItems(remoteItems: MenuItem[], localItems: MenuItem[]) {
-  const merged = new Map<string, MenuItem>();
-  remoteItems.forEach((item) => merged.set(item.id, item));
-  localItems.forEach((item) => merged.set(item.id, item));
-  return Array.from(merged.values());
+function filterPublicOffers(offers: Offer[]) {
+  return offers.filter(isOfferLive);
 }
 
 function isLegacySeededPublicMenuItem(item: MenuItem) {
   return item.restaurantSlug === "cafe-al-arab-thanisandra" && LEGACY_SEEDED_PUBLIC_MENU_IDS.has(item.id);
-}
-
-function isVisibleOnAnyCustomerMenuChannel(item: MenuItem) {
-  return (["delivery", "parcel", "dine-in"] as const).some((channel) => item.menuVisibility?.[channel] !== false);
 }
