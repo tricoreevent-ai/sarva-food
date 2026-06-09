@@ -1,6 +1,6 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
@@ -17,6 +17,7 @@ None.
 
 ## Completed
 
+- [x] Local console error hardening completed on 2026-06-09: added Next process guards so `.next/dev` cleanup is skipped while a dev server is active and production builds refuse to run alongside local Next dev unless explicitly overridden, fixed the homepage restaurant image wrapper that caused the `next/image` static-parent warning, and verified `npm run typecheck`, `npm run lint`, and `npm run build`.
 - [x] Dependency deprecation maintenance completed on 2026-06-08: updated Firebase client SDK to `12.14.0`, Firebase Admin SDK to `13.10.0`, and Nodemailer to `8.0.10`; refreshed/deduped the lockfile; verified `npm run typecheck`, `npm run lint`, and `npm run build`. Remaining deprecated packages are transitive through `@stackframe/stack-shared`, `@google-cloud/storage`, `google-gax`, and `node-fetch` and were not force-overridden because that would cross major-version boundaries.
 - [x] Hostinger public restaurant diagnostics completed on 2026-06-08: public restaurant API responses now include request ids/counts, server logs report source/raw/public counts and visibility-filter rejection summaries, browser logs identify empty API responses or client-side filtering, and local `/api/public/restaurants` returned 13 restaurants.
 - [x] Homepage performance/offers relocation completed on 2026-06-08: root customer homepage no longer fetches/renders public offers or preloads menu/offers, the global public offers hydrator runs only on `/offers`, and featured offer cards were moved to the deals page.

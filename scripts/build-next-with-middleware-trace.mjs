@@ -2,8 +2,16 @@ import { spawn } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { describeProcesses, getWorkspaceNextDevProcesses } from "./next-process-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const activeDevProcesses = getWorkspaceNextDevProcesses(root);
+if (activeDevProcesses.length > 0 && process.env.SARVA_ALLOW_BUILD_WITH_DEV !== "1") {
+  console.error(`[build] Refusing to run production build while Next dev is active (${describeProcesses(activeDevProcesses)}).`);
+  console.error("[build] Stop the dev server first, or set SARVA_ALLOW_BUILD_WITH_DEV=1 if you intentionally accept .next cache churn.");
+  process.exit(1);
+}
+
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
 const child = spawn(process.execPath, [nextBin, "build", "--webpack"], {
   cwd: root,

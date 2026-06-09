@@ -572,7 +572,7 @@ function MobileRestaurantCard({
   return (
     <article className="w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
       <div className="relative h-28 overflow-hidden bg-muted md:h-36">
-        <Link href={`/restaurant/${restaurant.slug}`} className="block h-full">
+        <Link href={`/restaurant/${restaurant.slug}`} className="relative block h-full">
           <SafeImage
             src={restaurant.image}
             alt={restaurant.name}
