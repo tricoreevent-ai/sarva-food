@@ -1175,33 +1175,40 @@ function OrderTimingStrip({
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
 }) {
+  const nowSelected = mode === "now";
+  const scheduledSelected = mode === "scheduled";
+  const selectedButtonClass = "bg-orange-600 text-white shadow-lg shadow-orange-500/20";
+  const idleButtonClass = "bg-white text-slate-800 hover:bg-orange-50";
+
   return (
     <section className="rounded-2xl bg-transparent p-0 shadow-none">
-      <div className="grid grid-cols-2 gap-2 md:gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => onModeChange("now")}
-          className={`flex min-h-14 items-center gap-2 border-0 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "now" ? "bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+          aria-pressed={nowSelected}
+          className={`flex min-h-12 items-center gap-2 rounded-xl border-0 px-2.5 py-2 text-left transition sm:min-h-16 sm:gap-3 sm:p-3 ${nowSelected ? selectedButtonClass : idleButtonClass}`}
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
+          <span className={`grid size-8 shrink-0 place-items-center rounded-xl sm:size-9 ${nowSelected ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
             <ZapIcon />
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-black leading-tight sm:text-base">Order right now</span>
-            <span className="hidden text-sm font-semibold text-muted-foreground sm:block">Send the order immediately to the restaurant.</span>
+            <span className={`hidden text-xs font-semibold sm:block ${nowSelected ? "text-white/85" : "text-muted-foreground"}`}>Send immediately</span>
           </span>
         </button>
         <button
           type="button"
           onClick={() => onModeChange("scheduled")}
-          className={`flex min-h-14 items-center gap-2 border-0 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "scheduled" ? "bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
+          aria-pressed={scheduledSelected}
+          className={`flex min-h-12 items-center gap-2 rounded-xl border-0 px-2.5 py-2 text-left transition sm:min-h-16 sm:gap-3 sm:p-3 ${scheduledSelected ? selectedButtonClass : idleButtonClass}`}
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
+          <span className={`grid size-8 shrink-0 place-items-center rounded-xl sm:size-9 ${scheduledSelected ? "bg-white/20 text-white" : "bg-orange-100 text-orange-700"}`}>
             <CalendarClock className="size-4 sm:size-5" />
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-black leading-tight sm:text-base">Schedule later</span>
-            <span className="hidden text-sm font-semibold text-muted-foreground sm:block">Choose a date and time after selecting items.</span>
+            <span className={`hidden text-xs font-semibold sm:block ${scheduledSelected ? "text-white/85" : "text-muted-foreground"}`}>Choose a slot</span>
           </span>
         </button>
       </div>

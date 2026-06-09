@@ -5,8 +5,61 @@ import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 export const RESPONSIBILITY_DISCLAIMER =
   `Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. ${APP_NAME} acts only as a technology platform connecting customers and restaurants.`;
 
-const LEGAL_TERMS =
-  `${APP_NAME} is a technology intermediary that connects customers with independent restaurants. Restaurants are solely responsible for food quality, ingredients, hygiene, allergens, preparation, packaging, pricing, safety compliance, delivery handling, and fulfilment. ${APP_NAME} does not prepare, store, inspect, or physically handle food and is not liable for contamination, restaurant misconduct, kitchen standards, or restaurant-caused delays. Payments are processed through third-party providers; ${APP_NAME} does not store card details and is not responsible for banking, UPI, gateway, or network downtime. Delivery estimates are approximate and may vary because of traffic, weather, restaurant load, rider availability, or serviceability. Refunds are reviewed after payment confirmation, restaurant validation, and issue verification, and are not automatic. Service may be affected by outages, cyber incidents, internet failures, strikes, floods, public emergencies, or other force majeure events.`;
+const LEGAL_TERMS = `
+<p><strong>Last Updated:</strong> June 9, 2026</p>
+<h2>1. Acceptance of Terms</h2>
+<p>By accessing, browsing, registering on, or using the ${APP_NAME} platform, website, mobile application, or any related services ("Platform"), you acknowledge that you have read, understood, and agreed to be bound by these Terms &amp; Conditions.</p>
+<p>If you do not agree with these Terms, you must discontinue use of the Platform immediately.</p>
+<h2>2. Nature of Service</h2>
+<p>${APP_NAME} is solely a technology platform that facilitates communication and order placement between customers and independent restaurants, food vendors, cloud kitchens, and food service establishments ("Restaurant Partners").</p>
+<p>${APP_NAME} does not own, operate, manage, control, supervise, or inspect any restaurant; does not manufacture, prepare, cook, package, store, transport, or deliver food; does not employ restaurant staff, kitchen personnel, delivery personnel, or food handlers; does not guarantee food quality, taste, quantity, freshness, nutritional value, safety, or suitability; and does not act as an agent, partner, franchisee, representative, employee, or legal representative of any restaurant.</p>
+<p>Each Restaurant Partner operates independently and is solely responsible for its business activities.</p>
+<h2>3. Restaurant Responsibility</h2>
+<p>The Restaurant Partner is exclusively responsible for food preparation and cooking, ingredient sourcing, food quality and freshness, hygiene and sanitation standards, compliance with FSSAI regulations and applicable food safety laws, packaging and labelling, allergen disclosures, nutritional information, menu descriptions, pricing and taxes, delivery fulfilment where applicable, and customer support relating to food and orders.</p>
+<p>Any complaint regarding food quality, contamination, adulteration, food poisoning, allergens, dietary restrictions, incorrect ingredients, packaging defects, shortages, delays, or restaurant conduct must be directed to the respective Restaurant Partner.</p>
+<p>Restaurant contact information is available on the restaurant page within the Platform.</p>
+<h2>4. Customer Responsibility</h2>
+<p>Customers are responsible for reviewing menu descriptions before ordering, verifying ingredients and allergen information directly with the restaurant, providing accurate delivery and contact information, ensuring availability at the delivery location, and raising concerns directly with the restaurant whenever required.</p>
+<p>Customers with food allergies, medical conditions, dietary restrictions, pregnancy-related concerns, or specific nutritional requirements should contact the restaurant directly before placing an order.</p>
+<h2>5. Payments</h2>
+<h3>5.1 Direct Payments</h3>
+<p>${APP_NAME} does not collect, hold, receive, process, settle, or retain customer payments for food orders. Payments made through the Platform are processed directly between the customer and the respective Restaurant Partner and/or authorized third-party payment providers.</p>
+<h3>5.2 No Storage of Financial Information</h3>
+<p>${APP_NAME} does not store credit card information, debit card information, UPI PINs, bank account details, net banking credentials, or payment authentication credentials. Payment information is handled by authorized third-party payment providers in accordance with their own privacy policies and regulatory obligations.</p>
+<h3>5.3 Payment Issues</h3>
+<p>${APP_NAME} shall not be liable for failed transactions, duplicate payments, payment gateway outages, banking errors, UPI failures, chargeback disputes, settlement delays, network interruptions, or unauthorized transactions caused by customer negligence. Customers must contact the relevant payment provider, bank, or restaurant directly for payment-related issues.</p>
+<h2>6. Refunds, Cancellations and Disputes</h2>
+<p>Refund requests are subject to verification by the restaurant, payment confirmation, order validation, and investigation of the reported issue. Refunds are not automatic, and ${APP_NAME} does not guarantee approval of refunds.</p>
+<p>The final decision regarding food-related refund claims may rest with the Restaurant Partner, subject to applicable law. Any dispute relating to food quality, quantity, preparation, pricing, delivery, or restaurant service shall primarily be resolved between the customer and the Restaurant Partner.</p>
+<h2>7. No Warranty</h2>
+<p>The Platform is provided on an "AS IS" and "AS AVAILABLE" basis. ${APP_NAME} makes no representation or warranty regarding food quality, restaurant performance, availability of menu items, delivery timelines, accuracy of restaurant information, continuous platform availability, error-free operation, or suitability for any specific purpose.</p>
+<p>All warranties, whether express or implied, are disclaimed to the fullest extent permitted under applicable law.</p>
+<h2>8. Limitation of Liability</h2>
+<p>To the maximum extent permitted by Indian law, ${APP_NAME}, its owners, directors, employees, consultants, contractors, affiliates, licensors, technology providers, and software developers shall not be liable for food poisoning, allergic reactions, illness, injury, death, contamination, restaurant negligence, misrepresentation by restaurants, delivery failures, late deliveries, incorrect orders, missing items, restaurant closure, service interruptions, data transmission failures, cyber incidents, third-party payment failures, loss of profits, loss of goodwill, indirect damages, consequential damages, special damages, or punitive damages.</p>
+<p>Any liability that cannot legally be excluded shall be limited to the extent permitted under applicable law.</p>
+<h2>9. Indemnity</h2>
+<p>You agree to indemnify and hold harmless ${APP_NAME}, its owners, directors, employees, contractors, affiliates, technology partners, and software developers from and against any claims, losses, liabilities, damages, penalties, costs, or expenses arising from your misuse of the Platform, violation of these Terms, violation of applicable laws, disputes between customers and restaurants, incorrect information provided by you, or fraudulent or unauthorized activities.</p>
+<h2>10. Third-Party Services</h2>
+<p>The Platform may rely on third-party services including payment gateways, banking networks, SMS providers, WhatsApp integrations, cloud hosting providers, internet service providers, mapping services, and notification services. ${APP_NAME} is not responsible for the availability, performance, security, or actions of such third-party services.</p>
+<h2>11. Force Majeure</h2>
+<p>${APP_NAME} shall not be liable for any delay, interruption, failure, or inability to provide services caused by events beyond reasonable control, including natural disasters, floods, fire, earthquakes, pandemic events, government actions, internet outages, cyber attacks, power failures, labour strikes, civil unrest, or transportation disruptions.</p>
+<h2>12. Intellectual Property</h2>
+<p>All Platform content, software, trademarks, branding, designs, source code, graphics, logos, and related materials belong to ${APP_NAME} or its licensors and are protected by applicable intellectual property laws.</p>
+<p>Users shall not copy, reproduce, reverse engineer, modify, distribute, or exploit any part of the Platform without written permission.</p>
+<h2>13. Suspension and Termination</h2>
+<p>${APP_NAME} reserves the right to suspend, restrict, or terminate access to the Platform at any time without prior notice if a user violates these Terms, fraudulent activity is suspected, security concerns arise, or legal compliance requires such action.</p>
+<h2>14. Privacy</h2>
+<p>${APP_NAME} processes personal information in accordance with its Privacy Policy. Users are encouraged to review the Privacy Policy before using the Platform.</p>
+<h2>15. Governing Law and Jurisdiction</h2>
+<p>These Terms shall be governed by and construed in accordance with the laws of India. Any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the competent courts located in Bengaluru, Karnataka, India.</p>
+<h2>16. Developer Protection Clause</h2>
+<p>The software developers, technology consultants, hosting providers, contractors, and service providers involved in the creation, maintenance, or operation of the Platform act solely as technology service providers.</p>
+<p>Under no circumstances shall such developers or technology providers be liable for restaurant operations, food quality issues, payment disputes, delivery disputes, customer claims, business losses suffered by restaurants or customers, or regulatory actions arising from restaurant conduct.</p>
+<p>Any claim relating to food services, restaurant operations, payments, deliveries, or transactions shall be directed solely against the relevant Restaurant Partner or responsible party.</p>
+<h2>17. Contact Information</h2>
+<p>For platform-related technical support, contact <a href="mailto:support@nammude.com">support@nammude.com</a>.</p>
+<p>For food, delivery, pricing, quality, hygiene, refund, ingredient, allergen, or restaurant-related concerns, customers must contact the respective Restaurant Partner directly using the contact information available on the restaurant page.</p>
+`;
 
 export const defaultCmsSettings: CmsSettings = {
   appName: APP_NAME,
