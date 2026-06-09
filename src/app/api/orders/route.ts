@@ -279,6 +279,9 @@ async function validateSchedule(input: {
   if (input.scheduledFor.getTime() > maxDate) {
     return { ok: false as const, error: "Scheduled orders can be placed up to 14 days ahead." };
   }
+  if (!isScheduledForOpenSlot(input.restaurant, input.scheduledFor)) {
+    return { ok: false as const, error: "Choose a time inside the restaurant's operating hours." };
+  }
 
   const cutoffAt = new Date(input.scheduledFor.getTime() - settings.cutoffMinutes * 60_000);
   const scheduledSlotId = buildSlotId(input.restaurantId, input.scheduledFor, slotMinutes);
@@ -379,6 +382,29 @@ function buildSlotId(restaurantId: string, scheduledFor: Date, slotMinutes: numb
   const rounded = new Date(scheduledFor);
   rounded.setMinutes(Math.floor(rounded.getMinutes() / slotMinutes) * slotMinutes, 0, 0);
   return `${restaurantId}-${rounded.toISOString()}`;
+}
+
+function isScheduledForOpenSlot(restaurant: RestaurantDoc, scheduledFor: Date) {
+  const schedule = restaurant.operatingHoursSchedule;
+  if (!schedule?.length || restaurant.operatingHoursPreference === "not-specified") return false;
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const day = days[(scheduledFor.getDay() + 6) % 7];
+  const daySchedule = schedule.find((entry) => entry.day === day);
+  if (!daySchedule?.open) return false;
+  const minutes = scheduledFor.getHours() * 60 + scheduledFor.getMinutes();
+  const prepMinutes = restaurant.scheduling?.minPrepMinutes ?? 30;
+  return daySchedule.slots.some((slot) => {
+    const start = scheduleTimeMinutes(slot.start);
+    const end = scheduleTimeMinutes(slot.end);
+    const latest = end > start ? end - prepMinutes : end;
+    if (end > start) return minutes >= start && minutes <= latest;
+    return minutes >= start || minutes <= latest;
+  });
+}
+
+function scheduleTimeMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map((item) => Number(item));
+  return (hours || 0) * 60 + (minutes || 0);
 }
 
 function stripUndefined<T>(value: T): T {

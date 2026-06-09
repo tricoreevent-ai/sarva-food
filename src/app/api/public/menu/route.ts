@@ -26,7 +26,14 @@ export async function GET(request: NextRequest) {
       durationMs: Date.now() - startedAt,
     });
     return NextResponse.json(
-      { data, meta: { requestId, count: data.length } },
+      {
+        data,
+        meta: {
+          requestId,
+          count: data.length,
+          ...(data.length === 0 ? { emptyReason: "no-customer-visible-menu-items" } : {}),
+        },
+      },
       { headers: CACHE_HEADERS },
     );
   } catch (error) {
