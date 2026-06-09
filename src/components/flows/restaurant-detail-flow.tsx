@@ -481,7 +481,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                       applyOffer(code);
                       toast.success(`${code} applied.`);
                     }} />
-                    <RestaurantInfoCard restaurant={restaurant} contactWhatsApp={contactWhatsApp} />
+                    <RestaurantInfoCard restaurant={restaurant} contactPhone={contactPhone} contactWhatsApp={contactWhatsApp} />
                   </aside>
 
                   <div id="restaurant-menu-panel" className="order-1 rounded-2xl bg-white/95 p-3 shadow-sm sm:p-4 xl:order-2">
@@ -536,7 +536,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                         ) : null}
                       </>
                     ) : (
-                      <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." />
+                        <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." actionHref={null} />
                     )}
                   </div>
                 </div>
@@ -869,7 +869,7 @@ function MobileRestaurantLanding({
               ) : null}
             </div>
           ) : (
-            <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." />
+            <EmptyStateCard title="No matching items" description="Try removing filters or search with a different dish name." actionHref={null} />
           )}
         </section>
 
@@ -998,6 +998,11 @@ function MobileMenuSkeleton() {
 }
 
 function MobileRestaurantAbout({ restaurant }: { restaurant: Restaurant }) {
+  const address = restaurant.address || restaurant.location;
+  const contactPhone = restaurant.contact?.phone ?? restaurant.ownerProfile?.businessPhone ?? "";
+  const contactWhatsApp = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? contactPhone;
+  const mapsHref = restaurant.googleMapLocation || mapsUrl(restaurant);
+
   return (
     <section className="mt-6 pt-5">
       <h2 className="text-2xl font-black">About this restaurant</h2>
@@ -1006,6 +1011,32 @@ function MobileRestaurantAbout({ restaurant }: { restaurant: Restaurant }) {
         <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-orange-50 px-3 py-2"><CalendarClock className="size-4 text-orange-600" />On-time delivery</span>
         {restaurant.rating ? <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-yellow-50 px-3 py-2"><Star className="size-4 text-yellow-600" />Top rated restaurant</span> : null}
         {restaurant.fssaiLicense ? <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-100 px-3 py-2"><CheckCircle2 className="size-4 text-slate-600" />FSSAI certified</span> : null}
+      </div>
+      {address ? (
+        <p className="mt-4 flex items-start gap-2 rounded-2xl bg-white p-3 text-sm font-semibold leading-6 text-slate-700 shadow-sm">
+          <MapPin className="mt-1 size-4 shrink-0 text-orange-600" />
+          <span>{address}</span>
+        </p>
+      ) : null}
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-black">
+        {contactPhone ? (
+          <a href={`tel:${contactPhone}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white text-slate-950 shadow-sm">
+            <Phone className="size-4 text-orange-600" />
+            Call
+          </a>
+        ) : null}
+        {contactWhatsApp ? (
+          <a href={whatsappHref(contactWhatsApp, `Hi ${restaurant.name}, I need help with an order.`)} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-50 text-emerald-800 shadow-sm">
+            <MessageCircle className="size-4" />
+            WhatsApp
+          </a>
+        ) : null}
+        {mapsHref ? (
+          <a href={mapsHref} target="_blank" rel="noreferrer" className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-orange-50 text-orange-800 shadow-sm">
+            <MapPin className="size-4" />
+            View address
+          </a>
+        ) : null}
       </div>
     </section>
   );
@@ -1145,12 +1176,12 @@ function OrderTimingStrip({
   onTimeChange: (value: string) => void;
 }) {
   return (
-    <section className="rounded-2xl bg-white/95 p-2 shadow-sm sm:p-4">
+    <section className="rounded-2xl bg-transparent p-0 shadow-none">
       <div className="grid grid-cols-2 gap-2 md:gap-3">
         <button
           type="button"
           onClick={() => onModeChange("now")}
-          className={`flex min-h-14 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "now" ? "bg-orange-50 text-slate-950 shadow-inner" : "bg-slate-50 text-slate-800 hover:bg-orange-50/50"}`}
+          className={`flex min-h-14 items-center gap-2 border-0 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "now" ? "bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
             <ZapIcon />
@@ -1163,7 +1194,7 @@ function OrderTimingStrip({
         <button
           type="button"
           onClick={() => onModeChange("scheduled")}
-          className={`flex min-h-14 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "scheduled" ? "bg-orange-50 text-slate-950 shadow-inner" : "bg-slate-50 text-slate-800 hover:bg-orange-50/50"}`}
+          className={`flex min-h-14 items-center gap-2 border-0 rounded-xl px-2.5 py-2 text-left transition sm:min-h-20 sm:gap-3 sm:rounded-2xl sm:p-4 ${mode === "scheduled" ? "bg-orange-50 text-slate-950" : "bg-white text-slate-800 hover:bg-orange-50/50"}`}
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700 sm:size-10 sm:rounded-2xl">
             <CalendarClock className="size-4 sm:size-5" />
@@ -1332,8 +1363,9 @@ function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: stri
   );
 }
 
-function RestaurantInfoCard({ restaurant, contactWhatsApp }: { restaurant: Restaurant; contactWhatsApp: string }) {
+function RestaurantInfoCard({ restaurant, contactPhone, contactWhatsApp }: { restaurant: Restaurant; contactPhone: string; contactWhatsApp: string }) {
   const address = restaurant.address || restaurant.location;
+  const mapsHref = restaurant.googleMapLocation || mapsUrl(restaurant);
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm">
       <h2 className="text-xl font-black">About {restaurant.displayName ?? restaurant.name}</h2>
@@ -1366,6 +1398,20 @@ function RestaurantInfoCard({ restaurant, contactWhatsApp }: { restaurant: Resta
         </span>
         <MessageCircle className="size-5" />
       </a>
+      <div className="mt-3 grid gap-2 text-sm font-black sm:grid-cols-2">
+        {contactPhone ? (
+          <a href={`tel:${contactPhone}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-orange-50 text-orange-800">
+            <Phone className="size-4" />
+            {contactPhone}
+          </a>
+        ) : null}
+        {mapsHref ? (
+          <a href={mapsHref} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-100 text-slate-800">
+            <MapPin className="size-4" />
+            View map
+          </a>
+        ) : null}
+      </div>
     </section>
   );
 }
