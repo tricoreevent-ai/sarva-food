@@ -76,8 +76,12 @@ export function normalizePrivateKey(value?: string) {
 
   const normalized = unquoted
     .replace(/\\r\\n/g, "\n")
+    .replace(/\\r/g, "\n")
     .replace(/\\n/g, "\n")
-    .replace(/\r\n/g, "\n");
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\u2028|\u2029/g, "\n")
+    .replace(/^\uFEFF/, "");
 
   const beginMarker = "-----BEGIN PRIVATE KEY-----";
   const endMarker = "-----END PRIVATE KEY-----";
@@ -85,10 +89,35 @@ export function normalizePrivateKey(value?: string) {
   const endIndex = normalized.indexOf(endMarker);
 
   if (beginIndex >= 0 && endIndex >= beginIndex) {
-    return `${normalized.slice(beginIndex, endIndex + endMarker.length).trim()}\n`;
+    const keyBody = normalized
+      .slice(beginIndex + beginMarker.length, endIndex)
+      .replace(/[^A-Za-z0-9+/=]/g, "");
+    return `${beginMarker}\n${chunkPemBody(keyBody)}\n${endMarker}\n`;
   }
 
   return normalized.trim();
+}
+
+function chunkPemBody(value: string) {
+  return value.match(/.{1,64}/g)?.join("\n") ?? value;
+}
+
+export function firebaseAdminPrivateKeyDiagnostics(value = process.env.FIREBASE_ADMIN_PRIVATE_KEY) {
+  const raw = value ?? "";
+  const normalized = normalizePrivateKey(value) ?? "";
+  return {
+    rawLength: raw.length,
+    normalizedLength: normalized.length,
+    hasRawBeginMarker: raw.includes("-----BEGIN PRIVATE KEY-----"),
+    hasRawEndMarker: raw.includes("-----END PRIVATE KEY-----"),
+    hasNormalizedBeginMarker: normalized.startsWith("-----BEGIN PRIVATE KEY-----"),
+    hasNormalizedEndMarker: normalized.trimEnd().endsWith("-----END PRIVATE KEY-----"),
+    normalizedLineCount: normalized ? normalized.split("\n").length : 0,
+    hasBackslashN: raw.includes("\\n"),
+    hasActualNewline: raw.includes("\n"),
+    hasJsonShape: raw.trimStart().startsWith("{"),
+    hasEnvAssignmentPrefix: /^(?:FIREBASE_ADMIN_PRIVATE_KEY|private_key)\s*=/i.test(raw.trimStart()),
+  };
 }
 
 export const adminApp = getAdminApp;

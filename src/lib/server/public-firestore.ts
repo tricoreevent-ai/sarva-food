@@ -2,7 +2,7 @@ import "server-only";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { adminDb } from "@/firebase/admin";
+import { adminDb, firebaseAdminPrivateKeyDiagnostics } from "@/firebase/admin";
 import { defaultAppCategories } from "@/lib/default-app-categories";
 import { defaultAppCuisines } from "@/lib/default-app-cuisines";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
@@ -318,6 +318,7 @@ export async function getPublicRestaurantDocs(slug?: string) {
     }
     if (isAdminCredentialError(error)) {
       logPublicDataError("restaurants-admin-credentials", error);
+      logPublicDataInfo("restaurants-admin-private-key", "Sanitized private key diagnostics.", firebaseAdminPrivateKeyDiagnostics());
       return getPublicRestaurantDocsFromRest(slug);
     }
     throw error;

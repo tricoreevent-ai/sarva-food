@@ -128,13 +128,27 @@ function normalizePrivateKey(value) {
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
       ? trimmed.slice(1, -1)
       : trimmed;
-  const normalized = unquoted.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
+  const normalized = unquoted
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\u2028|\u2029/g, "\n")
+    .replace(/^\uFEFF/, "");
   const beginMarker = "-----BEGIN PRIVATE KEY-----";
   const endMarker = "-----END PRIVATE KEY-----";
   const beginIndex = normalized.indexOf(beginMarker);
   const endIndex = normalized.indexOf(endMarker);
   if (beginIndex >= 0 && endIndex >= beginIndex) {
-    return `${normalized.slice(beginIndex, endIndex + endMarker.length).trim()}\n`;
+    const keyBody = normalized
+      .slice(beginIndex + beginMarker.length, endIndex)
+      .replace(/[^A-Za-z0-9+/=]/g, "");
+    return `${beginMarker}\n${chunkPemBody(keyBody)}\n${endMarker}\n`;
   }
   return normalized.trim();
+}
+
+function chunkPemBody(value) {
+  return value.match(/.{1,64}/g)?.join("\n") ?? value;
 }
