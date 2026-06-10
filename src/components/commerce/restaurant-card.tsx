@@ -18,9 +18,11 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
       <article className="mobile-premium-card touch-lift h-full overflow-hidden rounded-lg bg-card transition-transform duration-300 group-hover:-translate-y-1">
         <div className="relative aspect-[16/11] overflow-hidden bg-muted">
           <SafeImage
-            src={restaurant.image}
+            src={restaurant.primaryThumbnail || restaurant.image}
             alt={`${restaurant.name} food preview`}
             fill
+            loading="lazy"
+            decoding="async"
             fallbackSrc={IMAGE_FALLBACKS.restaurant}
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
             className="object-cover transition-transform duration-500 group-hover:scale-105"

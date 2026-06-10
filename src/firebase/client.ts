@@ -74,11 +74,29 @@ export function getFirebaseAnalytics() {
     return Promise.resolve(null);
   }
 
-  analyticsPromise ??= isSupported()
-    .then((supported) => (supported ? getAnalytics(getFirebaseApp()) : null))
-    .catch(() => null);
+  analyticsPromise ??= deferClientTask(() =>
+    isSupported()
+      .then((supported) => (supported ? getAnalytics(getFirebaseApp()) : null))
+      .catch(() => null),
+  );
 
   return analyticsPromise;
+}
+
+function deferClientTask<T>(task: () => Promise<T>) {
+  return new Promise<T | null>((resolve) => {
+    const run = () => void task().then(resolve).catch(() => resolve(null));
+    const win = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number };
+    if (typeof win.requestIdleCallback === "function") {
+      win.requestIdleCallback(run, { timeout: 2500 });
+      return;
+    }
+    if (document.readyState === "complete") {
+      queueMicrotask(run);
+      return;
+    }
+    window.addEventListener("load", () => queueMicrotask(run), { once: true });
+  });
 }
 
 function configureAuthPersistence(auth: Auth) {

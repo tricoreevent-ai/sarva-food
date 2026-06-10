@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   Bell,
@@ -292,6 +292,8 @@ export function CustomerDiscoveryHome() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="customer-home-search"
+              name="customerHomeSearch"
               className="h-12 rounded-[1.35rem] border-white bg-white pl-12 pr-16 text-[0.92rem] shadow-xl"
               placeholder="Search for food, restaurants..."
               value={locationQuery}
@@ -485,11 +487,10 @@ export function CustomerDiscoveryHome() {
         <>
           <MobileSectionHeader title="Your favorite restaurants" href="/profile?tab=saved" />
           <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
-            {favoriteRestaurants.slice(0, 8).map((restaurant, index) => (
-              <MobileRestaurantCard
+            {favoriteRestaurants.slice(0, 8).map((restaurant) => (
+              <MemoMobileRestaurantCard
                 key={restaurant.id}
                 restaurant={restaurant}
-                priority={index === 0}
                 saved
                 onFavorite={() => void handleFavoriteToggle(restaurant)}
               />
@@ -502,11 +503,10 @@ export function CustomerDiscoveryHome() {
         <>
           <MobileSectionHeader title={cmsSettings.sections?.recommendedTitle || "Recommended for you"} href="/restaurants" />
           <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
-            {recommendedRestaurants.slice(0, 8).map((restaurant, index) => (
-              <MobileRestaurantCard
+            {recommendedRestaurants.slice(0, 8).map((restaurant) => (
+              <MemoMobileRestaurantCard
                 key={restaurant.id}
                 restaurant={restaurant}
-                priority={index === 0}
                 saved={savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id)}
                 onFavorite={() => void handleFavoriteToggle(restaurant)}
               />
@@ -559,12 +559,10 @@ function MobileSectionHeader({ title, href }: { title: string; href: string }) {
 
 function MobileRestaurantCard({
   restaurant,
-  priority = false,
   saved = false,
   onFavorite,
 }: {
   restaurant: Restaurant;
-  priority?: boolean;
   saved?: boolean;
   onFavorite?: () => void;
 }) {
@@ -574,11 +572,11 @@ function MobileRestaurantCard({
       <div className="relative h-28 overflow-hidden bg-muted md:h-36">
         <Link href={`/restaurant/${restaurant.slug}`} className="relative block h-full">
           <SafeImage
-            src={restaurant.image}
+            src={restaurant.primaryThumbnail || restaurant.image}
             alt={restaurant.name}
             fill
-            priority={priority}
-            loading={priority ? "eager" : "lazy"}
+            loading="lazy"
+            decoding="async"
             fallbackSrc={IMAGE_FALLBACKS.restaurant}
             sizes="250px"
             className="object-cover"
@@ -610,6 +608,9 @@ function MobileRestaurantCard({
     </article>
   );
 }
+
+const MemoMobileRestaurantCard = memo(MobileRestaurantCard);
+MemoMobileRestaurantCard.displayName = "MemoMobileRestaurantCard";
 
 function PopularDishCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
   return (

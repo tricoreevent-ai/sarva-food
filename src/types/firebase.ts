@@ -84,6 +84,9 @@ export type RestaurantDoc = BaseDoc & {
   logoPath?: string;
   coverImagePath?: string;
   coverImagePaths?: string[];
+  bannerImages?: string[];
+  thumbnailImages?: string[];
+  primaryThumbnail?: string;
   googleMapLocation?: string;
   operatingHours?: string;
   operatingHoursSchedule?: OperatingHoursDay[];

@@ -294,6 +294,29 @@ function createLocalId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
+function toRestaurantThumbnailUrl(url: string) {
+  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
+  const marker = "/upload/";
+  if (!url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
+  const [prefix, rest = ""] = url.split(marker);
+  const parts = rest.split("/").filter(Boolean);
+  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
+  return `${prefix}${marker}f_webp,q_70,w_400,c_limit/${parts.join("/")}`;
+}
+
+function withUnsplashThumbnail(url: string) {
+  try {
+    const nextUrl = new URL(url);
+    nextUrl.searchParams.set("auto", "format");
+    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
+    nextUrl.searchParams.set("w", "400");
+    nextUrl.searchParams.set("q", "70");
+    return nextUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
 function createAuditLogEntry(
   state: Pick<AppStore, "authUser">,
   entry: Omit<AuditLogEntry, "id" | "createdAt" | "userId" | "userName" | "role">,
@@ -1895,6 +1918,8 @@ export const useAppStore = create<AppStore>()(
         const existingRestaurant = get().restaurants.find((restaurant) => restaurant.slug === restaurantSlug);
         const branchId = get().branches[0]?.id ?? DEFAULT_BRANCH_ID;
         const profileComplete = isOwnerProfilePublicComplete(profile);
+        const bannerImages = Array.from(new Set([...(profile.coverImages ?? []), profile.coverImage, profile.logo].filter(Boolean) as string[])).slice(0, 5);
+        const thumbnailImages = bannerImages.map(toRestaurantThumbnailUrl);
         const branch: RestaurantBranch = {
           id: branchId,
           tenantId: resolveTenantId(restaurantSlug),
@@ -1918,10 +1943,13 @@ export const useAppStore = create<AppStore>()(
           rating: existingRestaurant?.rating ?? 0,
           deliveryTime: profile.operatingHours,
           priceForTwo: existingRestaurant?.priceForTwo ?? 0,
-          image: profile.coverImage || profile.coverImages?.[0] || profile.logo,
+          image: thumbnailImages[0] || profile.coverImage || profile.coverImages?.[0] || profile.logo,
           logo: profile.logo,
-          coverImage: profile.coverImage || profile.coverImages?.[0] || profile.logo,
-          coverImages: profile.coverImages?.length ? profile.coverImages : [profile.coverImage || profile.logo].filter(Boolean),
+          coverImage: bannerImages[0] || profile.coverImage || profile.logo,
+          coverImages: bannerImages,
+          bannerImages,
+          thumbnailImages,
+          primaryThumbnail: thumbnailImages[0] ?? "",
           isOpen: existingRestaurant?.isOpen ?? true,
           tags: profile.cuisineTypes?.length ? profile.cuisineTypes : [profile.cuisineType].filter(Boolean),
           instagramHandle: existingRestaurant?.instagramHandle ?? "",
@@ -1967,7 +1995,7 @@ export const useAppStore = create<AppStore>()(
           scheduling: existingRestaurant?.scheduling,
           advancedFeatures: existingRestaurant?.advancedFeatures,
         };
-        const savedProfile = { ...profile, completed: profile.completed, reviewStatus: profile.reviewStatus ?? (profile.completed ? "pending_review" : "draft") };
+        const savedProfile = { ...profile, thumbnailImages, completed: profile.completed, reviewStatus: profile.reviewStatus ?? (profile.completed ? "pending_review" : "draft") };
         try {
           await saveOwnerRestaurantProfile({ profile: savedProfile, restaurant, branch });
         } catch (error) {

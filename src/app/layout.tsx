@@ -149,6 +149,8 @@ const devServiceWorkerResetScript = `
 })();
 `;
 
+const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -161,6 +163,12 @@ export default function RootLayout({
         <Script id="sarva-chunk-recovery" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: chunkRecoveryScript }} />
         {process.env.NODE_ENV !== "production" ? (
           <Script id="sarva-dev-sw-reset" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: devServiceWorkerResetScript }} />
+        ) : null}
+        {googleAnalyticsId ? (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`} strategy="afterInteractive" />
+            <Script id="sarva-google-analytics" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","${googleAnalyticsId}",{send_page_view:false});` }} />
+          </>
         ) : null}
         <ThemeProvider>
           <I18nProvider>

@@ -18,6 +18,9 @@ export type Restaurant = {
   logo?: string;
   coverImage?: string;
   coverImages?: string[];
+  bannerImages?: string[];
+  thumbnailImages?: string[];
+  primaryThumbnail?: string;
   active?: boolean;
   isOpen: boolean;
   tags: string[];
@@ -770,6 +773,7 @@ export type OwnerBusinessProfile = {
   logo: string;
   coverImage?: string;
   coverImages?: string[];
+  thumbnailImages?: string[];
   businessAddress: string;
   googleMapLocation: string;
   latitude?: number;

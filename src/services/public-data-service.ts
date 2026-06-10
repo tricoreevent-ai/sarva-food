@@ -48,7 +48,7 @@ function isPublicRestaurantListable(doc: RestaurantDoc) {
   const hasLocation = Boolean((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation);
   const hasAddress = Boolean((doc.address || doc.location)?.trim());
   const hasCuisine = Boolean(textList(doc.cuisine));
-  const hasMedia = Boolean(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath);
+  const hasMedia = Boolean(doc.bannerImages?.length || doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath);
   const hasContact = Boolean(doc.contact?.phone || doc.ownerProfile?.businessPhone || extra.phone);
   return Boolean(doc.active && !doc.isDeleted && doc.name?.trim() && hasAddress && hasLocation && hasCuisine && hasMedia && hasContact && doc.deliveryRadiusKm);
 }
@@ -269,7 +269,7 @@ function clientRestaurantFilterReasons(doc: RestaurantDoc) {
   if (!((doc.address || doc.location)?.trim())) reasons.push("missing-address");
   if (!((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation)) reasons.push("missing-location");
   if (!textList(doc.cuisine)) reasons.push("missing-cuisine");
-  if (!(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath)) reasons.push("missing-media");
+  if (!(doc.bannerImages?.length || doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath)) reasons.push("missing-media");
   if (!(doc.contact?.phone || doc.ownerProfile?.businessPhone || extra.phone)) reasons.push("missing-contact");
   if (!doc.deliveryRadiusKm) reasons.push("missing-delivery-radius");
   return reasons;
@@ -499,10 +499,9 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     instagramHandle?: string;
   };
   const etaMinutes = typeof extra.etaMinutes === "number" ? extra.etaMinutes : undefined;
-  const coverImagePaths = Array.from(new Set(
-    (doc.coverImagePaths ?? [doc.coverImagePath || doc.imagePath || ""])
-      .filter((value): value is string => Boolean(value) && value !== doc.logoPath),
-  ));
+  const bannerImages = restaurantBannerImages(doc);
+  const thumbnailImages = restaurantThumbnailImages(doc, bannerImages);
+  const primaryThumbnail = doc.primaryThumbnail || thumbnailImages[0] || withCloudinaryThumbnail(bannerImages[0] || "");
   return {
     id: doc.id,
     tenantId: doc.tenantId,
@@ -516,10 +515,13 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     rating: typeof extra.rating === "number" ? extra.rating : 0,
     deliveryTime: extra.deliveryTime || (etaMinutes ? `${etaMinutes}-${etaMinutes + 8} min` : ""),
     priceForTwo: typeof extra.priceForTwo === "number" ? extra.priceForTwo : 0,
-    image: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || FALLBACK_IMAGE),
+    image: primaryThumbnail || FALLBACK_IMAGE,
     logo: withCloudinaryAuto(doc.logoPath || ""),
-    coverImage: withCloudinaryAuto(doc.coverImagePath || doc.coverImagePaths?.[0] || doc.imagePath || ""),
-    coverImages: coverImagePaths.map(withCloudinaryAuto).filter(Boolean),
+    coverImage: withCloudinaryAuto(bannerImages[0] || ""),
+    coverImages: bannerImages.map(withCloudinaryAuto).filter(Boolean),
+    bannerImages: bannerImages.map(withCloudinaryAuto).filter(Boolean),
+    thumbnailImages,
+    primaryThumbnail,
     active: doc.active,
     isOpen: false,
     tags: extra.tags?.length ? extra.tags : (doc.deliveryRadiusKm ? [`${doc.deliveryRadiusKm} km delivery`] : []),
@@ -552,6 +554,21 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     scheduling: doc.scheduling,
     advancedFeatures: doc.advancedFeatures,
   };
+}
+
+function restaurantBannerImages(doc: RestaurantDoc) {
+  return Array.from(new Set([
+    ...(doc.bannerImages ?? []),
+    ...(doc.coverImagePaths ?? []),
+    doc.coverImagePath,
+    doc.imagePath,
+  ].filter((value): value is string => Boolean(value && value !== doc.logoPath)))).slice(0, 5);
+}
+
+function restaurantThumbnailImages(doc: RestaurantDoc, bannerImages: string[]) {
+  const saved = Array.isArray(doc.thumbnailImages) ? doc.thumbnailImages.filter(Boolean) : [];
+  const thumbnails = saved.length ? saved : bannerImages.map(withCloudinaryThumbnail);
+  return Array.from(new Set(thumbnails.filter(Boolean))).slice(0, 5);
 }
 
 function mergePublicRestaurant(items: Restaurant[], item: Restaurant) {
@@ -664,6 +681,33 @@ function withCloudinaryAuto(url: string) {
   if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
   if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(url)) return url;
   return url.replace("/upload/", "/upload/f_auto,q_auto/");
+}
+
+function withCloudinaryThumbnail(url: string) {
+  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
+  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+}
+
+function withUnsplashThumbnail(url: string) {
+  try {
+    const nextUrl = new URL(url);
+    nextUrl.searchParams.set("auto", "format");
+    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
+    nextUrl.searchParams.set("w", "400");
+    nextUrl.searchParams.set("q", "70");
+    return nextUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
+function withCloudinaryTransform(url: string, transform: string) {
+  const marker = "/upload/";
+  if (!url || !url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
+  const [prefix, rest = ""] = url.split(marker);
+  const parts = rest.split("/").filter(Boolean);
+  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
+  return `${prefix}${marker}${transform}/${parts.join("/")}`;
 }
 
 export function offerDocToUi(doc: OfferDoc): Offer {

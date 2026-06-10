@@ -199,6 +199,8 @@ export function RestaurantBrowserFlow() {
               <div className="flex min-h-12 flex-1 items-center gap-2 rounded-md bg-muted px-3">
                 <MapPin className="size-5 text-primary" />
                 <Input
+                  id="restaurant-area-search"
+                  name="restaurantAreaSearch"
                   className="h-11 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
                   placeholder="Search delivery area"
                   value={locationQuery}
@@ -231,6 +233,8 @@ export function RestaurantBrowserFlow() {
           <div className="glass-card flex items-center gap-2 rounded-lg bg-white/94 p-2 text-foreground shadow-xl">
             <Search className="ml-2 size-5 text-muted-foreground" />
             <Input
+              id="restaurant-listing-search"
+              name="restaurantListingSearch"
               className="h-12 border-0 bg-transparent px-1 text-base shadow-none focus-visible:ring-0"
               placeholder={listingCopy.searchPlaceholder}
               aria-label="Search restaurants"
@@ -436,17 +440,17 @@ function RestaurantFilterPanel({
             />
           </FilterGroup>
           <FilterGroup label="Price for two">
-            <select className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={priceFilter} onChange={(event) => setPriceFilter(event.target.value)}>
+            <select id="restaurant-price-filter" name="restaurantPriceFilter" className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={priceFilter} onChange={(event) => setPriceFilter(event.target.value)}>
               {priceFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </FilterGroup>
           <FilterGroup label="Rating">
-            <select className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)}>
+            <select id="restaurant-rating-filter" name="restaurantRatingFilter" className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)}>
               {ratingFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </FilterGroup>
           <FilterGroup label="Delivery time">
-            <select className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={etaFilter} onChange={(event) => setEtaFilter(event.target.value)}>
+            <select id="restaurant-eta-filter" name="restaurantEtaFilter" className="h-11 rounded-md border bg-background px-3 text-sm font-bold" value={etaFilter} onChange={(event) => setEtaFilter(event.target.value)}>
               {etaFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </FilterGroup>

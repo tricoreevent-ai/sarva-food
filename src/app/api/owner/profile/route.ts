@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
   const coverImagePaths = configuredCoverImagePaths.length
     ? configuredCoverImagePaths
     : [body.restaurant.image, body.profile.logo].filter((value): value is string => Boolean(value));
+  const bannerImages = Array.from(new Set(coverImagePaths)).slice(0, 5);
+  const thumbnailImages = bannerImages.map(toRestaurantThumbnailUrl);
   const restaurantPayload = sanitize({
     ...body.restaurant,
     id: restaurantId,
@@ -63,8 +65,11 @@ export async function POST(request: NextRequest) {
     displayName: body.profile.hotelName || body.restaurant.displayName,
     imagePath: body.profile.coverImage || body.profile.logo || body.restaurant.image,
     logoPath: body.profile.logo,
-    coverImagePath: body.profile.coverImage || body.profile.logo || body.restaurant.image,
-    coverImagePaths: Array.from(new Set(coverImagePaths)),
+    coverImagePath: bannerImages[0] || body.profile.logo || body.restaurant.image,
+    coverImagePaths: bannerImages,
+    bannerImages,
+    thumbnailImages,
+    primaryThumbnail: thumbnailImages[0] ?? "",
     address: body.profile.businessAddress || body.restaurant.address || body.restaurant.location,
     location: body.profile.businessAddress || body.restaurant.location,
     googleMapLocation: body.profile.googleMapLocation,
@@ -117,6 +122,7 @@ export async function POST(request: NextRequest) {
   });
   const profilePayload = sanitize({
     ...body.profile,
+    thumbnailImages,
     id: session.uid,
     ownerId: session.uid,
     tenantId,
@@ -143,6 +149,33 @@ export async function POST(request: NextRequest) {
   ]);
 
   return NextResponse.json({ ok: true, restaurantId, branchId });
+}
+
+function toRestaurantThumbnailUrl(url: string) {
+  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
+  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+}
+
+function withUnsplashThumbnail(url: string) {
+  try {
+    const nextUrl = new URL(url);
+    nextUrl.searchParams.set("auto", "format");
+    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
+    nextUrl.searchParams.set("w", "400");
+    nextUrl.searchParams.set("q", "70");
+    return nextUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
+function withCloudinaryTransform(url: string, transform: string) {
+  const marker = "/upload/";
+  if (!url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
+  const [prefix, rest = ""] = url.split(marker);
+  const parts = rest.split("/").filter(Boolean);
+  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
+  return `${prefix}${marker}${transform}/${parts.join("/")}`;
 }
 
 async function findDuplicateRestaurantNameForOwner(ownerId: string, name: string, currentRestaurantId: string) {

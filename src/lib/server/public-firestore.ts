@@ -440,7 +440,7 @@ function restaurantVisibilityRejectionReasons(doc: RestaurantDoc, slug?: string)
   if (!((doc.address || doc.location)?.trim())) reasons.push("missing-address");
   if (!((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation)) reasons.push("missing-location");
   if (!(Array.isArray(doc.cuisine) ? doc.cuisine.length : String(doc.cuisine ?? "").trim())) reasons.push("missing-cuisine");
-  if (!(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath)) reasons.push("missing-media");
+  if (!(doc.bannerImages?.length || doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath)) reasons.push("missing-media");
   if (!(doc.contact?.phone || doc.ownerProfile?.businessPhone || extra.phone)) reasons.push("missing-contact");
   if (!doc.deliveryRadiusKm) reasons.push("missing-delivery-radius");
   if (!matchesPublicRestaurantSlug(doc, slug)) reasons.push("slug-mismatch");
@@ -490,7 +490,7 @@ function isPublicRestaurantListable(doc: RestaurantDoc) {
   const hasLocation = Boolean((typeof doc.latitude === "number" && typeof doc.longitude === "number") || doc.googleMapLocation);
   const hasAddress = Boolean((doc.address || doc.location)?.trim());
   const hasCuisine = Boolean(Array.isArray(doc.cuisine) ? doc.cuisine.length : String(doc.cuisine ?? "").trim());
-  const hasMedia = Boolean(doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath);
+  const hasMedia = Boolean(doc.bannerImages?.length || doc.coverImagePath || doc.coverImagePaths?.length || doc.imagePath || doc.logoPath);
   const hasContact = Boolean(doc.contact?.phone || doc.ownerProfile?.businessPhone || (doc as RestaurantDoc & { phone?: string }).phone);
   return Boolean(doc.name?.trim() && hasAddress && hasLocation && hasCuisine && hasMedia && hasContact && doc.deliveryRadiusKm);
 }
@@ -904,6 +904,8 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
   const cafeAlArab = isCafeAlArabRestaurantDoc(doc);
   const publicRestaurantId = cafeAlArab ? DEFAULT_RESTAURANT_ID : doc.id;
   const publicRestaurantName = cafeAlArab ? "Cafe Al Arab UL" : doc.name;
+  const bannerImages = restaurantBannerImages(doc);
+  const thumbnailImages = restaurantThumbnailImages(doc, bannerImages);
   return {
     id: publicRestaurantId,
     tenantId: cafeAlArab ? DEFAULT_RESTAURANT_ID : doc.tenantId,
@@ -923,8 +925,11 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     active: doc.active,
     imagePath: doc.imagePath,
     logoPath: doc.logoPath,
-    coverImagePath: doc.coverImagePath,
-    coverImagePaths: doc.coverImagePaths,
+    coverImagePath: bannerImages[0] ?? doc.coverImagePath,
+    coverImagePaths: bannerImages,
+    bannerImages,
+    thumbnailImages,
+    primaryThumbnail: thumbnailImages[0] ?? "",
     googleMapLocation: doc.googleMapLocation,
     operatingHours: doc.operatingHours,
     operatingHoursSchedule: doc.operatingHoursSchedule,
@@ -961,6 +966,48 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     ...(doc.scheduling ? { scheduling: doc.scheduling } : {}),
     ...(doc.advancedFeatures ? { advancedFeatures: doc.advancedFeatures } : {}),
   } as RestaurantDoc;
+}
+
+function restaurantBannerImages(doc: RestaurantDoc) {
+  return Array.from(new Set([
+    ...(doc.bannerImages ?? []),
+    ...(doc.coverImagePaths ?? []),
+    doc.coverImagePath,
+    doc.imagePath,
+  ].filter((value): value is string => Boolean(value && value !== doc.logoPath)))).slice(0, 5);
+}
+
+function restaurantThumbnailImages(doc: RestaurantDoc, bannerImages: string[]) {
+  const saved = Array.isArray(doc.thumbnailImages) ? doc.thumbnailImages.filter(Boolean) : [];
+  const thumbnails = saved.length ? saved : bannerImages.map(toRestaurantThumbnailUrl);
+  return Array.from(new Set(thumbnails)).slice(0, 5);
+}
+
+function toRestaurantThumbnailUrl(url: string) {
+  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
+  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+}
+
+function withUnsplashThumbnail(url: string) {
+  try {
+    const nextUrl = new URL(url);
+    nextUrl.searchParams.set("auto", "format");
+    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
+    nextUrl.searchParams.set("w", "400");
+    nextUrl.searchParams.set("q", "70");
+    return nextUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
+function withCloudinaryTransform(url: string, transform: string) {
+  const marker = "/upload/";
+  if (!url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
+  const [prefix, rest = ""] = url.split(marker);
+  const parts = rest.split("/").filter(Boolean);
+  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
+  return `${prefix}${marker}${transform}/${parts.join("/")}`;
 }
 
 function toPublicMenuDoc(doc: MenuDoc): MenuDoc {

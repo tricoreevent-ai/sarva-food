@@ -344,6 +344,8 @@ export async function saveOwnerRestaurantProfile(input: {
 
   if (!canUseProductionFirestore()) throw apiError ?? new Error("Owner profile could not be saved because owner access is not available.");
   const { profile, restaurant, branch } = input;
+  const bannerImages = Array.from(new Set([...(restaurant.coverImages ?? []), ...(profile.coverImages ?? []), restaurant.coverImage, profile.coverImage, profile.logo].filter(Boolean) as string[])).slice(0, 5);
+  const thumbnailImages = bannerImages.map(toRestaurantThumbnailUrl);
   await Promise.all([
     setDoc(doc(getFirebaseDb(), "restaurants", restaurant.slug), {
       id: restaurant.slug,
@@ -360,10 +362,13 @@ export async function saveOwnerRestaurantProfile(input: {
       deliveryRadiusKm: restaurant.deliveryRadiusKm,
       cuisine: restaurant.cuisine,
       active: restaurant.approved !== false,
-      imagePath: restaurant.image,
+      imagePath: restaurant.coverImage ?? profile.coverImage ?? restaurant.image,
       logoPath: restaurant.logo ?? profile.logo,
-      coverImagePath: restaurant.coverImage ?? profile.coverImage ?? restaurant.image,
-      coverImagePaths: Array.from(new Set([...(restaurant.coverImages ?? []), ...(profile.coverImages ?? []), restaurant.coverImage, profile.coverImage].filter(Boolean))),
+      coverImagePath: bannerImages[0] ?? restaurant.coverImage ?? profile.coverImage ?? restaurant.image,
+      coverImagePaths: bannerImages,
+      bannerImages,
+      thumbnailImages,
+      primaryThumbnail: thumbnailImages[0] ?? "",
       googleMapLocation: restaurant.googleMapLocation ?? profile.googleMapLocation,
       operatingHours: profile.operatingHours,
       operatingHoursSchedule: profile.operatingHoursSchedule,
@@ -402,6 +407,33 @@ export async function saveOwnerRestaurantProfile(input: {
     }, { merge: true }),
   ]);
   return restaurant.slug;
+}
+
+function toRestaurantThumbnailUrl(url: string) {
+  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
+  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+}
+
+function withUnsplashThumbnail(url: string) {
+  try {
+    const nextUrl = new URL(url);
+    nextUrl.searchParams.set("auto", "format");
+    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
+    nextUrl.searchParams.set("w", "400");
+    nextUrl.searchParams.set("q", "70");
+    return nextUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
+function withCloudinaryTransform(url: string, transform: string) {
+  const marker = "/upload/";
+  if (!url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
+  const [prefix, rest = ""] = url.split(marker);
+  const parts = rest.split("/").filter(Boolean);
+  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
+  return `${prefix}${marker}${transform}/${parts.join("/")}`;
 }
 
 export async function deductRecipeInventory(input: {
