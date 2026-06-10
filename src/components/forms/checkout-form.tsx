@@ -441,7 +441,7 @@ function GuestCheckoutAuthGate() {
           <DialogHeader>
             <DialogTitle>Sign in to continue checkout</DialogTitle>
             <DialogDescription>
-              Your cart stays saved on this device. Sign in or create an account to place the order.
+              Sign in or create an account to save this cart to your profile and place the order.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">

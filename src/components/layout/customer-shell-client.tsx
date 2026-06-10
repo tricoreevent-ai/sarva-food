@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { CustomerCartSync } from "@/components/commerce/customer-cart-sync";
 import { MobileOfflineBanner, MobilePullToRefresh } from "@/components/mobile/mobile-shell-experience";
 import { CustomerAuthProvider } from "@/context/auth/customer-auth-provider";
 import { CustomerFooter } from "@/components/layout/customer-footer";
@@ -30,6 +31,7 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
 
   return (
     <CustomerAuthProvider>
+      <CustomerCartSync />
       <MobileOfflineBanner />
       <MobilePullToRefresh>
         <div className={restaurantRoute ? "hidden xl:block" : ""}>

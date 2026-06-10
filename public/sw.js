@@ -1,7 +1,6 @@
-const CACHE_VERSION = "sarva-v10-20260602";
+const CACHE_VERSION = "sarva-v11-20260610";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const MENU_CACHE = `${CACHE_VERSION}-menus`;
 const REPORT_CACHE = `${CACHE_VERSION}-reports`;
 const STATIC_URLS = [
   "/offline",
@@ -67,18 +66,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (isCustomerCatalogRequest(url)) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/public/")) {
-    event.respondWith(staleWhileRevalidate(request, MENU_CACHE));
-    return;
-  }
-
-  if (url.pathname.startsWith("/restaurant/")) {
-    event.respondWith(staleWhileRevalidate(request, MENU_CACHE));
+    event.respondWith(networkOnlyNavigation(request));
     return;
   }
 
@@ -98,16 +92,11 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-async function networkFirst(request) {
+async function networkOnlyNavigation(request) {
   try {
-    const response = await fetch(request);
-    if (canCache(response)) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    return response;
+    return await fetch(request);
   } catch {
-    return (await caches.match(request)) || (await caches.match("/offline"));
+    return (await caches.match("/offline")) || Response.error();
   }
 }
 
@@ -162,6 +151,15 @@ function canCache(response) {
     return false;
   }
   return true;
+}
+
+function isCustomerCatalogRequest(url) {
+  return (
+    url.pathname.startsWith("/api/public/") ||
+    url.pathname.startsWith("/restaurant/") ||
+    url.pathname === "/restaurants" ||
+    url.pathname === "/offers"
+  );
 }
 
 function isNextRouterDataRequest(request, url) {

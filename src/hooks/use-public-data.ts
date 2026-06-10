@@ -11,15 +11,10 @@ import {
   listenPublicReviews,
   type PublicDataStatus,
 } from "@/services/public-data-service";
-import { cacheReport, getCachedReport } from "@/lib/offline/offline-storage";
 import type { AppCategory, AppCuisine, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 
 const PUBLIC_LOAD_TIMEOUT_MS = 1500;
-const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
-const PUBLIC_RESTAURANTS_CACHE_KEY = "sarva-public-restaurants-cache:v3";
-const PUBLIC_MENU_CACHE_PREFIX = "sarva-public-menu-cache:v8:";
-const PUBLIC_CUISINES_CACHE_KEY = "sarva-public-cuisines-cache:v1";
 const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "cafe-al-arab-thanisandra-chicken-shawarma-roll",
   "cafe-al-arab-thanisandra-alfaham-half",
@@ -31,35 +26,6 @@ const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "menu-falafel-pita",
 ]);
 const LEGACY_SEEDED_PUBLIC_OFFER_CODES = new Set(["ARABIC20", "INSTA20"]);
-
-function readCache<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const value = window.localStorage.getItem(key);
-    return value ? (JSON.parse(value) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeCache(key: string, value: unknown) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage may be unavailable in private mode or under quota pressure.
-  }
-  void cacheReport(key, value, PUBLIC_CACHE_TTL_MS).catch(() => undefined);
-}
-
-async function readIndexedCache<T>(key: string, fallback: T): Promise<T> {
-  try {
-    const record = await getCachedReport<T>(key);
-    return record?.value ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } = {}) {
   const preloadPrimaryMenu = options.preloadPrimaryMenu ?? false;
@@ -77,23 +43,6 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
   useEffect(() => {
     let active = true;
     const startedAt = performance.now();
-    const cachedTimerId = window.setTimeout(() => {
-      const cached = readCache<Restaurant[]>(PUBLIC_RESTAURANTS_CACHE_KEY, []);
-      if (active && cached.length) {
-        window.clearTimeout(timeoutId);
-        setRestaurants(cached);
-        setStatus("success");
-        setError(null);
-      }
-      void readIndexedCache<Restaurant[]>(PUBLIC_RESTAURANTS_CACHE_KEY, []).then((indexed) => {
-        if (active && indexed.length) {
-          window.clearTimeout(timeoutId);
-          setRestaurants(indexed);
-          setStatus("success");
-          setError(null);
-        }
-      });
-    }, 75);
     const timeoutId = window.setTimeout(() => {
       if (!active) return;
       setLoadingForMs(Math.round(performance.now() - startedAt));
@@ -105,9 +54,7 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
       (items) => {
         if (!active) return;
         window.clearTimeout(timeoutId);
-        window.clearTimeout(cachedTimerId);
         setRestaurants(items);
-        writeCache(PUBLIC_RESTAURANTS_CACHE_KEY, items);
         setLoadingForMs(Math.round(performance.now() - startedAt));
         setError(null);
         setStatus("success");
@@ -117,7 +64,6 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
         onError: () => {
           if (!active) return;
           window.clearTimeout(timeoutId);
-          window.clearTimeout(cachedTimerId);
           setLoadingForMs(Math.round(performance.now() - startedAt));
           setError("Restaurants are temporarily unavailable.");
           setStatus("error");
@@ -128,7 +74,6 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
     return () => {
       active = false;
       window.clearTimeout(timeoutId);
-      window.clearTimeout(cachedTimerId);
       unsubscribe();
     };
   }, [preloadPrimaryMenu, version]);
@@ -186,15 +131,6 @@ export function usePublicCuisines() {
 
   useEffect(() => {
     let active = true;
-    const cachedTimerId = window.setTimeout(() => {
-      const cached = readCache<AppCuisine[]>(PUBLIC_CUISINES_CACHE_KEY, []);
-      if (active && cached.length) {
-        window.clearTimeout(timeoutId);
-        setCuisines(cached);
-        setStatus("success");
-        setError(null);
-      }
-    }, 75);
     const timeoutId = window.setTimeout(() => {
       if (!active) return;
       setStatus("error");
@@ -204,9 +140,7 @@ export function usePublicCuisines() {
     const unsubscribe = listenPublicCuisines((items) => {
       if (!active) return;
       window.clearTimeout(timeoutId);
-      window.clearTimeout(cachedTimerId);
       setCuisines(items);
-      writeCache(PUBLIC_CUISINES_CACHE_KEY, items);
       setError(null);
       setStatus("success");
     });
@@ -214,7 +148,6 @@ export function usePublicCuisines() {
     return () => {
       active = false;
       window.clearTimeout(timeoutId);
-      window.clearTimeout(cachedTimerId);
       unsubscribe();
     };
   }, [version]);
@@ -306,25 +239,6 @@ export function usePublicMenu(restaurantId?: string) {
       };
     }
 
-    const cacheKey = `${PUBLIC_MENU_CACHE_PREFIX}${restaurantId}`;
-    const cachedTimerId = window.setTimeout(() => {
-      const cached = readCache<{ items: MenuItem[]; offers: Offer[] }>(cacheKey, { items: [], offers: [] });
-      if (!cancelled && (cached.items.length || cached.offers.length)) {
-        window.clearTimeout(timeoutId);
-        setItems(filterPublicMenuItems(cached.items));
-        setOffers(filterPublicOffers(cached.offers));
-        setStatus("success");
-      }
-      void readIndexedCache<{ items: MenuItem[]; offers: Offer[] }>(cacheKey, { items: [], offers: [] })
-        .then((indexed) => {
-          if (!cancelled && (indexed.items.length || indexed.offers.length)) {
-            window.clearTimeout(timeoutId);
-            setItems(filterPublicMenuItems(indexed.items));
-            setOffers(filterPublicOffers(indexed.offers));
-            setStatus("success");
-          }
-        });
-    }, 75);
     const timeoutId = window.setTimeout(() => {
       if (cancelled) return;
       window.clearTimeout(loadingTimerId);
@@ -340,9 +254,7 @@ export function usePublicMenu(restaurantId?: string) {
     const markLoaded = () => {
       if (!cancelled && menuLoaded && offersLoaded) {
         window.clearTimeout(loadingTimerId);
-        window.clearTimeout(cachedTimerId);
         window.clearTimeout(timeoutId);
-        writeCache(cacheKey, { items: latestItems, offers: latestOffers });
         setLoadingForMs(Math.round(performance.now() - startedAt));
         setError(null);
         setStatus("success");
@@ -373,7 +285,6 @@ export function usePublicMenu(restaurantId?: string) {
     return () => {
       cancelled = true;
       window.clearTimeout(loadingTimerId);
-      window.clearTimeout(cachedTimerId);
       window.clearTimeout(timeoutId);
       unsubscribeMenu();
       unsubscribeOffers();

@@ -195,7 +195,7 @@ async function fetchJsonWithRetry<T>(url: string): Promise<T> {
   for (let attempt = 0; attempt <= PUBLIC_FETCH_RETRIES; attempt += 1) {
     try {
       const response = await fetch(url, {
-        cache: "default",
+        cache: "no-store",
         headers: { Accept: "application/json" },
       });
       const payload = (await response.json().catch(() => ({}))) as T & { error?: string };

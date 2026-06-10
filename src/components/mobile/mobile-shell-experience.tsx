@@ -98,7 +98,7 @@ export function MobileOfflineBanner() {
           <div>
             <p className="text-sm font-black">Offline mode</p>
             <p className="text-xs font-semibold text-muted-foreground">
-              Cart and checkout data stay available locally. Reconnect to refresh live restaurant data.
+              Reconnect to refresh live restaurant data and sync your signed-in cart.
             </p>
           </div>
         </div>

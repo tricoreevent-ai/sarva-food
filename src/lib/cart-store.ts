@@ -18,6 +18,7 @@ export type CartState = {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   applyOffer: (code: string) => void;
+  replaceCart: (items: CartLine[], offerCode?: string) => void;
   clearCart: () => void;
 };
 
@@ -55,6 +56,7 @@ export const useCartStore = create<CartState>()(
               ),
         })),
       applyOffer: (code) => set({ offerCode: code.trim().toUpperCase() }),
+      replaceCart: (items, offerCode = "") => set({ items: sanitizeCartLines(items), offerCode: offerCode.trim().toUpperCase() }),
       clearCart: () => set({ items: [], offerCode: "" }),
     }),
     {
@@ -62,6 +64,12 @@ export const useCartStore = create<CartState>()(
     },
   ),
 );
+
+function sanitizeCartLines(items: CartLine[]) {
+  return items
+    .filter((item) => item.id && item.name && Number.isFinite(item.price) && Number.isFinite(item.quantity))
+    .map((item) => ({ ...item, quantity: Math.max(1, Math.min(99, Math.round(item.quantity))) }));
+}
 
 export function getCartSubtotal(items: CartLine[]) {
   return items.reduce((total, item) => total + item.price * item.quantity, 0);
