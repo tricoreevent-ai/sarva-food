@@ -1,0 +1,40 @@
+.admin-premium,
+.theme-admin-light {
+  --module-bg: #f4f6f8;
+  --module-card: #ffffff;
+  --module-sidebar: #ffffff;
+  --module-primary: #4f46e5;
+  --module-primary-hover: #4338ca;
+  --module-text: #111827;
+  --module-text-secondary: #4b5563;
+  --module-text-muted: #6b7280;
+  --module-border: #d1d5db;
+  --module-success: #16a34a;
+  --module-warning: #d97706;
+  --module-danger: #dc2626;
+  --module-tooltip-bg: #111827;
+  --module-tooltip-text: #ffffff;
+  --background: var(--module-bg);
+  --foreground: var(--module-text);
+  --card: var(--module-card);
+  --card-foreground: var(--module-text);
+  --popover: var(--module-card);
+  --popover-foreground: var(--module-text);
+  --primary: var(--module-primary);
+  --primary-foreground: #ffffff;
+  --secondary: #eef2ff;
+  --secondary-foreground: #312e81;
+  --muted: #eef2f7;
+  --muted-foreground: var(--module-text-secondary);
+  --accent: #eef2ff;
+  --accent-foreground: #312e81;
+  --destructive: var(--module-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--module-border);
+  --input: var(--module-border);
+  --ring: var(--module-primary);
+  --success: var(--module-success);
+  --warning: var(--module-warning);
+  color: var(--module-text);
+  background: var(--module-bg);
+}

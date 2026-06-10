@@ -10,6 +10,7 @@ import {
   type SessionSurface,
   type VerifiedSession,
 } from "@/lib/server-auth";
+import { adminDb } from "@/firebase/admin";
 
 function getCookieOptions(request: NextRequest) {
   const host = request.headers.get("host") ?? request.nextUrl.host;
@@ -33,15 +34,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "No active session." });
   }
 
+  const profile = await getSessionProfile(session.uid);
+
   return NextResponse.json({
     ok: true,
     uid: session.uid,
     role: session.role,
+    displayName: profile?.displayName,
+    email: profile?.email,
     tenantId: session.tenantId,
     tenantIds: session.tenantIds,
     branchIds: session.branchIds,
     restaurantIds: session.restaurantIds,
   });
+}
+
+async function getSessionProfile(uid: string) {
+  const snapshot = await adminDb().collection("users").doc(uid).get().catch(() => null);
+  const data = snapshot?.data() as { displayName?: string; email?: string } | undefined;
+  return data ? { displayName: data.displayName, email: data.email } : null;
 }
 
 export async function POST(request: NextRequest) {

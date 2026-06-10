@@ -85,6 +85,12 @@ const nextConfig: NextConfig = {
       { source: "/manifest.json", headers: publicHtmlHeaders },
       { source: "/api/release-info", headers: publicHtmlHeaders },
       {
+        source: "/_next/static/css/:path*",
+        headers: [
+          { key: "Content-Type", value: "text/css; charset=utf-8" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: securityHeaders,
       },

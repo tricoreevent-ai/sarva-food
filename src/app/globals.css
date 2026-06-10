@@ -1,7 +1,14 @@
+@import "../../themes/shared-typography.css";
+@import "../../themes/customer-light.css";
+@import "../../themes/customer-dark.css";
+@import "../../themes/owner-light.css";
+@import "../../themes/owner-dark.css";
+@import "../../themes/admin-light.css";
+@import "../../themes/admin-dark.css";
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-app-sans);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -74,97 +81,6 @@
   --border: #33382e;
   --input: #33382e;
   --ring: #2fb49f;
-}
-
-.customer-theme {
-  --background: #fff8f1;
-  --foreground: #241812;
-  --card: #fffdf9;
-  --card-foreground: #241812;
-  --primary: #e94235;
-  --primary-foreground: #ffffff;
-  --secondary: #ffd05a;
-  --secondary-foreground: #2c1a08;
-  --muted: #fff0e2;
-  --muted-foreground: #7c5f50;
-  --accent: #0b8f6f;
-  --accent-foreground: #ffffff;
-  --border: #f0d7c4;
-  --input: #f0d7c4;
-  --ring: #e94235;
-  background:
-    linear-gradient(180deg, #fff8f1 0%, #fffaf5 42%, #ffffff 100%);
-}
-
-.customer-theme.customer-light {
-  --background: #fff8f1;
-  --foreground: #241812;
-  --card: #fffdf9;
-  --card-foreground: #241812;
-  --popover: #ffffff;
-  --popover-foreground: #241812;
-  --primary: #ff5a2f;
-  --primary-foreground: #ffffff;
-  --secondary: #ffd05a;
-  --secondary-foreground: #2c1a08;
-  --muted: #fff0e2;
-  --muted-foreground: #7c5f50;
-  --accent: #0b8f6f;
-  --accent-foreground: #ffffff;
-  --border: #f0d7c4;
-  --input: #f0d7c4;
-  --ring: #ff5a2f;
-  --success: #167c4c;
-  --warning: #a86408;
-  --info: #315dff;
-  color: var(--foreground);
-  background:
-    linear-gradient(180deg, #fff8f1 0%, #fffaf5 42%, #ffffff 100%);
-}
-
-.dark .customer-theme {
-  --background: #17120f;
-  --foreground: #fff8f1;
-  --card: #211a16;
-  --card-foreground: #fff8f1;
-  --popover: #211a16;
-  --popover-foreground: #fff8f1;
-  --primary: #ff6a4f;
-  --primary-foreground: #1b0d09;
-  --secondary: #ffd166;
-  --secondary-foreground: #241708;
-  --muted: #30251f;
-  --muted-foreground: #d8c6b8;
-  --accent: #35c59e;
-  --accent-foreground: #06221b;
-  --border: #4c3930;
-  --input: #4c3930;
-  --ring: #ff8a70;
-  background:
-    linear-gradient(180deg, #17120f 0%, #1e1713 48%, #120f0d 100%);
-}
-
-.dark .customer-theme.customer-light {
-  --background: #fff8f1;
-  --foreground: #241812;
-  --card: #fffdf9;
-  --card-foreground: #241812;
-  --popover: #ffffff;
-  --popover-foreground: #241812;
-  --primary: #ff5a2f;
-  --primary-foreground: #ffffff;
-  --secondary: #ffd05a;
-  --secondary-foreground: #2c1a08;
-  --muted: #fff0e2;
-  --muted-foreground: #7c5f50;
-  --accent: #0b8f6f;
-  --accent-foreground: #ffffff;
-  --border: #f0d7c4;
-  --input: #f0d7c4;
-  --ring: #ff5a2f;
-  color: var(--foreground);
-  background:
-    linear-gradient(180deg, #fff8f1 0%, #fffaf5 42%, #ffffff 100%);
 }
 
 .customer-surface {
@@ -293,10 +209,86 @@ body {
   overflow-x: hidden;
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-app-sans);
   text-rendering: optimizeLegibility;
   -webkit-user-select: text;
   user-select: text;
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) {
+  color: var(--module-text);
+  background: var(--module-bg);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(.font-extrabold, .font-black) {
+  font-weight: var(--font-weight-bold);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(h1, .hero-title, .marketing-title, .restaurant-title) {
+  font-family: var(--font-app-display);
+  letter-spacing: 0;
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(.bg-background) {
+  background-color: var(--module-bg);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(.bg-card, .bg-white) {
+  background-color: var(--module-card);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(.text-foreground, .text-slate-950, .text-neutral-950, .text-slate-900, .text-neutral-900) {
+  color: var(--module-text);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(.text-muted-foreground, .text-slate-700, .text-neutral-700, .text-slate-600, .text-neutral-600, .text-slate-500, .text-neutral-500) {
+  color: var(--module-text-secondary);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(.border, .border-slate-200, .border-neutral-200, .border-gray-200) {
+  border-color: var(--module-border);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(input, select, textarea) {
+  border-color: var(--module-border);
+  background-color: var(--module-card);
+  color: var(--module-text);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(input::placeholder, textarea::placeholder) {
+  color: var(--module-text-muted);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(table) {
+  color: var(--module-text);
+  border-color: var(--module-border);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(thead, th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--module-card);
+  color: var(--module-text-secondary);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where(tr:hover) {
+  background-color: color-mix(in srgb, var(--module-primary) 7%, transparent);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where([data-state="selected"], [aria-selected="true"]) {
+  background-color: color-mix(in srgb, var(--module-primary) 12%, var(--module-card));
+  color: var(--module-text);
+}
+
+:where(.customer-theme, .owner-premium, .admin-premium) :where([role="tooltip"], .tooltip-content) {
+  background-color: var(--module-tooltip-bg);
+  color: var(--module-tooltip-text);
+  border-color: color-mix(in srgb, var(--module-tooltip-bg) 85%, var(--module-tooltip-text));
+}
+
+:where(.owner-premium, .admin-premium) :where(aside, nav[data-sidebar]) {
+  background-color: var(--module-sidebar);
 }
 
 button,
@@ -426,35 +418,6 @@ textarea::selection,
   background-size: 28px 28px;
 }
 
-.admin-premium {
-  --background: var(--admin-console-bg, #080b1a);
-  --foreground: #f8fafc;
-  --card: var(--admin-console-card, #11162e);
-  --card-foreground: #f8fafc;
-  --popover: #11162e;
-  --popover-foreground: #f8fafc;
-  --primary: var(--admin-console-primary, #6366f1);
-  --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
-  --muted: #151b33;
-  --muted-foreground: #a5b4fc;
-  --accent: #f97316;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.14);
-  --ring: #818cf8;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --info: #38bdf8;
-  background:
-    radial-gradient(circle at top left, rgba(99, 102, 241, 0.22), transparent 34rem),
-    radial-gradient(circle at top right, rgba(249, 115, 22, 0.14), transparent 30rem),
-    linear-gradient(180deg, #080b1a 0%, #0d1024 100%);
-}
-
 .admin-premium aside {
   border-color: rgba(255, 255, 255, 0.1);
   background: color-mix(in srgb, var(--card) 94%, black);
@@ -465,31 +428,6 @@ textarea::selection,
   background:
     linear-gradient(135deg, rgba(214, 183, 102, 0.08), transparent 28rem),
     transparent;
-}
-
-.owner-premium {
-  --background: #f7f8fb;
-  --foreground: #1c2430;
-  --card: #ffffff;
-  --card-foreground: #1c2430;
-  --popover: #ffffff;
-  --popover-foreground: #1c2430;
-  --primary: #ff5a1f;
-  --primary-foreground: #ffffff;
-  --secondary: #eef6f3;
-  --secondary-foreground: #17342b;
-  --muted: #f2f4f7;
-  --muted-foreground: #667085;
-  --accent: #0b8f6f;
-  --accent-foreground: #ffffff;
-  --border: #e6e9ef;
-  --input: #dfe4ec;
-  --ring: #ff7a45;
-  --success: #16a061;
-  --warning: #f08a24;
-  --info: #406cff;
-  background:
-    linear-gradient(180deg, #f7f8fb 0%, #fbfcfe 42%, #ffffff 100%);
 }
 
 .owner-premium aside {
@@ -509,23 +447,22 @@ textarea::selection,
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) {
-  --foreground: #182230;
-  --card-foreground: #182230;
-  --muted-foreground: #475467;
-  color-scheme: light;
-  color: #182230;
+  --foreground: var(--module-text);
+  --card-foreground: var(--module-text);
+  --muted-foreground: var(--module-text-secondary);
+  color: var(--module-text);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(h1, h2, h3, h4, h5, h6, label, legend, strong, .text-foreground, .text-card-foreground) {
-  color: #182230;
+  color: var(--module-text);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(.text-muted-foreground) {
-  color: #475467;
+  color: var(--module-text-secondary);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(.text-primary) {
-  color: #f04f1a;
+  color: var(--module-primary);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(.text-primary-foreground) {
@@ -533,27 +470,27 @@ textarea::selection,
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(input, select, textarea, [role="textbox"], [role="combobox"], [role="listbox"]) {
-  border-color: #cfd6e3;
-  background-color: #ffffff;
-  color: #182230 !important;
-  -webkit-text-fill-color: #182230;
+  border-color: var(--module-border);
+  background-color: var(--module-card);
+  color: var(--module-text) !important;
+  -webkit-text-fill-color: var(--module-text);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(input::placeholder, textarea::placeholder) {
-  color: #667085;
+  color: var(--module-text-muted);
   opacity: 1;
-  -webkit-text-fill-color: #667085;
+  -webkit-text-fill-color: var(--module-text-muted);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(select option, [role="option"]) {
-  background-color: #ffffff;
-  color: #182230;
+  background-color: var(--module-card);
+  color: var(--module-text);
 }
 
 .owner-premium :is(.owner-menu-page, .owner-menu-wizard) :where(input:disabled, select:disabled, textarea:disabled) {
-  color: #344054 !important;
+  color: var(--module-text-secondary) !important;
   opacity: 1;
-  -webkit-text-fill-color: #344054;
+  -webkit-text-fill-color: var(--module-text-secondary);
 }
 
 @page {

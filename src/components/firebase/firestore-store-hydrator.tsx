@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { listenPublicCms, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
+import { menuDocToUi } from "@/services/public-data-service";
+import { listenMenuItems } from "@/services/advanced-menu-service";
 import { listenKitchenOrders } from "@/services/restaurant-ops-service";
 import { listenInventory, listenLoyaltyCustomers } from "@/services/production-data-service";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
@@ -50,6 +52,9 @@ export function FirestoreStoreHydrator() {
 
     if (ownerSurface) {
       unsubscribers.push(
+        listenMenuItems(DEFAULT_RESTAURANT_ID, (items) => {
+          useAppStore.setState({ menuItems: items.map((item) => menuDocToUi(item.id, item)) });
+        }),
         listenKitchenOrders(DEFAULT_RESTAURANT_ID, undefined, (tableOrders) => {
           useAppStore.setState({ tableOrders });
         }),

@@ -113,7 +113,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
 
   const productInitials = getInitials(productName);
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
-  const ownerName = ownerDisplayName(ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
+  const ownerName = ownerDisplayName(authUser.name, ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -505,7 +505,7 @@ function OwnerProfileMenuContent({ onClose, onLogout }: { onClose: () => void; o
   const ownerProfile = useAppStore((state) => state.ownerBusinessProfile);
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
   const sessionEmail = isEmailLike(authUser.id) ? authUser.id : "";
-  const ownerName = ownerDisplayName(ownerProfile?.ownerName, ownerProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
+  const ownerName = ownerDisplayName(authUser.name, ownerProfile?.ownerName, ownerProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name);
   const restaurantName = ownerProfile?.hotelName || currentRestaurant?.displayName || currentRestaurant?.name || "Restaurant";
   const mobile = ownerProfile?.phoneNumber || currentRestaurant?.contact?.phone || currentRestaurant?.ownerProfile?.businessPhone || "Not set";
   const email = ownerProfile?.supportEmail || currentRestaurant?.ownerProfile?.businessEmail || sessionEmail || "Not set";
@@ -577,7 +577,7 @@ function isEmailLike(value?: string) {
 function ownerDisplayName(ownerName?: string, hotelName?: string, restaurantName?: string, authName?: string) {
   return [ownerName, hotelName, restaurantName, authName]
     .map((value) => value?.trim())
-    .find((value): value is string => Boolean(value && value !== "Anonymous" && !isMachineDisplayName(value))) || "Owner";
+    .find((value): value is string => Boolean(value && !["Anonymous", "Owner"].includes(value) && !isMachineDisplayName(value))) || "Owner";
 }
 
 function isMachineDisplayName(value?: string) {

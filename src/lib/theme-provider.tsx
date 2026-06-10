@@ -56,3 +56,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useThemeMode() {
   return useContext(ThemeContext);
 }
+
+export function moduleThemeKey(surface: "customer" | "owner" | "admin", userId = "default") {
+  return `sarva-${surface}-theme:${userId || "default"}`;
+}

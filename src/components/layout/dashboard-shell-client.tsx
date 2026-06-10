@@ -8,6 +8,7 @@ import { DashboardTopbar } from "@/components/layout/dashboard-topbar";
 import { DashboardQuickActions, MobileOfflineBanner } from "@/components/mobile/mobile-experience";
 import { useAppStore } from "@/lib/app-store";
 import { filterOwnerNavigationForRestaurant } from "@/lib/access-control";
+import { moduleThemeKey } from "@/lib/theme-provider";
 import { cn } from "@/lib/utils";
 import { adminTheme } from "@/themes/admin-theme";
 import {
@@ -40,6 +41,9 @@ export function DashboardShellClient({
   const pathname = usePathname();
   const authUser = useAppStore((state) => state.authUser);
   const restaurants = useAppStore((state) => state.restaurants);
+  const themeSurface = app === "admin" ? "admin" : app === "owner" || app === "pos" ? "owner" : null;
+  const moduleTheme = readModuleTheme(themeSurface, authUser.id);
+
   if (pathname === "/admin/login" || pathname === "/owner/login") {
     return children;
   }
@@ -62,8 +66,8 @@ export function DashboardShellClient({
     <div
       className={cn(
         "min-h-screen",
-        app === "admin" && "admin-premium",
-        (app === "owner" || app === "pos") && "owner-premium",
+        app === "admin" && ["admin-premium", moduleTheme === "dark" ? "admin-dark" : "theme-admin-light"],
+        (app === "owner" || app === "pos") && ["owner-premium", moduleTheme === "dark" ? "owner-dark" : "theme-owner-light"],
       )}
       style={adminStyle}
     >
@@ -81,4 +85,13 @@ export function DashboardShellClient({
       {isPosWorkspace ? null : <DashboardQuickActions app={app} />}
     </div>
   );
+}
+
+function readModuleTheme(surface: "owner" | "admin" | null, userId?: string): "light" | "dark" {
+  if (!surface || typeof window === "undefined") return "light";
+  const key = moduleThemeKey(surface, userId);
+  const globalTheme = window.localStorage.getItem("sarva-theme");
+  const saved = window.localStorage.getItem(key) || globalTheme || "system";
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return saved === "dark" || (saved === "system" && prefersDark) ? "dark" : "light";
 }

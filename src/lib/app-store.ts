@@ -1301,34 +1301,50 @@ export const useAppStore = create<AppStore>()(
       createMenuItem: async (item) => {
         set({ apiPhase: "loading", apiMessage: "Saving menu item..." });
         const created: MenuItem = { ...item, id: createLocalId("menu") };
-        void safeUpsertMenuItem(toMenuDoc(created)).catch(() => undefined);
-        set((state) => ({
-          menuItems: [created, ...state.menuItems],
-          apiPhase: "success",
-          apiMessage: `${created.name} added to the menu.`,
-        }));
+        try {
+          await safeUpsertMenuItem(toMenuDoc(created));
+          set((state) => ({
+            menuItems: [created, ...state.menuItems],
+            apiPhase: "success",
+            apiMessage: `${created.name} added to the menu.`,
+          }));
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
       },
 
       updateMenuItem: async (item) => {
         set({ apiPhase: "loading", apiMessage: "Updating menu item..." });
         const updated = item;
-        void safeUpsertMenuItem(toMenuDoc(updated)).catch(() => undefined);
-        set((state) => ({
-          menuItems: state.menuItems.map((entry) =>
-            entry.id === updated.id ? updated : entry,
-          ),
-          apiPhase: "success",
-          apiMessage: `${updated.name} updated.`,
-        }));
+        try {
+          await safeUpsertMenuItem(toMenuDoc(updated));
+          set((state) => ({
+            menuItems: state.menuItems.map((entry) =>
+              entry.id === updated.id ? updated : entry,
+            ),
+            apiPhase: "success",
+            apiMessage: `${updated.name} updated.`,
+          }));
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
       },
 
       deleteMenuItem: async (itemId) => {
-        void safeDeleteMenuItem(itemId).catch(() => undefined);
-        set((state) => ({
-          menuItems: state.menuItems.filter((entry) => entry.id !== itemId),
-          apiPhase: "success",
-          apiMessage: "Menu item deleted.",
-        }));
+        const current = get().menuItems.find((entry) => entry.id === itemId);
+        try {
+          await safeDeleteMenuItem(itemId, current?.restaurantSlug);
+          set((state) => ({
+            menuItems: state.menuItems.filter((entry) => entry.id !== itemId),
+            apiPhase: "success",
+            apiMessage: "Menu item deleted.",
+          }));
+        } catch (error) {
+          set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
+          throw error;
+        }
       },
 
       toggleSoldOut: async (itemId) => {

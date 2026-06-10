@@ -14,6 +14,8 @@ type SessionResponse = {
   ok?: boolean;
   uid?: string;
   role?: UserRole;
+  displayName?: string;
+  email?: string;
   tenantId?: string;
   restaurantIds?: string[];
 };
@@ -77,10 +79,11 @@ async function hydrateCookieSession(setAuthUser: (user: MockUser) => void, surfa
   const currentName = currentState.authUser.id === session.uid && currentState.authUser.name !== "Anonymous" && !isMachineDisplayName(currentState.authUser.name)
     ? currentState.authUser.name
     : undefined;
+  const sessionName = session.displayName?.trim() || session.email?.trim();
 
   setAuthUser({
     id: session.uid,
-    name: savedOwnerName || currentName || displayNameForSession(session.uid, session.role),
+    name: sessionName || savedOwnerName || currentName || displayNameForSession(session.uid, session.role),
     role: session.role,
     restaurantSlug: session.tenantId ?? session.restaurantIds?.[0] ?? DEFAULT_TENANT_ID,
   });

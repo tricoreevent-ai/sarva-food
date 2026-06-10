@@ -2,7 +2,7 @@ import { addDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, upd
 import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { refs, typedDoc } from "@/firebase/collections";
 import { shouldUseFirebase } from "@/lib/env";
-import { resolveTenantId, withTenantId } from "@/lib/tenant";
+import { DEFAULT_RESTAURANT_ID, resolveTenantId, withTenantId } from "@/lib/tenant";
 import { comboSchema, cuisineSchema, inventorySchema, menuCategorySchema, taxSettingsSchema, type MenuItemFormValues } from "@/lib/schemas/menu";
 import { uploadImageToCloudinary } from "@/services/cloudinary-upload-service";
 import { createMetadata, softDeleteMetadata, updateMetadata } from "@/services/firestore-metadata";
@@ -32,7 +32,16 @@ export function listenInventory(restaurantId: string, branchId: string, onData: 
 
 export async function safeUpsertMenuItem(item: MenuDoc) {
   if (!canUseMenuFirestore()) return item;
-  await setDoc(typedDoc<MenuDoc>(getFirebaseDb(), "menus", item.id), { ...withTenantId(item), ...updateMetadata(item), isDeleted: false }, { merge: true });
+  const payload = { ...withTenantId(item), ...updateMetadata(item), isDeleted: false };
+  await syncOwnerWrite({
+    collectionName: "menus",
+    docId: item.id,
+    operation: "set",
+    data: payload as Record<string, unknown>,
+    merge: true,
+    tenantId: payload.tenantId,
+    branchId: payload.branchId,
+  }).catch(() => setDoc(typedDoc<MenuDoc>(getFirebaseDb(), "menus", item.id), payload, { merge: true }));
   return item;
 }
 
@@ -81,9 +90,37 @@ export async function safeUpsertCombo(combo: ComboOfferDoc) {
   return combo;
 }
 
-export async function safeDeleteMenuItem(itemId: string) {
+export async function safeDeleteMenuItem(itemId: string, restaurantId = DEFAULT_RESTAURANT_ID) {
   if (!canUseMenuFirestore()) return;
-  await updateDoc(typedDoc<MenuDoc>(getFirebaseDb(), "menus", itemId), softDeleteMetadata());
+  const tenantId = resolveTenantId(restaurantId);
+  await syncOwnerWrite({
+    collectionName: "menus",
+    docId: itemId,
+    operation: "delete",
+    data: { restaurantId },
+    tenantId,
+  }).catch(() => updateDoc(typedDoc<MenuDoc>(getFirebaseDb(), "menus", itemId), softDeleteMetadata()));
+}
+
+async function syncOwnerWrite(write: {
+  collectionName: string;
+  docId?: string;
+  operation: "set" | "update" | "delete";
+  data?: Record<string, unknown>;
+  merge?: boolean;
+  tenantId?: string;
+  branchId?: string;
+}) {
+  if (typeof window === "undefined") return;
+  const response = await fetch("/api/owner/sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ writes: [write] }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error ?? "Owner sync failed.");
+  }
 }
 
 export async function safeUpsertModifierGroup(group: ModifierGroupDoc) {

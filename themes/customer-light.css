@@ -1,0 +1,40 @@
+.customer-theme,
+.customer-theme.customer-light,
+.theme-customer-light {
+  --module-bg: #fffdf9;
+  --module-card: #ffffff;
+  --module-primary: #f97316;
+  --module-primary-hover: #ea580c;
+  --module-text: #1f2937;
+  --module-text-secondary: #4b5563;
+  --module-text-muted: #6b7280;
+  --module-border: #e5e7eb;
+  --module-success: #16a34a;
+  --module-warning: #d97706;
+  --module-danger: #dc2626;
+  --module-tooltip-bg: #111827;
+  --module-tooltip-text: #ffffff;
+  --background: var(--module-bg);
+  --foreground: var(--module-text);
+  --card: var(--module-card);
+  --card-foreground: var(--module-text);
+  --popover: var(--module-card);
+  --popover-foreground: var(--module-text);
+  --primary: var(--module-primary);
+  --primary-foreground: #ffffff;
+  --secondary: #ffedd5;
+  --secondary-foreground: #7c2d12;
+  --muted: #fff7ed;
+  --muted-foreground: var(--module-text-muted);
+  --accent: #fef3c7;
+  --accent-foreground: #78350f;
+  --destructive: var(--module-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--module-border);
+  --input: var(--module-border);
+  --ring: var(--module-primary);
+  --success: var(--module-success);
+  --warning: var(--module-warning);
+  color: var(--module-text);
+  background: var(--module-bg);
+}

@@ -1,0 +1,41 @@
+.dark .admin-premium,
+.admin-premium.admin-dark,
+.theme-admin-dark {
+  --module-bg: #0b1120;
+  --module-sidebar: #111827;
+  --module-card: #1f2937;
+  --module-primary: #6366f1;
+  --module-primary-hover: #818cf8;
+  --module-text: #f9fafb;
+  --module-text-secondary: #d1d5db;
+  --module-text-muted: #9ca3af;
+  --module-border: #374151;
+  --module-success: #22c55e;
+  --module-warning: #f59e0b;
+  --module-danger: #ef4444;
+  --module-tooltip-bg: #f9fafb;
+  --module-tooltip-text: #111827;
+  --background: var(--module-bg);
+  --foreground: var(--module-text);
+  --card: var(--module-card);
+  --card-foreground: var(--module-text);
+  --popover: var(--module-card);
+  --popover-foreground: var(--module-text);
+  --primary: var(--module-primary);
+  --primary-foreground: #ffffff;
+  --secondary: #111827;
+  --secondary-foreground: var(--module-text);
+  --muted: #111827;
+  --muted-foreground: var(--module-text-muted);
+  --accent: #312e81;
+  --accent-foreground: #e0e7ff;
+  --destructive: var(--module-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--module-border);
+  --input: var(--module-border);
+  --ring: var(--module-primary);
+  --success: var(--module-success);
+  --warning: var(--module-warning);
+  color: var(--module-text);
+  background: var(--module-bg);
+}
