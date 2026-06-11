@@ -23,11 +23,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePublicCategories, usePublicCuisines } from "@/hooks/use-public-data";
+import { useAlert } from "@/hooks/useAlert";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { buildQrPayload, calculateRestaurantTax, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
 import { advancedMenuItemSchema, comboSchema, taxSettingsSchema } from "@/lib/schemas/menu";
 import type { ComboOffer, InventoryItem, MenuItem } from "@/lib/types";
+import type { AlertApi } from "@/types/alert.types";
 import { formatCurrency } from "@/lib/utils";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 
@@ -144,6 +146,7 @@ type ComboDraft = {
 };
 
 export function OwnerMenuManagementFlow() {
+  const { confirm, prompt } = useAlert();
   const allMenuItems = useAppStore((state) => state.menuItems);
   const { categories: masterCategories } = usePublicCategories();
   const { cuisines: masterCuisines } = usePublicCuisines();
@@ -384,7 +387,16 @@ export function OwnerMenuManagementFlow() {
 
   async function applyBulkAction(action: "active" | "sold-out" | "enable-delivery" | "disable-delivery" | "enable-parcel" | "disable-parcel" | "delete") {
     if (!selectedItems.length) return;
-    if (action === "delete" && !window.confirm(`Delete ${selectedItems.length} selected menu item${selectedItems.length === 1 ? "" : "s"}?`)) return;
+    if (action === "delete") {
+      const confirmed = await confirm(`Delete ${selectedItems.length} selected menu item${selectedItems.length === 1 ? "" : "s"}?`, {
+        title: "Delete selected items",
+        confirmText: "Delete",
+        confirmVariant: "danger",
+        cancelText: "Keep",
+        tone: "danger",
+      });
+      if (!confirmed) return;
+    }
 
     await Promise.all(selectedItems.map((item) => {
       if (action === "active") return item.soldOut ? toggleSoldOut(item.id) : Promise.resolve();
@@ -1459,7 +1471,7 @@ export function OwnerMenuManagementFlow() {
                       onSelect={(selected) => toggleItemSelection(item.id, selected)}
                       onPreviewImage={() => setImagePreviewItem(item)}
                       onEdit={() => beginEdit(item)}
-                      onCopyLink={() => void copyCustomerItemLink(item)}
+                      onCopyLink={() => void copyCustomerItemLink(item, prompt)}
                       onShareWhatsApp={() => void whatsappShare.openShare({ item })}
                       onToggleSoldOut={() => void toggleSoldOut(item.id)}
                       onCloneItem={() => void duplicateMenuItem(item)}
@@ -1480,7 +1492,7 @@ export function OwnerMenuManagementFlow() {
                       onSelect={(selected) => toggleItemSelection(item.id, selected)}
                       onPreviewImage={() => setImagePreviewItem(item)}
                       onEdit={() => beginEdit(item)}
-                      onCopyLink={() => void copyCustomerItemLink(item)}
+                      onCopyLink={() => void copyCustomerItemLink(item, prompt)}
                       onShareWhatsApp={() => void whatsappShare.openShare({ item })}
                       onToggleSoldOut={() => void toggleSoldOut(item.id)}
                       onCloneItem={() => void duplicateMenuItem(item)}
@@ -2411,14 +2423,14 @@ function buildCustomerItemUrl(item: MenuItem) {
   return configuredOrigin ? `${configuredOrigin}${path}` : path;
 }
 
-async function copyCustomerItemLink(item: MenuItem) {
+async function copyCustomerItemLink(item: MenuItem, promptCopy: AlertApi["prompt"]) {
   const url = buildCustomerItemUrl(item);
   try {
     if (typeof navigator === "undefined" || !navigator.clipboard) throw new Error("Clipboard is not available.");
     await navigator.clipboard.writeText(url);
     toast.success("Customer item link copied.");
   } catch {
-    if (typeof window !== "undefined") window.prompt("Copy customer item link", url);
+    await promptCopy("Copy customer item link", url, { title: "Copy item link", inputLabel: "Customer item URL" });
   }
 }
 

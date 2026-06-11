@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import toast from "react-hot-toast";
 import { defaultMarketingSettings, defaultRestaurantMarketingSettings, type MarketingSettings, type RestaurantMarketingSettings, type WhatsAppTemplateKind } from "@/features/marketing/messageTemplates";
+import { useAlert } from "@/hooks/useAlert";
 import { ROUTES } from "@/lib/constants";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { shortenUrl, type ShortenedUrl } from "@/services/urlShortener";
@@ -36,6 +37,7 @@ type UseWhatsAppShareOptions = {
 };
 
 export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
+  const { prompt } = useAlert();
   const [preview, setPreview] = useState<WhatsAppSharePreview | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
 
@@ -100,9 +102,9 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
       await navigator.clipboard.writeText(preview.message);
       toast.success("WhatsApp message copied.");
     } catch {
-      if (typeof window !== "undefined") window.prompt("Copy WhatsApp message", preview.message);
+      await prompt("Copy WhatsApp message", preview.message, { title: "Copy message", inputLabel: "WhatsApp message" });
     }
-  }, [preview]);
+  }, [preview, prompt]);
 
   const openWhatsApp = useCallback(() => {
     if (!preview || typeof window === "undefined") return;

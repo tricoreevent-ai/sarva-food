@@ -47,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData, type CustomerCouponDoc } from "@/hooks/use-customer-data";
 import { usePublicAppName } from "@/hooks/use-public-app-name";
+import { useAlert } from "@/hooks/useAlert";
 import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { COLLECTIONS } from "@/firebase/collections";
 import { ensureCustomerProfile, signOutUser } from "@/services/auth-service";
@@ -89,6 +90,7 @@ const emptyAddressDraft: AddressDraft = {
 export default function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { confirm } = useAlert();
   const auth = useAuthUser();
   const appName = usePublicAppName();
   const mapbox = useMapbox();
@@ -242,7 +244,13 @@ export default function ProfilePage() {
 
   async function handleDeleteAddress(addressId: string) {
     if (!user) return;
-    const confirmed = window.confirm("Delete this saved address?");
+    const confirmed = await confirm("Delete this saved address?", {
+      title: "Delete address",
+      confirmText: "Delete",
+      confirmVariant: "danger",
+      cancelText: "Keep",
+      tone: "danger",
+    });
     if (!confirmed) return;
     setAddressMessage("");
     if (shouldUseFirebase() && isFirebaseConfigured && customer.addresses.some((item) => item.id === addressId)) {
@@ -260,7 +268,13 @@ export default function ProfilePage() {
 
   async function handleDeleteSavedRestaurant(favoriteId: string) {
     if (!user) return;
-    const confirmed = window.confirm("Remove this restaurant from favorites?");
+    const confirmed = await confirm("Remove this restaurant from favorites?", {
+      title: "Remove favorite",
+      confirmText: "Remove",
+      confirmVariant: "danger",
+      cancelText: "Keep",
+      tone: "danger",
+    });
     if (!confirmed) return;
     try {
       await deleteCustomerFavoriteRestaurant(favoriteId);

@@ -8,10 +8,8 @@ export function AppToaster() {
   return (
     <Toaster
       position="top-right"
+      containerClassName="sarva-toast-container"
       containerStyle={{
-        top: "50%",
-        right: "1rem",
-        transform: "translateY(-50%)",
         zIndex: Z_INDEX.toast,
       }}
       toastOptions={{
@@ -34,7 +32,7 @@ export function AppToaster() {
       {(item) => (
         <ToastBar toast={item}>
           {({ icon, message }) => (
-            <div className="flex w-full min-w-64 items-center gap-3">
+            <div className="flex w-[min(24rem,calc(100vw-2rem))] min-w-0 items-center gap-3">
               <span className="shrink-0">{icon}</span>
               <div className="min-w-0 flex-1">{message}</div>
               <button

@@ -7,6 +7,7 @@ import { AnalyticsProvider } from "@/components/monitoring/analytics-provider";
 import { SyncCenterScope } from "@/components/offline/sync-center-scope";
 import { PwaRegistrar } from "@/components/pwa/pwa-registrar";
 import { AppStartupGate } from "@/components/mobile/app-startup-gate";
+import { AlertProvider } from "@/components/ui/AlertProvider";
 import { AppToaster } from "@/components/ui/app-toaster";
 import { I18nProvider } from "@/lib/i18n";
 import { MapboxProvider } from "@/components/maps/mapbox-provider";
@@ -172,18 +173,20 @@ export default function RootLayout({
         ) : null}
         <ThemeProvider>
           <I18nProvider>
-            <MapboxProvider>
-              <PwaRegistrar />
-              <AppStartupGate />
-              <AuthSessionBridge />
-              <FirestoreStoreHydrator />
-              <SyncCenterScope />
-              <AppToaster />
-              <Suspense fallback={null}>
-                <AnalyticsProvider />
-              </Suspense>
-              {children}
-            </MapboxProvider>
+            <AlertProvider>
+              <MapboxProvider>
+                <PwaRegistrar />
+                <AppStartupGate />
+                <AuthSessionBridge />
+                <FirestoreStoreHydrator />
+                <SyncCenterScope />
+                <AppToaster />
+                <Suspense fallback={null}>
+                  <AnalyticsProvider />
+                </Suspense>
+                {children}
+              </MapboxProvider>
+            </AlertProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

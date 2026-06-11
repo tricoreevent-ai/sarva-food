@@ -39,6 +39,7 @@ import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useAlert } from "@/hooks/useAlert";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
@@ -1073,6 +1074,7 @@ function MobileMoreAction({ icon: Icon, label, onClick }: { icon: LucideIcon; la
 
 function SupportIssueSheet({ open, onOpenChange, restaurant }: { open: boolean; onOpenChange: (open: boolean) => void; restaurant: Restaurant }) {
   const auth = useAuthUser();
+  const { alert } = useAlert();
   const [target, setTarget] = useState("owner");
   const [category, setCategory] = useState("restaurant");
   const [priority, setPriority] = useState("normal");
@@ -1097,11 +1099,11 @@ function SupportIssueSheet({ open, onOpenChange, restaurant }: { open: boolean; 
   async function submitIssue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (subject.trim().length < 3) {
-      toast.error("Subject must be at least 3 characters.");
+      await alert("Subject must be at least 3 characters.", { title: "Issue needs a subject", tone: "warning" });
       return;
     }
     if (description.trim().length < 5) {
-      toast.error("Details must be at least 5 characters.");
+      await alert("Details must be at least 5 characters.", { title: "Add issue details", tone: "warning" });
       return;
     }
     setSaving(true);
@@ -1126,13 +1128,13 @@ function SupportIssueSheet({ open, onOpenChange, restaurant }: { open: boolean; 
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Could not submit issue.");
-      toast.success(`Issue sent. Ticket ${payload.issueId}`);
+      await alert(`Issue sent successfully. Ticket ${payload.issueId}`, { title: "Issue submitted", tone: "success", confetti: true });
       setSubject("");
       setDescription("");
       setOrderId("");
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not submit issue.");
+      await alert(error instanceof Error ? error.message : "Could not submit issue.", { title: "Could not submit issue", tone: "danger" });
     } finally {
       setSaving(false);
     }
