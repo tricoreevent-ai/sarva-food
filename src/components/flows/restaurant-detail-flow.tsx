@@ -20,11 +20,13 @@ import {
   MapPin,
   MessageCircle,
   Minus,
+  Moon,
   Package,
   Phone,
   Plus,
   Search,
   Share2,
+  Sun,
   ShoppingBag,
   SlidersHorizontal,
   Sparkles,
@@ -45,6 +47,7 @@ import { type CartLine, useCartStore } from "@/lib/cart-store";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
+import { useThemeMode } from "@/lib/theme-provider";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -755,6 +758,8 @@ function MobileRestaurantLanding({
   onQty: (id: string, quantity: number) => void;
 }) {
   const status = getRestaurantOperatingStatus(restaurant);
+  const { theme, setTheme } = useThemeMode();
+  const [moreOpen, setMoreOpen] = useState(false);
   const address = restaurant.address || restaurant.location;
   const heroImage = normalizeHeroImages(restaurant)[0] ?? IMAGE_FALLBACKS.restaurant;
   const eta = restaurant.deliveryTime || (typeof customerDistanceKm === "number" ? `${estimateDeliveryMinutes(customerDistanceKm)} mins` : "");
@@ -774,6 +779,24 @@ function MobileRestaurantLanding({
     if (url && nav?.clipboard) {
       void nav.clipboard.writeText(url).then(() => toast.success("Restaurant link copied."));
     }
+  }
+
+  function callRestaurant() {
+    const phone = restaurant.contact?.phone ?? restaurant.ownerProfile?.businessPhone;
+    if (!phone) {
+      toast.error("Phone number is not available.");
+      return;
+    }
+    window.location.href = `tel:${phone}`;
+  }
+
+  function whatsappRestaurant() {
+    const phone = restaurant.contact?.whatsapp ?? restaurant.ownerProfile?.businessWhatsapp ?? restaurant.contact?.phone;
+    if (!phone) {
+      toast.error("WhatsApp number is not available.");
+      return;
+    }
+    window.location.href = `https://wa.me/${phone.replace(/\D/g, "")}`;
   }
 
   return (
@@ -804,9 +827,21 @@ function MobileRestaurantLanding({
             <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={shareRestaurant} aria-label="Share restaurant">
               <Share2 className="size-5" />
             </Button>
-            <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" aria-label="More restaurant actions">
-              <MoreVertical className="size-5" />
-            </Button>
+            <div className="relative">
+              <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={() => setMoreOpen((value) => !value)} aria-label="More restaurant actions" aria-expanded={moreOpen}>
+                <MoreVertical className="size-5" />
+              </Button>
+              {moreOpen ? (
+                <div className="absolute right-0 top-13 z-40 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
+                  <MobileMoreAction icon={Search} label="Search menu" onClick={() => { setMoreOpen(false); focusSearch(); }} />
+                  <MobileMoreAction icon={Share2} label="Share restaurant" onClick={() => { setMoreOpen(false); shareRestaurant(); }} />
+                  <MobileMoreAction icon={Phone} label="Call restaurant" onClick={() => { setMoreOpen(false); callRestaurant(); }} />
+                  <MobileMoreAction icon={MessageCircle} label="WhatsApp" onClick={() => { setMoreOpen(false); whatsappRestaurant(); }} />
+                  <div className="my-1 h-px bg-slate-100" />
+                  <MobileMoreAction icon={theme === "dark" ? Sun : Moon} label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setMoreOpen(false); }} />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -840,7 +875,7 @@ function MobileRestaurantLanding({
         </div>
       </section>
 
-      <section className="relative z-10 -mt-4 rounded-t-[1.5rem] bg-[#fffaf5] px-4 pb-5 pt-4">
+      <section className="relative z-10 -mt-4 rounded-t-[1.5rem] bg-[#fffaf5] px-4 pb-5 pt-4 text-slate-950">
         <OrderTimingStrip
           restaurant={restaurant}
           mode={orderTiming}
@@ -858,6 +893,7 @@ function MobileRestaurantLanding({
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
               <input
                 id="mobile-restaurant-search"
+                name="mobileRestaurantSearch"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search dishes, combos..."
@@ -1021,6 +1057,15 @@ function MobileQtyButton({ quantity, soldOut, onAdd, onQty }: { quantity: number
       Add
       <Plus className="size-3.5" />
     </Button>
+  );
+}
+
+function MobileMoreAction({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-black text-slate-800 hover:bg-orange-50" onClick={onClick}>
+      <Icon className="size-4 text-orange-600" />
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -1221,7 +1266,7 @@ function OrderTimingStrip({
   const nowSelected = mode === "now";
   const scheduledSelected = mode === "scheduled";
   const selectedButtonClass = "bg-orange-600 text-white shadow-lg shadow-orange-500/20";
-  const idleButtonClass = "bg-white text-slate-800 hover:bg-orange-50";
+  const idleButtonClass = "bg-white text-slate-800 shadow-sm hover:bg-orange-50";
   const slotSelectId = useId();
   const scheduleDays = useMemo(() => buildScheduleDays(restaurant), [restaurant]);
   const selectedDay = scheduleDays.find((day) => day.value === scheduledDate);
@@ -1272,7 +1317,7 @@ function OrderTimingStrip({
         </button>
       </div>
       {mode === "scheduled" ? (
-        <div className="mt-3 rounded-2xl bg-orange-50/70 p-3">
+        <div className="mt-3 rounded-2xl bg-orange-50 p-3 text-slate-950 shadow-inner shadow-orange-100/60">
           {totalSlots ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
@@ -1282,7 +1327,7 @@ function OrderTimingStrip({
                 </div>
                 <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-orange-700">{selectedSlot?.label ?? "Pick time"}</span>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Schedule date">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Schedule date">
                 {scheduleDays.map((day) => {
                   const active = day.value === scheduledDate;
                   const disabled = day.slots.length === 0;
@@ -1296,7 +1341,7 @@ function OrderTimingStrip({
                         onTimeChange(day.slots[0]?.value ?? "");
                       }}
                       aria-pressed={active}
-                      className={`min-w-20 rounded-xl px-3 py-2 text-center text-xs transition ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-white text-slate-800 hover:bg-orange-100"} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+                      className={`min-w-[3.35rem] rounded-2xl px-2 py-2 text-center text-[11px] leading-tight transition sm:min-w-20 sm:rounded-xl sm:px-3 ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-white text-slate-800 shadow-sm hover:bg-orange-100"} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
                     >
                       <span className="block font-black">{day.shortLabel}</span>
                       <span className={`mt-0.5 block font-semibold ${active ? "text-white/80" : "text-slate-500"}`}>{day.dateLabel}</span>

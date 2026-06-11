@@ -1,4 +1,5 @@
 import { AlertCircle, Bike, ChefHat, Loader2, PackageOpen, RefreshCw, Utensils } from "lucide-react";
+import Image from "next/image";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,56 +7,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function PageLoading() {
   return (
-    <main className="container-page py-6" aria-busy="true" aria-label="Loading page">
-      <section className="customer-surface mb-5 overflow-hidden rounded-lg p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <FoodLoadingMark />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black uppercase text-primary">Heating the kitchen</p>
-            <h1 className="mt-1 text-2xl font-black">Getting fresh restaurants ready.</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Menus, offers, and nearby delivery data are syncing for this location.
-            </p>
-          </div>
-        </div>
-      </section>
-      <div className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
-        <Skeleton className="shimmer h-72 rounded-lg" />
-        <div className="grid gap-4">
-          <Skeleton className="shimmer h-32 rounded-lg" />
-          <Skeleton className="shimmer h-32 rounded-lg" />
-        </div>
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <Skeleton className="shimmer h-24 rounded-lg" />
-        <Skeleton className="shimmer h-24 rounded-lg" />
-        <Skeleton className="shimmer h-24 rounded-lg" />
-      </div>
+    <main className="customer-theme grid min-h-[70dvh] place-items-center px-6 py-10" aria-busy="true" aria-label="Loading app">
+      <AppSplashLoading />
     </main>
   );
 }
 
 export function CustomerHomeLoading() {
   return (
-    <main className="container-page grid min-h-[52vh] place-items-center py-8" aria-busy="true" aria-live="polite" aria-label="Loading nearby restaurants">
-      <section className="customer-surface w-full max-w-xl overflow-hidden rounded-2xl border p-6 text-center shadow-sm sm:p-8">
-        <div className="mx-auto flex justify-center">
-          <FoodLoadingMark />
-        </div>
-        <p className="mt-5 text-xs font-black uppercase text-primary">Preparing your food choices</p>
-        <h1 className="mt-2 text-2xl font-black">Finding restaurants near you</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-muted-foreground">
-          Fresh menus, offers, and nearby delivery options are loading.
-        </p>
-        <div className="mx-auto mt-6 h-1.5 max-w-xs overflow-hidden rounded-full bg-primary/10">
-          <div className="customer-loading-progress h-full w-2/5 rounded-full bg-primary" />
-        </div>
-        <div className="mt-5 flex items-center justify-center gap-2" aria-hidden="true">
-          <span className="customer-loading-dot size-2 rounded-full bg-primary" />
-          <span className="customer-loading-dot size-2 rounded-full bg-accent" />
-          <span className="customer-loading-dot size-2 rounded-full bg-secondary-foreground" />
-        </div>
-      </section>
+    <main className="customer-theme grid min-h-[70dvh] place-items-center px-6 py-10" aria-busy="true" aria-live="polite" aria-label="Loading Nammude">
+      <AppSplashLoading />
     </main>
   );
 }
@@ -134,6 +95,21 @@ function FoodLoadingMark({ compact = false }: { compact?: boolean }) {
       <Bike className="delivery-loader absolute -bottom-1 left-1 size-5 text-accent" />
       <Loader2 className="absolute right-0 top-1 size-4 animate-spin text-muted-foreground" />
     </div>
+  );
+}
+
+function AppSplashLoading() {
+  return (
+    <section className="grid w-full max-w-sm place-items-center rounded-[2rem] bg-card p-8 text-center text-card-foreground shadow-2xl ring-1 ring-border">
+      <div className="relative grid size-24 place-items-center overflow-hidden rounded-[1.5rem] bg-primary/10 shadow-inner">
+        <Image src="/icons/sarva-icon.svg" alt="" width={64} height={64} className="size-16 animate-pulse" priority />
+      </div>
+      <h1 className="mt-5 text-2xl font-black">Nammude</h1>
+      <p className="mt-2 text-sm font-semibold text-muted-foreground">Opening your app</p>
+      <div className="mt-6 h-1.5 w-44 overflow-hidden rounded-full bg-primary/10">
+        <div className="customer-loading-progress h-full w-2/5 rounded-full bg-primary" />
+      </div>
+    </section>
   );
 }
 
