@@ -18,6 +18,7 @@ import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase
 import { refs, typedDoc } from "@/firebase/collections";
 import { calculateRestaurantTax } from "@/lib/menu-engine";
 import { shouldUseFirebase } from "@/lib/env";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { createMetadata, updateMetadata } from "@/services/firestore-metadata";
 import type { OrderLine, PosBill, RestaurantBranch, TableOrder, TaxSettings } from "@/lib/types";
@@ -420,28 +421,11 @@ function tierForValue(value: number): CustomerDoc["tier"] {
 }
 
 function toIso(value: KitchenOrderDoc["createdAt"]) {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string") {
-    const parsed = new Date(value);
-    return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : new Date().toISOString();
-  }
-  if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  return new Date().toISOString();
+  return parseFirestoreDateIso(value) ?? new Date().toISOString();
 }
 
 function toIsoOptional(value?: KitchenOrderDoc["scheduledFor"]) {
-  if (!value) return undefined;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string") {
-    const parsed = new Date(value);
-    return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : undefined;
-  }
-  if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  return undefined;
+  return parseFirestoreDateIso(value);
 }
 
 function normalizeDate(value: Date | string) {

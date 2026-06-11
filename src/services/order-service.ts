@@ -16,6 +16,7 @@ import {
 import { getFirebaseDb } from "@/firebase/client";
 import { COLLECTIONS, refs, typedDoc } from "@/firebase/collections";
 import { FIRESTORE_LIMITS } from "@/lib/constants";
+import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { resolveTenantId } from "@/lib/tenant";
 import { createMetadata, updateMetadata } from "@/services/firestore-metadata";
 import { getPage, listenShared, listenToQueryShared } from "@/services/firestore-query";
@@ -227,16 +228,7 @@ function dedupeAndSortOrders(orders: OrderDoc[]) {
 }
 
 function orderCreatedAtMs(value: unknown) {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "string") {
-    const date = new Date(value);
-    return Number.isFinite(date.getTime()) ? date.getTime() : 0;
-  }
-  if (typeof (value as { toDate?: () => Date }).toDate === "function") {
-    return (value as { toDate: () => Date }).toDate().getTime();
-  }
-  return 0;
+  return parseFirestoreDateMillis(value);
 }
 
 export async function getOrderHistory(

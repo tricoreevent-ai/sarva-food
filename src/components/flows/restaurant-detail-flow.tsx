@@ -45,6 +45,7 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
+import { runDataConsistencyAudit } from "@/lib/DataConsistencyAudit";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
@@ -240,6 +241,15 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       document.getElementById("restaurant-menu-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }, [scheduleLaunch]);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    runDataConsistencyAudit({
+      restaurantId: restaurant.id,
+      restaurantSlug: restaurant.slug,
+      ownerId: restaurant.ownerId,
+    });
+  }, [restaurant]);
 
   if (status === "loading") {
     return (
@@ -551,9 +561,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                       <span className="text-sm font-bold text-muted-foreground">{filteredMenu.length} items</span>
                     </div>
                     {menuStatus === "loading" ? (
-                      <SkeletonGrid count={8} />
+                      <MenuLoadingState />
                     ) : menuStatus === "error" ? (
-                      <RetryState onRetry={retryMenu} />
+                      <RetryState title="Unable to load menu items" description="The restaurant menu could not be loaded. Please retry once." onRetry={retryMenu} />
                     ) : filteredMenu.length ? (
                       <>
                         <div className={viewMode === "grid" ? "grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4" : "grid gap-3"}>
@@ -922,13 +932,9 @@ function MobileRestaurantLanding({
           </div>
 
           {menuStatus === "loading" ? (
-            <div className="grid gap-3">
-              <MobileMenuSkeleton />
-              <MobileMenuSkeleton />
-              <MobileMenuSkeleton />
-            </div>
+            <MobileMenuLoadingState />
           ) : menuStatus === "error" ? (
-            <RetryState onRetry={retryMenu} />
+            <RetryState title="Unable to load menu items" description="The restaurant menu could not be loaded. Please retry once." onRetry={retryMenu} />
           ) : filteredMenu.length ? (
             <div className="grid gap-3">
               {filteredMenu.slice(0, visibleCount).map((item) => (
@@ -1196,6 +1202,32 @@ function FieldSelect({ id, label, value, onChange, options }: { id: string; labe
         {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
       </select>
     </label>
+  );
+}
+
+function MenuLoadingState() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <div className="flex items-center gap-2 rounded-lg border border-orange-100 bg-orange-50 px-4 py-3 text-sm font-black text-orange-700">
+        <Loader2 className="size-4 animate-spin" />
+        Loading menu...
+      </div>
+      <SkeletonGrid count={8} />
+    </div>
+  );
+}
+
+function MobileMenuLoadingState() {
+  return (
+    <div className="grid gap-3" aria-busy="true" aria-live="polite">
+      <div className="flex items-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-black text-orange-700">
+        <Loader2 className="size-4 animate-spin" />
+        Loading menu...
+      </div>
+      <MobileMenuSkeleton />
+      <MobileMenuSkeleton />
+      <MobileMenuSkeleton />
+    </div>
   );
 }
 

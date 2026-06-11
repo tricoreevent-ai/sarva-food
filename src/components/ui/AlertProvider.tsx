@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import toast from "react-hot-toast";
 import { AlertModal } from "@/components/ui/AlertModal";
 import { AlertContext } from "@/hooks/useAlert";
 import type { AlertApi, AlertOptions, AlertRequest, NativeAlertOverrideController, PromptOptions } from "@/types/alert.types";
@@ -20,6 +21,8 @@ type NativeMethods = {
 let originalNativeMethods: NativeMethods | null = null;
 let customNativeEnabled = true;
 let warnedNativeOverride = false;
+let originalToastMethods: { success: typeof toast.success; error: typeof toast.error } | null = null;
+let warnedToastBridge = false;
 
 export function AlertProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<AlertRequest[]>([]);
@@ -60,6 +63,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     initializeNativeAlertOverrides(api);
+    initializeToastAlertBridge(api);
     return () => undefined;
   }, [api]);
 
@@ -122,6 +126,47 @@ export function initializeNativeAlertOverrides(api: AlertApi) {
   };
   window.sarvaNativeAlerts = controller;
   if (customNativeEnabled) applyNativeOverrides(api);
+}
+
+function initializeToastAlertBridge(api: AlertApi) {
+  if (typeof window === "undefined") return;
+  const target = toast as typeof toast & { success: typeof toast.success; error: typeof toast.error };
+  originalToastMethods ??= {
+    success: target.success.bind(toast),
+    error: target.error.bind(toast),
+  };
+
+  if (process.env.NODE_ENV !== "production" && !warnedToastBridge) {
+    warnedToastBridge = true;
+    console.warn("[Nammude] Mobile toast success/error messages are routed through AlertProvider.");
+  }
+
+  target.success = ((message: Parameters<typeof toast.success>[0], options?: Parameters<typeof toast.success>[1]) => {
+    if (!shouldUseAlertToast(message)) return originalToastMethods!.success(message, options);
+    void api.alert(String(message), {
+      title: "Success",
+      okText: "Done",
+      tone: "success",
+      confetti: true,
+      closeOnBackdrop: true,
+    });
+    return `alert-success-${Date.now()}`;
+  }) as typeof toast.success;
+
+  target.error = ((message: Parameters<typeof toast.error>[0], options?: Parameters<typeof toast.error>[1]) => {
+    if (!shouldUseAlertToast(message)) return originalToastMethods!.error(message, options);
+    void api.alert(String(message), {
+      title: "Please check",
+      okText: "OK",
+      tone: "danger",
+      closeOnBackdrop: true,
+    });
+    return `alert-error-${Date.now()}`;
+  }) as typeof toast.error;
+}
+
+function shouldUseAlertToast(message: unknown) {
+  return typeof window !== "undefined" && (typeof message === "string" || typeof message === "number");
 }
 
 function applyNativeOverrides(api: AlertApi) {

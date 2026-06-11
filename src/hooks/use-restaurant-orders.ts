@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { listenToRestaurantOrders } from "@/services/order-service";
 import type { OrderDoc, OrderStatus } from "@/types/firebase";
 
@@ -53,14 +54,5 @@ function dedupeOrders(orders: OrderDoc[]) {
 }
 
 function orderCreatedAtMs(value: unknown) {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "string") {
-    const date = new Date(value);
-    return Number.isFinite(date.getTime()) ? date.getTime() : 0;
-  }
-  if (typeof (value as { toDate?: () => Date }).toDate === "function") {
-    return (value as { toDate: () => Date }).toDate().getTime();
-  }
-  return 0;
+  return parseFirestoreDateMillis(value);
 }

@@ -48,6 +48,7 @@ import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData, type CustomerCouponDoc } from "@/hooks/use-customer-data";
 import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { useAlert } from "@/hooks/useAlert";
+import { parseFirestoreDate } from "@/lib/firestore-date";
 import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { COLLECTIONS } from "@/firebase/collections";
 import { ensureCustomerProfile, signOutUser } from "@/services/auth-service";
@@ -1311,10 +1312,7 @@ function isCouponActive(coupon: CustomerCouponDoc) {
 }
 
 function dateFromFirestore(value?: FirestoreDate) {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if ("toDate" in value) return value.toDate();
-  return null;
+  return parseFirestoreDate(value);
 }
 
 function formatShortDate(value?: FirestoreDate) {

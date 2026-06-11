@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import type { OfflineWrite } from "@/lib/offline/offline-queue";
@@ -191,13 +192,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function timestampToComparable(value: unknown) {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  return null;
+  return parseFirestoreDateIso(value) ?? null;
 }
 
 function stringValue(value: unknown) {

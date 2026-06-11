@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { adminDb, firebaseAdminPrivateKeyDiagnostics } from "@/firebase/admin";
 import { defaultAppCategories } from "@/lib/default-app-categories";
 import { defaultAppCuisines } from "@/lib/default-app-cuisines";
+import { parseFirestoreDateIso, parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
 
@@ -80,10 +81,8 @@ function serializeFirestoreValue(value: unknown): unknown {
     return value;
   }
 
-  const maybeTimestamp = value as { toDate?: () => Date };
-  if (typeof maybeTimestamp.toDate === "function") {
-    return maybeTimestamp.toDate().toISOString();
-  }
+  const iso = parseFirestoreDateIso(value);
+  if (iso) return iso;
 
   if (Array.isArray(value)) {
     return value.map(serializeFirestoreValue);
@@ -1199,9 +1198,5 @@ function isOfferCurrentlyVisible(doc: OfferDoc) {
 }
 
 function dateMillis(value: unknown) {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "string") return Date.parse(value) || 0;
-  const maybeTimestamp = value as { toDate?: () => Date };
-  return typeof maybeTimestamp.toDate === "function" ? maybeTimestamp.toDate().getTime() : 0;
+  return parseFirestoreDateMillis(value);
 }

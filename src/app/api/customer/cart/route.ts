@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
@@ -80,11 +81,5 @@ const NO_STORE_HEADERS = {
 };
 
 function dateToIso(value: unknown) {
-  if (!value) return null;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string") return value;
-  if (typeof value === "object" && value && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  return null;
+  return parseFirestoreDateIso(value) ?? null;
 }

@@ -28,6 +28,7 @@ import { OrderFilters } from "@/components/orders/order-filters";
 import { IntegrationDialog } from "@/components/orders/integration-dialog";
 import { OrderMetricCard } from "@/components/orders/metric-card";
 import { PartnerCard } from "@/components/orders/partner-card";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRestaurantOrders } from "@/hooks/use-restaurant-orders";
@@ -514,9 +515,7 @@ function prepStartSuggestion(value: string, prepMinutes: number) {
 }
 
 function formatFirestoreDateTime(value: unknown) {
-  if (!value) return undefined;
-  const maybeDate = value instanceof Date ? value : typeof value === "string" ? new Date(value) : typeof (value as { toDate?: () => Date }).toDate === "function" ? (value as { toDate: () => Date }).toDate() : null;
-  return maybeDate && Number.isFinite(maybeDate.getTime()) ? maybeDate.toISOString() : undefined;
+  return parseFirestoreDateIso(value);
 }
 
 function normalizeFulfillment(value?: string) {

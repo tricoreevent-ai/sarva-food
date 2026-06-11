@@ -1,4 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import type { VerifiedSession } from "@/lib/server-auth";
 
 export const supportIssueStatuses = ["open", "waiting_owner", "waiting_admin", "waiting_customer", "resolved", "closed"] as const;
@@ -62,10 +63,7 @@ export function supportIssuePatch(session: VerifiedSession, message?: string, ac
 }
 
 export function toIso(value: unknown) {
-  if (!value) return "";
-  if (value instanceof Date) return value.toISOString();
-  const maybeTimestamp = value as { toDate?: () => Date };
-  return typeof maybeTimestamp.toDate === "function" ? maybeTimestamp.toDate().toISOString() : String(value);
+  return parseFirestoreDateIso(value) ?? (value ? String(value) : "");
 }
 
 export function sortIssues<T extends { updatedAt?: string; createdAt?: string }>(issues: T[]) {

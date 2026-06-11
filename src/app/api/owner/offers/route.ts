@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import type { Offer } from "@/lib/types";
@@ -188,13 +189,7 @@ function arrayValue<T extends string>(value: unknown) {
 }
 
 function dateToIso(value: unknown) {
-  if (!value) return undefined;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string") return value;
-  if (typeof value === "object" && value && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  return undefined;
+  return parseFirestoreDateIso(value);
 }
 
 function offerTypeValue(value: unknown, discountType: unknown): NonNullable<Offer["offerType"]> {

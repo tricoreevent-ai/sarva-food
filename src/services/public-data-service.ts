@@ -5,6 +5,7 @@ import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc } 
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { readCachedPublicCmsSettings, writeCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { sortOffers } from "@/lib/offer-engine";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
@@ -557,16 +558,30 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
 }
 
 function restaurantBannerImages(doc: RestaurantDoc) {
+  const extra = doc as RestaurantDoc & {
+    image?: string;
+    imageUrl?: string;
+    thumbnail?: string;
+    primaryImage?: string;
+    coverImage?: string;
+    gallery?: string[];
+  };
   return Array.from(new Set([
     ...(doc.bannerImages ?? []),
     ...(doc.coverImagePaths ?? []),
+    ...(extra.gallery ?? []),
     doc.coverImagePath,
+    extra.coverImage,
+    extra.primaryImage,
+    extra.imageUrl,
+    extra.image,
     doc.imagePath,
   ].filter((value): value is string => Boolean(value && value !== doc.logoPath)))).slice(0, 5);
 }
 
 function restaurantThumbnailImages(doc: RestaurantDoc, bannerImages: string[]) {
-  const saved = Array.isArray(doc.thumbnailImages) ? doc.thumbnailImages.filter(Boolean) : [];
+  const extra = doc as RestaurantDoc & { thumbnail?: string };
+  const saved = [doc.primaryThumbnail, extra.thumbnail, ...(doc.thumbnailImages ?? [])].filter((value): value is string => Boolean(value));
   const thumbnails = saved.length ? saved : bannerImages.map(withCloudinaryThumbnail);
   return Array.from(new Set(thumbnails.filter(Boolean))).slice(0, 5);
 }
@@ -775,11 +790,7 @@ function isVisibleOnCustomerMenuChannel(doc: Partial<MenuDoc>) {
 }
 
 function firestoreDateToIso(value: unknown) {
-  if (!value) return undefined;
-  if (typeof value === "string") return value;
-  if (value instanceof Date) return value.toISOString();
-  const maybeTimestamp = value as { toDate?: () => Date };
-  return typeof maybeTimestamp.toDate === "function" ? maybeTimestamp.toDate().toISOString() : undefined;
+  return parseFirestoreDateIso(value);
 }
 
 function textList(value: unknown) {

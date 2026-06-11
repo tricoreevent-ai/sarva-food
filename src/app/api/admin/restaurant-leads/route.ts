@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { adminAuth, adminDb } from "@/firebase/admin";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +91,7 @@ function serializeLead(id: string, data: Record<string, unknown>) {
 }
 
 function toIso(value: unknown) {
-  if (!value) return "";
-  if (value instanceof Date) return value.toISOString();
-  const maybeTimestamp = value as { toDate?: () => Date };
-  return typeof maybeTimestamp.toDate === "function" ? maybeTimestamp.toDate().toISOString() : String(value);
+  return parseFirestoreDateIso(value) ?? (value ? String(value) : "");
 }
 
 async function convertLeadToRestaurant(leadId: string, lead: Record<string, unknown>, adminUid: string) {

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
+import { parseFirestoreDate } from "@/lib/firestore-date";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerOrderDoc, FirestoreDate } from "@/types/firebase";
 
@@ -123,6 +124,6 @@ function OrderHistoryCard({ order }: { order: CustomerOrderDoc }) {
 
 function formatShortDate(value?: FirestoreDate) {
   if (!value) return "Date pending";
-  const date = value instanceof Date ? value : "toDate" in value ? value.toDate() : null;
+  const date = parseFirestoreDate(value);
   return date ? date.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Date pending";
 }

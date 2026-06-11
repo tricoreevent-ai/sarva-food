@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
 import type { OfferDoc, OrderDoc, OrderLineDoc, RestaurantDoc } from "@/types/firebase";
@@ -371,11 +372,7 @@ function isOfferDateValid(doc: OfferDoc) {
 }
 
 function dateMillis(value: unknown) {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "string") return Date.parse(value) || 0;
-  const maybeTimestamp = value as { toDate?: () => Date };
-  return typeof maybeTimestamp.toDate === "function" ? maybeTimestamp.toDate().getTime() : 0;
+  return parseFirestoreDateMillis(value);
 }
 
 function buildSlotId(restaurantId: string, scheduledFor: Date, slotMinutes: number) {

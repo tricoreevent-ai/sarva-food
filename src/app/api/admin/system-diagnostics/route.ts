@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { CMS_COLLECTIONS, CMS_VERSION, REQUIRED_CMS_FIELDS } from "@/modules/shared/config/environment/cms.config";
 import { getServerEnvironmentConfig } from "@/modules/shared/config/environment/env.server";
 import { adminDb } from "@/firebase/admin";
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
@@ -81,9 +82,5 @@ function hasDeepValue(input: Record<string, unknown> | undefined, path: string) 
 }
 
 function stringifyFirestoreDate(value: unknown) {
-  if (!value) return undefined;
-  if (typeof value === "string") return value;
-  if (value instanceof Date) return value.toISOString();
-  const timestamp = value as { toDate?: () => Date };
-  return typeof timestamp.toDate === "function" ? timestamp.toDate().toISOString() : undefined;
+  return parseFirestoreDateIso(value);
 }
