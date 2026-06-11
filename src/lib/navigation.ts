@@ -8,6 +8,7 @@ import {
   FileText,
   Home,
   ImagePlus,
+  Inbox,
   LayoutTemplate,
   MapPin,
   Megaphone,
@@ -36,6 +37,7 @@ export const customerNav: NavItem[] = [
   { label: "Cart", href: "/cart", icon: ShoppingBag },
   { label: "Deals", href: "/offers", icon: Percent },
   { label: "Profile", href: "/account/profile", icon: UserRound },
+  { label: "Support", href: "/account/support", icon: Inbox },
 ];
 
 export const ownerNav: NavItem[] = [
@@ -52,6 +54,7 @@ export const ownerNav: NavItem[] = [
   { label: "Inventory", href: "/owner/inventory", icon: PackageCheck, featureKey: "inventory" },
   { label: "Employees", href: "/owner/employees", icon: Users, featureKey: "employees", minimumPlan: "Growth" },
   { label: "Accounting", href: "/owner/accounting", icon: CreditCard, featureKey: "accounting", minimumPlan: "Growth" },
+  { label: "Inbox", href: "/owner/support", icon: Inbox, featureKey: "orders" },
   { label: "Settings", href: "/owner/settings", icon: Settings2, featureKey: "settings" },
 ];
 
@@ -59,6 +62,7 @@ export const adminNav: NavItem[] = [
   { label: "Overview", href: "/admin", icon: Home },
   { label: "Restaurants", href: "/admin/restaurants", icon: Store },
   { label: "Restaurant Leads", href: "/admin/leads", icon: ClipboardList },
+  { label: "Support Inbox", href: "/admin/support", icon: Inbox },
   { label: "Food Categories", href: "/admin/categories", icon: Utensils },
   { label: "Cuisine Types", href: "/admin/cuisines", icon: Soup },
   { label: "Owner Reviews", href: "/admin/reviews", icon: ClipboardCheck },

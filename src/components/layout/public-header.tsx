@@ -362,6 +362,7 @@ export function PublicHeader() {
                     <HeaderMenuLink href="/orders" icon={ShoppingBag} label="Orders" description="View your order history" />
                     <HeaderMenuLink href="/account/profile?tab=favorites" icon={Heart} label="Favorites" description="Favourite restaurants and items" />
                     <HeaderMenuLink href="/account/profile?tab=settings" icon={Settings2} label="Settings" description="App preferences and notifications" />
+                    <HeaderMenuLink href="/account/support" icon={CircleHelp} label="Support inbox" description="Track restaurant and admin replies" />
                     <HeaderMenuLink href="/help" icon={CircleHelp} label="Help & support" description="FAQs and support center" />
                   </div>
                   <AppPreferences compact />

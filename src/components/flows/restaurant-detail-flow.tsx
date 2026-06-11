@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
@@ -760,6 +760,7 @@ function MobileRestaurantLanding({
   const status = getRestaurantOperatingStatus(restaurant);
   const { theme, setTheme } = useThemeMode();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const address = restaurant.address || restaurant.location;
   const heroImage = normalizeHeroImages(restaurant)[0] ?? IMAGE_FALLBACKS.restaurant;
   const eta = restaurant.deliveryTime || (typeof customerDistanceKm === "number" ? `${estimateDeliveryMinutes(customerDistanceKm)} mins` : "");
@@ -836,11 +837,12 @@ function MobileRestaurantLanding({
                     <MobileMoreAction icon={MessageCircle} label="WhatsApp restaurant" onClick={() => { setMoreOpen(false); whatsappRestaurant(); }} />
                     <MobileMoreAction icon={MapPin} label="Restaurant information" onClick={() => { setMoreOpen(false); document.getElementById("mobile-restaurant-about")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
                     <MobileMoreAction icon={theme === "dark" ? Sun : Moon} label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setMoreOpen(false); }} />
-                    <MobileMoreAction icon={Package} label="Report issue" onClick={() => { setMoreOpen(false); toast.success("Thanks. We will review this restaurant."); }} />
+                    <MobileMoreAction icon={Package} label="Report issue" onClick={() => { setMoreOpen(false); setReportOpen(true); }} />
                     <MobileMoreAction icon={X} label="Close" onClick={() => setMoreOpen(false)} />
                   </div>
                 </SheetContent>
               </Sheet>
+              <SupportIssueSheet open={reportOpen} onOpenChange={setReportOpen} restaurant={restaurant} />
             </div>
           </div>
         </div>
@@ -1066,6 +1068,128 @@ function MobileMoreAction({ icon: Icon, label, onClick }: { icon: LucideIcon; la
       <Icon className="size-4 text-orange-600" />
       <span>{label}</span>
     </button>
+  );
+}
+
+function SupportIssueSheet({ open, onOpenChange, restaurant }: { open: boolean; onOpenChange: (open: boolean) => void; restaurant: Restaurant }) {
+  const auth = useAuthUser();
+  const [target, setTarget] = useState("owner");
+  const [category, setCategory] = useState("restaurant");
+  const [priority, setPriority] = useState("normal");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [orderId, setOrderId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setTimeout(() => {
+      setCustomerName((auth.profile?.displayName || auth.user?.displayName || "").trim());
+      setCustomerEmail((auth.profile?.email || auth.user?.email || "").trim());
+      setCustomerPhone((auth.profile?.phone || "").trim());
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [auth.profile?.displayName, auth.profile?.email, auth.profile?.phone, auth.user?.displayName, auth.user?.email, open]);
+
+  async function submitIssue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (subject.trim().length < 4 || description.trim().length < 10) {
+      toast.error("Add a clear subject and issue details.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch("/api/public/support-issues", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          restaurantId: restaurant.id || restaurant.tenantId || restaurant.slug,
+          restaurantSlug: restaurant.slug,
+          restaurantName: restaurant.name,
+          target,
+          category,
+          priority,
+          subject,
+          description,
+          customerName,
+          customerEmail,
+          customerPhone,
+          orderId,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Could not submit issue.");
+      toast.success(`Issue sent. Ticket ${payload.issueId}`);
+      setSubject("");
+      setDescription("");
+      setOrderId("");
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not submit issue.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto rounded-t-[1.5rem] border-border bg-card p-0 text-card-foreground" style={{ zIndex: 99999 }}>
+        <SheetHeader className="border-b px-5 py-4 pr-12">
+          <SheetTitle className="text-left text-lg font-black">Report an issue</SheetTitle>
+          <SheetDescription className="text-left">Send this to the restaurant owner, Nammude admin, or both.</SheetDescription>
+        </SheetHeader>
+        <form className="grid gap-4 p-4" onSubmit={submitIssue}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <FieldSelect id="report-target" label="Send to" value={target} onChange={setTarget} options={[["owner", "Restaurant owner"], ["admin", "Nammude admin"], ["both", "Owner and admin"]]} />
+            <FieldSelect id="report-category" label="Category" value={category} onChange={setCategory} options={[["restaurant", "Restaurant"], ["order", "Order"], ["payment", "Payment"], ["delivery", "Delivery"], ["food_quality", "Food quality"], ["app", "App"], ["other", "Other"]]} />
+            <FieldSelect id="report-priority" label="Priority" value={priority} onChange={setPriority} options={[["normal", "Normal"], ["high", "High"], ["urgent", "Urgent"], ["low", "Low"]]} />
+          </div>
+          <label className="grid gap-1 text-sm font-bold" htmlFor="report-subject">
+            Subject
+            <input id="report-subject" name="reportSubject" value={subject} onChange={(event) => setSubject(event.target.value)} className="h-11 rounded-xl border bg-background px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15" placeholder="Example: Item missing from order" />
+          </label>
+          <label className="grid gap-1 text-sm font-bold" htmlFor="report-description">
+            Details
+            <textarea id="report-description" name="reportDescription" value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-28 rounded-xl border bg-background px-3 py-2 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15" placeholder="Explain what happened, what you expected, and any order details." />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm font-bold" htmlFor="report-name">
+              Name
+              <input id="report-name" name="reportCustomerName" value={customerName} onChange={(event) => setCustomerName(event.target.value)} className="h-11 rounded-xl border bg-background px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15" />
+            </label>
+            <label className="grid gap-1 text-sm font-bold" htmlFor="report-order">
+              Order ID
+              <input id="report-order" name="reportOrderId" value={orderId} onChange={(event) => setOrderId(event.target.value)} className="h-11 rounded-xl border bg-background px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15" placeholder="Optional" />
+            </label>
+            <label className="grid gap-1 text-sm font-bold" htmlFor="report-email">
+              Email
+              <input id="report-email" name="reportCustomerEmail" type="email" value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} className="h-11 rounded-xl border bg-background px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15" placeholder="Optional" />
+            </label>
+            <label className="grid gap-1 text-sm font-bold" htmlFor="report-phone">
+              Phone
+              <input id="report-phone" name="reportCustomerPhone" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} className="h-11 rounded-xl border bg-background px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15" placeholder="Optional" />
+            </label>
+          </div>
+          <Button type="submit" disabled={saving} className="h-12 rounded-xl">
+            {saving ? "Sending..." : "Submit issue"}
+          </Button>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function FieldSelect({ id, label, value, onChange, options }: { id: string; label: string; value: string; onChange: (value: string) => void; options: Array<[string, string]> }) {
+  return (
+    <label className="grid gap-1 text-sm font-bold" htmlFor={id}>
+      {label}
+      <select id={id} name={id} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border bg-background px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/15">
+        {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
+      </select>
+    </label>
   );
 }
 
