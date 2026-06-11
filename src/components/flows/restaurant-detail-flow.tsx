@@ -1096,8 +1096,12 @@ function SupportIssueSheet({ open, onOpenChange, restaurant }: { open: boolean; 
 
   async function submitIssue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (subject.trim().length < 4 || description.trim().length < 10) {
-      toast.error("Add a clear subject and issue details.");
+    if (subject.trim().length < 3) {
+      toast.error("Subject must be at least 3 characters.");
+      return;
+    }
+    if (description.trim().length < 5) {
+      toast.error("Details must be at least 5 characters.");
       return;
     }
     setSaving(true);

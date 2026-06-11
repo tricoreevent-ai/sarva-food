@@ -24,8 +24,8 @@ const createSchema = z.object({
   target: z.enum(supportIssueTargets),
   category: z.enum(supportIssueCategories),
   priority: z.enum(supportIssuePriorities),
-  subject: z.string().trim().min(4).max(160),
-  description: z.string().trim().min(10).max(2000),
+  subject: z.string().trim().min(3).max(160),
+  description: z.string().trim().min(5).max(2000),
   customerName: z.string().trim().max(120).optional(),
   customerEmail: z.string().trim().email().optional().or(z.literal("")),
   customerPhone: z.string().trim().max(30).optional(),
@@ -50,11 +50,12 @@ export async function POST(request: NextRequest) {
   const session = await getSessionFromRequest(request, "customer").catch(() => null);
   const body = await request.json().catch(() => ({}));
   const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Issue details are incomplete." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: supportIssueValidationMessage(parsed.error) }, { status: 400 });
 
   const db = adminDb();
-  const restaurant = await db.collection("restaurants").doc(parsed.data.restaurantId).get();
-  const restaurantData = restaurant.data() as { ownerId?: string; ownerIds?: string[]; contact?: { supportEmail?: string }; ownerProfile?: { businessEmail?: string } } | undefined;
+  const restaurant = await findRestaurantDoc(parsed.data.restaurantId, parsed.data.restaurantSlug);
+  const restaurantData = restaurant?.data() as { ownerId?: string; ownerIds?: string[]; contact?: { supportEmail?: string }; ownerProfile?: { businessEmail?: string } } | undefined;
+  const restaurantId = restaurant?.id || parsed.data.restaurantSlug || parsed.data.restaurantId;
   const ownerIds = Array.from(new Set([restaurantData?.ownerId, ...(restaurantData?.ownerIds ?? [])].filter(Boolean)));
   const ref = db.collection("supportIssues").doc();
   const customerName = parsed.data.customerName || "Customer";
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
 
   await ref.set(sanitizePatch({
     id: ref.id,
-    restaurantId: parsed.data.restaurantId,
+    restaurantId,
     restaurantSlug: parsed.data.restaurantSlug,
     restaurantName: parsed.data.restaurantName,
     ownerIds,
@@ -110,4 +111,23 @@ export async function PATCH(request: NextRequest) {
     status: issue.target === "admin" ? "waiting_admin" : "waiting_owner",
   }, { merge: true });
   return NextResponse.json({ ok: true });
+}
+
+async function findRestaurantDoc(restaurantId: string, restaurantSlug: string) {
+  const db = adminDb();
+  const candidates = Array.from(new Set([restaurantId, restaurantSlug].filter(Boolean)));
+  for (const id of candidates) {
+    const snapshot = await db.collection("restaurants").doc(id).get();
+    if (snapshot.exists) return snapshot;
+  }
+  const slugMatch = await db.collection("restaurants").where("slug", "==", restaurantSlug).limit(1).get();
+  return slugMatch.docs[0] ?? null;
+}
+
+function supportIssueValidationMessage(error: z.ZodError) {
+  const fields = error.issues.map((issue) => issue.path.join(".")).filter(Boolean);
+  if (fields.includes("description")) return "Details must be at least 5 characters.";
+  if (fields.includes("subject")) return "Subject must be at least 3 characters.";
+  if (fields.includes("customerEmail")) return "Enter a valid email address or leave email empty.";
+  return "Issue details are incomplete.";
 }
