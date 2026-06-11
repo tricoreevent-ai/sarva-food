@@ -343,7 +343,7 @@ export function PublicHeader() {
                 <ChevronDown className="size-4" />
               </Button>
               {profileOpen ? (
-                <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border bg-white p-3 shadow-2xl">
+                <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border bg-card p-3 text-card-foreground shadow-2xl">
                   <div className="flex items-center gap-3 border-b pb-3">
                     <CustomerAvatar displayName={displayName} photoURL={profileImageUrl} size="md" />
                     <div className="min-w-0">
@@ -351,7 +351,7 @@ export function PublicHeader() {
                       <p className="text-xs font-semibold text-muted-foreground">Customer account</p>
                     </div>
                   </div>
-                  <Link href="/loyalty" className="my-3 flex items-center justify-between rounded-xl bg-orange-50 p-3 text-sm font-bold hover:bg-orange-100">
+                  <Link href="/loyalty" className="my-3 flex items-center justify-between rounded-xl bg-muted p-3 text-sm font-bold text-foreground hover:bg-orange-50 dark:hover:bg-slate-800">
                     <span className="flex items-center gap-2"><WalletCards className="size-4 text-orange-600" /> Loyalty rewards</span>
                     <span className="text-xs text-muted-foreground">View points</span>
                   </Link>
@@ -416,7 +416,7 @@ export function PublicHeader() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted"
+                      className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold text-foreground hover:bg-muted"
                     >
                       <Icon className="size-4 text-primary" aria-hidden="true" />
                       {item.label}
@@ -601,7 +601,7 @@ function HeaderMenuLink({
   description?: string;
 }) {
   return (
-    <Link href={href} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-bold hover:bg-orange-50">
+    <Link href={href} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-bold text-foreground hover:bg-muted">
       <Icon className="size-4 text-primary" />
       <span>
         <span className="block">{label}</span>
@@ -621,7 +621,7 @@ function QuickMenuLink({
   label: string;
 }) {
   return (
-    <Link href={href} className="grid gap-1 rounded-xl bg-white px-2 py-3">
+    <Link href={href} className="grid gap-1 rounded-xl bg-card px-2 py-3 text-card-foreground">
       <Icon className="mx-auto size-5 text-primary" />
       <span>{label}</span>
     </Link>

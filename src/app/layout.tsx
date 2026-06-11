@@ -59,8 +59,8 @@ const themeInitScript = `
 (function() {
   try {
     var key = "sarva-theme";
-    var stored = window.localStorage.getItem(key) || "system";
-    if (stored !== "light" && stored !== "dark" && stored !== "system") stored = "system";
+    var stored = window.localStorage.getItem(key) || "light";
+    if (stored !== "light" && stored !== "dark" && stored !== "system") stored = "light";
     var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     var dark = stored === "dark" || (stored === "system" && prefersDark);
     var root = document.documentElement;

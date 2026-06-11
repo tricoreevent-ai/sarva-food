@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, type CSSProperties } from "react";
 import toast from "react-hot-toast";
 import {
   Bell,
@@ -567,20 +567,12 @@ function MobileRestaurantCard({
   onFavorite?: () => void;
 }) {
   const badge = restaurant.deliveryFee === 0 ? "Free delivery" : restaurant.isOpen ? "Open" : "Preorder";
+  const images = restaurantListingImages(restaurant);
   return (
     <article className="w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
       <div className="relative h-28 overflow-hidden bg-muted md:h-36">
         <Link href={`/restaurant/${restaurant.slug}`} className="relative block h-full">
-          <SafeImage
-            src={restaurant.primaryThumbnail || restaurant.image}
-            alt={restaurant.name}
-            fill
-            loading="lazy"
-            decoding="async"
-            fallbackSrc={IMAGE_FALLBACKS.restaurant}
-            sizes="250px"
-            className="object-cover"
-          />
+          <MobileRestaurantImageCarousel images={images} alt={restaurant.name} />
         </Link>
         <Badge className="absolute left-3 top-3 rounded-md bg-green-600 text-white">{badge}</Badge>
         <button
@@ -606,6 +598,49 @@ function MobileRestaurantCard({
         </p>
       </Link>
     </article>
+  );
+}
+
+function restaurantListingImages(restaurant: Restaurant) {
+  const images = restaurant.thumbnailImages?.length ? restaurant.thumbnailImages : [restaurant.primaryThumbnail || restaurant.image];
+  const unique = Array.from(new Set(images.filter(Boolean))).slice(0, 5);
+  return unique.length ? unique : [IMAGE_FALLBACKS.restaurant];
+}
+
+function MobileRestaurantImageCarousel({ images, alt }: { images: string[]; alt: string }) {
+  if (images.length <= 1) {
+    return (
+      <SafeImage
+        src={images[0]}
+        alt={alt}
+        fill
+        loading="lazy"
+        decoding="async"
+        fallbackSrc={IMAGE_FALLBACKS.restaurant}
+        sizes="250px"
+        className="object-cover"
+      />
+    );
+  }
+
+  const duration = `${images.length * 3}s`;
+  return (
+    <>
+      {images.map((src, index) => (
+        <SafeImage
+          key={`${src}-${index}`}
+          src={src}
+          alt={index === 0 ? alt : ""}
+          fill
+          loading="lazy"
+          decoding="async"
+          fallbackSrc={IMAGE_FALLBACKS.restaurant}
+          sizes="250px"
+          className={cn("restaurant-card-slide object-cover", index === 0 && "opacity-100")}
+          style={{ "--restaurant-slide-duration": duration, "--restaurant-slide-delay": `${index * 3}s` } as CSSProperties}
+        />
+      ))}
+    </>
   );
 }
 

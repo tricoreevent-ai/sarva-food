@@ -10,7 +10,6 @@ import {
   Bike,
   CalendarClock,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -39,6 +38,7 @@ import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
@@ -811,15 +811,7 @@ function MobileRestaurantLanding({
               <ArrowLeft className="size-5" />
             </Link>
           </Button>
-          <div className="flex min-w-0 flex-1 justify-center">
-            {address ? (
-              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-xs font-black text-white backdrop-blur">
-                <MapPin className="size-4 shrink-0 text-orange-400" />
-                <span className="truncate">{restaurant.location}</span>
-                <ChevronDown className="size-4 shrink-0" />
-              </span>
-            ) : null}
-          </div>
+          <div className="min-w-0 flex-1" />
           <div className="flex gap-2">
             <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={focusSearch} aria-label="Search dishes">
               <Search className="size-5" />
@@ -827,20 +819,28 @@ function MobileRestaurantLanding({
             <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={shareRestaurant} aria-label="Share restaurant">
               <Share2 className="size-5" />
             </Button>
-            <div className="relative">
-              <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={() => setMoreOpen((value) => !value)} aria-label="More restaurant actions" aria-expanded={moreOpen}>
+            <div>
+              <Button type="button" size="icon" variant="ghost" className="size-11 rounded-full bg-white text-slate-950 shadow-sm" onClick={() => setMoreOpen(true)} aria-label="More restaurant actions" aria-expanded={moreOpen}>
                 <MoreVertical className="size-5" />
               </Button>
-              {moreOpen ? (
-                <div className="absolute right-0 top-13 z-40 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-slate-950 shadow-2xl">
-                  <MobileMoreAction icon={Search} label="Search menu" onClick={() => { setMoreOpen(false); focusSearch(); }} />
-                  <MobileMoreAction icon={Share2} label="Share restaurant" onClick={() => { setMoreOpen(false); shareRestaurant(); }} />
-                  <MobileMoreAction icon={Phone} label="Call restaurant" onClick={() => { setMoreOpen(false); callRestaurant(); }} />
-                  <MobileMoreAction icon={MessageCircle} label="WhatsApp" onClick={() => { setMoreOpen(false); whatsappRestaurant(); }} />
-                  <div className="my-1 h-px bg-slate-100" />
-                  <MobileMoreAction icon={theme === "dark" ? Sun : Moon} label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setMoreOpen(false); }} />
-                </div>
-              ) : null}
+              <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+                <SheetContent side="bottom" className="max-h-[70dvh] overflow-y-auto rounded-t-[1.5rem] border-border bg-card p-0 text-card-foreground" style={{ zIndex: 99999 }}>
+                  <SheetHeader className="border-b px-5 py-4 pr-12">
+                    <SheetTitle className="text-left text-lg font-black">{title}</SheetTitle>
+                    <SheetDescription className="text-left">Restaurant actions</SheetDescription>
+                  </SheetHeader>
+                  <div className="grid gap-2 p-4">
+                    <MobileMoreAction icon={Search} label="Search menu" onClick={() => { setMoreOpen(false); focusSearch(); }} />
+                    <MobileMoreAction icon={Share2} label="Share restaurant" onClick={() => { setMoreOpen(false); shareRestaurant(); }} />
+                    <MobileMoreAction icon={Phone} label="Call restaurant" onClick={() => { setMoreOpen(false); callRestaurant(); }} />
+                    <MobileMoreAction icon={MessageCircle} label="WhatsApp restaurant" onClick={() => { setMoreOpen(false); whatsappRestaurant(); }} />
+                    <MobileMoreAction icon={MapPin} label="Restaurant information" onClick={() => { setMoreOpen(false); document.getElementById("mobile-restaurant-about")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+                    <MobileMoreAction icon={theme === "dark" ? Sun : Moon} label={theme === "dark" ? "Light mode" : "Dark mode"} onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setMoreOpen(false); }} />
+                    <MobileMoreAction icon={Package} label="Report issue" onClick={() => { setMoreOpen(false); toast.success("Thanks. We will review this restaurant."); }} />
+                    <MobileMoreAction icon={X} label="Close" onClick={() => setMoreOpen(false)} />
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
@@ -875,7 +875,7 @@ function MobileRestaurantLanding({
         </div>
       </section>
 
-      <section className="relative z-10 -mt-4 rounded-t-[1.5rem] bg-[#fffaf5] px-4 pb-5 pt-4 text-slate-950">
+      <section className="relative z-10 -mt-4 rounded-t-[1.5rem] bg-background px-4 pb-5 pt-4 text-foreground">
         <OrderTimingStrip
           restaurant={restaurant}
           mode={orderTiming}
@@ -887,7 +887,7 @@ function MobileRestaurantLanding({
           onTimeChange={onTimeChange}
         />
 
-        <div className="sticky top-0 z-30 -mx-4 mt-4 border-y border-orange-100 bg-[#fffaf5]/95 px-4 py-3 backdrop-blur">
+        <div className="sticky top-0 z-30 -mx-4 mt-4 border-y border-border bg-background/95 px-4 py-3 backdrop-blur">
           <div className="grid grid-cols-[minmax(0,1fr)_6.75rem] gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
@@ -897,10 +897,10 @@ function MobileRestaurantLanding({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search dishes, combos..."
-                className="h-12 w-full rounded-xl border border-orange-100 bg-white pl-10 pr-3 text-sm font-bold text-slate-950 outline-none placeholder:text-slate-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"
+                className="h-12 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-sm font-bold text-card-foreground outline-none placeholder:text-muted-foreground focus:border-orange-300 focus:ring-4 focus:ring-orange-500/15"
               />
             </div>
-            <Button type="button" variant="outline" className="h-12 rounded-xl border-orange-200 bg-white px-3 font-black text-slate-950" onClick={onOpenFilters}>
+            <Button type="button" variant="outline" className="h-12 rounded-xl border-border bg-card px-3 font-black text-card-foreground" onClick={onOpenFilters}>
               <SlidersHorizontal className="size-4 text-orange-600" />
               {activeFilterCount ? `${activeFilterCount}` : "Filters"}
             </Button>
@@ -1062,7 +1062,7 @@ function MobileQtyButton({ quantity, soldOut, onAdd, onQty }: { quantity: number
 
 function MobileMoreAction({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
   return (
-    <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-black text-slate-800 hover:bg-orange-50" onClick={onClick}>
+    <button type="button" className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-muted px-3 py-2.5 text-left text-sm font-black text-foreground hover:bg-orange-50 dark:hover:bg-slate-800" onClick={onClick}>
       <Icon className="size-4 text-orange-600" />
       <span>{label}</span>
     </button>
@@ -1090,7 +1090,7 @@ function MobileRestaurantAbout({ restaurant }: { restaurant: Restaurant }) {
   const mapsHref = restaurant.googleMapLocation || mapsUrl(restaurant);
 
   return (
-    <section className="mt-6 pt-5">
+    <section id="mobile-restaurant-about" className="mt-6 scroll-mt-24 pt-5">
       <h2 className="text-2xl font-black">About this restaurant</h2>
       <div className="mt-3 flex gap-3 overflow-x-auto pb-1 text-sm font-bold text-slate-700 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-3 py-2"><CheckCircle2 className="size-4 text-emerald-600" />Hygienic packaging</span>
@@ -1266,7 +1266,7 @@ function OrderTimingStrip({
   const nowSelected = mode === "now";
   const scheduledSelected = mode === "scheduled";
   const selectedButtonClass = "bg-orange-600 text-white shadow-lg shadow-orange-500/20";
-  const idleButtonClass = "bg-white text-slate-800 shadow-sm hover:bg-orange-50";
+  const idleButtonClass = "bg-card text-card-foreground shadow-sm hover:bg-muted";
   const slotSelectId = useId();
   const scheduleDays = useMemo(() => buildScheduleDays(restaurant), [restaurant]);
   const selectedDay = scheduleDays.find((day) => day.value === scheduledDate);
@@ -1317,15 +1317,15 @@ function OrderTimingStrip({
         </button>
       </div>
       {mode === "scheduled" ? (
-        <div className="mt-3 rounded-2xl bg-orange-50 p-3 text-slate-950 shadow-inner shadow-orange-100/60">
+        <div className="mt-3 rounded-2xl bg-muted p-3 text-foreground shadow-inner">
           {totalSlots ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-black text-slate-950">Delivery slot</p>
-                  <p className="text-xs font-semibold text-slate-600">Slots follow restaurant hours.</p>
+                  <p className="text-sm font-black text-foreground">Delivery slot</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Slots follow restaurant hours.</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-orange-700">{selectedSlot?.label ?? "Pick time"}</span>
+                <span className="shrink-0 rounded-full bg-card px-3 py-1 text-xs font-black text-orange-700">{selectedSlot?.label ?? "Pick time"}</span>
               </div>
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Schedule date">
                 {scheduleDays.map((day) => {
@@ -1341,10 +1341,10 @@ function OrderTimingStrip({
                         onTimeChange(day.slots[0]?.value ?? "");
                       }}
                       aria-pressed={active}
-                      className={`min-w-[3.35rem] rounded-2xl px-2 py-2 text-center text-[11px] leading-tight transition sm:min-w-20 sm:rounded-xl sm:px-3 ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-white text-slate-800 shadow-sm hover:bg-orange-100"} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+                      className={`min-w-[3.35rem] rounded-2xl px-2 py-2 text-center text-[11px] leading-tight transition sm:min-w-20 sm:rounded-xl sm:px-3 ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-card text-card-foreground shadow-sm hover:bg-background"} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
                     >
                       <span className="block font-black">{day.shortLabel}</span>
-                      <span className={`mt-0.5 block font-semibold ${active ? "text-white/80" : "text-slate-500"}`}>{day.dateLabel}</span>
+                      <span className={`mt-0.5 block font-semibold ${active ? "text-white/80" : "text-muted-foreground"}`}>{day.dateLabel}</span>
                     </button>
                   );
                 })}
@@ -1356,7 +1356,7 @@ function OrderTimingStrip({
                   name="scheduleSlot"
                   value={scheduledTime}
                   onChange={(event) => onTimeChange(event.target.value)}
-                  className="h-11 w-full rounded-xl border-0 bg-white px-3 text-sm font-black text-slate-950 outline-none ring-1 ring-orange-100 focus:ring-4 focus:ring-orange-500/20 sm:hidden"
+                  className="h-11 w-full rounded-xl border-0 bg-card px-3 text-sm font-black text-card-foreground outline-none ring-1 ring-border focus:ring-4 focus:ring-orange-500/20 sm:hidden"
                 >
                   {(selectedDay?.slots ?? []).map((slot) => (
                     <option key={slot.value} value={slot.value}>{slot.label}</option>
@@ -1371,7 +1371,7 @@ function OrderTimingStrip({
                         type="button"
                         onClick={() => onTimeChange(slot.value)}
                         aria-pressed={active}
-                        className={`h-10 rounded-xl text-xs font-black transition ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-white text-slate-800 hover:bg-orange-100"}`}
+                        className={`h-10 rounded-xl text-xs font-black transition ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-card text-card-foreground hover:bg-background"}`}
                       >
                         {slot.label}
                       </button>
@@ -1379,12 +1379,12 @@ function OrderTimingStrip({
                   })}
                 </div>
               </div>
-              <div className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <div className="rounded-xl bg-card px-3 py-2 text-xs font-bold text-muted-foreground">
                 {scheduledLabel ? `Selected: ${scheduledLabel}` : "Choose a valid slot"}
               </div>
             </div>
           ) : (
-            <div className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-700">
+            <div className="rounded-xl bg-card px-4 py-3 text-sm font-bold text-muted-foreground">
               Scheduled ordering is unavailable because operating hours are not configured for upcoming days.
             </div>
           )}

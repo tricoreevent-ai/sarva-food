@@ -7,7 +7,7 @@ type Theme = "light" | "dark" | "system";
 const STORAGE_KEY = "sarva-theme";
 
 const ThemeContext = createContext<{ theme: Theme; setTheme: (theme: Theme) => void }>({
-  theme: "system",
+  theme: "light",
   setTheme: () => undefined,
 });
 
@@ -19,9 +19,9 @@ function applyTheme(theme: Theme) {
 }
 
 function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const value = window.localStorage.getItem(STORAGE_KEY);
-  return value === "light" || value === "dark" || value === "system" ? value : "system";
+  return value === "light" || value === "dark" || value === "system" ? value : "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

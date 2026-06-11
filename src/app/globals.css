@@ -680,3 +680,35 @@ textarea::selection,
     transform: scale(1);
   }
 }
+
+.restaurant-card-slide {
+  opacity: 0;
+  animation: restaurant-card-fade var(--restaurant-slide-duration, 9s) infinite;
+  animation-delay: var(--restaurant-slide-delay, 0s);
+  animation-fill-mode: forwards;
+}
+
+@keyframes restaurant-card-fade {
+  0%,
+  30% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+
+  36%,
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .restaurant-card-slide {
+    animation: none;
+    opacity: 0;
+  }
+
+  .restaurant-card-slide:first-child {
+    opacity: 1;
+  }
+}

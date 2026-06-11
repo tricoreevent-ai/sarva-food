@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { Bike, Clock, MapPin, Star } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
 import type { Restaurant } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { distanceKm?: number } }) {
   const operatingStatus = getRestaurantOperatingStatus(restaurant);
+  const images = restaurantListingImages(restaurant);
 
   return (
     <Link
@@ -17,16 +18,7 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
     >
       <article className="mobile-premium-card touch-lift h-full overflow-hidden rounded-lg bg-card transition-transform duration-300 group-hover:-translate-y-1">
         <div className="relative aspect-[16/11] overflow-hidden bg-muted">
-          <SafeImage
-            src={restaurant.primaryThumbnail || restaurant.image}
-            alt={`${restaurant.name} food preview`}
-            fill
-            loading="lazy"
-            decoding="async"
-            fallbackSrc={IMAGE_FALLBACKS.restaurant}
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+          <RestaurantListingImageCarousel images={images} alt={`${restaurant.name} food preview`} />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
             {restaurant.rating > 0 ? (
               <Badge className="rounded-full bg-white text-primary shadow-sm">
@@ -95,3 +87,46 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
 }
 
 export const RestaurantCard = memo(RestaurantCardComponent);
+
+function restaurantListingImages(restaurant: Restaurant) {
+  const images = restaurant.thumbnailImages?.length ? restaurant.thumbnailImages : [restaurant.primaryThumbnail || restaurant.image];
+  const unique = Array.from(new Set(images.filter(Boolean))).slice(0, 5);
+  return unique.length ? unique : [IMAGE_FALLBACKS.restaurant];
+}
+
+function RestaurantListingImageCarousel({ images, alt }: { images: string[]; alt: string }) {
+  if (images.length <= 1) {
+    return (
+      <SafeImage
+        src={images[0]}
+        alt={alt}
+        fill
+        loading="lazy"
+        decoding="async"
+        fallbackSrc={IMAGE_FALLBACKS.restaurant}
+        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+    );
+  }
+
+  const duration = `${images.length * 3}s`;
+  return (
+    <>
+      {images.map((src, index) => (
+        <SafeImage
+          key={`${src}-${index}`}
+          src={src}
+          alt={index === 0 ? alt : ""}
+          fill
+          loading="lazy"
+          decoding="async"
+          fallbackSrc={IMAGE_FALLBACKS.restaurant}
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          className={cn("restaurant-card-slide object-cover transition-transform duration-500 group-hover:scale-105", index === 0 && "opacity-100")}
+          style={{ "--restaurant-slide-duration": duration, "--restaurant-slide-delay": `${index * 3}s` } as CSSProperties}
+        />
+      ))}
+    </>
+  );
+}
