@@ -1081,6 +1081,22 @@ function withErpDefaults(state: PersistedAppStoreState): PersistedAppStoreState 
   };
 }
 
+function withoutVolatileBusinessData(state: PersistedAppStoreState): PersistedAppStoreState {
+  return {
+    ...state,
+    menuItems: [],
+    menuCategories: [],
+    cuisines: [],
+    comboOffers: [],
+    menuSchedules: [],
+    inventoryItems: [],
+    recipes: [],
+    inventoryMovements: [],
+    tableOrders: [],
+    loyaltyCustomers: [],
+  };
+}
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
@@ -2763,7 +2779,7 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: "sarva-production-state",
-      version: 8,
+      version: 9,
       migrate: (persistedState, persistedVersion): PersistedAppStoreState => {
         if (persistedVersion < 6) {
           return createPersistedDefaults();
@@ -2772,17 +2788,17 @@ export const useAppStore = create<AppStore>()(
         if (persistedVersion < 7) {
           migrated = removeLegacySeedData(migrated);
         }
-        return withErpDefaults(migrated);
+        return withoutVolatileBusinessData(withErpDefaults(migrated));
       },
       partialize: (state): PersistedAppStoreState => ({
         authUser: state.authUser,
         restaurants: state.restaurants,
         businessApplications: state.businessApplications,
-        menuItems: state.menuItems,
-        menuCategories: state.menuCategories,
-        cuisines: state.cuisines,
-        comboOffers: state.comboOffers,
-        menuSchedules: state.menuSchedules,
+        menuItems: [],
+        menuCategories: [],
+        cuisines: [],
+        comboOffers: [],
+        menuSchedules: [],
         taxSettings: state.taxSettings,
         offers: state.offers,
         orders: state.orders,
@@ -2794,22 +2810,22 @@ export const useAppStore = create<AppStore>()(
         posBill: state.posBill,
         ownerBusinessProfile: state.ownerBusinessProfile,
         socialPosts: state.socialPosts,
-        tableOrders: state.tableOrders,
+        tableOrders: [],
         printerSettings: state.printerSettings,
         staffMembers: state.staffMembers,
         branches: state.branches,
-        inventoryItems: state.inventoryItems,
+        inventoryItems: [],
         purchases: state.purchases,
         purchaseOrders: state.purchaseOrders,
         suppliers: state.suppliers,
         supplierPayments: state.supplierPayments,
-        recipes: state.recipes,
-        inventoryMovements: state.inventoryMovements,
+        recipes: [],
+        inventoryMovements: [],
         kitchenStations: state.kitchenStations,
         auditLogs: state.auditLogs,
         chartAccounts: state.chartAccounts,
         expenses: state.expenses,
-        loyaltyCustomers: state.loyaltyCustomers,
+        loyaltyCustomers: [],
         transactions: state.transactions,
         cmsSettings: state.cmsSettings,
         offlineQueue: state.offlineQueue,

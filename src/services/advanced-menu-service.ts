@@ -14,8 +14,29 @@ export function canUseMenuFirestore() {
 
 export function listenMenuItems(restaurantId: string, onData: (items: MenuDoc[]) => void, onError?: (error: Error) => void): Unsubscribe {
   if (!canUseMenuFirestore()) return () => undefined;
-  const q = query(refs.menus(getFirebaseDb()), where("tenantId", "==", resolveTenantId(restaurantId)), orderBy("sortOrder", "asc"), limit(150));
-  return onSnapshot(q, (snapshot) => onData(snapshot.docs.map((item) => item.data()).filter((item) => !item.isDeleted)), (error) => onError?.(error));
+  const db = getFirebaseDb();
+  const tenantId = resolveTenantId(restaurantId);
+  const snapshots = new Map<string, MenuDoc[]>();
+  const filters = [
+    { key: "tenantId", value: tenantId },
+    { key: "restaurantId", value: restaurantId },
+  ];
+
+  logMenuQueryDiagnostics("menus", filters, restaurantId, tenantId);
+
+  const unsubscribers = filters.map((filter) => {
+    const q = query(refs.menus(db), where(filter.key, "==", filter.value), orderBy("sortOrder", "asc"), limit(150));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        snapshots.set(filter.key, snapshot.docs.map((item) => item.data()).filter((item) => !item.isDeleted));
+        onData(mergeMenuDocs(Array.from(snapshots.values()).flat()));
+      },
+      (error) => onError?.(error),
+    );
+  });
+
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }
 
 export function listenMenuCategories(restaurantId: string, onData: (items: MenuCategoryDoc[]) => void, onError?: (error: Error) => void): Unsubscribe {
@@ -161,4 +182,23 @@ export function buildMenuDoc(input: MenuItemFormValues & { id: string; tenantId?
     createdAt: serverTimestamp() as MenuDoc["createdAt"],
     updatedAt: serverTimestamp() as MenuDoc["updatedAt"],
   };
+}
+
+function mergeMenuDocs(items: MenuDoc[]) {
+  return Array.from(new Map(items.map((item) => [item.id, item])).values())
+    .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0) || first.name.localeCompare(second.name));
+}
+
+function logMenuQueryDiagnostics(
+  collectionPath: string,
+  filters: Array<{ key: string; value: string }>,
+  restaurantId: string,
+  tenantId: string,
+) {
+  if (typeof window === "undefined") return;
+  console.log("MENU_QUERY");
+  console.log(collectionPath);
+  console.log(filters.map((filter) => ({ field: filter.key, op: "==", value: filter.value })));
+  console.log(restaurantId);
+  console.log({ restaurantId, tenantId });
 }

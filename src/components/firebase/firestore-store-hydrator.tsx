@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { getFirebaseApp, getFirebaseAuth, isFirebaseConfigured } from "@/firebase/client";
 import { listenPublicCms, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
 import { menuDocToUi } from "@/services/public-data-service";
 import { listenMenuItems } from "@/services/advanced-menu-service";
@@ -10,6 +11,24 @@ import { listenInventory, listenLoyaltyCustomers } from "@/services/production-d
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
 import type { InventoryItem, LoyaltyCustomer } from "@/lib/types";
+
+declare global {
+  interface Window {
+    __BUILD_INFO__?: {
+      gitCommit: string;
+      buildDate: string;
+      environment: string;
+      version: string;
+    };
+  }
+}
+
+const BUILD_INFO = {
+  gitCommit: process.env.NEXT_PUBLIC_BUILD_VERSION ?? process.env.NEXT_PUBLIC_GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_COMMIT_SHA ?? "local",
+  buildDate: process.env.NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP ?? process.env.NEXT_PUBLIC_BUILD_DATE ?? "local",
+  environment: process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV ?? "unknown",
+  version: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.1.0",
+};
 
 export function FirestoreStoreHydrator() {
   const pathname = usePathname();
@@ -20,6 +39,11 @@ export function FirestoreStoreHydrator() {
   const publicDiscoverySurface = publicSurface && (pathname === "/" || pathname === "/restaurants" || pathname === "/offers");
   const publicCmsSurface = publicSurface;
   const publicOffersSurface = publicSurface && pathname === "/offers";
+
+  useEffect(() => {
+    window.__BUILD_INFO__ = BUILD_INFO;
+    console.log("BUILD_INFO", window.__BUILD_INFO__);
+  }, []);
 
   useEffect(() => {
     if (adminSurface || loginSurface) return;
@@ -51,11 +75,23 @@ export function FirestoreStoreHydrator() {
     }
 
     if (ownerSurface) {
+      const restaurantId = useAppStore.getState().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+      logOwnerRuntimeDiagnostics(restaurantId);
+      useAppStore.setState({
+        menuItems: [],
+        menuCategories: [],
+        comboOffers: [],
+        menuSchedules: [],
+        inventoryItems: [],
+        tableOrders: [],
+        loyaltyCustomers: [],
+      });
+
       unsubscribers.push(
-        listenMenuItems(DEFAULT_RESTAURANT_ID, (items) => {
+        listenMenuItems(restaurantId, (items) => {
           useAppStore.setState({ menuItems: items.map((item) => menuDocToUi(item.id, item)) });
         }),
-        listenKitchenOrders(DEFAULT_RESTAURANT_ID, undefined, (tableOrders) => {
+        listenKitchenOrders(restaurantId, undefined, (tableOrders) => {
           useAppStore.setState({ tableOrders });
         }),
         listenInventory((items) => {
@@ -98,4 +134,27 @@ export function FirestoreStoreHydrator() {
   }, [adminSurface, loginSurface, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
 
   return null;
+}
+
+function logOwnerRuntimeDiagnostics(restaurantId: string) {
+  const state = useAppStore.getState();
+  const auth = isFirebaseConfigured ? getFirebaseAuth() : null;
+  const app = isFirebaseConfigured ? getFirebaseApp() : null;
+  const restaurant = state.restaurants.find((item) => item.slug === restaurantId || item.id === restaurantId);
+  const ownerId = auth?.currentUser?.uid ?? state.authUser.id;
+  const slug = restaurant?.slug ?? restaurantId;
+
+  console.log("PROJECT_ID", app?.options.projectId ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "");
+  console.log("APP_ID", app?.options.appId ?? process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "");
+  console.log("AUTH_USER", auth?.currentUser?.uid);
+  console.log("RESTAURANT_ID", restaurantId);
+  console.log("OWNER_ID", ownerId);
+  console.log("RESTAURANT_SLUG", slug);
+  console.log("RESTAURANT_LOOKUP", {
+    id: restaurant?.id ?? restaurantId,
+    slug,
+    ownerId: restaurant?.ownerId ?? ownerId,
+    email: restaurant?.ownerProfile?.businessEmail,
+    name: restaurant?.name,
+  });
 }
