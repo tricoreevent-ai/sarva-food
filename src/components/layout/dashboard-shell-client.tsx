@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, type CSSProperties } from "react";
+import { ReactNode, useSyncExternalStore, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-status";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
@@ -42,7 +42,7 @@ export function DashboardShellClient({
   const authUser = useAppStore((state) => state.authUser);
   const restaurants = useAppStore((state) => state.restaurants);
   const themeSurface = app === "admin" ? "admin" : app === "owner" || app === "pos" ? "owner" : null;
-  const moduleTheme = readModuleTheme(themeSurface, authUser.id);
+  const moduleTheme = useModuleTheme(themeSurface, authUser.id);
 
   if (pathname === "/admin/login" || pathname === "/owner/login") {
     return children;
@@ -85,6 +85,25 @@ export function DashboardShellClient({
       {isPosWorkspace ? null : <DashboardQuickActions app={app} />}
     </div>
   );
+}
+
+function useModuleTheme(surface: "owner" | "admin" | null, userId?: string): "light" | "dark" {
+  return useSyncExternalStore(
+    subscribeModuleTheme,
+    () => readModuleTheme(surface, userId),
+    () => "light",
+  );
+}
+
+function subscribeModuleTheme(onChange: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  window.addEventListener("storage", onChange);
+  media.addEventListener("change", onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    media.removeEventListener("change", onChange);
+  };
 }
 
 function readModuleTheme(surface: "owner" | "admin" | null, userId?: string): "light" | "dark" {

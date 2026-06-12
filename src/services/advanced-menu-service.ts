@@ -1,6 +1,6 @@
 import { addDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Unsubscribe } from "firebase/firestore";
 import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
-import { refs, typedDoc } from "@/firebase/collections";
+import { refs, typedCollection, typedDoc } from "@/firebase/collections";
 import { shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId, withTenantId } from "@/lib/tenant";
 import { comboSchema, cuisineSchema, inventorySchema, menuCategorySchema, taxSettingsSchema, type MenuItemFormValues } from "@/lib/schemas/menu";
@@ -17,24 +17,31 @@ export function listenMenuItems(restaurantId: string, onData: (items: MenuDoc[])
   const db = getFirebaseDb();
   const tenantId = resolveTenantId(restaurantId);
   const snapshots = new Map<string, MenuDoc[]>();
+  const collections = [
+    { path: "menuItems", ref: typedCollection<MenuDoc>(db, "menuItems") },
+    { path: "menus", ref: refs.menus(db) },
+  ];
   const filters = [
     { key: "tenantId", value: tenantId },
     { key: "restaurantId", value: restaurantId },
   ];
 
-  logMenuQueryDiagnostics("menus", filters, restaurantId, tenantId);
+  collections.forEach((item) => logMenuQueryDiagnostics(item.path, filters, restaurantId, tenantId));
 
-  const unsubscribers = filters.map((filter) => {
-    const q = query(refs.menus(db), where(filter.key, "==", filter.value), orderBy("sortOrder", "asc"), limit(150));
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        snapshots.set(filter.key, snapshot.docs.map((item) => item.data()).filter((item) => !item.isDeleted));
-        onData(mergeMenuDocs(Array.from(snapshots.values()).flat()));
-      },
-      (error) => onError?.(error),
-    );
-  });
+  const unsubscribers = collections.flatMap((source) =>
+    filters.map((filter) => {
+      const q = query(source.ref, where(filter.key, "==", filter.value), limit(150));
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          snapshots.set(`${source.path}:${filter.key}`, snapshot.docs.map((item) => item.data()).filter((item) => !item.isDeleted));
+          const merged = collections.flatMap((item) => filters.flatMap((activeFilter) => snapshots.get(`${item.path}:${activeFilter.key}`) ?? []));
+          onData(mergeMenuDocs(merged));
+        },
+        (error) => onError?.(error),
+      );
+    }),
+  );
 
   return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }
@@ -114,13 +121,15 @@ export async function safeUpsertCombo(combo: ComboOfferDoc) {
 export async function safeDeleteMenuItem(itemId: string, restaurantId = DEFAULT_RESTAURANT_ID) {
   if (!canUseMenuFirestore()) return;
   const tenantId = resolveTenantId(restaurantId);
-  await syncOwnerWrite({
-    collectionName: "menus",
-    docId: itemId,
-    operation: "delete",
-    data: { restaurantId },
-    tenantId,
-  }).catch(() => updateDoc(typedDoc<MenuDoc>(getFirebaseDb(), "menus", itemId), softDeleteMetadata()));
+  await Promise.allSettled(["menus", "menuItems"].map((collectionName) =>
+    syncOwnerWrite({
+      collectionName,
+      docId: itemId,
+      operation: "delete",
+      data: { restaurantId },
+      tenantId,
+    }).catch(() => updateDoc(typedDoc<MenuDoc>(getFirebaseDb(), collectionName, itemId), softDeleteMetadata())),
+  ));
 }
 
 async function syncOwnerWrite(write: {
