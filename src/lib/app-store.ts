@@ -11,6 +11,7 @@ import { readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { createOrderWithRetry, updateOrderStatus as updateFirestoreOrderStatus } from "@/services/order-service";
 import { safeCreateCategory, safeDeleteMenuItem, safeUpdateCategory, safeUpsertMenuItem } from "@/services/advanced-menu-service";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { deleteOwnerOffer, safeDeleteEmployeeUser, safeUpsertEmployeeUser, saveOwnerOffer, saveOwnerRestaurantProfile } from "@/services/production-data-service";
 import type {
   BusinessListingApplication,
@@ -823,7 +824,7 @@ const cafeAlArabHours = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
 const cafeAlArabOwnerProfile: OwnerBusinessProfile = {
   ownerName: "divakdi@gmail.com",
   hotelName: "Cafe Al Arab UL",
-  logo: "/icons/sarva-icon.svg",
+  logo: BRAND_ASSETS.appIcon,
   coverImage: cafeAlArabCoverImages[0],
   coverImages: cafeAlArabCoverImages,
   businessAddress: "Thanisandra Main Road, Avalahalli, Yelahanka, Bengaluru 560064",

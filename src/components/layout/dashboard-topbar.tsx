@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { SidebarLinks } from "@/components/layout/dashboard-sidebar";
+import { BrandIcon } from "@/components/brand/brand-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -111,7 +112,6 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(new Set());
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  const productInitials = getInitials(productName);
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
   const ownerName = ownerDisplayName(authUser.name, ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name);
 
@@ -258,7 +258,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
           </Sheet>
 
           <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200" aria-label="Go to dashboard overview">
-            <span className="food-gradient grid size-10 place-items-center rounded-xl text-sm font-black text-white shadow-lg">{productInitials}</span>
+            <BrandIcon className="size-10 shadow-lg" priority />
             <span className="hidden min-w-24 sm:block">
               <span className="block text-base font-black leading-5 text-slate-950">{productName}</span>
             </span>
@@ -685,7 +685,7 @@ function AdminConsoleTopbar({ appName, navItems, homeHref }: DashboardTopbarProp
         </Sheet>
 
         <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300" aria-label="Go to admin overview">
-          <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-indigo-500 text-sm font-black text-white shadow-lg">{getInitials(productName)}</span>
+          <BrandIcon className="size-10 shadow-lg" priority />
           <span className="hidden min-w-28 sm:block">
             <span className="block text-base font-black leading-5 text-white">{productName} Admin</span>
             <span className="text-xs font-semibold text-indigo-200">{appName}</span>

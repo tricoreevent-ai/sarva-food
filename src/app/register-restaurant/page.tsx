@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 
 export default function RegisterRestaurantPage() {
   const submitBusinessApplication = useAppStore((state) => state.submitBusinessApplication);
@@ -50,7 +51,7 @@ export default function RegisterRestaurantPage() {
                   ...form,
                   mobile: form.mobile,
                   hotelName: form.businessName,
-                  logo: "/icons/sarva-icon.svg",
+                  logo: BRAND_ASSETS.appIcon,
                   googleMapLocation: "",
                   latitude: 12.9719,
                   longitude: 77.6412,

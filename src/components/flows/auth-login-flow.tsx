@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandIcon, BrandLogo } from "@/components/brand/brand-logo";
 import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -102,7 +103,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   });
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const branding = useAppStore((state) => state.cmsSettings.branding) ?? defaultCmsSettings.branding!;
-  const brandInitials = (branding.shortName || branding.appName || "SF").slice(0, 2).toUpperCase();
   const { ready: authReady, firebaseEnabled, stackEnabled } = authCapabilities;
   const passwordScore = getPasswordScore(password);
   const customerStackEnabled = isCustomerSurface && stackEnabled;
@@ -342,9 +342,9 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 to-emerald-500 text-base font-black text-white shadow-xl">{brandInitials}</span>
+                <BrandIcon className="size-12 rounded-2xl shadow-xl" priority sizes="48px" />
                 <span>
-                  <span className="block text-lg font-black">{branding.appName}</span>
+                  <BrandLogo className="h-9 w-36" sizes="144px" priority />
                   <span className="text-xs font-semibold text-emerald-100">{branding.appDescription || "Good food, great moments"}</span>
                 </span>
               </Link>

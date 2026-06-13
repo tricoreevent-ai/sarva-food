@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppStore } from "@/lib/app-store";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { buildInstagramDeepLink } from "@/lib/social-commerce";
 import {
   buildTemplateExport,
@@ -34,7 +35,7 @@ export function InstagramPostCreatorFlow() {
   const [cta, setCta] = useState("Order now");
   const [locationTag, setLocationTag] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [image, setImage] = useState(menuItems[0]?.image ?? "/icons/sarva-icon.svg");
+  const [image, setImage] = useState(menuItems[0]?.image ?? BRAND_ASSETS.appIcon);
   const [outputFormat, setOutputFormat] = useState<SocialOutputFormat>("instagram-feed");
   const [phase, setPhase] = useState<"idle" | "generating" | "ready" | "exported">("idle");
   const [postId, setPostId] = useState("");

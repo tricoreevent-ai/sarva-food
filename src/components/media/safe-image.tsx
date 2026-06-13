@@ -2,11 +2,12 @@
 
 import Image, { type ImageProps } from "next/image";
 import { useMemo, useState } from "react";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 
 export const IMAGE_FALLBACKS = {
   food: "/images/fallback-food.svg",
   restaurant: "/images/fallback-restaurant.svg",
-  logo: "/images/fallback-logo.svg",
+  logo: BRAND_ASSETS.appIcon,
 } as const;
 
 type SafeImageProps = Omit<ImageProps, "src"> & {

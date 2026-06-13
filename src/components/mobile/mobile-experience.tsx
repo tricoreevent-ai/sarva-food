@@ -18,12 +18,13 @@ import {
   WifiOff,
 } from "lucide-react";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
+import { BrandIcon } from "@/components/brand/brand-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicMenu } from "@/hooks/use-public-data";
 import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
-import { cn, formatCurrency, getInitials } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 export function MobilePullToRefresh({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -229,9 +230,9 @@ export function PremiumSplash() {
             <motion.div
               animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 2, 0] }}
               transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-              className="food-gradient grid size-24 place-items-center rounded-lg text-3xl font-black text-white shadow-2xl"
+              className="grid size-24 place-items-center"
             >
-              {getInitials(productName)}
+              <BrandIcon className="size-24 rounded-lg shadow-2xl" priority sizes="96px" />
             </motion.div>
             <div>
               <Badge className="mb-3 bg-primary/10 text-primary">

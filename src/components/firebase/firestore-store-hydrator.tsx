@@ -39,6 +39,7 @@ export function FirestoreStoreHydrator() {
   const publicDiscoverySurface = publicSurface && (pathname === "/" || pathname === "/restaurants" || pathname === "/offers");
   const publicCmsSurface = publicSurface;
   const publicOffersSurface = publicSurface && pathname === "/offers";
+  const ownerRestaurantId = useAppStore((state) => state.authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
 
   useEffect(() => {
     window.__BUILD_INFO__ = BUILD_INFO;
@@ -75,7 +76,7 @@ export function FirestoreStoreHydrator() {
     }
 
     if (ownerSurface) {
-      const restaurantId = useAppStore.getState().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+      const restaurantId = ownerRestaurantId;
       logOwnerRuntimeDiagnostics(restaurantId);
       useAppStore.setState({
         menuItems: [],
@@ -131,7 +132,7 @@ export function FirestoreStoreHydrator() {
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [adminSurface, loginSurface, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
+  }, [adminSurface, loginSurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
 
   return null;
 }

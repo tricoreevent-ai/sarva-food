@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { LogIn, LogOut, Menu, Moon, PackageOpen, Sun, X, type LucideIcon } from "lucide-react";
 import { PublicHeader } from "@/components/layout/public-header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { CustomerCartSync } from "@/components/commerce/customer-cart-sync";
 import { MobileOfflineBanner, MobilePullToRefresh } from "@/components/mobile/mobile-shell-experience";
 import { CustomerAuthProvider } from "@/context/auth/customer-auth-provider";
@@ -84,7 +85,7 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
           <section className="absolute inset-x-3 bottom-3 max-h-[86vh] overflow-y-auto rounded-[1.75rem] bg-card p-4 text-card-foreground shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase text-primary">Nammude</p>
+                <BrandLogo className="mb-2 h-8 w-28" sizes="112px" />
                 <h2 className="text-xl font-black">{signedIn ? authUser.name : "Customer account"}</h2>
               </div>
               <Button type="button" size="icon" variant="ghost" className="rounded-full" onClick={() => setMenuOpen(false)} aria-label="Close menu">

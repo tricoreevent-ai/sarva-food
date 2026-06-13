@@ -6,13 +6,14 @@ import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { readCachedPublicCmsSettings, writeCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { sortOffers } from "@/lib/offer-engine";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
 export type PublicDataStatus = "idle" | "loading" | "success" | "error";
 type Unsubscribe = () => void;
 
-const FALLBACK_IMAGE = "/icons/sarva-icon.svg";
+const FALLBACK_IMAGE = BRAND_ASSETS.appIcon;
 type PublicApiResponse<T> = { data?: T[]; error?: string };
 type PublicApiMeta = { requestId?: string; count?: number };
 type PublicSingleResponse<T> = { data?: T; error?: string };

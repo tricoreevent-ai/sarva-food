@@ -12,6 +12,7 @@ import { AppToaster } from "@/components/ui/app-toaster";
 import { I18nProvider } from "@/lib/i18n";
 import { MapboxProvider } from "@/components/maps/mapbox-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
@@ -32,8 +33,12 @@ export const metadata: Metadata = {
     title: APP_NAME,
   },
   icons: {
-    icon: "/icons/sarva-icon.svg",
-    apple: "/icons/sarva-icon.svg",
+    icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: BRAND_ASSETS.favicon16, sizes: "16x16", type: "image/png" },
+      { url: BRAND_ASSETS.favicon32, sizes: "32x32", type: "image/png" },
+    ],
+    apple: BRAND_ASSETS.appleTouchIcon,
   },
   openGraph: {
     title: APP_DEFAULT_TITLE,
@@ -50,7 +55,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#006b5f",
+  themeColor: "#3B7A32",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

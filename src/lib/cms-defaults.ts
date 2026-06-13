@@ -1,4 +1,5 @@
 import type { CmsSettings } from "@/lib/types";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 
@@ -137,8 +138,8 @@ export const defaultCmsSettings: CmsSettings = {
   branding: {
     appName: APP_NAME,
     shortName: "Nammude",
-    logoUrl: "/icons/sarva-icon.svg",
-    faviconUrl: "/icons/sarva-icon.svg",
+    logoUrl: BRAND_ASSETS.logos.english.lightTheme,
+    faviconUrl: BRAND_ASSETS.favicon32,
     appDescription: APP_DESCRIPTION,
     supportEmail: "support@nammude.com",
     supportPhone: "",

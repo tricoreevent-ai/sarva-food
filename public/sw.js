@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sarva-v11-20260610";
+const CACHE_VERSION = "sarva-v12-20260612-brand-icons";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const REPORT_CACHE = `${CACHE_VERSION}-reports`;

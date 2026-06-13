@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useSyncExternalStore, type CSSProperties } from "react";
+import { ReactNode, useEffect, useSyncExternalStore, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-status";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
@@ -41,8 +41,21 @@ export function DashboardShellClient({
   const pathname = usePathname();
   const authUser = useAppStore((state) => state.authUser);
   const restaurants = useAppStore((state) => state.restaurants);
-  const themeSurface = app === "admin" ? "admin" : app === "owner" || app === "pos" ? "owner" : null;
+  const themeSurface = app === "admin" ? "admin" : null;
   const moduleTheme = useModuleTheme(themeSurface, authUser.id);
+  const forceLightTheme = app === "owner" || app === "pos";
+
+  useEffect(() => {
+    if (!forceLightTheme || typeof window === "undefined") return;
+    const root = document.documentElement;
+    root.classList.remove("dark");
+    root.dataset.theme = "light";
+    root.style.colorScheme = "light";
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith("sarva-owner-theme:")) window.localStorage.removeItem(key);
+    }
+  }, [forceLightTheme]);
 
   if (pathname === "/admin/login" || pathname === "/owner/login") {
     return children;
@@ -67,7 +80,7 @@ export function DashboardShellClient({
       className={cn(
         "min-h-screen",
         app === "admin" && ["admin-premium", moduleTheme === "dark" ? "admin-dark" : "theme-admin-light"],
-        (app === "owner" || app === "pos") && ["owner-premium", moduleTheme === "dark" ? "owner-dark" : "theme-owner-light"],
+        (app === "owner" || app === "pos") && ["owner-premium", "theme-owner-light"],
       )}
       style={adminStyle}
     >

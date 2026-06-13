@@ -6,6 +6,7 @@ import { EmptyStateCard } from "@/components/layout/empty-state";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { useAppStore } from "@/lib/app-store";
 import { formatCurrency } from "@/lib/utils";
 
@@ -33,7 +34,7 @@ export default function PrintMenuPage() {
           ) : (
           <div className="mx-auto max-w-4xl border-4 border-double border-foreground bg-white p-8 text-black print:border-black print:shadow-none">
             <header className="mb-8 text-center">
-              <Image src="/icons/sarva-icon.svg" alt="Hotel logo" width={58} height={58} className="mx-auto" />
+              <Image src={BRAND_ASSETS.appIcon} alt="Nammude logo" width={58} height={58} className="mx-auto rounded-xl" />
               <h1 className="mt-3 text-5xl font-black tracking-normal">{profile?.hotelName ?? "Restaurant menu"}</h1>
               <p className="mt-2 text-sm uppercase">{profile?.cuisineType ?? "Menu"} {profile?.businessAddress ? `· ${profile.businessAddress}` : ""}</p>
             </header>

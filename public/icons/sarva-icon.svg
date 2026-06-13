@@ -1,8 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">Nammude app icon</title>
-  <rect width="512" height="512" rx="112" fill="#006b5f"/>
-  <circle cx="256" cy="256" r="150" fill="#fbfaf7"/>
-  <path d="M158 260c0-58 43-104 98-104s98 46 98 104v20H158v-20Z" fill="#ef5d3f"/>
-  <path d="M174 300h164c-12 38-43 62-82 62s-70-24-82-62Z" fill="#f7c94b"/>
-  <path d="M207 236c17-20 52-20 70 0 15-13 36-11 48 2" fill="none" stroke="#fbfaf7" stroke-width="24" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nammude app icon">
+  <rect width="512" height="512" rx="96" fill="#FDF3E8"/>
+  <image href="/icons/nammude-icon-512.png" width="512" height="512" preserveAspectRatio="xMidYMid meet"/>
 </svg>

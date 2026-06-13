@@ -1,5 +1,5 @@
 import { AlertCircle, Bike, ChefHat, Loader2, PackageOpen, RefreshCw, Utensils } from "lucide-react";
-import Image from "next/image";
+import { BrandIcon } from "@/components/brand/brand-logo";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -102,7 +102,7 @@ function AppSplashLoading() {
   return (
     <section className="grid w-full max-w-sm place-items-center rounded-[2rem] bg-card p-8 text-center text-card-foreground shadow-2xl ring-1 ring-border">
       <div className="relative grid size-24 place-items-center overflow-hidden rounded-[1.5rem] bg-primary/10 shadow-inner">
-        <Image src="/icons/sarva-icon.svg" alt="" width={64} height={64} className="size-16 animate-pulse" priority />
+        <BrandIcon className="size-16 animate-pulse" priority sizes="64px" />
       </div>
       <h1 className="mt-5 text-2xl font-black">Nammude</h1>
       <p className="mt-2 text-sm font-semibold text-muted-foreground">Opening your app</p>

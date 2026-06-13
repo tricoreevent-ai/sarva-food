@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { SafeImage } from "@/components/media/safe-image";
 import { AppPreferences } from "@/components/settings/app-preferences";
@@ -69,8 +70,6 @@ export function PublicHeader() {
   );
   const branding = cmsSettings.branding;
   const productName = branding?.appName?.trim() || cmsSettings.appName?.trim() || APP_NAME;
-  const logoUrl = branding?.logoUrl?.trim();
-  const brandInitials = getInitials(branding?.shortName || productName);
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const clearCart = useCartStore((state) => state.clearCart);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -246,16 +245,7 @@ export function PublicHeader() {
     <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-background/94 backdrop-blur-xl">
       <div className="container-page flex min-h-16 items-center justify-between gap-3 py-2 md:min-h-20">
         <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={`${productName} home`}>
-          <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full food-gradient text-sm font-black text-white shadow-sm md:size-12">
-            {logoUrl ? (
-              <SafeImage src={logoUrl} alt={`${productName} logo`} fill sizes="48px" className="object-cover" />
-            ) : (
-              brandInitials
-            )}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-black leading-tight md:text-xl">{productName}</span>
-          </span>
+          <BrandLogo className="h-10 w-32 md:h-12 md:w-44" priority />
         </Link>
 
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
@@ -691,13 +681,4 @@ function uniqueCommerceLocations(locations: CommerceLocation[]) {
 
 function sameLocation(first: CommerceLocation, second: CommerceLocation) {
   return (first.placeId || first.address).trim().toLowerCase() === (second.placeId || second.address).trim().toLowerCase();
-}
-
-function getInitials(name?: string) {
-  return (name || "User")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "U";
 }

@@ -521,7 +521,7 @@ export async function getPublicMenuDocs(restaurantId: string) {
       )),
     ]);
 
-    const rawDocs = [...menusSnapshots, ...menuItemsSnapshots].flatMap((snapshot) => snapshot.docs.map((item) => docToJson<MenuDoc>(item)));
+    const rawDocs = [...menuItemsSnapshots, ...menusSnapshots].flatMap((snapshot) => snapshot.docs.map((item) => docToJson<MenuDoc>(item)));
     const publicDocs = toPublicMenuDocs(rawDocs, tenantId);
     logPublicDataInfo("menu", "Loaded public menu.", {
       source: "admin",
@@ -547,7 +547,7 @@ async function getPublicMenuDocsFromRest(tenantId: string) {
     getPublicMenuCollectionDocsFromRest("menuItems", tenantId),
   ]);
 
-  const rawDocs = [...menus, ...menuItems].filter((item) => isSameTenant(item, tenantId));
+  const rawDocs = [...menuItems, ...menus].filter((item) => isSameTenant(item, tenantId));
   const publicDocs = toPublicMenuDocs(rawDocs, tenantId);
   logPublicDataInfo("menu", "Loaded public menu.", {
     source: "rest",
@@ -599,7 +599,7 @@ async function getPublicMenuDocsWithoutCompositeIndex(tenantId: string) {
     )),
   ]);
 
-  const rawDocs = [...menusSnapshots, ...menuItemsSnapshots].flatMap((snapshot) => snapshot.docs.map((item) => docToJson<MenuDoc>(item)));
+  const rawDocs = [...menuItemsSnapshots, ...menusSnapshots].flatMap((snapshot) => snapshot.docs.map((item) => docToJson<MenuDoc>(item)));
   const publicDocs = toPublicMenuDocs(rawDocs, tenantId);
   logPublicDataInfo("menu", "Loaded public menu.", {
     source: "admin-simple",

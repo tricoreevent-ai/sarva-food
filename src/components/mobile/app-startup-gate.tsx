@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Database, Wifi, WifiOff } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { BrandIcon } from "@/components/brand/brand-logo";
 import { getFirebaseApp, isFirebaseConfigured } from "@/firebase/client";
 import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { startOfflineSyncEngine } from "@/lib/offline";
-import { getInitials } from "@/lib/utils";
 
 const SPLASH_SEEN_KEY = "sarva-startup-splash-seen";
 
@@ -65,9 +65,7 @@ export function AppStartupGate() {
   return (
     <div className="customer-theme fixed inset-0 z-[100] grid place-items-center bg-background px-6 transition-opacity duration-300">
       <div className="grid w-full max-w-xs animate-[fadeIn_280ms_ease-out] justify-items-center gap-5 text-center">
-        <div className="food-gradient grid size-24 animate-pulse place-items-center rounded-lg text-3xl font-black text-white shadow-2xl">
-          {getInitials(productName)}
-        </div>
+        <BrandIcon className="size-24 animate-pulse rounded-lg shadow-2xl" priority sizes="96px" />
         <div>
           <h1 className="text-3xl font-black">{productName}</h1>
           <p className="mt-2 text-sm font-semibold text-muted-foreground">{label}</p>

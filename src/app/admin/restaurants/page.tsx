@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppStore } from "@/lib/app-store";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 import {
   getPlanDefinition,
   getUpgradeRecommendations,
@@ -211,7 +212,7 @@ export default function AdminRestaurantsPage() {
         cuisine: createDraft.cuisine || "Multi cuisine",
         area: createDraft.city || createDraft.address,
         address: createDraft.address || createDraft.city,
-        logo: "/icons/sarva-icon.svg",
+        logo: BRAND_ASSETS.appIcon,
         googleMapLocation: "",
         latitude: 12.9719,
         longitude: 77.6412,

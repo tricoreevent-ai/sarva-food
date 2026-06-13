@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { Building2, ChevronDown, ShieldCheck } from "lucide-react";
-import { SafeImage } from "@/components/media/safe-image";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -29,7 +29,6 @@ export function CustomerFooter() {
 
   const branding = cmsSettings.branding ?? defaultCmsSettings.branding!;
   const appName = branding.appName || cmsSettings.appName || defaultCmsSettings.appName || "Nammude";
-  const brandInitials = (branding.shortName || appName).slice(0, 2).toUpperCase();
   const sections = footerSections(cmsSettings);
   const partnerCard = { ...defaultCmsSettings.footer.partnerCard, ...(cmsSettings.footer.partnerCard ?? {}) };
   const socialLinks = footerSocialLinks(cmsSettings);
@@ -40,15 +39,8 @@ export function CustomerFooter() {
       <div className="container-page grid gap-8 py-9 lg:grid-cols-[minmax(180px,260px)_1fr_360px] xl:grid-cols-[minmax(210px,300px)_1fr_400px]">
         <section>
           <div className="flex items-start gap-3">
-            <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-full food-gradient text-sm font-black text-white">
-              {branding.logoUrl ? (
-                <SafeImage src={branding.logoUrl} alt={`${appName} logo`} fill sizes="48px" className="object-cover" />
-              ) : (
-                brandInitials
-              )}
-            </span>
             <div>
-              <p className="text-xl font-black">{appName}</p>
+              <BrandLogo className="h-12 w-44" sizes="176px" />
               <p className="mt-1 max-w-48 text-sm font-semibold leading-6 text-muted-foreground">
                 {branding.appDescription || APP_DESCRIPTION}
               </p>
