@@ -170,6 +170,7 @@ export const refs = {
     typedCollection<AppCuisineDoc>(db, COLLECTIONS.appCuisines),
   branches: (db: Firestore) => typedCollection<BranchDoc>(db, COLLECTIONS.branches),
   menus: (db: Firestore) => typedCollection<MenuDoc>(db, COLLECTIONS.menus),
+  menuItems: (db: Firestore) => typedCollection<MenuDoc>(db, COLLECTIONS.menuItems),
   menuCategories: (db: Firestore) =>
     typedCollection<MenuCategoryDoc>(db, COLLECTIONS.menuCategories),
   cuisines: (db: Firestore) => typedCollection<CuisineDoc>(db, COLLECTIONS.cuisines),

@@ -31,7 +31,7 @@ import { advancedMenuItemSchema, comboSchema, taxSettingsSchema } from "@/lib/sc
 import type { ComboOffer, InventoryItem, MenuItem } from "@/lib/types";
 import type { AlertApi } from "@/types/alert.types";
 import { formatCurrency } from "@/lib/utils";
-import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
+import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 
 type MenuFormValues = z.infer<typeof advancedMenuItemSchema>;
 type MenuFoodType = MenuFormValues["foodType"];
@@ -154,7 +154,7 @@ export function OwnerMenuManagementFlow() {
   const combos = useAppStore((state) => state.comboOffers);
   const inventoryItems = useAppStore((state) => state.inventoryItems);
   const authUser = useAppStore((state) => state.authUser);
-  const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  const restaurantId = resolveTenantId(authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
   const createMenuItem = useAppStore((state) => state.createMenuItem);
   const updateMenuItem = useAppStore((state) => state.updateMenuItem);
   const deleteMenuItem = useAppStore((state) => state.deleteMenuItem);

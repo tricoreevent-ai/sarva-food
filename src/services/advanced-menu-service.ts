@@ -21,20 +21,24 @@ export function listenMenuItems(restaurantId: string, onData: (items: MenuDoc[])
     { key: "tenantId", value: tenantId },
     { key: "restaurantId", value: tenantId },
   ];
+  const collections = [
+    { name: "menus", ref: refs.menus(db) },
+    { name: "menuItems", ref: refs.menuItems(db) },
+  ];
 
-  logMenuQueryDiagnostics("menus", filters, restaurantId, tenantId);
+  logMenuQueryDiagnostics("menus+menuItems", filters, restaurantId, tenantId);
 
-  const unsubscribers = filters.map((filter) => {
-    const q = query(refs.menus(db), where(filter.key, "==", filter.value), limit(150));
+  const unsubscribers = collections.flatMap((collectionRef) => filters.map((filter) => {
+    const q = query(collectionRef.ref, where(filter.key, "==", filter.value), limit(150));
     return onSnapshot(
       q,
       (snapshot) => {
-        snapshots.set(filter.key, snapshot.docs.map((item) => item.data()).filter((item) => !item.isDeleted));
+        snapshots.set(`${collectionRef.name}:${filter.key}`, snapshot.docs.map((item) => item.data()).filter((item) => !item.isDeleted));
         onData(mergeMenuDocs(Array.from(snapshots.values()).flat()));
       },
       (error) => onError?.(error),
     );
-  });
+  }));
 
   return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }

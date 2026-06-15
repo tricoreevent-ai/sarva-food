@@ -27,9 +27,11 @@ export async function GET(request: NextRequest) {
   }
 
   const ids = tenantAliases(restaurantId);
-  const snapshots = await Promise.all(ids.flatMap((id) =>
-    (["tenantId", "restaurantId"] as const).map((field) =>
-      adminDb().collection("menus").where(field, "==", id).limit(250).get(),
+  const snapshots = await Promise.all((["menus", "menuItems"] as const).flatMap((collectionName) =>
+    ids.flatMap((id) =>
+      (["tenantId", "restaurantId"] as const).map((field) =>
+        adminDb().collection(collectionName).where(field, "==", id).limit(250).get(),
+      ),
     ),
   ));
   const docs = snapshots

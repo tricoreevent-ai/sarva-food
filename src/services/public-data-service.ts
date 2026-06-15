@@ -7,7 +7,7 @@ import { readCachedPublicCmsSettings, writeCachedPublicCmsSettings } from "@/lib
 import { sortOffers } from "@/lib/offer-engine";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
-import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
+import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
 export type PublicDataStatus = "idle" | "loading" | "success" | "error";
@@ -620,7 +620,7 @@ export function menuDocToUi(id: string, doc: MenuDoc): MenuItem {
   const deliveryPrice = doc.channelConfig?.delivery?.price ?? doc.deliveryPrice ?? doc.price;
   return {
     id: doc.id || id,
-    restaurantSlug: doc.restaurantId,
+    restaurantSlug: resolveTenantId(doc.restaurantId ?? doc.tenantId),
     ownerId: doc.ownerId,
     name: doc.name,
     translations: doc.translations,
