@@ -19,7 +19,7 @@ export function listenMenuItems(restaurantId: string, onData: (items: MenuDoc[])
   const snapshots = new Map<string, MenuDoc[]>();
   const filters = [
     { key: "tenantId", value: tenantId },
-    { key: "restaurantId", value: restaurantId },
+    { key: "restaurantId", value: tenantId },
   ];
 
   logMenuQueryDiagnostics("menus", filters, restaurantId, tenantId);
@@ -37,6 +37,16 @@ export function listenMenuItems(restaurantId: string, onData: (items: MenuDoc[])
   });
 
   return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+}
+
+export async function fetchOwnerMenuItems(restaurantId: string) {
+  const response = await fetch(`/api/owner/menu?restaurantId=${encodeURIComponent(resolveTenantId(restaurantId))}`, {
+    cache: "no-store",
+    headers: { "x-sarva-surface": "owner" },
+  });
+  const payload = await response.json().catch(() => null) as { data?: MenuDoc[]; error?: string } | null;
+  if (!response.ok) throw new Error(payload?.error ?? "Unable to load owner menu.");
+  return payload?.data ?? [];
 }
 
 export function listenMenuCategories(restaurantId: string, onData: (items: MenuCategoryDoc[]) => void, onError?: (error: Error) => void): Unsubscribe {

@@ -1,6 +1,6 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-10
+Last updated: 2026-06-15
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
@@ -18,6 +18,7 @@ None.
 
 ## Completed
 
+- [x] Final P0 local stability follow-up completed on 2026-06-15: owner menu loads through the authenticated owner menu API before falling back to scoped Firestore listeners, tenant aliases normalize Cafe Al Arab ids, owner/POS no longer force a post-hydration light theme, Appearance theme controls save to local storage and `user_preferences`, owner dark theme tokens are imported, and the service worker no longer caches owner reports/inventory or customer catalog routes. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Global module theme system redesign completed on 2026-06-10: added independent Customer, Owner, and Admin light/dark token files plus shared typography, wired customer/owner/admin shells to scoped theme classes and module theme keys, converted module component/table/tooltip/input defaults to theme variables, and added automatic theme contrast validation. Verification passed with `npm run theme:contrast`, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Customer catalog consistency and account cart sync completed on 2026-06-10: public customer catalog hooks no longer replay restaurant, cuisine, menu, or offer data from localStorage/IndexedDB offline cache; public API client fetches now use `cache: "no-store"`; the public menu API returns no-store/CDN no-store headers; the service worker cache version was bumped and `/api/public/*`, `/restaurant/*`, `/restaurants`, and `/offers` now bypass service-worker stale cache; signed-in customer carts now hydrate and save through `/api/customer/cart` into `user_carts/{customerId}` with shared cart lines and offer code; the customer shell mounts cart sync globally; and offline/customer copy was updated to reflect live catalog refresh plus signed-in cart sync behavior.
 - [x] Offer/menu consistency and legal policy rendering repair completed on 2026-06-09: customer restaurant pages no longer merge owner browser-store menu items into public menu data, public menu/offers cache was invalidated, legacy seeded `ARABIC20`/`INSTA20` offers are filtered from server/client public data, owner offer saves now persist the public `discountValue` field, owner offers load from an authenticated database endpoint instead of local-only state, public offers are served no-store, legal pages read resolved public CMS data, stale one-line legal placeholders are replaced by full policy defaults until Admin CMS saves real content, and Markdown legal content renders as formatted sanitized HTML. Local smoke tests confirmed `/api/public/offers?restaurantId=cafe-al-arab-thanisandra` now returns no stale offer and `/api/public/menu?restaurantId=cafe-al-arab-thanisandra` reports `emptyReason: no-customer-visible-menu-items`. Verification passed with `npm run typecheck`, `npm run lint`, and `npm run build`.

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Trash2, X, type LucideIcon } from "lucide-react";
+import { Activity, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, Moon, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -14,12 +14,13 @@ import { CreatableMultiSelect, type MultiSelectOption } from "@/components/ui/cr
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppStore } from "@/lib/app-store";
+import { useThemeMode } from "@/lib/theme-provider";
 import { getConnectivitySnapshot, offlineQueueManager, startOfflineSyncEngine, subscribeConnectivity, subscribeOfflineQueue, type ConnectivitySnapshot, type OfflineQueueEntry } from "@/lib/offline";
 import { operationalSoundOptions, playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
-type SettingsTab = "profile" | "branding" | "delivery" | "payments" | "offers" | "ordering" | "notifications" | "hours" | "taxes" | "social" | "sync";
+type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "offers" | "ordering" | "notifications" | "hours" | "taxes" | "social" | "sync";
 type SoundPrefs = Record<SoundTarget, {
   sound: OperationalSound;
   volume: number;
@@ -83,6 +84,7 @@ const soundStorageKey = "sarva-owner-sound-settings:v1";
 const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: "profile", label: "Restaurant Profile" },
   { value: "branding", label: "Branding" },
+  { value: "appearance", label: "Appearance" },
   { value: "delivery", label: "Delivery" },
   { value: "payments", label: "Payments" },
   { value: "offers", label: "Offers" },
@@ -109,6 +111,7 @@ export function OwnerSettingsFlow() {
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const ownerProfile = useAppStore((state) => state.ownerBusinessProfile);
   const saveOwnerBusinessProfile = useAppStore((state) => state.saveOwnerBusinessProfile);
+  const { theme, setTheme } = useThemeMode();
   const activeTab = parseSettingsTab(searchParams.get("tab"));
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>(() => toProfileDraft(ownerProfile, authUser.name));
   const [cuisineOptions, setCuisineOptions] = useState<MultiSelectOption[]>([]);
@@ -563,6 +566,16 @@ export function OwnerSettingsFlow() {
           </DashboardCard>
         </TabsContent>
 
+        <TabsContent value="appearance">
+          <DashboardCard title="Appearance">
+            <div className="grid gap-3 md:grid-cols-3">
+              <ThemeChoice icon={Sun} label="Light" active={theme === "light"} onClick={() => setTheme("light")} />
+              <ThemeChoice icon={Moon} label="Dark" active={theme === "dark"} onClick={() => setTheme("dark")} />
+              <ThemeChoice icon={MonitorSmartphone} label="System" active={theme === "system"} onClick={() => setTheme("system")} />
+            </div>
+          </DashboardCard>
+        </TabsContent>
+
         <TabsContent value="offers">
           <DashboardCard title="Offers">
             <div className="grid gap-4 md:grid-cols-3">
@@ -909,6 +922,22 @@ function NumberRow({ label, value, onChange }: { label: string; value: number; o
       {label}
       <input className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" type="number" min={0} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} />
     </label>
+  );
+}
+
+function ThemeChoice({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`flex min-h-24 items-center gap-3 rounded-2xl border p-4 text-left transition ${active ? "border-primary bg-primary/10 text-primary" : "border-input bg-card text-foreground hover:border-primary/50"}`}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      <span className="grid size-11 place-items-center rounded-xl bg-background">
+        <Icon className="size-5" />
+      </span>
+      <span className="text-sm font-black">{label}</span>
+    </button>
   );
 }
 

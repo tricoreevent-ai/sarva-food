@@ -284,8 +284,8 @@ export const defaultCmsSettings: CmsSettings = {
   operations: {
     databaseAlertsEnabled: true,
     databaseAlertEmail: "",
-    customerUnavailableTitle: "Restaurants are temporarily unavailable",
-    customerUnavailableMessage: "Please try again in a moment. Our team is already checking the issue.",
+    customerUnavailableTitle: "No restaurants available in this area",
+    customerUnavailableMessage: "Choose another location or check back later. Restaurants will appear here as soon as they are ready to accept orders.",
   },
   loyalty: {
     earnPoints: 10,

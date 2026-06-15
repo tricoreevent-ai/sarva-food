@@ -1,7 +1,6 @@
-const CACHE_VERSION = "sarva-v12-20260612-brand-icons";
+const CACHE_VERSION = "sarva-v13-20260615-static-only";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const REPORT_CACHE = `${CACHE_VERSION}-reports`;
 const STATIC_URLS = [
   "/offline",
   "/manifest.json",
@@ -76,11 +75,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/owner/reports") || url.pathname.startsWith("/owner/inventory")) {
-    event.respondWith(staleWhileRevalidate(request, REPORT_CACHE));
-    return;
-  }
-
   if (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.json") {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
   }
@@ -109,21 +103,6 @@ async function cacheFirst(request, cacheName) {
     cache.put(request, response.clone());
   }
   return response;
-}
-
-async function staleWhileRevalidate(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const fresh = fetch(request)
-    .then((response) => {
-      if (canCache(response)) {
-        cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch(() => cached);
-
-  return cached || fresh;
 }
 
 async function networkOnlyWithOptionalQueue(request) {

@@ -43,6 +43,15 @@ if not exist "package.json" (
     exit /b 1
 )
 
+echo Cleaning old build artifacts...
+if exist ".next" (
+    echo   Removing .next directory...
+    rmdir /s /q ".next"
+)
+if exist "out" (
+    echo   Removing out directory...
+    rmdir /s /q "out"
+)
 echo Stopping stale Nammude dev processes on known ports...
 for %%p in (3000 3001 3002 3003 3443 3080) do (
     for /f "tokens=5" %%a in ('netstat -aon ^| findstr /R /C:":%%p .*LISTENING"') do (

@@ -30,6 +30,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = readStoredTheme();
     applyTheme(saved);
+    void fetch("/api/user/preferences", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: { preferences?: { theme?: Theme } } | null) => {
+        const next = payload?.preferences?.theme;
+        if (next !== "light" && next !== "dark" && next !== "system") return;
+        setThemeState(next);
+        window.localStorage.setItem(STORAGE_KEY, next);
+        applyTheme(next);
+      })
+      .catch(() => undefined);
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
       if (readStoredTheme() === "system") applyTheme("system");
@@ -45,6 +55,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeState(next);
         window.localStorage.setItem(STORAGE_KEY, next);
         applyTheme(next);
+        void fetch("/api/user/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme: next }),
+        }).catch(() => undefined);
       },
     }),
     [theme],

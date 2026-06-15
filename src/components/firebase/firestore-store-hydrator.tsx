@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { getFirebaseApp, getFirebaseAuth, isFirebaseConfigured } from "@/firebase/client";
 import { listenPublicCms, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
 import { menuDocToUi } from "@/services/public-data-service";
-import { listenMenuItems } from "@/services/advanced-menu-service";
+import { fetchOwnerMenuItems, listenMenuItems } from "@/services/advanced-menu-service";
 import { listenKitchenOrders } from "@/services/restaurant-ops-service";
 import { listenInventory, listenLoyaltyCustomers } from "@/services/production-data-service";
-import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
+import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
 import type { InventoryItem, LoyaltyCustomer } from "@/lib/types";
 
@@ -39,7 +39,7 @@ export function FirestoreStoreHydrator() {
   const publicDiscoverySurface = publicSurface && (pathname === "/" || pathname === "/restaurants" || pathname === "/offers");
   const publicCmsSurface = publicSurface;
   const publicOffersSurface = publicSurface && pathname === "/offers";
-  const ownerRestaurantId = useAppStore((state) => state.authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
+  const ownerRestaurantId = useAppStore((state) => resolveTenantId(state.authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID));
 
   useEffect(() => {
     window.__BUILD_INFO__ = BUILD_INFO;
@@ -49,6 +49,7 @@ export function FirestoreStoreHydrator() {
   useEffect(() => {
     if (adminSurface || loginSurface) return;
 
+    let active = true;
     const unsubscribers: Array<() => void> = [];
 
     if (publicDiscoverySurface) {
@@ -77,6 +78,9 @@ export function FirestoreStoreHydrator() {
 
     if (ownerSurface) {
       const restaurantId = ownerRestaurantId;
+      const applyOwnerMenuItems = (items: Parameters<typeof menuDocToUi>[1][]) => {
+        useAppStore.setState({ menuItems: items.map((item) => menuDocToUi(item.id, item)) });
+      };
       logOwnerRuntimeDiagnostics(restaurantId);
       useAppStore.setState({
         menuItems: [],
@@ -88,9 +92,22 @@ export function FirestoreStoreHydrator() {
         loyaltyCustomers: [],
       });
 
+      void fetchOwnerMenuItems(restaurantId)
+        .then((items) => {
+          if (active) applyOwnerMenuItems(items);
+        })
+        .catch((error) => console.warn("[Nammude owner menu] server load failed", error));
+
       unsubscribers.push(
         listenMenuItems(restaurantId, (items) => {
-          useAppStore.setState({ menuItems: items.map((item) => menuDocToUi(item.id, item)) });
+          applyOwnerMenuItems(items);
+        }, (error) => {
+          console.warn("[Nammude owner menu] Firestore listener failed; keeping server menu snapshot.", error);
+          void fetchOwnerMenuItems(restaurantId)
+            .then((items) => {
+              if (active) applyOwnerMenuItems(items);
+            })
+            .catch(() => undefined);
         }),
         listenKitchenOrders(restaurantId, undefined, (tableOrders) => {
           useAppStore.setState({ tableOrders });
@@ -130,6 +147,7 @@ export function FirestoreStoreHydrator() {
     }
 
     return () => {
+      active = false;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [adminSurface, loginSurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);

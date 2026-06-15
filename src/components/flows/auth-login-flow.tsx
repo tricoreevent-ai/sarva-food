@@ -26,7 +26,7 @@ import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { shouldUseFirebase } from "@/lib/env";
 import { writeLocalProfile } from "@/lib/customer-address-storage";
-import { DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { toastManager } from "@/lib/toast-manager";
 import { cn } from "@/lib/utils";
 import {
@@ -137,7 +137,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       id: profile?.id ?? uid,
       name: displayName,
       role,
-      restaurantSlug: profile?.tenantId ?? profile?.restaurantIds?.[0] ?? DEFAULT_TENANT_ID,
+      restaurantSlug: resolveTenantId(profile?.tenantId ?? profile?.restaurantIds?.[0] ?? DEFAULT_TENANT_ID),
     });
     if (role === "customer") {
       writeLocalProfile(uid, {

@@ -1,5 +1,5 @@
 import { AlertCircle, Bike, ChefHat, Loader2, PackageOpen, RefreshCw, Utensils } from "lucide-react";
-import { BrandIcon } from "@/components/brand/brand-logo";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +15,7 @@ export function PageLoading() {
 
 export function CustomerHomeLoading() {
   return (
-    <main className="customer-theme grid min-h-[70dvh] place-items-center px-6 py-10" aria-busy="true" aria-live="polite" aria-label="Loading Nammude">
+    <main className="customer-theme fixed inset-0 z-[90] grid place-items-center bg-background px-6 py-10" aria-busy="true" aria-live="polite" aria-label="Loading Nammude">
       <AppSplashLoading />
     </main>
   );
@@ -100,12 +100,11 @@ function FoodLoadingMark({ compact = false }: { compact?: boolean }) {
 
 function AppSplashLoading() {
   return (
-    <section className="grid w-full max-w-sm place-items-center rounded-[2rem] bg-card p-8 text-center text-card-foreground shadow-2xl ring-1 ring-border">
-      <div className="relative grid size-24 place-items-center overflow-hidden rounded-[1.5rem] bg-primary/10 shadow-inner">
-        <BrandIcon className="size-16 animate-pulse" priority sizes="64px" />
+    <section className="grid w-full max-w-md place-items-center rounded-[2rem] bg-card/96 p-8 text-center text-card-foreground shadow-2xl ring-1 ring-orange-100">
+      <div className="relative grid w-full place-items-center rounded-3xl bg-white px-5 py-6 shadow-inner">
+        <BrandLogo className="h-28 w-full max-w-80 animate-[customer-loading-breathe_1.8s_ease-in-out_infinite]" priority sizes="320px" />
       </div>
-      <h1 className="mt-5 text-2xl font-black">Nammude</h1>
-      <p className="mt-2 text-sm font-semibold text-muted-foreground">Opening your app</p>
+      <p className="mt-5 text-sm font-black text-muted-foreground">Finding restaurants near you</p>
       <div className="mt-6 h-1.5 w-44 overflow-hidden rounded-full bg-primary/10">
         <div className="customer-loading-progress h-full w-2/5 rounded-full bg-primary" />
       </div>

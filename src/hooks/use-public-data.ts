@@ -14,7 +14,7 @@ import {
 import type { AppCategory, AppCuisine, MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 
-const PUBLIC_LOAD_TIMEOUT_MS = 1500;
+const PUBLIC_LOAD_TIMEOUT_MS = 8000;
 const LEGACY_SEEDED_PUBLIC_MENU_IDS = new Set([
   "cafe-al-arab-thanisandra-chicken-shawarma-roll",
   "cafe-al-arab-thanisandra-alfaham-half",
@@ -46,8 +46,6 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
     const timeoutId = window.setTimeout(() => {
       if (!active) return;
       setLoadingForMs(Math.round(performance.now() - startedAt));
-      setStatus("error");
-      setError("Restaurant data is taking longer than expected.");
     }, PUBLIC_LOAD_TIMEOUT_MS);
 
     const unsubscribe = listenPublicRestaurants(
@@ -65,7 +63,7 @@ export function usePublicRestaurants(options: { preloadPrimaryMenu?: boolean } =
           if (!active) return;
           window.clearTimeout(timeoutId);
           setLoadingForMs(Math.round(performance.now() - startedAt));
-          setError("Restaurants are temporarily unavailable.");
+          setError("No restaurants are available for this location.");
           setStatus("error");
         },
       },

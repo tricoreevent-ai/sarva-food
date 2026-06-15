@@ -11,7 +11,7 @@ type BrandLogoProps = {
 };
 
 export function BrandLogo({
-  language = "malayalam",
+  language = "english",
   className,
   imageClassName,
   priority = false,
@@ -52,7 +52,7 @@ export function BrandIcon({
 }) {
   return (
     <span className={cn("relative block size-10 shrink-0 overflow-hidden rounded-xl", className)} aria-hidden="true">
-      <Image src={BRAND_ASSETS.appIcon} alt="" fill sizes={sizes} priority={priority} className="object-cover" />
+      <Image src={BRAND_ASSETS.appIcon} alt="" fill sizes={sizes} priority={priority} className="object-contain" />
     </span>
   );
 }

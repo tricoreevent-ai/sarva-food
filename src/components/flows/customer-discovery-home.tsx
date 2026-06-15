@@ -76,7 +76,6 @@ export function CustomerDiscoveryHome() {
   const cartItems = useCartStore((state) => state.items);
   const rawCmsSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
   const cmsSettings = useMemo(() => resolveCmsSettings(rawCmsSettings), [rawCmsSettings]);
-  const unavailableCopy = cmsSettings.operations ?? defaultCmsSettings.operations!;
   const cartSubtotal = getCartSubtotal(cartItems);
   const customerDisplayName = customer.profile?.displayName || (auth.profile?.role === "customer" ? auth.profile?.displayName : "") || auth.user?.displayName || "";
   const customerFirstName = customerDisplayName.trim().split(/\s+/)[0] ?? "";
@@ -193,8 +192,8 @@ export function CustomerDiscoveryHome() {
     return (
       <main className="container-page py-6">
         <RetryState
-          title={unavailableCopy.customerUnavailableTitle}
-          description={unavailableCopy.customerUnavailableMessage}
+          title="No restaurants available in this area"
+          description="We could not find restaurants for this location yet. Choose another location or check back later."
           onRetry={retryRestaurants}
         />
       </main>
@@ -205,8 +204,8 @@ export function CustomerDiscoveryHome() {
     return (
       <main className="container-page py-6">
         <EmptyStateCard
-          title="Restaurants are getting ready"
-          description="Please check back shortly. Nearby restaurants will appear here as soon as they are ready to accept orders."
+          title="No restaurants available in this area"
+          description="Choose another location or check back later. Restaurants will appear here as soon as they are ready to accept orders."
           actionHref={null}
         />
       </main>
