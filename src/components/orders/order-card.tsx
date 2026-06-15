@@ -1,4 +1,4 @@
-import { Check, Eye, MapPinned, Phone, X } from "lucide-react";
+import { CalendarClock, Check, Eye, Phone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/owner/status-badge";
 import { formatCurrency } from "@/lib/utils";
@@ -65,9 +65,9 @@ export function OrderCard({
           ) : null}
         </div>
         {order.scheduledLabel ? (
-          <p className="mt-2 inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-            <MapPinned className="size-3.5" />
-            {order.scheduledLabel}
+          <p className="mt-2 inline-flex items-center gap-1 rounded-xl bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
+            <CalendarClock className="size-3.5" />
+            Scheduled order: {order.scheduledLabel}
           </p>
         ) : null}
         {order.prepSuggestion ? <p className="mt-1 text-xs font-semibold text-slate-500">{order.prepSuggestion}</p> : null}

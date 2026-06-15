@@ -1,26 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { CalendarClock, Minus, Plus, ShoppingBag, Trash2, Zap } from "lucide-react";
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
 import { formatCurrency } from "@/lib/utils";
-import { usePublicMenu } from "@/hooks/use-public-data";
+import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 
 export default function CartPage() {
   const items = useCartStore((state) => state.items);
   const offerCode = useCartStore((state) => state.offerCode);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
-  const { offers } = usePublicMenu(items[0]?.restaurantSlug);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduledOrder, setScheduledOrder] = useState<ScheduledOrderSelection | null>(() => readScheduleDraft());
+  const restaurantSlug = items[0]?.restaurantSlug ?? "";
+  const { offers } = usePublicMenu(restaurantSlug);
+  const { restaurant } = usePublicRestaurant(restaurantSlug);
   const totals = getCartTotals(items, offerCode, offers);
+  const hasSchedule = Boolean(scheduledOrder && scheduledOrder.restaurantId === restaurantSlug);
+
+  function saveSchedule(value: ScheduledOrderSelection) {
+    window.localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(value));
+    setScheduledOrder(value);
+  }
+
+  function clearSchedule() {
+    window.localStorage.removeItem(SCHEDULE_STORAGE_KEY);
+    setScheduledOrder(null);
+  }
 
   return (
     <CustomerShell>
       <main className="container-page space-y-5 py-5">
+        <ScheduleOrderDialog open={scheduleOpen} onOpenChange={setScheduleOpen} restaurant={restaurant} value={scheduledOrder} onConfirm={saveSchedule} />
         <section className="customer-hero-gradient rounded-lg p-5 text-white shadow-xl">
           <p className="text-xs font-black uppercase">Cart</p>
           <h1 className="mt-2 text-4xl font-black leading-none">Review your order</h1>
@@ -71,6 +90,23 @@ export default function CartPage() {
           <Card className="mobile-premium-card h-fit">
             <CardContent className="space-y-4 p-5">
               <h2 className="text-xl font-black">Bill summary</h2>
+              <div className="grid gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={clearSchedule} className={`flex min-h-12 items-center gap-2 rounded-md border px-3 text-left text-sm font-black ${!hasSchedule ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}>
+                    <Zap className="size-4" />
+                    Order now
+                  </button>
+                  <button type="button" onClick={() => setScheduleOpen(true)} className={`flex min-h-12 items-center gap-2 rounded-md border px-3 text-left text-sm font-black ${hasSchedule ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}>
+                    <CalendarClock className="size-4" />
+                    Schedule later
+                  </button>
+                </div>
+                {hasSchedule && scheduledOrder ? (
+                  <div className="rounded-md border border-orange-100 bg-orange-50/70 p-3 text-sm font-bold text-orange-700">
+                    {formatScheduleDate(scheduledOrder.scheduledDate)}, {formatScheduleSlot(scheduledOrder.slotStart, scheduledOrder.slotEnd)}
+                  </div>
+                ) : null}
+              </div>
               <div className="space-y-2 text-sm font-semibold">
                 <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(totals.subtotal)}</span></div>
                 <div className="flex justify-between"><span>Delivery</span><span>{formatCurrency(totals.deliveryFee)}</span></div>
@@ -88,4 +124,14 @@ export default function CartPage() {
       </main>
     </CustomerShell>
   );
+}
+
+function readScheduleDraft(): ScheduledOrderSelection | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as ScheduledOrderSelection : null;
+  } catch {
+    return null;
+  }
 }

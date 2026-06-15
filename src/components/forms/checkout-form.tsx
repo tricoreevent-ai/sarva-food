@@ -7,6 +7,7 @@ import { useForm, useWatch, type Resolver } from "react-hook-form";
 import Link from "next/link";
 import { Bike, CalendarClock, CreditCard, Home, Loader2, LogIn, PackageCheck, Smartphone, Users, Zap } from "lucide-react";
 import { WhatsAppOrderFlow } from "@/components/flows/whatsapp-order-flow";
+import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog";
 import { InlineLoading } from "@/components/state/page-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,10 +19,11 @@ import { getCartTotals, useCartStore } from "@/lib/cart-store";
 import { useAppStore } from "@/lib/app-store";
 import { isOnline } from "@/lib/offline";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/schemas/checkout";
+import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import type { CommerceLocation } from "@/hooks/use-location-commerce";
-import { usePublicMenu } from "@/hooks/use-public-data";
+import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { captureException, trackAnalyticsEvent } from "@/services/analytics-service";
 import type { CreateOrderInput } from "@/services/order-service";
 
@@ -35,6 +37,7 @@ export function CheckoutForm({
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const { user, loading } = useAuthUser();
   const items = useCartStore((state) => state.items);
   const offerCode = useCartStore((state) => state.offerCode);
@@ -42,7 +45,9 @@ export function CheckoutForm({
   const clearCart = useCartStore((state) => state.clearCart);
   const createOrder = useAppStore((state) => state.createOrder);
   const cmsVersion = useAppStore((state) => state.cmsSettings.cmsVersion);
-  const { offers } = usePublicMenu(items[0]?.restaurantSlug);
+  const cartRestaurantSlug = items[0]?.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  const { offers } = usePublicMenu(cartRestaurantSlug);
+  const { restaurant } = usePublicRestaurant(cartRestaurantSlug);
   const {
     register,
     handleSubmit,
@@ -61,6 +66,8 @@ export function CheckoutForm({
   });
   const fulfillmentType = useWatch({ control, name: "fulfillmentType" });
   const scheduleMode = useWatch({ control, name: "scheduleMode" });
+  const scheduledFor = useWatch({ control, name: "scheduledFor" });
+  const scheduledOrderValue = scheduledFor ? scheduledOrderFromIso(cartRestaurantSlug, scheduledFor) : null;
 
   useEffect(() => {
     if (initialOfferCode) {
@@ -75,6 +82,13 @@ export function CheckoutForm({
     }
   }, [setValue]);
 
+  useEffect(() => {
+    const saved = readScheduledOrderDraft();
+    if (!saved || saved.restaurantId !== cartRestaurantSlug) return;
+    setValue("scheduleMode", "scheduled", { shouldValidate: true });
+    setValue("scheduledFor", saved.scheduledFor, { shouldValidate: true });
+  }, [cartRestaurantSlug, setValue]);
+
   if (loading) {
     return <InlineLoading label="Checking account" />;
   }
@@ -84,6 +98,18 @@ export function CheckoutForm({
   }
 
   return (
+    <>
+    <ScheduleOrderDialog
+      open={scheduleDialogOpen}
+      onOpenChange={setScheduleDialogOpen}
+      restaurant={restaurant}
+      value={scheduledOrderValue}
+      onConfirm={(value) => {
+        setValue("scheduleMode", "scheduled", { shouldValidate: true });
+        setValue("scheduledFor", value.scheduledFor, { shouldValidate: true });
+        saveScheduledOrderDraft(value);
+      }}
+    />
     <Card className="customer-surface">
       <CardHeader>
         <CardTitle>Order details</CardTitle>
@@ -157,6 +183,7 @@ export function CheckoutForm({
               if (isOnline()) {
                 try {
                   const order = await createOrderThroughServer(firebaseOrderInput);
+                  clearScheduledOrderDraft();
                   clearCart();
                   await trackAnalyticsEvent("order_created", {
                     restaurantSlug,
@@ -201,6 +228,7 @@ export function CheckoutForm({
                 acceptedTermsVersion: cmsVersion ?? "default",
                 acceptedTermsAt: new Date().toISOString(),
               });
+              clearScheduledOrderDraft();
               clearCart();
               await trackAnalyticsEvent("order_created", {
                 restaurantSlug,
@@ -272,7 +300,18 @@ export function CheckoutForm({
               ].map((option) => {
                 const Icon = option.icon;
                 return (
-                  <label key={option.value} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-sm font-bold shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <label
+                    key={option.value}
+                    className="flex min-h-14 cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-sm font-bold shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10"
+                    onClick={() => {
+                      if (option.value === "scheduled") {
+                        setScheduleDialogOpen(true);
+                        return;
+                      }
+                      setValue("scheduledFor", "", { shouldValidate: true });
+                      clearScheduledOrderDraft();
+                    }}
+                  >
                     <input type="radio" value={option.value} className="sr-only" {...register("scheduleMode")} />
                     <Icon className="size-4 text-primary" aria-hidden="true" />
                     {option.label}
@@ -281,15 +320,19 @@ export function CheckoutForm({
               })}
             </div>
             {scheduleMode === "scheduled" ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="scheduled-for">Date and time</Label>
-                  <Input id="scheduled-for" type="datetime-local" min={minScheduleDateTime()} {...register("scheduledFor")} />
-                  {errors.scheduledFor ? <p className="text-xs text-destructive">{errors.scheduledFor.message}</p> : null}
+              <div className="grid gap-3 rounded-md border bg-orange-50/70 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                <input type="hidden" {...register("scheduledFor")} />
+                <div>
+                  <p className="text-sm font-black">Selected slot</p>
+                  <p className="mt-1 text-sm font-bold text-orange-700">
+                    {scheduledOrderValue ? `${formatScheduleDate(scheduledOrderValue.scheduledDate)}, ${formatScheduleSlot(scheduledOrderValue.slotStart, scheduledOrderValue.slotEnd)}` : "Select date and time"}
+                  </p>
+                  {errors.scheduledFor ? <p className="mt-1 text-xs text-destructive">{errors.scheduledFor.message}</p> : null}
                 </div>
-                <div className="rounded-md border bg-muted/40 p-3 text-sm font-semibold text-muted-foreground">
-                  Cutoff, prep estimate, and slot capacity are checked before the restaurant accepts the scheduled order.
-                </div>
+                <Button type="button" variant="outline" className="h-12 bg-card font-black" onClick={() => setScheduleDialogOpen(true)}>
+                  <CalendarClock className="size-4 text-primary" />
+                  {scheduledOrderValue ? "Change slot" : "Pick slot"}
+                </Button>
               </div>
             ) : null}
             {fulfillmentType === "dine-in" ? (
@@ -365,6 +408,7 @@ export function CheckoutForm({
         </form>
       </CardContent>
     </Card>
+    </>
   );
 }
 
@@ -389,10 +433,38 @@ function estimatePrepMinutes(itemCount: number) {
   return Math.max(25, 15 + itemCount * 5);
 }
 
-function minScheduleDateTime() {
-  const date = new Date(Date.now() + 45 * 60_000);
-  date.setSeconds(0, 0);
-  return date.toISOString().slice(0, 16);
+function scheduledOrderFromIso(restaurantId: string, value: string): ScheduledOrderSelection | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const slotStart = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  const end = new Date(date.getTime() + 30 * 60_000);
+  const slotEnd = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+  return {
+    orderType: "scheduled",
+    scheduledDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+    slotStart,
+    slotEnd,
+    restaurantId,
+    scheduledFor: value,
+  };
+}
+
+function readScheduledOrderDraft(): ScheduledOrderSelection | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as ScheduledOrderSelection : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveScheduledOrderDraft(value: ScheduledOrderSelection) {
+  window.localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(value));
+}
+
+function clearScheduledOrderDraft() {
+  window.localStorage.removeItem(SCHEDULE_STORAGE_KEY);
 }
 
 function readSavedDeliveryLocation() {

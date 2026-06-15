@@ -24,16 +24,16 @@ import { LocationSuggestionList } from "@/components/location/location-suggestio
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { BulkOrderForm, type BulkDraft } from "@/components/schedule/bulk-order-form";
 import { CateringForm, type CateringDraft } from "@/components/schedule/catering-form";
-import { DateSelector } from "@/components/schedule/date-selector";
+import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog";
 import { ScheduleCart, type ScheduleCartLine } from "@/components/schedule/schedule-cart";
 import { ScheduleRestaurantCard } from "@/components/schedule/restaurant-card";
 import { ScheduleStepper } from "@/components/schedule/schedule-stepper";
 import { ScheduleSummary } from "@/components/schedule/schedule-summary";
-import { SlotSelector, type ScheduleSlot } from "@/components/schedule/slot-selector";
 import { Button } from "@/components/ui/button";
 import { useLocationCommerce, type CommerceLocation } from "@/hooks/use-location-commerce";
 import { usePublicMenu, usePublicRestaurants } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
+import { formatScheduleDate, formatScheduleSlot, getScheduleSlotsForDate, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -72,6 +72,7 @@ export function ScheduleOrderFlow() {
   const [activeChip, setActiveChip] = useState("All");
   const [selectedDate, setSelectedDate] = useState(() => defaultScheduleDate());
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [scheduleType, setScheduleType] = useState<ScheduleType>("delivery");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [cuisineFilter, setCuisineFilter] = useState("all");
@@ -99,8 +100,20 @@ export function ScheduleOrderFlow() {
   } = useLocationCommerce(restaurants);
   const visibleSuggestions = useMemo(() => uniqueLocations(suggestions).slice(0, 5), [suggestions]);
   const slots = useMemo(() => buildSlots(selectedDate, restaurant, scheduleType), [selectedDate, restaurant, scheduleType]);
-  const selectedSlotLabel = slots.find((slot) => slot.value === selectedSlot)?.label ?? "";
+  const selectedSlotData = slots.find((slot) => slot.value === selectedSlot);
+  const selectedSlotLabel = selectedSlotData?.label ?? "";
   const dateLabel = selectedDate ? new Date(`${selectedDate}T00:00`).toLocaleDateString("en-IN", { dateStyle: "medium" }) : "";
+  const scheduledOrderValue = useMemo<ScheduledOrderSelection | null>(() => {
+    if (!restaurant || !selectedSlotData) return null;
+    return {
+      orderType: "scheduled",
+      scheduledDate: selectedDate,
+      slotStart: selectedSlotData.slotStart,
+      slotEnd: selectedSlotData.slotEnd,
+      restaurantId: restaurant.slug,
+      scheduledFor: selectedSlotData.value,
+    };
+  }, [restaurant, selectedDate, selectedSlotData]);
   const scheduleDays = scheduleType === "catering" || discoveryMode === "catering" ? 120 : 14;
   const restaurantsForLocation = nearbyOnly ? nearbyRestaurants : locationRestaurants;
   const landingChips = useMemo(() => buildDiscoveryChips(restaurantsForLocation), [restaurantsForLocation]);
@@ -173,6 +186,11 @@ export function ScheduleOrderFlow() {
       return;
     }
     setStep(2);
+  }
+
+  function confirmSchedule(value: ScheduledOrderSelection) {
+    setSelectedDate(value.scheduledDate);
+    setSelectedSlot(value.scheduledFor);
   }
 
   function reviewOrder() {
@@ -389,6 +407,14 @@ export function ScheduleOrderFlow() {
 
   return (
     <div className="space-y-5 pb-24 md:pb-8">
+      <ScheduleOrderDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        restaurant={restaurant}
+        value={scheduledOrderValue}
+        onConfirm={confirmSchedule}
+        maxDays={scheduleDays}
+      />
       <button className="inline-flex items-center gap-2 text-sm font-black" onClick={() => setRestaurant(null)}><ArrowLeft className="size-4" />Back to restaurants</button>
       <RestaurantHeader restaurant={restaurant} scheduleDays={scheduleDays} />
       <ScheduleStepper step={step} />
@@ -397,28 +423,19 @@ export function ScheduleOrderFlow() {
           {step === 1 ? (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-black">Choose date and time</h2>
-              <div className="mt-3"><DateSelector value={selectedDate} onChange={(value) => { setSelectedDate(value); setSelectedSlot(""); }} /></div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
-                  More dates
-                  <input
-                    type="date"
-                    className="h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold"
-                    min={new Date().toISOString().slice(0, 10)}
-                    max={addDays(new Date(), scheduleDays)}
-                    value={selectedDate}
-                    onChange={(event) => {
-                      setSelectedDate(event.target.value);
-                      setSelectedSlot("");
-                    }}
-                  />
-                </label>
-                <span className="rounded-xl bg-orange-50 px-3 py-2 text-xs font-black text-orange-700">
-                  {scheduleType === "catering" ? "Catering supports 2-4 months advance" : "Food orders support configured slots"}
-                </span>
+              <div className="mt-3 grid gap-3 rounded-2xl border border-orange-100 bg-orange-50/70 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div>
+                  <p className="text-xs font-black uppercase text-orange-600">Selected slot</p>
+                  <p className="mt-1 text-lg font-black text-slate-950">
+                    {selectedSlotData ? `${formatScheduleDate(selectedDate)}, ${formatScheduleSlot(selectedSlotData.slotStart, selectedSlotData.slotEnd)}` : "Select date and time"}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">30-minute slots from restaurant working hours.</p>
+                </div>
+                <Button type="button" className="h-12 bg-orange-600 font-black hover:bg-orange-700" onClick={() => setScheduleDialogOpen(true)}>
+                  <CalendarClock className="size-4" />
+                  {selectedSlotData ? "Change slot" : "Pick slot"}
+                </Button>
               </div>
-              <h2 className="mt-6 font-black">Select time slot</h2>
-              <div className="mt-3"><SlotSelector slots={slots} value={selectedSlot} onChange={setSelectedSlot} /></div>
               <h2 className="mt-6 font-black">Select order type</h2>
               <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <OrderTypeCard type="delivery" active={scheduleType === "delivery"} onClick={() => setScheduleType("delivery")} />
@@ -650,24 +667,16 @@ function SuccessScreen({ kind, id, restaurantName, dateLabel, slotLabel, onReset
   );
 }
 
-function buildSlots(dateValue: string, restaurant: Restaurant | null, scheduleType: ScheduleType): ScheduleSlot[] {
-  if (restaurant?.scheduling?.enabled === false) return [];
-  const slotMinutes = restaurant?.scheduling?.slotMinutes || 30;
-  const cutoffMinutes = scheduleType === "catering" ? 0 : restaurant?.scheduling?.cutoffMinutes || 45;
-  const start = new Date(`${dateValue}T00:00:00`);
-  const nowWithCutoff = Date.now() + cutoffMinutes * 60_000;
-  const slots: ScheduleSlot[] = [];
-  for (let minutes = 9 * 60; minutes < 22 * 60; minutes += slotMinutes) {
-    const slotStart = new Date(start.getTime() + minutes * 60_000);
-    const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60_000);
-    slots.push({
-      value: slotStart.toISOString(),
-      label: `${slotStart.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} - ${slotEnd.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
-      disabled: slotStart.getTime() < nowWithCutoff,
-      busy: scheduleType !== "catering" && slotStart.getHours() >= 12 && slotStart.getHours() <= 14,
-    });
-  }
-  return slots.filter((slot) => !slot.disabled).slice(0, scheduleType === "catering" ? 18 : 12);
+function buildSlots(dateValue: string, restaurant: Restaurant | null, scheduleType: ScheduleType) {
+  const max = scheduleType === "catering" ? 18 : 12;
+  return getScheduleSlotsForDate(restaurant, dateValue, scheduleType === "catering" ? 120 : 14, 30)
+    .slice(0, max)
+    .map((slot) => ({
+      value: new Date(`${dateValue}T${slot.slotStart}:00`).toISOString(),
+      label: slot.label,
+      slotStart: slot.slotStart,
+      slotEnd: slot.slotEnd,
+    }));
 }
 
 function buildDiscoveryChips(restaurants: Restaurant[]) {
@@ -747,12 +756,6 @@ function defaultScheduleDate() {
   const date = new Date();
   date.setDate(date.getDate() + 1);
   return date.toISOString().slice(0, 10);
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next.toISOString().slice(0, 10);
 }
 
 function humanize(value: string) {

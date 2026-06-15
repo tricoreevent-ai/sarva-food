@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
+import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ import { runDataConsistencyAudit } from "@/lib/DataConsistencyAudit";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
+import type { ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { useThemeMode } from "@/lib/theme-provider";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -116,6 +118,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const [visibleCount, setVisibleCount] = useState(12);
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("delivery");
   const [orderTiming, setOrderTiming] = useState<OrderTiming>(() => scheduleLaunch ? "scheduled" : "now");
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(scheduleLaunch);
   const [scheduledDate, setScheduledDate] = useState(() => defaultScheduleDate());
   const [scheduledTime, setScheduledTime] = useState(() => defaultScheduleTime());
   const [couponDraft, setCouponDraft] = useState("");
@@ -177,6 +180,17 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     [orderTiming, scheduledDate, scheduledTime],
   );
   const scheduledForLabel = scheduledFor ? formatScheduleDateTime(scheduledFor) : "";
+  const scheduledSelection = useMemo<ScheduledOrderSelection | null>(() => {
+    if (!restaurant || !scheduledDate || !scheduledTime) return null;
+    return {
+      orderType: "scheduled",
+      scheduledDate,
+      slotStart: scheduledTime,
+      slotEnd: addMinutesToTime(scheduledTime, 30),
+      restaurantId: restaurant.slug,
+      scheduledFor: new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString(),
+    };
+  }, [restaurant, scheduledDate, scheduledTime]);
 
   useEffect(() => {
     if (!restaurant || typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number" || typeof navigator === "undefined" || !navigator.geolocation) {
@@ -348,7 +362,14 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
   const startScheduledOrder = () => {
     setOrderTiming("scheduled");
+    setScheduleDialogOpen(true);
     goToMenu();
+  };
+
+  const confirmSchedule = (value: ScheduledOrderSelection) => {
+    setOrderTiming("scheduled");
+    setScheduledDate(value.scheduledDate);
+    setScheduledTime(value.slotStart);
   };
 
   const addMenuItem = (item: MenuItem) => {
@@ -471,18 +492,22 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
   return (
     <main className="min-h-screen bg-[#fffaf5] pb-28 text-slate-950 md:pb-10">
+      <ScheduleOrderDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        restaurant={restaurant}
+        value={scheduledSelection}
+        onConfirm={confirmSchedule}
+      />
       {step === "menu" ? (
         <MobileRestaurantLanding
           restaurant={restaurant}
           title={heroTitle}
           customerDistanceKm={customerDistanceKm}
           orderTiming={orderTiming}
-          scheduledDate={scheduledDate}
-          scheduledTime={scheduledTime}
           scheduledLabel={scheduledForLabel}
           onModeChange={setOrderTiming}
-          onDateChange={setScheduledDate}
-          onTimeChange={setScheduledTime}
+          onScheduleClick={() => setScheduleDialogOpen(true)}
           query={query}
           setQuery={setQuery}
           activeFilterCount={activeFilterCount}
@@ -518,14 +543,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
             {step === "menu" ? (
               <div className="hidden xl:block">
                 <OrderTimingStrip
-                  restaurant={restaurant}
                   mode={orderTiming}
-                  scheduledDate={scheduledDate}
-                  scheduledTime={scheduledTime}
                   scheduledLabel={scheduledForLabel}
                   onModeChange={setOrderTiming}
-                  onDateChange={setScheduledDate}
-                  onTimeChange={setScheduledTime}
+                  onScheduleClick={() => setScheduleDialogOpen(true)}
                 />
 
                 <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -617,18 +638,14 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
             {step === "details" ? (
               <CustomerDetailsStep
-                restaurant={restaurant}
                 customer={customer}
                 setCustomer={setCustomer}
                 fulfillmentType={fulfillmentType}
                 setFulfillmentType={setFulfillmentType}
                 orderTiming={orderTiming}
-                scheduledDate={scheduledDate}
-                scheduledTime={scheduledTime}
                 scheduledLabel={scheduledForLabel}
                 setOrderTiming={setOrderTiming}
-                setScheduledDate={setScheduledDate}
-                setScheduledTime={setScheduledTime}
+                onScheduleClick={() => setScheduleDialogOpen(true)}
                 onBack={() => goTo("offers")}
                 onNext={() => {
                   const error = validateDetails();
@@ -720,12 +737,9 @@ function MobileRestaurantLanding({
   title,
   customerDistanceKm,
   orderTiming,
-  scheduledDate,
-  scheduledTime,
   scheduledLabel,
   onModeChange,
-  onDateChange,
-  onTimeChange,
+  onScheduleClick,
   query,
   setQuery,
   activeFilterCount,
@@ -746,12 +760,9 @@ function MobileRestaurantLanding({
   title: string;
   customerDistanceKm: number | null;
   orderTiming: OrderTiming;
-  scheduledDate: string;
-  scheduledTime: string;
   scheduledLabel: string;
   onModeChange: (value: OrderTiming) => void;
-  onDateChange: (value: string) => void;
-  onTimeChange: (value: string) => void;
+  onScheduleClick: () => void;
   query: string;
   setQuery: (value: string) => void;
   activeFilterCount: number;
@@ -890,14 +901,10 @@ function MobileRestaurantLanding({
 
       <section className="relative z-10 -mt-4 rounded-t-[1.5rem] bg-background px-4 pb-5 pt-4 text-foreground">
         <OrderTimingStrip
-          restaurant={restaurant}
           mode={orderTiming}
-          scheduledDate={scheduledDate}
-          scheduledTime={scheduledTime}
           scheduledLabel={scheduledLabel}
           onModeChange={onModeChange}
-          onDateChange={onDateChange}
-          onTimeChange={onTimeChange}
+          onScheduleClick={onScheduleClick}
         />
 
         <div className="sticky top-0 z-30 -mx-4 mt-4 border-y border-border bg-background/95 px-4 py-3 backdrop-blur">
@@ -1407,44 +1414,20 @@ function HeroFact({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 }
 
 function OrderTimingStrip({
-  restaurant,
   mode,
-  scheduledDate,
-  scheduledTime,
   scheduledLabel,
   onModeChange,
-  onDateChange,
-  onTimeChange,
+  onScheduleClick,
 }: {
-  restaurant: Restaurant;
   mode: OrderTiming;
-  scheduledDate: string;
-  scheduledTime: string;
   scheduledLabel: string;
   onModeChange: (value: OrderTiming) => void;
-  onDateChange: (value: string) => void;
-  onTimeChange: (value: string) => void;
+  onScheduleClick: () => void;
 }) {
   const nowSelected = mode === "now";
   const scheduledSelected = mode === "scheduled";
   const selectedButtonClass = "bg-orange-600 text-white shadow-lg shadow-orange-500/20";
   const idleButtonClass = "bg-card text-card-foreground shadow-sm hover:bg-muted";
-  const slotSelectId = useId();
-  const scheduleDays = useMemo(() => buildScheduleDays(restaurant), [restaurant]);
-  const selectedDay = scheduleDays.find((day) => day.value === scheduledDate);
-  const selectedSlot = selectedDay?.slots.find((slot) => slot.value === scheduledTime);
-  const totalSlots = scheduleDays.reduce((sum, day) => sum + day.slots.length, 0);
-
-  useEffect(() => {
-    if (mode !== "scheduled" || totalSlots === 0) return;
-    const currentValid = Boolean(selectedDay?.slots.some((slot) => slot.value === scheduledTime));
-    if (currentValid) return;
-    const firstDay = scheduleDays.find((day) => day.slots.length > 0);
-    const firstSlot = firstDay?.slots[0];
-    if (!firstDay || !firstSlot) return;
-    onDateChange(firstDay.value);
-    onTimeChange(firstSlot.value);
-  }, [mode, onDateChange, onTimeChange, scheduleDays, scheduledTime, selectedDay, totalSlots]);
 
   return (
     <section className="rounded-2xl bg-transparent p-0 shadow-none">
@@ -1465,7 +1448,10 @@ function OrderTimingStrip({
         </button>
         <button
           type="button"
-          onClick={() => onModeChange("scheduled")}
+          onClick={() => {
+            onModeChange("scheduled");
+            onScheduleClick();
+          }}
           aria-pressed={scheduledSelected}
           className={`flex min-h-12 items-center gap-2 rounded-xl border-0 px-2.5 py-2 text-left transition sm:min-h-16 sm:gap-3 sm:p-3 ${scheduledSelected ? selectedButtonClass : idleButtonClass}`}
         >
@@ -1480,76 +1466,16 @@ function OrderTimingStrip({
       </div>
       {mode === "scheduled" ? (
         <div className="mt-3 rounded-2xl bg-muted p-3 text-foreground shadow-inner">
-          {totalSlots ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-foreground">Delivery slot</p>
-                  <p className="text-xs font-semibold text-muted-foreground">Slots follow restaurant hours.</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-card px-3 py-1 text-xs font-black text-orange-700">{selectedSlot?.label ?? "Pick time"}</span>
-              </div>
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Schedule date">
-                {scheduleDays.map((day) => {
-                  const active = day.value === scheduledDate;
-                  const disabled = day.slots.length === 0;
-                  return (
-                    <button
-                      key={day.value}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => {
-                        onDateChange(day.value);
-                        onTimeChange(day.slots[0]?.value ?? "");
-                      }}
-                      aria-pressed={active}
-                      className={`min-w-[3.35rem] rounded-2xl px-2 py-2 text-center text-[11px] leading-tight transition sm:min-w-20 sm:rounded-xl sm:px-3 ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-card text-card-foreground shadow-sm hover:bg-background"} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
-                    >
-                      <span className="block font-black">{day.shortLabel}</span>
-                      <span className={`mt-0.5 block font-semibold ${active ? "text-white/80" : "text-muted-foreground"}`}>{day.dateLabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div>
-                <label htmlFor={slotSelectId} className="sr-only">Select delivery time slot</label>
-                <select
-                  id={slotSelectId}
-                  name="scheduleSlot"
-                  value={scheduledTime}
-                  onChange={(event) => onTimeChange(event.target.value)}
-                  className="h-11 w-full rounded-xl border-0 bg-card px-3 text-sm font-black text-card-foreground outline-none ring-1 ring-border focus:ring-4 focus:ring-orange-500/20 sm:hidden"
-                >
-                  {(selectedDay?.slots ?? []).map((slot) => (
-                    <option key={slot.value} value={slot.value}>{slot.label}</option>
-                  ))}
-                </select>
-                <div className="hidden max-h-40 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid lg:grid-cols-4">
-                  {(selectedDay?.slots ?? []).map((slot) => {
-                    const active = slot.value === scheduledTime;
-                    return (
-                      <button
-                        key={slot.value}
-                        type="button"
-                        onClick={() => onTimeChange(slot.value)}
-                        aria-pressed={active}
-                        className={`h-10 rounded-xl text-xs font-black transition ${active ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "bg-card text-card-foreground hover:bg-background"}`}
-                      >
-                        {slot.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="rounded-xl bg-card px-3 py-2 text-xs font-bold text-muted-foreground">
-                {scheduledLabel ? `Selected: ${scheduledLabel}` : "Choose a valid slot"}
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black text-foreground">Delivery slot</p>
+              <p className="text-xs font-semibold text-muted-foreground">{scheduledLabel || "Choose date and 30-minute time slot"}</p>
             </div>
-          ) : (
-            <div className="rounded-xl bg-card px-4 py-3 text-sm font-bold text-muted-foreground">
-              Scheduled ordering is unavailable because operating hours are not configured for upcoming days.
-            </div>
-          )}
+            <Button type="button" variant="outline" className="h-11 rounded-xl bg-card font-black" onClick={onScheduleClick}>
+              <CalendarClock className="size-4 text-orange-600" />
+              {scheduledLabel ? "Change slot" : "Pick slot"}
+            </Button>
+          </div>
         </div>
       ) : null}
     </section>
@@ -1897,33 +1823,25 @@ function OfferValidationStep({
 }
 
 function CustomerDetailsStep({
-  restaurant,
   customer,
   setCustomer,
   fulfillmentType,
   setFulfillmentType,
   orderTiming,
-  scheduledDate,
-  scheduledTime,
   scheduledLabel,
   setOrderTiming,
-  setScheduledDate,
-  setScheduledTime,
+  onScheduleClick,
   onBack,
   onNext,
 }: {
-  restaurant: Restaurant;
   customer: CustomerForm;
   setCustomer: (value: CustomerForm) => void;
   fulfillmentType: FulfillmentType;
   setFulfillmentType: (value: FulfillmentType) => void;
   orderTiming: OrderTiming;
-  scheduledDate: string;
-  scheduledTime: string;
   scheduledLabel: string;
   setOrderTiming: (value: OrderTiming) => void;
-  setScheduledDate: (value: string) => void;
-  setScheduledTime: (value: string) => void;
+  onScheduleClick: () => void;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -1933,14 +1851,10 @@ function CustomerDetailsStep({
       <SectionTitle eyebrow="Step 3" title="Customer details" description="Delivery needs an address. Pickup and dine-in can be completed with name and phone." />
       <div className="mt-5">
         <OrderTimingStrip
-          restaurant={restaurant}
           mode={orderTiming}
-          scheduledDate={scheduledDate}
-          scheduledTime={scheduledTime}
           scheduledLabel={scheduledLabel}
           onModeChange={setOrderTiming}
-          onDateChange={setScheduledDate}
-          onTimeChange={setScheduledTime}
+          onScheduleClick={onScheduleClick}
         />
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -2229,94 +2143,18 @@ function defaultScheduleTime() {
   return toTimeInputValue(date);
 }
 
-type ScheduleSlotOption = {
-  value: string;
-  label: string;
-};
-
-type ScheduleDayOption = {
-  value: string;
-  shortLabel: string;
-  dateLabel: string;
-  slots: ScheduleSlotOption[];
-};
-
-function buildScheduleDays(restaurant: Restaurant): ScheduleDayOption[] {
-  if (restaurant.scheduling && restaurant.scheduling.enabled === false) return [];
-  const schedule = restaurant.operatingHoursSchedule;
-  if (!schedule?.length || restaurant.operatingHoursPreference === "not-specified") return [];
-
-  const slotMinutes = clampSlotMinutes(restaurant.scheduling?.slotMinutes ?? restaurant.deliverySettings?.deliverySlotMinutes ?? 30);
-  const cutoffMinutes = restaurant.scheduling?.cutoffMinutes ?? restaurant.scheduling?.minPrepMinutes ?? 45;
-  const prepMinutes = restaurant.scheduling?.minPrepMinutes ?? 30;
-  const earliest = roundUpDate(new Date(Date.now() + cutoffMinutes * 60_000), slotMinutes);
-  const today = new Date();
-
-  return Array.from({ length: 14 }, (_, offset) => {
-    const dayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
-    const daySchedule = schedule.find((entry) => entry.day === dayName(dayDate));
-    const slots = daySchedule?.open
-      ? daySchedule.slots.flatMap((slot) => buildSlotsForDay(dayDate, slot.start, slot.end, slotMinutes, prepMinutes, earliest))
-      : [];
-
-    return {
-      value: toDateInputValue(dayDate),
-      shortLabel: offset === 0 ? "Today" : offset === 1 ? "Tomorrow" : dayDate.toLocaleDateString("en-IN", { weekday: "short" }),
-      dateLabel: dayDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
-      slots,
-    };
-  });
-}
-
-function buildSlotsForDay(dayDate: Date, startValue: string, endValue: string, slotMinutes: number, prepMinutes: number, earliest: Date) {
-  const startMinutes = scheduleTimeMinutes(startValue);
-  const endMinutes = scheduleTimeMinutes(endValue);
-  const start = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
-  const end = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
-  if (endMinutes <= startMinutes) end.setDate(end.getDate() + 1);
-
-  const latest = new Date(end.getTime() - prepMinutes * 60_000);
-  const first = roundUpDate(start.getTime() > earliest.getTime() ? start : earliest, slotMinutes);
-  const slots: ScheduleSlotOption[] = [];
-
-  for (let cursor = first; cursor.getTime() <= latest.getTime(); cursor = new Date(cursor.getTime() + slotMinutes * 60_000)) {
-    slots.push({
-      value: toTimeInputValue(cursor),
-      label: formatSlotLabel(cursor),
-    });
-  }
-
-  return slots;
-}
-
-function clampSlotMinutes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return 30;
-  return Math.max(10, Math.min(120, Math.round(value)));
-}
-
-function roundUpDate(date: Date, slotMinutes: number) {
-  const rounded = new Date(date);
-  const remainder = rounded.getMinutes() % slotMinutes;
-  if (remainder) rounded.setMinutes(rounded.getMinutes() + slotMinutes - remainder);
-  rounded.setSeconds(0, 0);
-  return rounded;
-}
-
-function dayName(date: Date) {
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
-  return days[date.getDay()];
-}
-
-function formatSlotLabel(date: Date) {
-  return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
-}
-
 function toDateInputValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function toTimeInputValue(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function addMinutesToTime(value: string, minutesToAdd: number) {
+  const [hours, minutes] = value.split(":").map(Number);
+  const total = ((hours || 0) * 60 + (minutes || 0) + minutesToAdd) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function buildScheduledDateTime(dateValue: string, timeValue: string) {
