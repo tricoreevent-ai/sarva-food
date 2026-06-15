@@ -28,10 +28,10 @@ for /f "delims=" %%B in ('git branch --show-current 2^>nul') do set "BRANCH=%%B"
 if not defined BRANCH set "BRANCH=main"
 
 REM Use the provided argument as the commit message, or default if none is provided.
-;if "%~1"=="" (
+if "%~1"=="" (
   set "COMMIT_MSG=Update code"
 ) else (
-  set "COMMIT_MSG=%*"
+  set "COMMIT_MSG=%~1"
 )
 
 echo Preparing to commit on branch '%BRANCH%' to remote 'origin'.
@@ -54,6 +54,17 @@ if errorlevel 1 (
   )
 ) else (
   echo No changes to commit.
+)
+
+REM Safety guard: do not push known production environment reference material.
+git rev-parse --verify origin/%BRANCH% >nul 2>&1
+if not errorlevel 1 (
+  git log --format=%%H origin/%BRANCH%..HEAD -- production-env-reference.txt | findstr /R "." >nul
+  if not errorlevel 1 (
+    echo Refusing to push: unpushed history contains production-env-reference.txt.
+    echo Remove that file from branch history before pushing to GitHub.
+    exit /b 2
+  )
 )
 
 REM Push to the configured origin branch.
