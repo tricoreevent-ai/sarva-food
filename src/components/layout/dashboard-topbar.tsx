@@ -36,6 +36,7 @@ import {
 import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { SidebarLinks } from "@/components/layout/dashboard-sidebar";
 import { BrandIcon } from "@/components/brand/brand-logo";
+import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -536,6 +537,9 @@ function OwnerProfileMenuContent({ onClose, onLogout }: { onClose: () => void; o
       <ProfileLink href="/owner/settings" icon={Settings2} label="Settings" description="Restaurant preferences" onClick={onClose} />
       <ProfileLink href="/owner/accounting" icon={CreditCard} label="Billing" description="Invoices and payments" onClick={onClose} />
       <ProfileLink href="/help" icon={Headphones} label="Help & Support" description="Support center" onClick={onClose} />
+      <div className="border-t border-slate-100 px-4 py-3">
+        <FullscreenToggle compact />
+      </div>
       <button
         type="button"
         onClick={() => {

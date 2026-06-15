@@ -9,6 +9,7 @@ import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/ma
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { DashboardCard } from "@/components/owner/dashboard-card";
+import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { Button } from "@/components/ui/button";
 import { CreatableMultiSelect, type MultiSelectOption } from "@/components/ui/creatable-multi-select";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -568,10 +569,13 @@ export function OwnerSettingsFlow() {
 
         <TabsContent value="appearance">
           <DashboardCard title="Appearance">
-            <div className="grid gap-3 md:grid-cols-3">
-              <ThemeChoice icon={Sun} label="Light" active={theme === "light"} onClick={() => setTheme("light")} />
-              <ThemeChoice icon={Moon} label="Dark" active={theme === "dark"} onClick={() => setTheme("dark")} />
-              <ThemeChoice icon={MonitorSmartphone} label="System" active={theme === "system"} onClick={() => setTheme("system")} />
+            <div className="grid gap-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <ThemeChoice icon={Sun} label="Light" active={theme === "light"} onClick={() => setTheme("light")} />
+                <ThemeChoice icon={Moon} label="Dark" active={theme === "dark"} onClick={() => setTheme("dark")} />
+                <ThemeChoice icon={MonitorSmartphone} label="System" active={theme === "system"} onClick={() => setTheme("system")} />
+              </div>
+              <FullscreenToggle />
             </div>
           </DashboardCard>
         </TabsContent>
