@@ -1,42 +1,47 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { isAppTheme, normalizeTheme, resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
 
-type Theme = "light" | "dark" | "system";
-
-const STORAGE_KEY = "sarva-theme";
-
-const ThemeContext = createContext<{ theme: Theme; setTheme: (theme: Theme) => void }>({
+const ThemeContext = createContext<{ theme: AppTheme; setTheme: (theme: AppTheme) => void }>({
   theme: "light",
   setTheme: () => undefined,
 });
 
-function applyTheme(theme: Theme) {
-  const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+function applyTheme(theme: AppTheme) {
+  const dark = resolveThemeMode(theme, window.matchMedia("(prefers-color-scheme: dark)").matches) === "dark";
   document.documentElement.classList.toggle("dark", dark);
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
   document.documentElement.dataset.theme = theme;
 }
 
-function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  const value = window.localStorage.getItem(STORAGE_KEY);
-  return value === "light" || value === "dark" || value === "system" ? value : "light";
+function persistTheme(theme: AppTheme) {
+  window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  document.cookie = `${THEME_COOKIE_NAME}=${encodeURIComponent(theme)}; Path=/; Max-Age=31536000; SameSite=Lax`;
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => readStoredTheme());
+function readStoredTheme(): AppTheme {
+  if (typeof window === "undefined") return "light";
+  return normalizeTheme(window.localStorage.getItem(THEME_STORAGE_KEY));
+}
+
+export function ThemeProvider({ children, initialTheme = "light" }: { children: React.ReactNode; initialTheme?: AppTheme }) {
+  const [theme, setThemeState] = useState<AppTheme>(() =>
+    typeof document === "undefined" ? initialTheme : normalizeTheme(document.documentElement.dataset.theme || initialTheme),
+  );
 
   useEffect(() => {
-    const saved = readStoredTheme();
+    const saved = normalizeTheme(document.documentElement.dataset.theme || readStoredTheme());
+    persistTheme(saved);
     applyTheme(saved);
     void fetch("/api/user/preferences", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload: { preferences?: { theme?: Theme } } | null) => {
-        const next = payload?.preferences?.theme;
-        if (next !== "light" && next !== "dark" && next !== "system") return;
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { preferences?: { theme?: AppTheme } } | null) => {
+        if (!isAppTheme(payload?.preferences?.theme)) return;
+        const next = payload.preferences.theme;
+        if (next === saved) return;
         setThemeState(next);
-        window.localStorage.setItem(STORAGE_KEY, next);
+        persistTheme(next);
         applyTheme(next);
       })
       .catch(() => undefined);
@@ -51,9 +56,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       theme,
-      setTheme: (next: Theme) => {
+      setTheme: (next: AppTheme) => {
         setThemeState(next);
-        window.localStorage.setItem(STORAGE_KEY, next);
+        persistTheme(next);
         applyTheme(next);
         void fetch("/api/user/preferences", {
           method: "PATCH",

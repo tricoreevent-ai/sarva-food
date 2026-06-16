@@ -9,6 +9,7 @@ import { DashboardQuickActions, MobileOfflineBanner } from "@/components/mobile/
 import { useAppStore } from "@/lib/app-store";
 import { filterOwnerNavigationForRestaurant } from "@/lib/access-control";
 import { moduleThemeKey } from "@/lib/theme-provider";
+import { normalizeTheme, resolveThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { adminTheme } from "@/themes/admin-theme";
 import {
@@ -110,7 +111,6 @@ function readModuleTheme(surface: "owner" | "admin" | null, userId?: string): "l
   if (!surface || typeof window === "undefined") return "light";
   const key = moduleThemeKey(surface, userId);
   const globalTheme = window.localStorage.getItem("sarva-theme");
-  const saved = window.localStorage.getItem(key) || globalTheme || "system";
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return saved === "dark" || (saved === "system" && prefersDark) ? "dark" : "light";
+  const saved = normalizeTheme(window.localStorage.getItem(key) || globalTheme);
+  return resolveThemeMode(saved, window.matchMedia("(prefers-color-scheme: dark)").matches);
 }

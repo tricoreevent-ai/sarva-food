@@ -11,6 +11,8 @@ import { AppToaster } from "@/components/ui/app-toaster";
 import { I18nProvider } from "@/lib/i18n";
 import { MapboxProvider } from "@/components/maps/mapbox-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { getInitialTheme } from "@/lib/server/theme-preference";
+import { resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -63,8 +65,10 @@ export const viewport: Viewport = {
 const themeInitScript = `
 (function() {
   try {
-    var key = "sarva-theme";
-    var stored = window.localStorage.getItem(key) || "light";
+    var key = "${THEME_STORAGE_KEY}";
+    var cookieName = "${THEME_COOKIE_NAME}";
+    var cookieTheme = document.cookie.split("; ").find(function(row) { return row.indexOf(cookieName + "=") === 0; });
+    var stored = cookieTheme ? decodeURIComponent(cookieTheme.split("=")[1]) : window.localStorage.getItem(key) || "light";
     if (stored !== "light" && stored !== "dark" && stored !== "system") stored = "light";
     var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     var dark = stored === "dark" || (stored === "system" && prefersDark);
@@ -156,15 +160,25 @@ const devServiceWorkerResetScript = `
 
 const googleAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialTheme: AppTheme = await getInitialTheme();
+  const initialMode = resolveThemeMode(initialTheme);
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={initialMode === "dark" ? "dark" : undefined}
+      data-theme={initialTheme}
+      style={{ colorScheme: initialMode }}
+      suppressHydrationWarning
+    >
+      <head>
+        <script id="sarva-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="antialiased">
-        <Script id="sarva-theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <Script id="sarva-chunk-recovery" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: chunkRecoveryScript }} />
         {process.env.NODE_ENV !== "production" ? (
           <Script id="sarva-dev-sw-reset" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: devServiceWorkerResetScript }} />
@@ -175,7 +189,7 @@ export default function RootLayout({
             <Script id="sarva-google-analytics" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","${googleAnalyticsId}",{send_page_view:false});` }} />
           </>
         ) : null}
-        <ThemeProvider>
+        <ThemeProvider initialTheme={initialTheme}>
           <I18nProvider>
             <AlertProvider>
               <MapboxProvider>
