@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { SidebarLinks } from "@/components/layout/dashboard-sidebar";
-import { BrandIcon } from "@/components/brand/brand-logo";
+import { BrandIcon, BrandLogo } from "@/components/brand/brand-logo";
 import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,7 +88,6 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
   const restaurants = useAppStore((state) => state.restaurants);
   const orders = useAppStore((state) => state.orders);
   const tableOrders = useAppStore((state) => state.tableOrders);
@@ -259,10 +258,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
           </Sheet>
 
           <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200" aria-label="Go to dashboard overview">
-            <BrandIcon className="size-10 shadow-lg" priority />
-            <span className="hidden min-w-24 sm:block">
-              <span className="block text-base font-black leading-5 text-slate-950">{productName}</span>
-            </span>
+            <BrandLogo className="h-10 w-36 sm:h-12 sm:w-44" priority sizes="176px" />
           </Link>
 
           <OwnerBreadcrumbs className="hidden max-w-72 shrink-0 lg:flex" />

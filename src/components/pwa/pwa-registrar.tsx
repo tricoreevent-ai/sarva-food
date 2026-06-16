@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const EXPECTED_SW_VERSION = "sarva-v10-20260602";
+const EXPECTED_SW_VERSION = "sarva-v13-20260615-static-only";
 
 export function PwaRegistrar() {
   useEffect(() => {

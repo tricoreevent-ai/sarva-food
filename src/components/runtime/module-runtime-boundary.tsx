@@ -1,7 +1,7 @@
 "use client";
 
-import { Component, Suspense, useTransition, type ReactNode } from "react";
-import { ModuleLoading, PageError } from "@/components/state/page-state";
+import { Component, Suspense, useEffect, useTransition, type ReactNode } from "react";
+import { ModuleLoading, OwnerLoadingScreen, PageError } from "@/components/state/page-state";
 
 export type ModuleSurface = "customer" | "owner" | "admin";
 
@@ -78,6 +78,16 @@ function ModuleErrorFallback({
 }) {
   const [isPending, startTransition] = useTransition();
   const copy = moduleCopy[module];
+
+  useEffect(() => {
+    if (module !== "owner") return;
+    const timer = window.setTimeout(() => startTransition(onRetry), 1200);
+    return () => window.clearTimeout(timer);
+  }, [module, onRetry]);
+
+  if (module === "owner") {
+    return <OwnerLoadingScreen label={isPending ? "Loading....." : "Loading....."} />;
+  }
 
   return (
     <PageError

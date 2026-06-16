@@ -74,6 +74,13 @@ const nextConfig: NextConfig = {
           { key: "Vary", value: "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding" },
         ],
       },
+      {
+        source: "/owner/:path*",
+        headers: [
+          ...publicHtmlHeaders,
+          { key: "Vary", value: "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding" },
+        ],
+      },
       { source: "/", headers: publicHtmlHeaders },
       { source: "/restaurant/:path*", headers: publicHtmlHeaders },
       { source: "/restaurants/:path*", headers: publicHtmlHeaders },

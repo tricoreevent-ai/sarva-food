@@ -1,9 +1,9 @@
 import dynamic from "next/dynamic";
-import { PageLoading } from "@/components/state/page-state";
+import { ModuleLoading } from "@/components/state/page-state";
 
 const OwnerMenuManagementFlow = dynamic(
   () => import("@/components/flows/owner-menu-management-flow").then((module) => module.OwnerMenuManagementFlow),
-  { loading: () => <PageLoading /> },
+  { loading: () => <ModuleLoading module="owner" /> },
 );
 
 export default function OwnerMenuPage() {

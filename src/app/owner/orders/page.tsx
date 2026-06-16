@@ -1,9 +1,9 @@
 import dynamic from "next/dynamic";
-import { PageLoading } from "@/components/state/page-state";
+import { ModuleLoading } from "@/components/state/page-state";
 
 const OwnerOrderManagementFlow = dynamic(
   () => import("@/components/flows/owner-order-management-flow").then((module) => module.OwnerOrderManagementFlow),
-  { loading: () => <PageLoading /> },
+  { loading: () => <ModuleLoading module="owner" /> },
 );
 
 export default function OwnerOrdersPage() {

@@ -99,6 +99,30 @@ const chunkRecoveryScript = `
     var text = textFrom(value);
     return /ChunkLoadError|Loading chunk|Failed to load chunk|_next\\/static\\/chunks/i.test(text);
   }
+  function resourceUrl(event) {
+    try {
+      var target = event && event.target;
+      return target && (target.src || target.href) ? String(target.src || target.href) : "";
+    } catch (error) {
+      return "";
+    }
+  }
+  function clearRuntimeCaches() {
+    try {
+      if ("caches" in window) {
+        caches.keys().then(function(keys) {
+          return Promise.all(keys.filter(function(key) {
+            return key.indexOf("sarva-") === 0;
+          }).map(function(key) {
+            return caches.delete(key);
+          }));
+        }).catch(function() {});
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "SARVA_CLEAR_CACHES" });
+      }
+    } catch (error) {}
+  }
   function recover() {
     try {
       if (window.sessionStorage.getItem(key)) return;
@@ -106,10 +130,17 @@ const chunkRecoveryScript = `
     } catch (error) {
       return;
     }
+    clearRuntimeCaches();
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set("sarva_recover", String(Date.now()));
+      window.location.replace(url.href);
+      return;
+    } catch (error) {}
     window.location.reload();
   }
   window.addEventListener("error", function(event) {
-    if (isChunkFailure(event.error || event.message)) recover();
+    if (isChunkFailure(event.error || event.message) || isChunkFailure(resourceUrl(event))) recover();
   }, true);
   window.addEventListener("unhandledrejection", function(event) {
     if (isChunkFailure(event.reason)) recover();

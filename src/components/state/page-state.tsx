@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BRAND_ASSETS } from "@/lib/brand-assets";
 
 export function PageLoading() {
   return (
@@ -37,23 +38,39 @@ export function ModuleLoading({ module = "customer" }: { module?: "customer" | "
   }
 
   if (module === "owner") {
-    return (
-      <main className="owner-premium min-h-screen p-5" aria-busy="true" aria-label="Loading owner dashboard">
-        <div className="space-y-5">
-          <div className="h-14 w-80 shimmer rounded-lg bg-muted" />
-          <div className="dashboard-grid">
-            {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="shimmer h-32 rounded-lg" />)}
-          </div>
-          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-            <Skeleton className="shimmer h-96 rounded-lg" />
-            <Skeleton className="shimmer h-96 rounded-lg" />
-          </div>
-        </div>
-      </main>
-    );
+    return <OwnerLoadingScreen />;
   }
 
   return <PageLoading />;
+}
+
+export function OwnerLoadingScreen({ label = "Loading....." }: { label?: string }) {
+  return (
+    <main
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading owner dashboard"
+      style={{
+        minHeight: "100dvh",
+        display: "grid",
+        placeItems: "center",
+        background: "#fff",
+        padding: 24,
+      }}
+    >
+      <section style={{ display: "grid", placeItems: "center", gap: 18, textAlign: "center" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={BRAND_ASSETS.primaryLogo}
+          alt="Nammude"
+          width={320}
+          height={152}
+          style={{ width: "min(72vw, 320px)", height: "auto", objectFit: "contain" }}
+        />
+        <p style={{ margin: 0, color: "#1f2a14", font: "700 15px/1.4 system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>{label}</p>
+      </section>
+    </main>
+  );
 }
 
 export function InlineLoading({ label = "Loading" }: { label?: string }) {
