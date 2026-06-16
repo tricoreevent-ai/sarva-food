@@ -396,6 +396,10 @@ function toMenuDoc(item: MenuItem): MenuDoc {
     spiceLevel: item.spiceLevel,
     averageRating: item.averageRating,
     reviewCount: item.reviewCount,
+    orderCount: item.orderCount ?? 0,
+    displayOrder: item.displayOrder ?? 0,
+    featuredOrder: item.featuredOrder ?? 999,
+    featuredEnabled: item.featuredEnabled ?? false,
     available: !item.soldOut,
     menuVisibility: item.menuVisibility,
     channelConfig: {
@@ -434,7 +438,7 @@ function toMenuDoc(item: MenuItem): MenuDoc {
     variantGroupIds: item.variantGroups?.map((group) => group.id),
     recipeLinks: item.recipeLinks,
     scheduleIds: item.scheduleIds,
-    sortOrder: 0,
+    sortOrder: item.displayOrder ?? 0,
     createdAt: now,
     updatedAt: now,
   };
@@ -1340,7 +1344,8 @@ export const useAppStore = create<AppStore>()(
 
       createMenuItem: async (item) => {
         set({ apiPhase: "loading", apiMessage: "Saving menu item..." });
-        const created: MenuItem = { ...item, id: createLocalId("menu") };
+        const nextOrder = Math.max(0, ...get().menuItems.filter((entry) => entry.restaurantSlug === item.restaurantSlug).map((entry) => entry.displayOrder ?? 0)) + 1;
+        const created: MenuItem = { ...item, id: createLocalId("menu"), displayOrder: item.displayOrder ?? nextOrder, orderCount: item.orderCount ?? 0 };
         try {
           await safeUpsertMenuItem(toMenuDoc(created));
           set((state) => ({
@@ -1356,7 +1361,7 @@ export const useAppStore = create<AppStore>()(
 
       updateMenuItem: async (item) => {
         set({ apiPhase: "loading", apiMessage: "Updating menu item..." });
-        const updated = item;
+        const updated = { ...item, displayOrder: item.displayOrder ?? 0, orderCount: item.orderCount ?? 0 };
         try {
           await safeUpsertMenuItem(toMenuDoc(updated));
           set((state) => ({

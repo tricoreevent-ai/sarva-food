@@ -1,12 +1,12 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-15
+Last updated: 2026-06-16
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
 ## In Progress
 
-None.
+- [ ] Customer/Owner/Admin live verification follow-up: production Firestore backfill for existing menu `displayOrder`/`orderCount` defaults and full manual mobile/desktop E2E validation still require live access/test orders.
 
 ## Blocked / External Access Required
 
@@ -18,6 +18,7 @@ None.
 
 ## Completed
 
+- [x] Customer/Owner/Admin production code batch completed on 2026-06-16: removed duplicate mobile home "Deliver to" block, made popular items database-driven by `orderCount`, added Admin Featured Menu Items with `featuredEnabled`/`featuredOrder`, added owner menu display-order controls with customer menu sorting by `displayOrder`, incremented menu `orderCount` during order creation, displayed full scheduled slots on restaurant/customer details/confirmation, autofilled checkout name/phone/address for logged-in customers, fixed owner offer dirty tracking/save lock/5-minute timeout, updated admin nav and architecture notes. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`, and local production route checks for `/`, `/admin/featured-menu-items`, `/owner/menu`, `/owner/offers`, `/checkout`, and `/restaurant/cafe-al-arab-thanisandra`.
 - [x] Schedule Later redesign completed on 2026-06-15: added shared `ScheduleOrderDialog`, generated 30-minute restaurant-hour slots from one utility, replaced restaurant/schedule/cart/checkout schedule pickers, persisted cart-to-checkout scheduled-order state, and clarified scheduled order cards. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`, and local production route smoke checks for `/schedule`, `/cart`, `/checkout`, `/owner/orders`, and `/restaurant/cafe-al-arab-thanisandra`.
 - [x] Final P0 local stability follow-up completed on 2026-06-15: owner menu loads through the authenticated owner menu API before falling back to scoped Firestore listeners, tenant aliases normalize Cafe Al Arab ids, owner/POS no longer force a post-hydration light theme, Appearance theme controls save to local storage and `user_preferences`, owner dark theme tokens are imported, and the service worker no longer caches owner reports/inventory or customer catalog routes. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Global module theme system redesign completed on 2026-06-10: added independent Customer, Owner, and Admin light/dark token files plus shared typography, wired customer/owner/admin shells to scoped theme classes and module theme keys, converted module component/table/tooltip/input defaults to theme variables, and added automatic theme contrast validation. Verification passed with `npm run theme:contrast`, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.

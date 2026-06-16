@@ -22,6 +22,7 @@ import { checkoutSchema, type CheckoutFormValues } from "@/lib/schemas/checkout"
 import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useCustomerData } from "@/hooks/use-customer-data";
 import type { CommerceLocation } from "@/hooks/use-location-commerce";
 import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { captureException, trackAnalyticsEvent } from "@/services/analytics-service";
@@ -39,6 +40,7 @@ export function CheckoutForm({
   const [submitError, setSubmitError] = useState("");
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const { user, loading } = useAuthUser();
+  const customerData = useCustomerData(user?.uid);
   const items = useCartStore((state) => state.items);
   const offerCode = useCartStore((state) => state.offerCode);
   const applyOffer = useCartStore((state) => state.applyOffer);
@@ -76,11 +78,17 @@ export function CheckoutForm({
   }, [applyOffer, initialOfferCode]);
 
   useEffect(() => {
+    const profile = customerData.profile as { displayName?: string; phone?: string } | null;
+    if (profile?.displayName) setValue("name", profile.displayName, { shouldValidate: true });
+    if (profile?.phone) setValue("phone", profile.phone, { shouldValidate: true });
+    const savedAddress = customerData.addresses.find((address) => address.isDefault) ?? customerData.addresses[0];
     const location = readSavedDeliveryLocation();
     if (location?.address) {
       setValue("address", location.address, { shouldValidate: true });
+    } else if (savedAddress?.fullAddress || savedAddress?.address) {
+      setValue("address", savedAddress.fullAddress || savedAddress.address, { shouldValidate: true });
     }
-  }, [setValue]);
+  }, [customerData.addresses, customerData.profile, setValue]);
 
   useEffect(() => {
     const saved = readScheduledOrderDraft();

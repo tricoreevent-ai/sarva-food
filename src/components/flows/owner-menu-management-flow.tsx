@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
@@ -189,6 +189,7 @@ export function OwnerMenuManagementFlow() {
   const [itemTagFilter, setItemTagFilter] = useState<ItemFilterOption>("all");
   const [itemPrepFilter, setItemPrepFilter] = useState<ItemFilterOption>("all");
   const [itemSort, setItemSort] = useState<ItemFilterOption>("name");
+  const [savingOrderId, setSavingOrderId] = useState("");
   const [cuisineQuery, setCuisineQuery] = useState("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -301,7 +302,7 @@ export function OwnerMenuManagementFlow() {
         if (itemSort === "price-high") return (second.deliveryPrice ?? second.price) - (first.deliveryPrice ?? first.price);
         if (itemSort === "price-low") return (first.deliveryPrice ?? first.price) - (second.deliveryPrice ?? second.price);
         if (itemSort === "category") return first.category.localeCompare(second.category) || first.name.localeCompare(second.name);
-        return first.name.localeCompare(second.name);
+        return (first.displayOrder ?? 9999) - (second.displayOrder ?? 9999) || first.name.localeCompare(second.name);
       });
   }, [debouncedItemSearch, itemAllergenFilter, itemAvailabilityFilter, itemCategoryFilter, itemChannelFilter, itemCuisineFilter, itemFoodFilter, itemImageFilter, itemModifierFilter, itemPrepFilter, itemPriceFilter, itemQuickFilter, itemSort, itemTagFilter, itemVisibilityFilter, menuItems]);
   const filterActive = Boolean(
@@ -765,6 +766,23 @@ export function OwnerMenuManagementFlow() {
     await Promise.all(targets.map((item) =>
       updateMenuItem(applyChannelAvailability(item, "delivery", enabled)),
     ));
+  }
+
+  async function moveMenuItem(item: MenuItem, direction: -1 | 1) {
+    const ordered = menuItems.slice().sort((first, second) => (first.displayOrder ?? 9999) - (second.displayOrder ?? 9999) || first.name.localeCompare(second.name));
+    const index = ordered.findIndex((entry) => entry.id === item.id);
+    const swap = ordered[index + direction];
+    if (!swap) return;
+    setSavingOrderId(item.id);
+    try {
+      await Promise.all([
+        updateMenuItem({ ...item, displayOrder: swap.displayOrder ?? index + direction + 1 }),
+        updateMenuItem({ ...swap, displayOrder: item.displayOrder ?? index + 1 }),
+      ]);
+      toast.success("Display order saved.");
+    } finally {
+      setSavingOrderId("");
+    }
   }
 
   async function saveSellableInventory() {
@@ -1448,9 +1466,10 @@ export function OwnerMenuManagementFlow() {
             {filteredMenuItems.length ? (
               <>
                 <div className="hidden overflow-hidden rounded-lg border bg-card shadow-sm xl:block">
-                  <div className="grid grid-cols-[42px_76px_minmax(220px,1.45fr)_minmax(120px,0.75fr)_92px_92px_92px_76px_96px_minmax(220px,0.9fr)] items-center gap-2 border-b bg-muted/40 px-3 py-3 text-xs font-black uppercase text-muted-foreground">
+                  <div className="grid grid-cols-[42px_76px_92px_minmax(220px,1.45fr)_minmax(120px,0.75fr)_92px_92px_92px_76px_96px_minmax(220px,0.9fr)] items-center gap-2 border-b bg-muted/40 px-3 py-3 text-xs font-black uppercase text-muted-foreground">
                     <input type="checkbox" className="size-4" checked={currentPageSelected} onChange={(event) => toggleCurrentPageSelection(event.target.checked)} aria-label="Select all visible menu items" />
                     <span>Image</span>
+                    <span>Order</span>
                     <span>Item</span>
                     <span>Category</span>
                     <Tip label="Price shown for dine-in orders"><span>Dine-In</span></Tip>
@@ -1476,6 +1495,9 @@ export function OwnerMenuManagementFlow() {
                       onToggleSoldOut={() => void toggleSoldOut(item.id)}
                       onCloneItem={() => void duplicateMenuItem(item)}
                       onDelete={() => void deleteMenuItem(item.id)}
+                      onMoveUp={() => void moveMenuItem(item, -1)}
+                      onMoveDown={() => void moveMenuItem(item, 1)}
+                      orderSaving={savingOrderId === item.id}
                     />
                   ))}
                 </div>
@@ -1497,6 +1519,9 @@ export function OwnerMenuManagementFlow() {
                       onToggleSoldOut={() => void toggleSoldOut(item.id)}
                       onCloneItem={() => void duplicateMenuItem(item)}
                       onDelete={() => void deleteMenuItem(item.id)}
+                      onMoveUp={() => void moveMenuItem(item, -1)}
+                      onMoveDown={() => void moveMenuItem(item, 1)}
+                      orderSaving={savingOrderId === item.id}
                     />
                   ))}
                 </div>
@@ -2281,6 +2306,9 @@ function MenuItemRow({
   onToggleSoldOut,
   onCloneItem,
   onDelete,
+  onMoveUp,
+  onMoveDown,
+  orderSaving,
 }: {
   variant: "table" | "card";
   item: MenuItem;
@@ -2295,6 +2323,9 @@ function MenuItemRow({
   onToggleSoldOut: () => void;
   onCloneItem: () => void;
   onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  orderSaving: boolean;
 }) {
   const customerVisible = isItemVisible(item, "delivery") && !item.soldOut;
   const statusLabel = item.soldOut ? "Sold Out" : customerVisible ? "Active" : "Hidden";
@@ -2350,13 +2381,14 @@ function MenuItemRow({
 
   if (variant === "table") {
     return (
-      <div className="grid grid-cols-[42px_76px_minmax(220px,1.45fr)_minmax(120px,0.75fr)_92px_92px_92px_76px_96px_minmax(220px,0.9fr)] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+      <div className="grid grid-cols-[42px_76px_92px_minmax(220px,1.45fr)_minmax(120px,0.75fr)_92px_92px_92px_76px_96px_minmax(220px,0.9fr)] items-center gap-2 border-b px-3 py-2 text-sm last:border-b-0">
         <input type="checkbox" className="size-4" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.name}`} />
         <Tip label="Click to preview image">
           <button type="button" className="relative size-[60px] overflow-hidden rounded-md bg-muted" onClick={onPreviewImage} aria-label={`Preview ${item.name} image`}>
             <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="60px" className="object-cover" />
           </button>
         </Tip>
+        <DisplayOrderControls value={item.displayOrder ?? 0} onMoveUp={onMoveUp} onMoveDown={onMoveDown} saving={orderSaving} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="truncate font-black text-foreground">{item.name}</h2>
@@ -2401,6 +2433,9 @@ function MenuItemRow({
             <MiniPrice label="Parcel" value={formatChannelItemPrice(item, "parcel")} />
             <MiniPrice label="Delivery" value={formatChannelItemPrice(item, "delivery")} />
           </div>
+          <div className="mt-2">
+            <DisplayOrderControls value={item.displayOrder ?? 0} onMoveUp={onMoveUp} onMoveDown={onMoveDown} saving={orderSaving} />
+          </div>
         </div>
         <div className="flex flex-col gap-1.5">
           {actions}
@@ -2414,6 +2449,20 @@ function buildCustomerItemPath(item: MenuItem) {
   const slug = item.restaurantSlug || DEFAULT_RESTAURANT_ID;
   const itemId = item.id.split("::")[0];
   return `/restaurant/${encodeURIComponent(slug)}/item/${encodeURIComponent(itemId)}`;
+}
+
+function DisplayOrderControls({ value, onMoveUp, onMoveDown, saving }: { value: number; onMoveUp: () => void; onMoveDown: () => void; saving: boolean }) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="min-w-8 rounded-md bg-muted px-2 py-1 text-center text-xs font-black">{value || "-"}</span>
+      <Button type="button" variant="outline" size="icon-sm" disabled={saving} onClick={onMoveUp} aria-label="Move item up">
+        {saving ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+      </Button>
+      <Button type="button" variant="outline" size="icon-sm" disabled={saving} onClick={onMoveDown} aria-label="Move item down">
+        <ArrowDown className="size-4" />
+      </Button>
+    </div>
+  );
 }
 
 function buildCustomerItemUrl(item: MenuItem) {

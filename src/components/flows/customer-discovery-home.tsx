@@ -6,7 +6,6 @@ import { memo, useMemo, useState, type CSSProperties } from "react";
 import toast from "react-hot-toast";
 import {
   Bell,
-  ChevronDown,
   ChevronRight,
   Grid2X2,
   Heart,
@@ -134,9 +133,16 @@ export function CustomerDiscoveryHome() {
     const nearbySlugs = new Set(recommendedRestaurants.map((restaurant) => restaurant.slug));
     const scoped = menuItems
       .filter((item) => nearbySlugs.size ? nearbySlugs.has(item.restaurantSlug) : true)
-      .sort((first, second) => Number(Boolean(second.isPopular)) - Number(Boolean(first.isPopular)));
+      .filter((item) => (item.orderCount ?? 0) > 0)
+      .sort((first, second) => (second.orderCount ?? 0) - (first.orderCount ?? 0));
     return Array.from(new Map(scoped.map((item) => [item.id, item])).values()).slice(0, 8);
   }, [menuItems, recommendedRestaurants]);
+  const featuredItems = useMemo(() => {
+    return menuItems
+      .filter((item) => item.featuredEnabled)
+      .sort((first, second) => (first.featuredOrder ?? 999) - (second.featuredOrder ?? 999) || (second.orderCount ?? 0) - (first.orderCount ?? 0))
+      .slice(0, 8);
+  }, [menuItems]);
 
   const categoryChips = useMemo(
     () => resolveHomepageCategories(appCategories),
@@ -233,22 +239,9 @@ export function CustomerDiscoveryHome() {
       <section className="relative overflow-hidden px-4 pb-4 pt-4 md:hidden">
         <div className="pointer-events-none absolute -right-20 top-0 size-64 rounded-full bg-primary/8 blur-2xl" />
         <div className="relative flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => detectLocation()}
-            className="flex min-w-0 items-center gap-2 text-left"
-          >
-            <MapPin className="size-7 shrink-0 text-primary" />
-            <span className="min-w-0">
-              <span className="block text-xs font-bold text-muted-foreground">Deliver to</span>
-              <span className="flex min-w-0 items-center gap-1 text-[1.05rem] font-black leading-tight">
-                <span className="truncate">
-                  <LocationHydrationBoundary>{location.label || location.address}</LocationHydrationBoundary>
-                </span>
-                <ChevronDown className="size-4 shrink-0 text-primary" />
-              </span>
-            </span>
-          </button>
+          <p className="min-w-0 text-sm font-black text-primary">
+            {DIRECT_HOMEPAGE_TAGLINE}
+          </p>
           <div className="flex shrink-0 items-center gap-2">
             <Button type="button" size="icon" variant="outline" className="relative size-11 rounded-full bg-white shadow-sm" aria-label="Notifications">
               <Bell className="size-5" />
@@ -509,6 +502,17 @@ export function CustomerDiscoveryHome() {
                 saved={savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id)}
                 onFavorite={() => void handleFavoriteToggle(restaurant)}
               />
+            ))}
+          </section>
+        </>
+      ) : null}
+
+      {featuredItems.length ? (
+        <>
+          <MobileSectionHeader title="Featured menu items" href={`/restaurant/${heroRestaurant.slug}/menu`} />
+          <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-3">
+            {featuredItems.map((item) => (
+              <PopularDishCard key={item.id} item={item} onAdd={() => addItem(item)} />
             ))}
           </section>
         </>

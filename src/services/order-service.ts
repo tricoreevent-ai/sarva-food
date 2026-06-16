@@ -9,6 +9,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  increment,
   type DocumentSnapshot,
   type QueryConstraint,
   type Unsubscribe,
@@ -20,7 +21,7 @@ import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { resolveTenantId } from "@/lib/tenant";
 import { createMetadata, updateMetadata } from "@/services/firestore-metadata";
 import { getPage, listenShared, listenToQueryShared } from "@/services/firestore-query";
-import type { CustomerAddressDoc, OrderDoc, OrderLineDoc, OrderStatus } from "@/types/firebase";
+import type { CustomerAddressDoc, MenuDoc, OrderDoc, OrderLineDoc, OrderStatus } from "@/types/firebase";
 
 export type CreateOrderInput = {
   tenantId?: string;
@@ -90,6 +91,13 @@ export async function createOrder(input: CreateOrderInput) {
   const batch = writeBatch(db);
   batch.set(orderRef, order);
   batch.set(typedDoc<OrderDoc>(db, COLLECTIONS.customerOrders, orderRef.id), order);
+  for (const line of input.lines) {
+    if (line.menuItemId && line.quantity > 0) {
+      const countPatch = { orderCount: increment(line.quantity), updatedAt: serverTimestamp() } as unknown as Partial<MenuDoc>;
+      batch.set(typedDoc<MenuDoc>(db, COLLECTIONS.menus, line.menuItemId), countPatch, { merge: true });
+      batch.set(typedDoc<MenuDoc>(db, COLLECTIONS.menuItems, line.menuItemId), countPatch, { merge: true });
+    }
+  }
   if (
     input.deliveryAddress &&
     typeof input.deliveryGeo?.lat === "number" &&

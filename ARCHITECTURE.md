@@ -86,6 +86,16 @@ The repo is organized around a core frontend source tree in `src/`, documentatio
   - Existing persisted customer cart store.
   - Remains the compatibility source of truth for existing cart imports and persisted key `sarva-cart`.
 
+### Menu Ranking And Promotions
+
+- Menu documents in `menus` and `menuItems` support `displayOrder`, `orderCount`, `featuredEnabled`, and `featuredOrder`.
+- Owner menu ordering writes `displayOrder`; public customer menus sort by `displayOrder ASC`.
+- Order creation increments `orderCount` by ordered quantity for each line item in both `menus` and `menuItems`.
+- Customer popular items are database-driven and sorted by `orderCount DESC`.
+- Admin Featured Menu Items controls `featuredEnabled` and `featuredOrder`; customer home displays enabled items sorted by `featuredOrder ASC`.
+- Schedule Later uses the shared `ScheduleOrderDialog` and stores full 30-minute slot labels across restaurant, cart, details, and confirmation views.
+- Owner offer editing uses dirty-form tracking, disables update until changes are detected, locks inputs while saving, waits up to five minutes for backend confirmation, then refreshes through the existing offer data flow.
+
 - `src/stores`
   - Phase 1 modular store facade layer.
   - Provides domain entrypoints: `customer-store`, `cart-store`, `pos-store`, `delivery-store`, `owner-store`, `admin-store`, and `studio-store`.

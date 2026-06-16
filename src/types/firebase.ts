@@ -232,6 +232,10 @@ export type MenuDoc = TenantScopedDoc & {
   spiceLevel?: "mild" | "medium" | "hot";
   averageRating?: number;
   reviewCount?: number;
+  orderCount?: number;
+  displayOrder?: number;
+  featuredOrder?: number;
+  featuredEnabled?: boolean;
   available: boolean;
   menuVisibility?: Record<"dine-in" | "parcel" | "delivery", boolean>;
   channelConfig?: Record<"dine-in" | "parcel" | "delivery", { visible: boolean; available: boolean; price: number; taxRate: 5 | 18; packingCharge: number; offerCode?: string; startTime?: string; endTime?: string; offerIds?: string[] }>;

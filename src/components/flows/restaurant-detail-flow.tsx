@@ -52,7 +52,7 @@ import { runDataConsistencyAudit } from "@/lib/DataConsistencyAudit";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
-import type { ScheduledOrderSelection } from "@/lib/schedule-slots";
+import { formatScheduleDate, formatScheduleSlot, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { useThemeMode } from "@/lib/theme-provider";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -186,6 +186,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     [orderTiming, scheduledDate, scheduledTime],
   );
   const scheduledForLabel = scheduledFor ? formatScheduleDateTime(scheduledFor) : "";
+  const scheduledSlotLabel = scheduledDate && scheduledTime ? `${formatScheduleDate(scheduledDate)}, ${formatScheduleSlot(scheduledTime, addMinutesToTime(scheduledTime, 30))}` : scheduledForLabel;
   const scheduledSelection = useMemo<ScheduledOrderSelection | null>(() => {
     if (!restaurant || !scheduledDate || !scheduledTime) return null;
     return {
@@ -457,7 +458,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         fulfillmentType,
         scheduleMode: orderTiming === "scheduled" ? "scheduled" : "now",
         scheduledFor: scheduledIso,
-        scheduledLabel: orderTiming === "scheduled" ? scheduledForLabel : "",
+        scheduledLabel: orderTiming === "scheduled" ? scheduledSlotLabel : "",
         customer: {
           name: customer.name.trim(),
           phone: customer.phone.trim(),
@@ -485,7 +486,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         }),
         total: totals.total,
         prep: estimatePrepMinutes(restaurantCart),
-        scheduledLabel: orderTiming === "scheduled" ? scheduledForLabel : "",
+        scheduledLabel: orderTiming === "scheduled" ? scheduledSlotLabel : "",
       });
       setStep("success");
       toast.success(orderTiming === "scheduled" ? "Scheduled order sent to the restaurant." : "Order sent to the restaurant.");
@@ -511,7 +512,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
           title={heroTitle}
           customerDistanceKm={customerDistanceKm}
           orderTiming={orderTiming}
-          scheduledLabel={scheduledForLabel}
+          scheduledLabel={scheduledSlotLabel}
           onModeChange={setOrderTiming}
           onScheduleClick={() => setScheduleDialogOpen(true)}
           query={query}
@@ -550,7 +551,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
               <div className="hidden xl:block">
                 <OrderTimingStrip
                   mode={orderTiming}
-                  scheduledLabel={scheduledForLabel}
+                  scheduledLabel={scheduledSlotLabel}
                   onModeChange={setOrderTiming}
                   onScheduleClick={() => setScheduleDialogOpen(true)}
                 />
@@ -648,7 +649,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 fulfillmentType={fulfillmentType}
                 setFulfillmentType={setFulfillmentType}
                 orderTiming={orderTiming}
-                scheduledLabel={scheduledForLabel}
+                scheduledLabel={scheduledSlotLabel}
                 setOrderTiming={setOrderTiming}
                 onScheduleClick={() => setScheduleDialogOpen(true)}
                 onBack={() => goTo("offers")}
@@ -671,7 +672,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 customer={customer}
                 totals={totals}
                 orderTiming={orderTiming}
-                scheduledForLabel={scheduledForLabel}
+                scheduledForLabel={scheduledSlotLabel}
                 contactPhone={contactPhone}
                 contactWhatsApp={contactWhatsApp}
                 submitting={submitting}

@@ -214,6 +214,10 @@ export type MenuItem = {
   spiceLevel?: "mild" | "medium" | "hot";
   averageRating?: number;
   reviewCount?: number;
+  orderCount?: number;
+  displayOrder?: number;
+  featuredOrder?: number;
+  featuredEnabled?: boolean;
   dietaryLabels?: string[];
   allergenLabels?: string[];
   tags?: string[];

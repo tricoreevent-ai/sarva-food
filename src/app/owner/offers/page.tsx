@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarClock, Eye, EyeOff, MessageCircle, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
+import { CalendarClock, Eye, EyeOff, Loader2, MessageCircle, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { OfferBadge } from "@/components/commerce/offer-badge";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -121,8 +121,10 @@ export default function OwnerOffersPage() {
   const restaurant = restaurants.find((item) => item.slug === restaurantSlug) ?? restaurants[0];
   const whatsappShare = useWhatsAppShare();
   const [form, setForm] = useState<OfferForm>(emptyForm);
+  const [initialForm, setInitialForm] = useState<OfferForm>(emptyForm);
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [savingOffer, setSavingOffer] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<OfferFilter>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | OfferForm["offerType"]>("all");
@@ -196,20 +198,26 @@ export default function OwnerOffersPage() {
   const expiredCount = ownerOffers.filter((offer) => !isOfferActive(offer)).length;
 
   function openNewOffer() {
+    const nextForm = { ...emptyForm, code: `OFFER${Date.now().toString().slice(-4)}` };
     setEditingCode(null);
-    setForm({ ...emptyForm, code: `OFFER${Date.now().toString().slice(-4)}` });
+    setForm(nextForm);
+    setInitialForm(nextForm);
     setFormOpen(true);
   }
 
   function editOffer(offer: Offer) {
+    const nextForm = toOfferForm(offer);
     setEditingCode(offer.code);
-    setForm(toOfferForm(offer));
+    setForm(nextForm);
+    setInitialForm(nextForm);
     setFormOpen(true);
   }
 
   function reuseOffer(offer: Offer) {
+    const nextForm = { ...toOfferForm(offer), validFrom: todayInput(), validTo: futureInput(30), campaignStatus: "active" as const };
     setEditingCode(offer.code);
-    setForm({ ...toOfferForm(offer), validFrom: todayInput(), validTo: futureInput(30), campaignStatus: "active" });
+    setForm(nextForm);
+    setInitialForm(toOfferForm(offer));
     setFormOpen(true);
     toast.success("Offer loaded with a fresh future validity window.");
   }
@@ -225,21 +233,25 @@ export default function OwnerOffersPage() {
       return;
     }
     const offer = buildOfferPayload(form, normalizedCode, restaurantSlug, restaurant?.name);
+    setSavingOffer(true);
     try {
       if (editingCode) {
-        await updateOffer(offer);
+        await withOfferSaveTimeout(updateOffer(offer));
         toast.success(`${offer.code} updated.`);
       } else {
-        await createOffer(offer);
+        await withOfferSaveTimeout(createOffer(offer));
         toast.success(`${offer.code} created.`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Offer could not be saved.");
+      toast.error(error instanceof Error ? error.message : "Unable to confirm update. Please contact administrator.");
+      setSavingOffer(false);
       return;
     }
+    setSavingOffer(false);
     setFormOpen(false);
     setEditingCode(null);
     setForm(emptyForm);
+    setInitialForm(emptyForm);
   }
 
   async function changeStatus(offer: Offer, status: NonNullable<Offer["status"]>) {
@@ -334,8 +346,14 @@ export default function OwnerOffersPage() {
           restaurantSlug={restaurantSlug}
           onForm={setForm}
           onSave={() => void saveOffer()}
-          onCancel={() => { setFormOpen(false); setEditingCode(null); }}
+          onCancel={() => {
+            if (savingOffer) return;
+            setFormOpen(false);
+            setEditingCode(null);
+          }}
           apiMessage={apiMessage}
+          dirty={JSON.stringify(form) !== JSON.stringify(initialForm)}
+          saving={savingOffer}
         />
       ) : null}
 
@@ -438,6 +456,8 @@ function OfferConfigurator({
   onSave,
   onCancel,
   apiMessage,
+  dirty,
+  saving,
 }: {
   form: OfferForm;
   editing: boolean;
@@ -448,12 +468,22 @@ function OfferConfigurator({
   onSave: () => void;
   onCancel: () => void;
   apiMessage?: string;
+  dirty: boolean;
+  saving: boolean;
 }) {
   return (
     <Card className="border-orange-200 shadow-xl">
-      <CardContent className="space-y-5 p-5">
-        <SectionHeader title={editing ? "Edit offer" : "Add new offer"} description="Configure offer rules once. Homepage, restaurant page, and checkout surfaces update from this data." action={<Button variant="outline" onClick={onCancel}>Close</Button>} />
-        <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+      <CardContent className="relative space-y-5 p-5">
+        {saving ? (
+          <div className="absolute inset-0 z-20 grid place-items-center rounded-lg bg-white/80 backdrop-blur-sm">
+            <div className="rounded-2xl border bg-white p-5 text-center shadow-xl">
+              <Loader2 className="mx-auto size-6 animate-spin text-orange-600" />
+              <p className="mt-3 text-sm font-black">Saving offer...</p>
+            </div>
+          </div>
+        ) : null}
+        <SectionHeader title={editing ? "Edit offer" : "Add new offer"} description="Configure offer rules once. Homepage, restaurant page, and checkout surfaces update from this data." action={<Button variant="outline" onClick={onCancel} disabled={saving}>Close</Button>} />
+        <fieldset disabled={saving} className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Coupon code" value={form.code} onChange={(code) => onForm({ ...form, code })} placeholder="DINING20" disabled={editing} />
@@ -539,11 +569,14 @@ function OfferConfigurator({
               <Textarea value={form.conditions} onChange={(event) => onForm({ ...form, conditions: event.target.value })} placeholder="Not valid with other coupons. Restaurant may pause during rush hours." />
             </div>
           </div>
-        </div>
+        </fieldset>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {apiMessage ? <p className="mr-auto text-sm font-semibold text-primary">{apiMessage}</p> : null}
-          <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={onSave}><Plus className="size-4" />{editing ? "Update offer" : "Save offer"}</Button>
+          <Button variant="outline" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button onClick={onSave} disabled={saving || !dirty}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {editing ? "Update offer" : "Save offer"}
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -783,4 +816,13 @@ function startOfToday() {
 
 function isFutureDate(value?: string) {
   return Boolean(value && new Date(value) > startOfToday());
+}
+
+function withOfferSaveTimeout<T>(promise: Promise<T>) {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error("Unable to confirm update. Please contact administrator.")), 5 * 60_000);
+    }),
+  ]);
 }

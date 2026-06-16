@@ -400,7 +400,9 @@ function isOfferLive(offer: Offer) {
 }
 
 function filterPublicMenuItems(items: MenuItem[]) {
-  return items.filter((item) => !isLegacySeededPublicMenuItem(item));
+  return items
+    .filter((item) => !isLegacySeededPublicMenuItem(item))
+    .sort((first, second) => (first.displayOrder ?? 9999) - (second.displayOrder ?? 9999) || first.name.localeCompare(second.name));
 }
 
 function filterPublicOffers(offers: Offer[]) {
