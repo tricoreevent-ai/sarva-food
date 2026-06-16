@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Gift,
   Home,
   Loader2,
   MoreVertical,
@@ -39,6 +40,7 @@ import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAlert } from "@/hooks/useAlert";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -146,6 +148,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     () => sortOffers(offers.filter((offer) => isOfferForSurface(offer, "restaurant") && isOfferActive(offer))),
     [offers],
   );
+  const activeOffers = useMemo(
+    () => sortOffers(offers.filter((offer) => isOfferActive(offer))),
+    [offers],
+  );
   const customerSignedIn = auth.state === "authenticated" && Boolean(auth.user?.uid || auth.profile?.uid) && (auth.profile?.role ? auth.profile.role === "customer" : true);
 
   const filterOptions = useMemo(() => buildFilterOptions(menu, masterCategories, masterCuisines), [masterCategories, masterCuisines, menu]);
@@ -172,8 +178,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   }, [availableOnly, categoryFilters, chefSpecialOnly, comboOnly, cuisineFilters, foodTypeFilters, mealFilters, menu, popularOnly, query, spiceFilters, tagFilters]);
 
   const totals = useMemo(
-    () => calculateTotals(restaurantCart, offerCode, visibleOffers, fulfillmentType, restaurant),
-    [fulfillmentType, offerCode, restaurant, restaurantCart, visibleOffers],
+    () => calculateTotals(restaurantCart, offerCode, activeOffers, fulfillmentType, restaurant),
+    [activeOffers, fulfillmentType, offerCode, restaurant, restaurantCart],
   );
   const scheduledFor = useMemo(
     () => orderTiming === "scheduled" ? buildScheduledDateTime(scheduledDate, scheduledTime) : null,
@@ -619,7 +625,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
 
             {step === "offers" ? (
               <OfferValidationStep
-                offers={visibleOffers}
+                offers={activeOffers}
                 cartItems={restaurantCart}
                 offerCode={offerCode}
                 couponDraft={couponDraft}
@@ -629,7 +635,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 applyOffer={(code) => {
                   const normalizedCode = code.trim().toUpperCase();
                   applyOffer(normalizedCode);
-                  toast.success(normalizedCode ? `${normalizedCode} selected.` : "Offer removed.");
                 }}
                 onBack={() => goTo("menu")}
                 onNext={() => goTo("details")}
@@ -1750,19 +1755,47 @@ function OfferValidationStep({
 }) {
   const selectedOfferCode = offerCode.trim().toUpperCase();
   const draftCode = couponDraft.trim().toUpperCase();
+  const [offersOpen, setOffersOpen] = useState(false);
+  const selectedOffer = offers.find((offer) => offer.code.toUpperCase() === selectedOfferCode);
   const removeOffer = () => {
     setCouponDraft("");
     applyOffer("");
   };
-  const selectOffer = (code: string) => {
+  const selectOffer = (code: string, close = false) => {
     const normalizedCode = code.trim().toUpperCase();
+    const offer = offers.find((item) => item.code.toUpperCase() === normalizedCode);
     setCouponDraft(normalizedCode);
     applyOffer(normalizedCode);
+    if (!offer) {
+      toast.error(`${normalizedCode} was not found for this restaurant.`);
+      return;
+    }
+    const message = offerEligibilityMessage(offer, cartItems, fulfillmentType);
+    if (message) {
+      toast.error(message);
+      return;
+    }
+    toast.success(`${normalizedCode} applied.`);
+    if (close) setOffersOpen(false);
+  };
+  const clearAllOffers = () => {
+    removeOffer();
+    toast.success("Offer removed.");
   };
 
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
       <SectionTitle eyebrow="Step 2" title="Validate offers" description="Apply owner-created coupons and review eligibility before entering customer details." />
+      <OfferPickerPopup
+        open={offersOpen}
+        onOpenChange={setOffersOpen}
+        offers={offers}
+        selectedCode={selectedOfferCode}
+        cartItems={cartItems}
+        fulfillmentType={fulfillmentType}
+        onApply={(code) => selectOffer(code, true)}
+        onClear={clearAllOffers}
+      />
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <div className="flex gap-2">
@@ -1777,49 +1810,166 @@ function OfferValidationStep({
             />
             <Button onClick={() => selectOffer(draftCode)} disabled={!draftCode}>Apply</Button>
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-orange-100 bg-orange-50/70 p-3">
+            <div>
+              <p className="text-sm font-black text-slate-950">Existing restaurant offers</p>
+              <p className="text-xs font-semibold text-muted-foreground">{offers.length ? `${offers.length} active offer${offers.length === 1 ? "" : "s"} available` : "No active offers found"}</p>
+            </div>
+            <Button type="button" variant="outline" className="h-11 bg-white font-black" onClick={() => setOffersOpen(true)}>
+              <Gift className="size-4 text-orange-600" />
+              View offers
+            </Button>
+          </div>
           {offerCode ? (
             <div className={`flex items-start justify-between gap-3 rounded-2xl p-3 text-sm font-bold ${totals.appliedOffer ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-              <span>{totals.appliedOffer ? `${selectedOfferCode} applied. You saved ${formatCurrency(totals.discount)}.` : `${selectedOfferCode} is not valid for this cart or order type.`}</span>
+              <span>{totals.appliedOffer ? `${selectedOfferCode} applied. You saved ${formatCurrency(totals.discount)}.` : selectedOffer ? offerEligibilityMessage(selectedOffer, cartItems, fulfillmentType) || `${selectedOfferCode} is not valid for this cart or order type.` : `${selectedOfferCode} was not found for this restaurant.`}</span>
               <button type="button" onClick={removeOffer} className="shrink-0 rounded-xl bg-white/70 px-3 py-1 text-xs font-black text-current">
                 Remove
               </button>
             </div>
           ) : null}
-          <div className="grid gap-3 md:grid-cols-2">
-            {offers.length ? offers.map((offer) => {
-              const eligible = offerEligible(offer, cartItems, fulfillmentType);
-              const selected = selectedOfferCode === offer.code.toUpperCase();
-              return (
-                <button key={offer.code} type="button" onClick={() => (selected ? removeOffer() : selectOffer(offer.code))} className={`rounded-2xl border p-4 text-left transition hover:border-orange-300 ${selected ? "border-orange-600 bg-orange-50 shadow-sm" : "bg-white"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <Badge className={eligible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>{eligible ? "Eligible" : "Rules apply"}</Badge>
-                    <span className={`shrink-0 rounded-xl px-3 py-1 text-xs font-black ${selected ? "bg-white text-orange-700" : "bg-orange-600 text-white"}`}>
-                      {selected ? "Remove" : "Apply"}
-                    </span>
-                  </div>
-                  <h3 className="mt-3 line-clamp-2 text-lg font-black">{offer.title}</h3>
-                  <p className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">{offer.description}</p>
-                  <div className="mt-4 rounded-xl border border-dashed border-orange-300 bg-orange-50 px-3 py-2">
-                    <p className="text-[10px] font-black uppercase tracking-wide text-orange-700">Offer code</p>
-                    <p className="mt-1 break-all text-base font-black text-orange-700">{offer.code}</p>
-                  </div>
-                  <p className="mt-3 text-xs font-bold leading-5 text-muted-foreground">
-                    Min {formatCurrency(offer.minimumOrder)} {offer.appliesTo?.length ? `• ${offer.appliesTo.join(", ")}` : ""}
-                  </p>
-                </button>
-              );
-            }) : (
-              <div className="rounded-2xl border border-dashed p-5 text-sm font-semibold text-muted-foreground">
-                No offers are live for this restaurant right now.
-              </div>
-            )}
-          </div>
         </div>
         <MiniCart items={cartItems} totals={totals} />
       </div>
       <WizardActions onBack={onBack} onNext={onNext} nextLabel="Continue to details" />
     </section>
   );
+}
+
+function OfferPickerPopup({
+  open,
+  onOpenChange,
+  offers,
+  selectedCode,
+  cartItems,
+  fulfillmentType,
+  onApply,
+  onClear,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  offers: Offer[];
+  selectedCode: string;
+  cartItems: CartLine[];
+  fulfillmentType: FulfillmentType;
+  onApply: (code: string) => void;
+  onClear: () => void;
+}) {
+  const mobile = useMediaQuery("(max-width: 767px)");
+  const body = (
+    <OfferPickerContent
+      offers={offers}
+      selectedCode={selectedCode}
+      cartItems={cartItems}
+      fulfillmentType={fulfillmentType}
+      onApply={onApply}
+      onClear={onClear}
+      onCancel={() => onOpenChange(false)}
+    />
+  );
+
+  if (mobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto rounded-t-[1.5rem] border-border bg-card p-0 text-card-foreground" style={{ zIndex: 99999 }}>
+          <div className="mx-auto mt-3 h-1 w-12 rounded-full bg-muted-foreground/30" />
+          <SheetHeader className="border-b px-5 py-4 pr-12">
+            <SheetTitle className="text-left text-lg font-black">Existing offers</SheetTitle>
+            <SheetDescription className="text-left">Apply an available offer or clear the current one.</SheetDescription>
+          </SheetHeader>
+          {body}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-black">Existing offers</DialogTitle>
+          <DialogDescription>Apply an available offer or clear the current one.</DialogDescription>
+        </DialogHeader>
+        {body}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OfferPickerContent({
+  offers,
+  selectedCode,
+  cartItems,
+  fulfillmentType,
+  onApply,
+  onClear,
+  onCancel,
+}: {
+  offers: Offer[];
+  selectedCode: string;
+  cartItems: CartLine[];
+  fulfillmentType: FulfillmentType;
+  onApply: (code: string) => void;
+  onClear: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="space-y-4 p-5">
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" className="h-11 bg-white font-black" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="button" variant="outline" className="h-11 bg-white font-black text-red-700 hover:bg-red-50" onClick={onClear} disabled={!selectedCode}>
+          Clear all offers
+        </Button>
+      </div>
+
+      <div className="grid max-h-[56dvh] gap-3 overflow-y-auto pr-1 md:max-h-[62vh] md:grid-cols-2">
+        {offers.length ? offers.map((offer) => {
+          const message = offerEligibilityMessage(offer, cartItems, fulfillmentType);
+          const eligible = !message;
+          const selected = selectedCode === offer.code.toUpperCase();
+          return (
+            <article key={offer.code} className={`rounded-2xl border p-4 transition ${selected ? "border-orange-600 bg-orange-50 shadow-sm" : "bg-white"}`}>
+              <div className="flex items-start justify-between gap-3">
+                <Badge className={eligible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}>{eligible ? "Eligible" : "Rules apply"}</Badge>
+                {selected ? <Badge className="bg-orange-600 text-white">Selected</Badge> : null}
+              </div>
+              <h3 className="mt-3 line-clamp-2 text-lg font-black">{offer.title}</h3>
+              <p className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">{offer.description}</p>
+              <div className="mt-4 rounded-xl border border-dashed border-orange-300 bg-orange-50 px-3 py-2">
+                <p className="text-[10px] font-black uppercase tracking-wide text-orange-700">Offer code</p>
+                <p className="mt-1 break-all text-base font-black text-orange-700">{offer.code}</p>
+              </div>
+              <p className="mt-3 text-xs font-bold leading-5 text-muted-foreground">
+                Min {formatCurrency(offer.minimumOrder)} {offer.appliesTo?.length ? `- ${offer.appliesTo.join(", ")}` : ""}
+              </p>
+              {message ? <p className="mt-2 text-xs font-bold leading-5 text-red-600">{message}</p> : null}
+              <Button type="button" className="mt-4 h-11 w-full bg-orange-600 font-black hover:bg-orange-700" onClick={() => onApply(offer.code)}>
+                {selected ? "Apply again" : "Apply offer"}
+              </Button>
+            </article>
+          );
+        }) : (
+          <div className="rounded-2xl border border-dashed p-5 text-sm font-semibold text-muted-foreground md:col-span-2">
+            No active offers are available for this restaurant right now.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return matches;
 }
 
 function CustomerDetailsStep({
@@ -2758,13 +2908,18 @@ function calculateTotals(items: CartLine[], offerCode: string, offers: Offer[], 
 }
 
 function offerEligible(offer: Offer, items: CartLine[], fulfillmentType: FulfillmentType) {
-  if (!isOfferActive(offer)) return false;
+  return !offerEligibilityMessage(offer, items, fulfillmentType);
+}
+
+function offerEligibilityMessage(offer: Offer, items: CartLine[], fulfillmentType: FulfillmentType) {
+  if (!isOfferActive(offer)) return "This offer is not active right now.";
+  if (!items.length) return "Add items to cart before applying this offer.";
   const subtotal = items.reduce((sum, item) => sum + itemPrice(item, fulfillmentType) * item.quantity, 0);
-  if (subtotal < offer.minimumOrder) return false;
-  if (!offerAppliesToFulfillment(offer, fulfillmentType)) return false;
-  if (offer.applicableItemIds?.length && !items.some((item) => offer.applicableItemIds?.includes(item.id))) return false;
-  if (offer.applicableCategories?.length && !items.some((item) => offer.applicableCategories?.includes(item.category))) return false;
-  return true;
+  if (subtotal < offer.minimumOrder) return `Add ${formatCurrency(offer.minimumOrder - subtotal)} more to use this offer.`;
+  if (!offerAppliesToFulfillment(offer, fulfillmentType)) return `This offer is not valid for ${fulfillmentLabel(fulfillmentType)} orders.`;
+  if (offer.applicableItemIds?.length && !items.some((item) => offer.applicableItemIds?.includes(item.id))) return "Add an eligible menu item to use this offer.";
+  if (offer.applicableCategories?.length && !items.some((item) => offer.applicableCategories?.includes(item.category))) return "Add an item from an eligible category to use this offer.";
+  return "";
 }
 
 function estimatePrepMinutes(items: CartLine[]) {
