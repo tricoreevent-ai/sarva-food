@@ -208,12 +208,14 @@ export default async function RootLayout({
     >
       <head>
         <script id="sarva-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {process.env.NODE_ENV === "production" ? (
+          <script id="sarva-chunk-recovery" dangerouslySetInnerHTML={{ __html: chunkRecoveryScript }} />
+        ) : null}
+        {process.env.NODE_ENV !== "production" ? (
+          <script id="sarva-dev-sw-reset" dangerouslySetInnerHTML={{ __html: devServiceWorkerResetScript }} />
+        ) : null}
       </head>
       <body className="antialiased">
-        <Script id="sarva-chunk-recovery" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: chunkRecoveryScript }} />
-        {process.env.NODE_ENV !== "production" ? (
-          <Script id="sarva-dev-sw-reset" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: devServiceWorkerResetScript }} />
-        ) : null}
         {googleAnalyticsId ? (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`} strategy="afterInteractive" />

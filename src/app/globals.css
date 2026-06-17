@@ -61,6 +61,8 @@
   --warning: #a86408;
   --info: #315dff;
   --radius: 0.5rem;
+  --logo-primary-color: #2a3f1f;
+  --logo-secondary-color: #000000;
 }
 
 .dark {
@@ -81,6 +83,8 @@
   --border: #33382e;
   --input: #33382e;
   --ring: #2fb49f;
+  --logo-primary-color: #ffffff;
+  --logo-secondary-color: #d1d5db;
 }
 
 .customer-surface {

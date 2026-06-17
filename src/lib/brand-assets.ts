@@ -4,15 +4,15 @@ export const BRAND_ASSETS = {
   favicon16: "/favicon-16x16.png",
   favicon32: "/favicon-32x32.png",
   appleTouchIcon: "/apple-touch-icon.png",
-  primaryLogo: "/brand/nammude-logo-primary.png",
+  primaryLogo: "/brand/nammude-logo.svg",
   logos: {
     english: {
-      lightTheme: "/brand/nammude-logo-primary.png",
-      darkTheme: "/brand/nammude-logo-light-en.png",
+      lightTheme: "/brand/nammude-logo.svg",
+      darkTheme: "/brand/nammude-logo.svg",
     },
     malayalam: {
-      lightTheme: "/brand/nammude-logo-primary.png",
-      darkTheme: "/brand/nammude-logo-light-ml.png",
+      lightTheme: "/brand/nammude-logo.svg",
+      darkTheme: "/brand/nammude-logo.svg",
     },
   },
 } as const;

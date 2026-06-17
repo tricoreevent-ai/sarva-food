@@ -1154,8 +1154,8 @@ export const useAppStore = create<AppStore>()(
           if (!isCafeAlArabOwner(linkedUser)) {
             return {
               authUser: linkedUser,
-              apiPhase: "success",
-              apiMessage: `Signed in as ${linkedUser.name}.`,
+              apiPhase: "idle",
+              apiMessage: "",
             };
           }
 
@@ -1169,8 +1169,8 @@ export const useAppStore = create<AppStore>()(
             ownerBusinessProfile: keepProfile,
             restaurants: [restaurant, ...state.restaurants.filter((item) => (item.slug || item.id) !== DEFAULT_RESTAURANT_ID)],
             branches: [branch, ...state.branches.filter((item) => item.id !== branch.id)],
-            apiPhase: "success",
-            apiMessage: `Signed in as ${linkedUser.name}.`,
+            apiPhase: "idle",
+            apiMessage: "",
           };
         });
       },

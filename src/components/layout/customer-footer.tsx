@@ -7,7 +7,6 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
-import { APP_DESCRIPTION } from "@/lib/constants";
 import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsSettings } from "@/lib/types";
@@ -41,9 +40,6 @@ export function CustomerFooter() {
           <div className="flex items-start gap-3">
             <div>
               <BrandLogo className="h-12 w-44" sizes="176px" />
-              <p className="mt-1 max-w-48 text-sm font-semibold leading-6 text-muted-foreground">
-                {branding.appDescription || APP_DESCRIPTION}
-              </p>
             </div>
           </div>
           {socialLinks.length ? (

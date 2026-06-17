@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BrandIcon, BrandLogo } from "@/components/brand/brand-logo";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -79,7 +79,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     : operationalCopy[surface as "portal-login" | "admin-login"].defaultNext;
   const requestedNext = searchParams.get("redirect") ?? searchParams.get("next");
   const next = useMemo(() => normalizeNextPath(requestedNext, defaultNext), [defaultNext, requestedNext]);
-  const phoneCompletionNext = "/profile?phoneRequired=1";
   const initialMode: CustomerMode = pathname.startsWith("/forgot-password") || searchParams.get("reset") === "true"
     ? "forgot"
     : surface === "customer-signup"
@@ -146,9 +145,8 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     completeEmailLinkLogin("customer")
       .then((user) => {
         if (!user) return;
-        setMessage("Email verified. Opening your account...");
-        toastManager.successOnce(`login-success-${user.uid}`, "Signed in with magic link.");
-        void syncStoreUser(user.uid).then((syncedUser) => finish(isCustomerSurface && !syncedUser?.phone ? phoneCompletionNext : next));
+        setMessage("");
+        void syncStoreUser(user.uid).then(() => finish(next));
       })
       .catch((error) => setMessage(friendlyAuthMessage(error)));
   }, [firebaseEnabled, finish, isCustomerSurface, next, syncStoreUser]);
@@ -199,8 +197,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           const user = await signUpWithEmail(email.trim(), password, "customer", name.trim());
           await syncStoreUser(user.uid, { displayName: user.displayName || name.trim(), email: user.email, photoURL: user.photoURL });
         }
-        toastManager.successOnce(`signup-success-${email.trim().toLowerCase()}`, "Account created.");
-        await finish(isCustomerSurface ? phoneCompletionNext : next);
+        await finish(next);
         return;
       }
 
@@ -214,9 +211,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
             ? await signInAdminWithEmail(email.trim(), password)
             : await signInOperationalWithEmail(email.trim(), password);
         await syncStoreUser(user.uid, { displayName: user.displayName, email: user.email, photoURL: user.photoURL });
-      }
-      if (surface !== "portal-login") {
-        toastManager.successOnce(`login-success-${email.trim().toLowerCase()}`, "Signed in.");
       }
       await finish();
     } catch (error) {
@@ -280,14 +274,13 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setMessage("Opening Google sign in...");
     try {
       if (!firebaseEnabled && customerStackEnabled) {
-        await signInWithStackGoogle(`${window.location.origin}${phoneCompletionNext}`);
+        await signInWithStackGoogle(`${window.location.origin}${next}`);
         return;
       }
       if (!firebaseEnabled) throw new Error("Google sign-in is not configured.");
       const user = await signInWithGoogle("customer");
-      const syncedUser = await syncStoreUser(user.uid, { displayName: user.displayName, email: user.email, photoURL: user.photoURL });
-      toastManager.successOnce(`login-success-${user.uid}`, "Signed in with Google.");
-      await finish(isCustomerSurface && !syncedUser?.phone ? phoneCompletionNext : next);
+      await syncStoreUser(user.uid, { displayName: user.displayName, email: user.email, photoURL: user.photoURL });
+      await finish(next);
     } catch (error) {
       const text = friendlyAuthMessage(error);
       setMessage(text);
@@ -326,11 +319,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <BrandIcon className="size-12 rounded-2xl shadow-xl" priority sizes="48px" />
-                <span>
-                  <BrandLogo className="h-9 w-36" sizes="144px" priority />
-                  <span className="text-xs font-semibold text-emerald-100">{branding.appDescription || "Good food, great moments"}</span>
-                </span>
+                <BrandLogo className="h-14 w-52" sizes="208px" priority />
               </Link>
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-14 max-w-sm">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Customer app</p>

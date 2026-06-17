@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { SidebarLinks } from "@/components/layout/dashboard-sidebar";
-import { BrandIcon, BrandLogo } from "@/components/brand/brand-logo";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -595,10 +595,9 @@ type AdminAlert = {
   description: string;
 };
 
-function AdminConsoleTopbar({ appName, navItems, homeHref }: DashboardTopbarProps) {
+function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
   const restaurants = useAppStore((state) => state.restaurants);
   const applications = useAppStore((state) => state.businessApplications);
   const socialPosts = useAppStore((state) => state.socialPosts);
@@ -676,7 +675,9 @@ function AdminConsoleTopbar({ appName, navItems, homeHref }: DashboardTopbarProp
           </SheetTrigger>
           <SheetContent side="left" className="rounded-r-3xl bg-[#0d1024] text-white">
             <SheetHeader>
-              <SheetTitle className="text-white">{appName}</SheetTitle>
+              <SheetTitle className="text-white">
+                <BrandLogo className="h-10 w-36" priority sizes="144px" />
+              </SheetTitle>
             </SheetHeader>
             <div className="mt-6">
               <SidebarLinks items={navItems} />
@@ -685,11 +686,7 @@ function AdminConsoleTopbar({ appName, navItems, homeHref }: DashboardTopbarProp
         </Sheet>
 
         <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300" aria-label="Go to admin overview">
-          <BrandIcon className="size-10 shadow-lg" priority />
-          <span className="hidden min-w-28 sm:block">
-            <span className="block text-base font-black leading-5 text-white">{productName} Admin</span>
-            <span className="text-xs font-semibold text-indigo-200">{appName}</span>
-          </span>
+          <BrandLogo className="h-10 w-36 sm:h-12 sm:w-44" priority sizes="176px" />
         </Link>
 
         <div className="relative hidden min-w-72 flex-1 max-w-xl lg:block">
