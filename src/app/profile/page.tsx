@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
@@ -37,7 +38,6 @@ import { AppPreferences } from "@/components/settings/app-preferences";
 import { AddressAutocomplete, type MapboxPickedLocation } from "@/components/maps/address-autocomplete";
 import { useMapbox } from "@/components/maps/mapbox-provider";
 import { CustomerShell } from "@/components/layout/customer-shell";
-import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { InlineLoading, RetryState } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ import { deleteCustomerFavoriteRestaurant } from "@/services/customer-favorites-
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
-import { readLocalAddresses, readLocalProfile, writeLocalAddresses, writeLocalProfile, type LocalProfileDraft } from "@/lib/customer-address-storage";
+import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatCurrency, getInitials } from "@/lib/utils";
 import type { CateringQuote } from "@/lib/types";
@@ -106,8 +106,6 @@ export default function ProfilePage() {
   const [signingOut, setSigningOut] = useState(false);
   const [addressDraft, setAddressDraft] = useState<AddressDraft>(emptyAddressDraft);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
-  const [localProfile, setLocalProfile] = useState<LocalProfileDraft | null>(null);
-  const [localAddresses, setLocalAddresses] = useState<CustomerAddressDoc[]>([]);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressMessage, setAddressMessage] = useState("");
   const [locating, setLocating] = useState(false);
@@ -142,15 +140,6 @@ export default function ProfilePage() {
     });
   }, [blockedByRole, clearCart, router, setAuthUser]);
 
-  useEffect(() => {
-    if (!user) return;
-    const id = window.setTimeout(() => {
-      setLocalProfile(readLocalProfile(user.uid));
-      setLocalAddresses(readLocalAddresses(user.uid));
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [user]);
-
   async function handleLogout() {
     setSigningOut(true);
     await Promise.all([
@@ -175,8 +164,7 @@ export default function ProfilePage() {
     setAddressMessage("");
     try {
       const id = editingAddressId ?? `${user.uid}-${Date.now()}`;
-      const sourceAddresses = customer.addresses.length ? customer.addresses : localAddresses;
-      const isFirstAddress = sourceAddresses.length === 0;
+      const isFirstAddress = customer.addresses.length === 0;
       const fullAddress = buildFullAddress(addressDraft);
       const payload = {
         id,
@@ -198,46 +186,21 @@ export default function ProfilePage() {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      if (shouldUseFirebase() && isFirebaseConfigured) {
-        await setDoc(docRef(COLLECTIONS.customerAddresses, id), {
-          ...payload,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-        customer.retry();
-      } else {
-        const nextAddresses = upsertById(localAddresses, payload as CustomerAddressDoc);
-        setLocalAddresses(nextAddresses);
-        writeLocalAddresses(user.uid, nextAddresses);
+      if (!shouldUseFirebase() || !isFirebaseConfigured || !getFirebaseAuth().currentUser) {
+        setAddressMessage("Could not connect to Firebase. Please refresh and try again.");
+        return;
       }
+      await setDoc(docRef(COLLECTIONS.customerAddresses, id), {
+        ...payload,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      customer.retry();
       setAddressDraft(emptyAddressDraft);
       setEditingAddressId(null);
       setAddressMessage(editingAddressId ? "Address updated." : "Address added.");
     } catch {
-      const id = editingAddressId ?? `${user.uid}-${Date.now()}`;
-      const fallbackAddress = {
-        id,
-        customerId: user.uid,
-        label: addressDraft.label.trim(),
-        address: addressDraft.address.trim(),
-        fullAddress: buildFullAddress(addressDraft),
-        apartment: addressDraft.apartment.trim(),
-        floor: addressDraft.floor.trim() || undefined,
-        landmark: addressDraft.landmark.trim() || undefined,
-        latitude: addressDraft.latitude,
-        longitude: addressDraft.longitude,
-        placeId: addressDraft.placeId,
-        verified: true,
-        isDefault: localAddresses.length === 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as CustomerAddressDoc;
-      const nextAddresses = upsertById(localAddresses, fallbackAddress);
-      setLocalAddresses(nextAddresses);
-      writeLocalAddresses(user.uid, nextAddresses);
-      setAddressDraft(emptyAddressDraft);
-      setEditingAddressId(null);
-      setAddressMessage("Address saved on this device. Cloud sync will retry after Firebase is available.");
+      setAddressMessage("Could not save address to Firebase. Please try again.");
     } finally {
       setSavingAddress(false);
     }
@@ -254,16 +217,14 @@ export default function ProfilePage() {
     });
     if (!confirmed) return;
     setAddressMessage("");
-    if (shouldUseFirebase() && isFirebaseConfigured && customer.addresses.some((item) => item.id === addressId)) {
-      await deleteDoc(docRef(COLLECTIONS.customerAddresses, addressId)).catch(() => {
-        setAddressMessage("Could not delete address. Try again.");
-      });
-      customer.retry();
+    if (!shouldUseFirebase() || !isFirebaseConfigured || !customer.addresses.some((item) => item.id === addressId)) {
+      setAddressMessage("Could not find this address in Firebase. Refresh and try again.");
       return;
     }
-    const nextAddresses = localAddresses.filter((item) => item.id !== addressId);
-    setLocalAddresses(nextAddresses);
-    writeLocalAddresses(user.uid, nextAddresses);
+    await deleteDoc(docRef(COLLECTIONS.customerAddresses, addressId)).catch(() => {
+      setAddressMessage("Could not delete address. Try again.");
+    });
+    customer.retry();
     setAddressMessage("Address deleted.");
   }
 
@@ -400,10 +361,13 @@ export default function ProfilePage() {
     );
   }
 
-  const fallbackProfile = createCustomerProfileFallback(user, localProfile);
+  const fallbackProfile = createCustomerProfileFallback(user);
   const baseProfile = customer.profile ?? (auth.profile?.role === "customer" ? auth.profile : null) ?? fallbackProfile;
-  const effectiveProfile = { ...baseProfile, ...localProfile };
-  const effectiveAddresses = customer.addresses.length ? customer.addresses : localAddresses;
+  const effectiveProfile = {
+    ...baseProfile,
+    photoURL: resolveCustomerPhotoURL(user.photoURL, baseProfile.photoURL),
+  };
+  const effectiveAddresses = customer.addresses;
 
   const profileDetails = effectiveProfile as typeof effectiveProfile & CustomerProfileDetails;
   const stableProfile = effectiveProfile;
@@ -439,23 +403,15 @@ export default function ProfilePage() {
         displayName: nextDisplayName || stableProfile.displayName,
         email: nextEmail || currentEmail || undefined,
         phone: nextPhone || currentPhone || undefined,
-        photoURL: nextPhotoURL || profileDetails.photoURL || undefined,
+        photoURL: resolveCustomerPhotoURL(nextPhotoURL, user.photoURL, profileDetails.photoURL),
       };
       if (!isFirebaseConfigured || !shouldUseFirebase()) {
-        setLocalProfile(nextLocalProfile);
-        writeLocalProfile(user.uid, nextLocalProfile);
-        setAuthUser({ id: user.uid, name: nextLocalProfile.displayName ?? stableProfile.displayName, role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
-        setAccountDraft({ displayName: "", email: "", phone: "", photoURL: "", password: "" });
-        setAccountMessage(nextPassword ? "Profile saved. Password changes need Firebase sign-in in production mode." : "Profile saved.");
+        setAccountMessage("Could not connect to Firebase. Please refresh and try again.");
         return;
       }
       const authUser = getFirebaseAuth().currentUser;
       if (!authUser) {
-        setLocalProfile(nextLocalProfile);
-        writeLocalProfile(user.uid, nextLocalProfile);
-        setAuthUser({ id: user.uid, name: nextLocalProfile.displayName ?? stableProfile.displayName, role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
-        setAccountDraft({ displayName: "", email: "", phone: "", photoURL: "", password: "" });
-        setAccountMessage(nextPassword ? "Profile saved on this device. Sign in with Firebase again to change password." : "Profile saved.");
+        setAccountMessage("Sign in again before saving profile changes.");
         return;
       }
       if (nextDisplayName || nextPhotoURL) await updateProfile(authUser, { displayName: nextLocalProfile.displayName, photoURL: nextLocalProfile.photoURL });
@@ -476,26 +432,13 @@ export default function ProfilePage() {
         phoneVerified: Boolean(nextPhone || currentPhone),
         updatedAt: serverTimestamp(),
       }, { merge: true });
-      setLocalProfile(nextLocalProfile);
-      writeLocalProfile(user.uid, nextLocalProfile);
       setAccountDraft({ displayName: "", email: "", phone: "", photoURL: "", password: "" });
       setAccountMessage("Account details updated.");
       customer.retry();
     } catch (error) {
-      if (user) {
-        const fallbackProfile = {
-          displayName: accountDraft.displayName.trim() || stableProfile.displayName,
-          email: accountDraft.email.trim() || currentEmail || undefined,
-          phone: accountDraft.phone.trim() || currentPhone || undefined,
-          photoURL: accountDraft.photoURL.trim() || profileDetails.photoURL || undefined,
-        };
-        setLocalProfile(fallbackProfile);
-        writeLocalProfile(user.uid, fallbackProfile);
-        setAuthUser({ id: user.uid, name: fallbackProfile.displayName ?? stableProfile.displayName, role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
-      }
       const message = error instanceof Error && /requires-recent-login/i.test(error.message)
         ? "For security, sign out and sign in again before changing email or password."
-        : "Profile saved on this device. Cloud sync will retry after Firebase is available.";
+        : "Could not save profile to Firebase. Please try again.";
       setAccountMessage(message);
     } finally {
       setSavingAccount(false);
@@ -680,17 +623,18 @@ function PhoneRequiredNotice({ onOpenSettings }: { onOpenSettings: () => void })
 
 function ProfileAvatar({ name, photoURL, size = "lg" }: { name: string; photoURL?: string; size?: "sm" | "lg" }) {
   const className = size === "sm" ? "size-11" : "mx-auto size-24";
+  const [failedPhotoURL, setFailedPhotoURL] = useState<string | null>(null);
 
-  if (photoURL) {
+  if (photoURL && failedPhotoURL !== photoURL) {
     return (
-      <SafeImage
+      <Image
         src={photoURL}
         alt=""
         width={size === "sm" ? 44 : 96}
         height={size === "sm" ? 44 : 96}
-        fallbackSrc={IMAGE_FALLBACKS.logo}
         unoptimized
         className={`${className} rounded-full object-cover ring-4 ring-primary/10`}
+        onError={() => setFailedPhotoURL(photoURL)}
       />
     );
   }
@@ -1333,27 +1277,20 @@ function buildFullAddress(draft: AddressDraft) {
   ].filter(Boolean).join(", ");
 }
 
-function createCustomerProfileFallback(user: User, localProfile: LocalProfileDraft | null): CustomerProfileDoc {
+function createCustomerProfileFallback(user: User): CustomerProfileDoc {
   const now = new Date();
-  const displayName = localProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Customer";
+  const displayName = user.displayName || user.email?.split("@")[0] || "Customer";
   return {
     id: user.uid,
     createdAt: now,
     updatedAt: now,
     uid: user.uid,
     displayName,
-    email: localProfile?.email ?? user.email ?? undefined,
-    phone: localProfile?.phone,
-    photoURL: localProfile?.photoURL ?? user.photoURL ?? undefined,
+    email: user.email ?? undefined,
+    photoURL: resolveCustomerPhotoURL(user.photoURL),
     emailVerified: user.emailVerified,
-    phoneVerified: Boolean(localProfile?.phone),
     active: true,
   };
-}
-
-function upsertById<T extends { id: string }>(items: T[], nextItem: T) {
-  const exists = items.some((item) => item.id === nextItem.id);
-  return exists ? items.map((item) => item.id === nextItem.id ? nextItem : item) : [nextItem, ...items];
 }
 
 function filterProfileCatering(inquiries: CateringQuote[], email: string, phone: string, name: string) {

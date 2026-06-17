@@ -25,7 +25,6 @@ import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { shouldUseFirebase } from "@/lib/env";
-import { writeLocalProfile } from "@/lib/customer-address-storage";
 import { DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { toastManager } from "@/lib/toast-manager";
 import { cn } from "@/lib/utils";
@@ -139,14 +138,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       role,
       restaurantSlug: resolveTenantId(profile?.tenantId ?? profile?.restaurantIds?.[0] ?? DEFAULT_TENANT_ID),
     });
-    if (role === "customer") {
-      writeLocalProfile(uid, {
-        displayName,
-        email: profile?.email ?? fallback?.email ?? undefined,
-        phone: profile?.phone,
-        photoURL: profile?.photoURL ?? fallback?.photoURL ?? undefined,
-      });
-    }
     return { role, phone: profile?.phone ?? "" };
   }, [isCustomerSurface, setAuthUser, surface]);
 
@@ -170,13 +161,6 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       role: "customer",
       restaurantSlug: DEFAULT_TENANT_ID,
     });
-    if (user?.id) {
-      writeLocalProfile(user.id, {
-        displayName: user.displayName || name.trim() || user.primaryEmail || "Nammude Customer",
-        email: user.primaryEmail ?? undefined,
-        photoURL: user.profileImageUrl ?? undefined,
-      });
-    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

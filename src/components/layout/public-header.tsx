@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
@@ -26,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
-import { SafeImage } from "@/components/media/safe-image";
 import { AppPreferences } from "@/components/settings/app-preferences";
 import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { COLLECTIONS } from "@/firebase/collections";
@@ -36,15 +36,7 @@ import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { APP_NAME } from "@/lib/constants";
-import {
-  CUSTOMER_LOCAL_ADDRESSES_EVENT,
-  CUSTOMER_LOCAL_PROFILE_EVENT,
-  localAddressesKey,
-  localProfileKey,
-  readLocalAddresses,
-  readLocalProfile,
-  type LocalProfileDraft,
-} from "@/lib/customer-address-storage";
+import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
 import { shouldUseFirebase } from "@/lib/env";
 import { customerNav } from "@/lib/navigation";
 import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
@@ -72,13 +64,12 @@ export function PublicHeader() {
   const productName = branding?.appName?.trim() || cmsSettings.appName?.trim() || APP_NAME;
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const clearCart = useCartStore((state) => state.clearCart);
+  const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
   const [profileOpen, setProfileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationQuery, setLocationQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [localProfile, setLocalProfile] = useState<LocalProfileDraft | null>(null);
-  const [localAddresses, setLocalAddresses] = useState<CustomerAddressDoc[]>([]);
   const [remoteAddresses, setRemoteAddresses] = useState<CustomerAddressDoc[]>([]);
   const {
     location,
@@ -98,18 +89,17 @@ export function PublicHeader() {
   const restaurantRoute = pathname.startsWith("/restaurant/");
   const customerId = loggedIn ? (customerProfile?.uid || customerProfile?.id || auth.user?.uid || localAuthUser.id) : null;
   const displayName = loggedIn
-    ? customerProfile?.displayName?.trim()
-      || auth.user?.displayName?.trim()
-      || localProfile?.displayName?.trim()
-      || localAuthUser.name?.trim()
-      || "Customer"
+      ? customerProfile?.displayName?.trim()
+        || auth.user?.displayName?.trim()
+        || localAuthUser.name?.trim()
+        || "Customer"
     : "Guest";
   const profileImageUrl = loggedIn
-    ? (customerProfile?.photoURL || auth.user?.photoURL || localProfile?.photoURL || "").trim() || undefined
+    ? resolveCustomerPhotoURL(auth.user?.photoURL, customerProfile?.photoURL)
     : undefined;
   const savedAddresses = useMemo(
-    () => uniqueAddresses(remoteAddresses.length ? remoteAddresses : localAddresses),
-    [localAddresses, remoteAddresses],
+    () => uniqueAddresses(remoteAddresses),
+    [remoteAddresses],
   );
   const locationOptions = useMemo(() => {
     const currentLocation = location.source === "fallback" ? [] : [location];
@@ -126,39 +116,15 @@ export function PublicHeader() {
   useEffect(() => {
     if (!customerId || customerId === "anonymous") {
       const resetTimerId = window.setTimeout(() => {
-        setLocalAddresses([]);
         setRemoteAddresses([]);
       }, 0);
       return () => window.clearTimeout(resetTimerId);
     }
 
-    let active = true;
-    const refreshLocalAddresses = () => {
-      if (!active) return;
-      setLocalAddresses(readLocalAddresses(customerId));
-    };
-    const localTimerId = window.setTimeout(() => {
-      refreshLocalAddresses();
-      if (!shouldUseFirebase() || !isFirebaseConfigured) {
-        setRemoteAddresses([]);
-      }
-    }, 0);
-    const handleLocalAddressUpdate = (event: Event) => {
-      const detail = (event as CustomEvent<{ customerId?: string }>).detail;
-      if (!detail?.customerId || detail.customerId === customerId) refreshLocalAddresses();
-    };
-    const handleAddressStorage = (event: StorageEvent) => {
-      if (event.key === localAddressesKey(customerId)) refreshLocalAddresses();
-    };
-    window.addEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalAddressUpdate);
-    window.addEventListener("storage", handleAddressStorage);
-
     if (!shouldUseFirebase() || !isFirebaseConfigured) {
+      const resetTimerId = window.setTimeout(() => setRemoteAddresses([]), 0);
       return () => {
-        active = false;
-        window.clearTimeout(localTimerId);
-        window.removeEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalAddressUpdate);
-        window.removeEventListener("storage", handleAddressStorage);
+        window.clearTimeout(resetTimerId);
       };
     }
 
@@ -173,41 +139,7 @@ export function PublicHeader() {
     );
 
     return () => {
-      active = false;
-      window.clearTimeout(localTimerId);
-      window.removeEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalAddressUpdate);
-      window.removeEventListener("storage", handleAddressStorage);
       unsubscribe();
-    };
-  }, [customerId]);
-
-  useEffect(() => {
-    if (!customerId || customerId === "anonymous") {
-      const resetTimerId = window.setTimeout(() => setLocalProfile(null), 0);
-      return () => window.clearTimeout(resetTimerId);
-    }
-
-    let active = true;
-    const refreshLocalProfile = () => {
-      if (!active) return;
-      setLocalProfile(readLocalProfile(customerId));
-    };
-    const timerId = window.setTimeout(refreshLocalProfile, 0);
-    const handleLocalProfileUpdate = (event: Event) => {
-      const detail = (event as CustomEvent<{ customerId?: string }>).detail;
-      if (!detail?.customerId || detail.customerId === customerId) refreshLocalProfile();
-    };
-    const handleProfileStorage = (event: StorageEvent) => {
-      if (event.key === localProfileKey(customerId)) refreshLocalProfile();
-    };
-    window.addEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalProfileUpdate);
-    window.addEventListener("storage", handleProfileStorage);
-
-    return () => {
-      active = false;
-      window.clearTimeout(timerId);
-      window.removeEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalProfileUpdate);
-      window.removeEventListener("storage", handleProfileStorage);
     };
   }, [customerId]);
 
@@ -227,8 +159,6 @@ export function PublicHeader() {
       fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
     ]);
     clearCart();
-    setLocalProfile(null);
-    setLocalAddresses([]);
     setRemoteAddresses([]);
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
@@ -316,6 +246,11 @@ export function PublicHeader() {
                 className={`relative bg-card ${restaurantRoute ? "hidden md:inline-flex" : ""}`}
               >
                 <ShoppingBag className="size-4" />
+                {cartCount ? (
+                  <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-primary px-1 text-[10px] font-black leading-5 text-primary-foreground">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                ) : null}
               </Button>
             }
           />
@@ -631,11 +566,12 @@ function CustomerAvatar({
   const sizeClass = size === "lg" ? "size-12" : size === "md" ? "size-11" : "size-7";
   const iconClass = size === "sm" ? "size-4" : "size-5";
   const imageSize = size === "lg" ? "48px" : size === "md" ? "44px" : "28px";
+  const [failedPhotoURL, setFailedPhotoURL] = useState<string | null>(null);
 
-  if (photoURL) {
+  if (photoURL && failedPhotoURL !== photoURL) {
     return (
       <span className={`relative grid ${sizeClass} shrink-0 place-items-center overflow-hidden rounded-full bg-orange-50 text-primary`}>
-        <SafeImage src={photoURL} alt="" fill sizes={imageSize} className="object-cover" />
+        <Image src={photoURL} alt="" fill sizes={imageSize} unoptimized className="object-cover" onError={() => setFailedPhotoURL(photoURL)} />
       </span>
     );
   }

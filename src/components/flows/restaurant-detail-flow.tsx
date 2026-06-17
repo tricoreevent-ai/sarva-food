@@ -48,7 +48,6 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
-import { CUSTOMER_LOCAL_ADDRESSES_EVENT, CUSTOMER_LOCAL_PROFILE_EVENT, readLocalAddresses, readLocalProfile, type LocalProfileDraft } from "@/lib/customer-address-storage";
 import { runDataConsistencyAudit } from "@/lib/DataConsistencyAudit";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
@@ -136,8 +135,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [successOrder, setSuccessOrder] = useState<{ id: string; total: number; prep: number; scheduledLabel?: string } | null>(null);
   const [customerDistance, setCustomerDistance] = useState<{ key: string; value: number | null }>({ key: "", value: null });
-  const [localCustomerProfile, setLocalCustomerProfile] = useState<LocalProfileDraft | null>(null);
-  const [localCustomerAddresses, setLocalCustomerAddresses] = useState<CustomerAddressDoc[]>([]);
 
   const restaurantCart = useMemo(
     () => (restaurant ? cartItems.filter((item) => item.restaurantSlug === restaurant.slug) : []),
@@ -162,11 +159,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       authName: auth.user?.displayName,
       authProfile: auth.profile,
       remoteProfile: customerData.profile,
-      localProfile: localCustomerProfile,
       remoteAddresses: customerData.addresses,
-      localAddresses: localCustomerAddresses,
     }),
-    [auth.profile, auth.user?.displayName, customerData.addresses, customerData.profile, localCustomerAddresses, localCustomerProfile],
+    [auth.profile, auth.user?.displayName, customerData.addresses, customerData.profile],
   );
 
   const filterOptions = useMemo(() => buildFilterOptions(menu, masterCategories, masterCuisines), [masterCategories, masterCuisines, menu]);
@@ -243,41 +238,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       window.clearTimeout(id);
     };
   }, [restaurant, restaurantLocationKey]);
-
-  useEffect(() => {
-    const customerId = auth.user?.uid;
-    if (!customerId) {
-      const resetTimerId = window.setTimeout(() => {
-        setLocalCustomerProfile(null);
-        setLocalCustomerAddresses([]);
-      }, 0);
-      return () => window.clearTimeout(resetTimerId);
-    }
-
-    const syncLocalCustomerData = () => {
-      setLocalCustomerProfile(readLocalProfile(customerId));
-      setLocalCustomerAddresses(readLocalAddresses(customerId));
-    };
-
-    const startTimerId = window.setTimeout(syncLocalCustomerData, 0);
-    const handleLocalUpdate = (event: Event) => {
-      const detail = (event as CustomEvent<{ customerId?: string }>).detail;
-      if (!detail?.customerId || detail.customerId === customerId) syncLocalCustomerData();
-    };
-    const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key.includes(customerId)) syncLocalCustomerData();
-    };
-
-    window.addEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalUpdate);
-    window.addEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalUpdate);
-    window.addEventListener("storage", handleStorage);
-    return () => {
-      window.clearTimeout(startTimerId);
-      window.removeEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalUpdate);
-      window.removeEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalUpdate);
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, [auth.user?.uid]);
 
   useEffect(() => {
     const nextName = customerDefaults.name;
@@ -3033,9 +2993,7 @@ type CustomerDefaultsInput = {
   authName?: string | null;
   authProfile?: unknown;
   remoteProfile?: { displayName?: string; phone?: string } | null;
-  localProfile?: LocalProfileDraft | null;
   remoteAddresses: CustomerAddressDoc[];
-  localAddresses: CustomerAddressDoc[];
 };
 
 type RichCustomerAddress = CustomerAddressDoc & {
@@ -3051,8 +3009,8 @@ type RichCustomerAddress = CustomerAddressDoc & {
 
 function buildCustomerDefaults(input: CustomerDefaultsInput): CustomerForm {
   const authProfile = input.authProfile as { role?: string; displayName?: string; phone?: string } | null;
-  const customerProfile = input.remoteProfile ?? input.localProfile ?? (authProfile?.role === "customer" ? authProfile : null);
-  const savedAddress = pickDefaultAddress(input.remoteAddresses, input.localAddresses);
+  const customerProfile = input.remoteProfile ?? (authProfile?.role === "customer" ? authProfile : null);
+  const savedAddress = pickDefaultAddress(input.remoteAddresses);
   const savedAddressDetails = formatSavedCustomerAddress(savedAddress);
 
   return {
@@ -3082,8 +3040,8 @@ function sameCustomer(first: CustomerForm, second: CustomerForm) {
     && first.notes === second.notes;
 }
 
-function pickDefaultAddress(remoteAddresses: CustomerAddressDoc[], localAddresses: CustomerAddressDoc[]) {
-  const addresses = [...remoteAddresses, ...localAddresses].filter((address) => address.address || address.fullAddress);
+function pickDefaultAddress(remoteAddresses: CustomerAddressDoc[]) {
+  const addresses = remoteAddresses.filter((address) => address.address || address.fullAddress);
   return addresses.find((address) => address.isDefault) ?? addresses[0];
 }
 
