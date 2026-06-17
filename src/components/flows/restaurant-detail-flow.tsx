@@ -48,6 +48,7 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
+import { CUSTOMER_LOCAL_ADDRESSES_EVENT, CUSTOMER_LOCAL_PROFILE_EVENT, readLocalAddresses, readLocalProfile, type LocalProfileDraft } from "@/lib/customer-address-storage";
 import { runDataConsistencyAudit } from "@/lib/DataConsistencyAudit";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
 import { readableOrderId } from "@/lib/order-display";
@@ -56,6 +57,7 @@ import { formatScheduleDate, formatScheduleSlot, type ScheduledOrderSelection } 
 import { useThemeMode } from "@/lib/theme-provider";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import type { CustomerAddressDoc } from "@/types/firebase";
 
 type WizardStep = "menu" | "offers" | "details" | "confirm" | "success";
 type FulfillmentType = "delivery" | "parcel" | "dine-in";
@@ -134,6 +136,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [successOrder, setSuccessOrder] = useState<{ id: string; total: number; prep: number; scheduledLabel?: string } | null>(null);
   const [customerDistance, setCustomerDistance] = useState<{ key: string; value: number | null }>({ key: "", value: null });
+  const [localCustomerProfile, setLocalCustomerProfile] = useState<LocalProfileDraft | null>(null);
+  const [localCustomerAddresses, setLocalCustomerAddresses] = useState<CustomerAddressDoc[]>([]);
 
   const restaurantCart = useMemo(
     () => (restaurant ? cartItems.filter((item) => item.restaurantSlug === restaurant.slug) : []),
@@ -153,6 +157,17 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     [offers],
   );
   const customerSignedIn = auth.state === "authenticated" && Boolean(auth.user?.uid || auth.profile?.uid) && (auth.profile?.role ? auth.profile.role === "customer" : true);
+  const customerDefaults = useMemo(
+    () => buildCustomerDefaults({
+      authName: auth.user?.displayName,
+      authProfile: auth.profile,
+      remoteProfile: customerData.profile,
+      localProfile: localCustomerProfile,
+      remoteAddresses: customerData.addresses,
+      localAddresses: localCustomerAddresses,
+    }),
+    [auth.profile, auth.user?.displayName, customerData.addresses, customerData.profile, localCustomerAddresses, localCustomerProfile],
+  );
 
   const filterOptions = useMemo(() => buildFilterOptions(menu, masterCategories, masterCuisines), [masterCategories, masterCuisines, menu]);
   const restaurantLocationKey = restaurant ? `${restaurant.slug}:${restaurant.latitude ?? ""}:${restaurant.longitude ?? ""}` : "";
@@ -230,14 +245,45 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   }, [restaurant, restaurantLocationKey]);
 
   useEffect(() => {
-    const profile = customerData.profile ?? (auth.profile?.role === "customer" ? auth.profile : null);
-    const profileDetails = profile as { displayName?: string; phone?: string } | null;
-    const defaultAddress = customerData.addresses.find((address) => address.isDefault) ?? customerData.addresses[0];
-    const addressDetails = defaultAddress as { fullAddress?: string; landmark?: string } | undefined;
-    const nextName = profileDetails?.displayName || auth.user?.displayName || "";
-    const nextPhone = profileDetails?.phone || "";
-    const nextAddress = addressDetails?.fullAddress || defaultAddress?.address || "";
-    const nextLandmark = addressDetails?.landmark || "";
+    const customerId = auth.user?.uid;
+    if (!customerId) {
+      const resetTimerId = window.setTimeout(() => {
+        setLocalCustomerProfile(null);
+        setLocalCustomerAddresses([]);
+      }, 0);
+      return () => window.clearTimeout(resetTimerId);
+    }
+
+    const syncLocalCustomerData = () => {
+      setLocalCustomerProfile(readLocalProfile(customerId));
+      setLocalCustomerAddresses(readLocalAddresses(customerId));
+    };
+
+    const startTimerId = window.setTimeout(syncLocalCustomerData, 0);
+    const handleLocalUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ customerId?: string }>).detail;
+      if (!detail?.customerId || detail.customerId === customerId) syncLocalCustomerData();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key.includes(customerId)) syncLocalCustomerData();
+    };
+
+    window.addEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalUpdate);
+    window.addEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalUpdate);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.clearTimeout(startTimerId);
+      window.removeEventListener(CUSTOMER_LOCAL_PROFILE_EVENT, handleLocalUpdate);
+      window.removeEventListener(CUSTOMER_LOCAL_ADDRESSES_EVENT, handleLocalUpdate);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [auth.user?.uid]);
+
+  useEffect(() => {
+    const nextName = customerDefaults.name;
+    const nextPhone = customerDefaults.phone;
+    const nextAddress = customerDefaults.address;
+    const nextLandmark = customerDefaults.landmark;
 
     if (!nextName && !nextPhone && !nextAddress && !nextLandmark) return;
 
@@ -254,7 +300,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       });
     }, 0);
     return () => window.clearTimeout(timerId);
-  }, [auth.profile, auth.user?.displayName, customerData.addresses, customerData.profile]);
+  }, [customerDefaults]);
 
   useEffect(() => {
     if (!scheduleLaunch) return;
@@ -388,12 +434,19 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
     toast.success(`${item.name} added.`);
   };
 
+  const resolveCustomerForCheckout = () => {
+    const next = mergeCustomerDefaults(customer, customerDefaults);
+    if (!sameCustomer(customer, next)) setCustomer(next);
+    return next;
+  };
+
   const validateDetails = () => {
+    const checkoutCustomer = resolveCustomerForCheckout();
     const scheduleError = validateOrderSchedule(orderTiming, scheduledDate, scheduledTime, restaurant);
     if (scheduleError) return scheduleError;
-    if (customer.name.trim().length < 2) return "Enter customer name.";
-    if (customer.phone.replace(/\D/g, "").length < 10) return "Enter a valid phone number.";
-    if (fulfillmentType === "delivery" && customer.address.trim().length < 8) return "Delivery address is required.";
+    if (checkoutCustomer.name.trim().length < 2) return "Enter customer name.";
+    if (checkoutCustomer.phone.replace(/\D/g, "").length < 10) return "Enter a valid phone number.";
+    if (fulfillmentType === "delivery" && checkoutCustomer.address.trim().length < 8) return "Delivery address is required before confirmation.";
     return "";
   };
 
@@ -414,6 +467,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       return;
     }
 
+    const checkoutCustomer = mergeCustomerDefaults(customer, customerDefaults);
     setSubmitting(true);
     try {
       const createdAt = new Date().toISOString();
@@ -427,9 +481,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       const order = await createOrder({
         restaurantSlug: restaurant.slug,
         customer: {
-          name: customer.name.trim(),
-          phone: customer.phone.trim(),
-          address: [customer.address.trim(), customer.landmark.trim()].filter(Boolean).join(", "),
+          name: checkoutCustomer.name.trim(),
+          phone: checkoutCustomer.phone.trim(),
+          address: [checkoutCustomer.address.trim(), checkoutCustomer.landmark.trim()].filter(Boolean).join(", "),
         },
         lines: orderLines,
         totals: {
@@ -460,10 +514,10 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         scheduledFor: scheduledIso,
         scheduledLabel: orderTiming === "scheduled" ? scheduledSlotLabel : "",
         customer: {
-          name: customer.name.trim(),
-          phone: customer.phone.trim(),
-          address: [customer.address.trim(), customer.landmark.trim()].filter(Boolean).join(", "),
-          notes: customer.notes.trim(),
+          name: checkoutCustomer.name.trim(),
+          phone: checkoutCustomer.phone.trim(),
+          address: [checkoutCustomer.address.trim(), checkoutCustomer.landmark.trim()].filter(Boolean).join(", "),
+          notes: checkoutCustomer.notes.trim(),
         },
         lines: orderLines,
         offerCode: totals.appliedOffer?.code || "",
@@ -704,6 +758,15 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
           step={step}
           disabled={!canContinue}
           onClick={() => goTo(nextStep(step))}
+        />
+      ) : null}
+
+      {step === "confirm" ? (
+        <MobileConfirmActions
+          submitting={submitting}
+          orderTiming={orderTiming}
+          onBack={() => goTo("details")}
+          onSubmit={submitOrder}
         />
       ) : null}
 
@@ -2442,6 +2505,31 @@ function FloatingCart({ count, total, step, disabled, onClick }: { count: number
   );
 }
 
+function MobileConfirmActions({
+  submitting,
+  orderTiming,
+  onBack,
+  onSubmit,
+}: {
+  submitting: boolean;
+  orderTiming: OrderTiming;
+  onBack: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-x-3 bottom-20 z-40 grid grid-cols-[0.8fr_1.2fr] gap-2 rounded-3xl border bg-white p-3 shadow-2xl xl:hidden">
+      <Button type="button" variant="outline" className="h-12 rounded-2xl font-black" onClick={onBack} disabled={submitting}>
+        <ArrowLeft className="size-4" />
+        Details
+      </Button>
+      <Button type="button" className="h-12 rounded-2xl bg-emerald-700 font-black text-white hover:bg-emerald-800" onClick={onSubmit} disabled={submitting}>
+        {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+        {orderTiming === "scheduled" ? "Send order" : "Place order"}
+      </Button>
+    </div>
+  );
+}
+
 function AdvancedFilters({
   open,
   onClose,
@@ -2939,6 +3027,98 @@ function cartActionLabel(step: WizardStep) {
   if (step === "offers") return "Continue to details";
   if (step === "details") return "Review order";
   return "Confirm order";
+}
+
+type CustomerDefaultsInput = {
+  authName?: string | null;
+  authProfile?: unknown;
+  remoteProfile?: { displayName?: string; phone?: string } | null;
+  localProfile?: LocalProfileDraft | null;
+  remoteAddresses: CustomerAddressDoc[];
+  localAddresses: CustomerAddressDoc[];
+};
+
+type RichCustomerAddress = CustomerAddressDoc & {
+  apartment?: string;
+  floor?: string;
+  area?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  postalCode?: string;
+  formattedAddress?: string;
+};
+
+function buildCustomerDefaults(input: CustomerDefaultsInput): CustomerForm {
+  const authProfile = input.authProfile as { role?: string; displayName?: string; phone?: string } | null;
+  const customerProfile = input.remoteProfile ?? input.localProfile ?? (authProfile?.role === "customer" ? authProfile : null);
+  const savedAddress = pickDefaultAddress(input.remoteAddresses, input.localAddresses);
+  const savedAddressDetails = formatSavedCustomerAddress(savedAddress);
+
+  return {
+    name: customerProfile?.displayName || input.authName || "",
+    phone: customerProfile?.phone || "",
+    address: savedAddressDetails.address,
+    landmark: savedAddressDetails.landmark,
+    notes: "",
+  };
+}
+
+function mergeCustomerDefaults(customer: CustomerForm, defaults: CustomerForm): CustomerForm {
+  return {
+    ...customer,
+    name: customer.name || defaults.name,
+    phone: customer.phone || defaults.phone,
+    address: customer.address || defaults.address,
+    landmark: customer.landmark || defaults.landmark,
+  };
+}
+
+function sameCustomer(first: CustomerForm, second: CustomerForm) {
+  return first.name === second.name
+    && first.phone === second.phone
+    && first.address === second.address
+    && first.landmark === second.landmark
+    && first.notes === second.notes;
+}
+
+function pickDefaultAddress(remoteAddresses: CustomerAddressDoc[], localAddresses: CustomerAddressDoc[]) {
+  const addresses = [...remoteAddresses, ...localAddresses].filter((address) => address.address || address.fullAddress);
+  return addresses.find((address) => address.isDefault) ?? addresses[0];
+}
+
+function formatSavedCustomerAddress(address?: CustomerAddressDoc) {
+  if (!address) return { address: "", landmark: "" };
+
+  const details = address as RichCustomerAddress;
+  const mainAddress = details.fullAddress || details.formattedAddress || compactAddressParts([
+    details.apartment,
+    details.floor ? `Floor ${details.floor}` : "",
+    details.address,
+    details.area,
+    details.city,
+    details.state,
+    details.pincode || details.postalCode,
+  ]);
+
+  return {
+    address: mainAddress || details.address || "",
+    landmark: details.landmark || "",
+  };
+}
+
+function compactAddressParts(parts: Array<string | undefined>) {
+  const seen = new Set<string>();
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .filter((part) => {
+      const key = part.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(", ");
 }
 
 function fulfillmentLabel(value: FulfillmentType) {
