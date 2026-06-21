@@ -1059,7 +1059,7 @@ function MobileMenuItemCard({
         >
           <span className="size-2 rounded-full bg-current" />
         </span>
-        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-2 text-base font-black leading-tight hover:text-orange-600">
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="line-clamp-2 text-base font-black leading-tight hover:text-orange-600">
           {item.name}
         </Link>
         <p className="mt-1 font-black">{formatCurrency(price)}</p>
@@ -1073,7 +1073,7 @@ function MobileMenuItemCard({
         <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-600">{item.description}</p>
       </div>
       <div className="flex flex-col items-end gap-2">
-        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block size-20 overflow-hidden rounded-xl bg-orange-50" aria-label={`View ${item.name} details`}>
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="relative block size-20 overflow-hidden rounded-xl bg-orange-50" aria-label={`View ${item.name} details`}>
           <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="80px" className="object-cover" />
           {item.soldOut ? <span className="absolute inset-0 grid place-items-center bg-white/75 text-xs font-black text-slate-700">Unavailable</span> : null}
         </Link>
@@ -1682,13 +1682,13 @@ function MenuCard({
   if (viewMode === "list") {
     return (
       <div className="flex gap-3 rounded-2xl bg-white p-2 shadow-sm transition-transform duration-200">
-        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} aria-label={`View ${item.name} details`}>
+        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} aria-label={`View ${item.name} details`}>
           <MenuImage item={item} className="size-20 shrink-0" />
         </Link>
         <div className="flex min-w-0 flex-1 flex-col">
-          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-1 font-black hover:text-orange-600">{item.name}</Link>
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="line-clamp-1 font-black hover:text-orange-600">{item.name}</Link>
           <p className="line-clamp-2 text-xs font-semibold text-muted-foreground">{item.description}</p>
-          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="mt-1 text-xs font-black text-orange-600 hover:text-orange-700">More</Link>
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="mt-1 text-xs font-black text-orange-600 hover:text-orange-700">More</Link>
           <p className="mt-auto pt-1 font-black">{formatCurrency(price)}</p>
         </div>
         <QtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
@@ -1697,7 +1697,7 @@ function MenuCard({
   }
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="relative block aspect-[1.18/1] overflow-hidden bg-orange-50" aria-label={`View ${item.name} details`}>
+      <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="relative block aspect-[1.18/1] overflow-hidden bg-orange-50" aria-label={`View ${item.name} details`}>
         <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="(max-width: 768px) 50vw, 260px" className="object-cover transition duration-300 group-hover:scale-105" />
         <span className={`absolute left-2 top-2 grid size-5 place-items-center rounded-md border bg-white ${item.isVeg ? "text-emerald-600" : "text-red-600"}`}>
           <span className="size-2 rounded-full bg-current" />
@@ -1707,11 +1707,11 @@ function MenuCard({
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div>
-          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="line-clamp-2 font-black hover:text-orange-600">
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="line-clamp-2 font-black hover:text-orange-600">
             {item.name}
           </Link>
           <p className="mt-1 line-clamp-2 min-h-8 text-xs font-semibold text-muted-foreground">{item.description}</p>
-          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="mt-1 inline-flex text-xs font-black text-orange-600 hover:text-orange-700">
+          <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="mt-1 inline-flex text-xs font-black text-orange-600 hover:text-orange-700">
             More
           </Link>
         </div>

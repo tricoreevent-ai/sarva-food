@@ -344,7 +344,7 @@ export async function saveOwnerRestaurantProfile(input: {
 
   if (!canUseProductionFirestore()) throw apiError ?? new Error("Owner profile could not be saved because owner access is not available.");
   const { profile, restaurant, branch } = input;
-  const bannerImages = Array.from(new Set([...(restaurant.coverImages ?? []), ...(profile.coverImages ?? []), restaurant.coverImage, profile.coverImage, profile.logo].filter(Boolean) as string[])).slice(0, 5);
+  const bannerImages = Array.from(new Set([...(restaurant.coverImages ?? []), ...(profile.coverImages ?? []), restaurant.coverImage, profile.coverImage].filter(Boolean) as string[])).slice(0, 5);
   const thumbnailImages = bannerImages.map(toRestaurantThumbnailUrl);
   await Promise.all([
     setDoc(doc(getFirebaseDb(), "restaurants", restaurant.slug), {
@@ -368,6 +368,7 @@ export async function saveOwnerRestaurantProfile(input: {
       coverImagePaths: bannerImages,
       bannerImages,
       thumbnailImages,
+      activeBannerThumbnails: thumbnailImages,
       primaryThumbnail: thumbnailImages[0] ?? "",
       googleMapLocation: restaurant.googleMapLocation ?? profile.googleMapLocation,
       operatingHours: profile.operatingHours,
@@ -411,7 +412,7 @@ export async function saveOwnerRestaurantProfile(input: {
 
 function toRestaurantThumbnailUrl(url: string) {
   if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+  return withCloudinaryTransform(url, "w_400,h_225,c_fill,f_auto,q_auto");
 }
 
 function withUnsplashThumbnail(url: string) {
@@ -420,7 +421,8 @@ function withUnsplashThumbnail(url: string) {
     nextUrl.searchParams.set("auto", "format");
     if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
     nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("q", "70");
+    nextUrl.searchParams.set("h", "225");
+    nextUrl.searchParams.set("q", "75");
     return nextUrl.toString();
   } catch {
     return url;

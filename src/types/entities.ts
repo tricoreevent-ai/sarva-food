@@ -20,6 +20,7 @@ export type Restaurant = {
   coverImages?: string[];
   bannerImages?: string[];
   thumbnailImages?: string[];
+  activeBannerThumbnails?: string[];
   primaryThumbnail?: string;
   active?: boolean;
   isOpen: boolean;

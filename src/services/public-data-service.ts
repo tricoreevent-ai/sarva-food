@@ -523,6 +523,7 @@ export function restaurantDocToUi(doc: RestaurantDoc): Restaurant {
     coverImages: bannerImages.map(withCloudinaryAuto).filter(Boolean),
     bannerImages: bannerImages.map(withCloudinaryAuto).filter(Boolean),
     thumbnailImages,
+    activeBannerThumbnails: thumbnailImages,
     primaryThumbnail,
     active: doc.active,
     isOpen: false,
@@ -563,7 +564,6 @@ function restaurantBannerImages(doc: RestaurantDoc) {
     image?: string;
     imageUrl?: string;
     thumbnail?: string;
-    primaryImage?: string;
     coverImage?: string;
     gallery?: string[];
   };
@@ -573,17 +573,13 @@ function restaurantBannerImages(doc: RestaurantDoc) {
     ...(extra.gallery ?? []),
     doc.coverImagePath,
     extra.coverImage,
-    extra.primaryImage,
-    extra.imageUrl,
-    extra.image,
-    doc.imagePath,
   ].filter((value): value is string => Boolean(value && value !== doc.logoPath)))).slice(0, 5);
 }
 
 function restaurantThumbnailImages(doc: RestaurantDoc, bannerImages: string[]) {
-  const extra = doc as RestaurantDoc & { thumbnail?: string };
-  const saved = [doc.primaryThumbnail, extra.thumbnail, ...(doc.thumbnailImages ?? [])].filter((value): value is string => Boolean(value));
-  const thumbnails = saved.length ? saved : bannerImages.map(withCloudinaryThumbnail);
+  const saved = (doc.activeBannerThumbnails?.length ? doc.activeBannerThumbnails : doc.thumbnailImages ?? []).filter(Boolean);
+  const generated = bannerImages.map(withCloudinaryThumbnail).filter(Boolean);
+  const thumbnails = generated.length ? generated : saved;
   return Array.from(new Set(thumbnails.filter(Boolean))).slice(0, 5);
 }
 
@@ -705,7 +701,7 @@ function withCloudinaryAuto(url: string) {
 
 function withCloudinaryThumbnail(url: string) {
   if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+  return withCloudinaryTransform(url, "w_400,h_225,c_fill,f_auto,q_auto");
 }
 
 function withUnsplashThumbnail(url: string) {
@@ -714,7 +710,8 @@ function withUnsplashThumbnail(url: string) {
     nextUrl.searchParams.set("auto", "format");
     if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
     nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("q", "70");
+    nextUrl.searchParams.set("h", "225");
+    nextUrl.searchParams.set("q", "75");
     return nextUrl.toString();
   } catch {
     return url;

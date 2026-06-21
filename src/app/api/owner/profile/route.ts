@@ -52,9 +52,7 @@ export async function POST(request: NextRequest) {
     ...(body.profile.coverImages ?? []),
     body.profile.coverImage,
   ].filter((value): value is string => Boolean(value));
-  const coverImagePaths = configuredCoverImagePaths.length
-    ? configuredCoverImagePaths
-    : [body.restaurant.image, body.profile.logo].filter((value): value is string => Boolean(value));
+  const coverImagePaths = configuredCoverImagePaths;
   const bannerImages = Array.from(new Set(coverImagePaths)).slice(0, 5);
   const thumbnailImages = bannerImages.map(toRestaurantThumbnailUrl);
   const restaurantPayload = sanitize({
@@ -69,6 +67,7 @@ export async function POST(request: NextRequest) {
     coverImagePaths: bannerImages,
     bannerImages,
     thumbnailImages,
+    activeBannerThumbnails: thumbnailImages,
     primaryThumbnail: thumbnailImages[0] ?? "",
     address: body.profile.businessAddress || body.restaurant.address || body.restaurant.location,
     location: body.profile.businessAddress || body.restaurant.location,
@@ -153,7 +152,7 @@ export async function POST(request: NextRequest) {
 
 function toRestaurantThumbnailUrl(url: string) {
   if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+  return withCloudinaryTransform(url, "w_400,h_225,c_fill,f_auto,q_auto");
 }
 
 function withUnsplashThumbnail(url: string) {
@@ -162,7 +161,8 @@ function withUnsplashThumbnail(url: string) {
     nextUrl.searchParams.set("auto", "format");
     if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
     nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("q", "70");
+    nextUrl.searchParams.set("h", "225");
+    nextUrl.searchParams.set("q", "75");
     return nextUrl.toString();
   } catch {
     return url;

@@ -928,6 +928,7 @@ function toPublicRestaurantDoc(doc: RestaurantDoc): RestaurantDoc {
     coverImagePaths: bannerImages,
     bannerImages,
     thumbnailImages,
+    activeBannerThumbnails: thumbnailImages,
     primaryThumbnail: thumbnailImages[0] ?? "",
     googleMapLocation: doc.googleMapLocation,
     operatingHours: doc.operatingHours,
@@ -972,19 +973,19 @@ function restaurantBannerImages(doc: RestaurantDoc) {
     ...(doc.bannerImages ?? []),
     ...(doc.coverImagePaths ?? []),
     doc.coverImagePath,
-    doc.imagePath,
   ].filter((value): value is string => Boolean(value && value !== doc.logoPath)))).slice(0, 5);
 }
 
 function restaurantThumbnailImages(doc: RestaurantDoc, bannerImages: string[]) {
-  const saved = Array.isArray(doc.thumbnailImages) ? doc.thumbnailImages.filter(Boolean) : [];
-  const thumbnails = saved.length ? saved : bannerImages.map(toRestaurantThumbnailUrl);
+  const saved = (doc.activeBannerThumbnails?.length ? doc.activeBannerThumbnails : doc.thumbnailImages ?? []).filter(Boolean);
+  const generated = bannerImages.map(toRestaurantThumbnailUrl).filter(Boolean);
+  const thumbnails = generated.length ? generated : saved;
   return Array.from(new Set(thumbnails)).slice(0, 5);
 }
 
 function toRestaurantThumbnailUrl(url: string) {
   if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  return withCloudinaryTransform(url, "f_webp,q_70,w_400,c_limit");
+  return withCloudinaryTransform(url, "w_400,h_225,c_fill,f_auto,q_auto");
 }
 
 function withUnsplashThumbnail(url: string) {
@@ -993,7 +994,8 @@ function withUnsplashThumbnail(url: string) {
     nextUrl.searchParams.set("auto", "format");
     if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
     nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("q", "70");
+    nextUrl.searchParams.set("h", "225");
+    nextUrl.searchParams.set("q", "75");
     return nextUrl.toString();
   } catch {
     return url;

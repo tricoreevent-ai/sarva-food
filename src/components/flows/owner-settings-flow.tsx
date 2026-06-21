@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, Moon, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, Moon, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -997,6 +997,14 @@ function BannerManager({
 }) {
   const [draftUrl, setDraftUrl] = useState("");
   const normalizedImages = normalizeImageList(images);
+  const maxReached = normalizedImages.length >= 5;
+  function moveBanner(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= normalizedImages.length) return;
+    const next = [...normalizedImages];
+    [next[index], next[nextIndex]] = [next[nextIndex]!, next[index]!];
+    onChange(next);
+  }
   return (
     <div className="space-y-3 rounded-2xl border border-input bg-card p-4">
       <div>
@@ -1013,6 +1021,7 @@ function BannerManager({
         <Button
           type="button"
           variant="outline"
+          disabled={maxReached}
           onClick={() => {
             onAdd(draftUrl);
             setDraftUrl("");
@@ -1022,6 +1031,7 @@ function BannerManager({
           Add
         </Button>
       </div>
+      {maxReached ? <p className="text-xs font-semibold text-muted-foreground">Maximum 5 active banners. Delete one to add another.</p> : null}
       {normalizedImages.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {normalizedImages.map((image, index) => (
@@ -1033,6 +1043,14 @@ function BannerManager({
                 <Button type="button" size="sm" variant={primary === image ? "secondary" : "outline"} onClick={() => onPrimary(image)}>
                   {primary === image ? "Primary" : "Set primary"}
                 </Button>
+                <div className="flex gap-1">
+                  <Button type="button" size="icon" variant="outline" disabled={index === 0} onClick={() => moveBanner(index, -1)} aria-label={`Move banner ${index + 1} up`}>
+                    <ArrowUp className="size-4" />
+                  </Button>
+                  <Button type="button" size="icon" variant="outline" disabled={index === normalizedImages.length - 1} onClick={() => moveBanner(index, 1)} aria-label={`Move banner ${index + 1} down`}>
+                    <ArrowDown className="size-4" />
+                  </Button>
+                </div>
                 <Button
                   type="button"
                   size="sm"
@@ -1448,5 +1466,6 @@ function normalizeImageList(values: Array<string | undefined>) {
       if (seen.has(value)) return false;
       seen.add(value);
       return true;
-    });
+    })
+    .slice(0, 5);
 }

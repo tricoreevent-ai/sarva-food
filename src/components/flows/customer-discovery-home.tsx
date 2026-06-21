@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useMemo, useState, type CSSProperties } from "react";
+import { memo, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   Bell,
@@ -20,6 +20,7 @@ import {
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { LocationHydrationBoundary } from "@/components/location/location-hydration-boundary";
 import { LocationSuggestionList } from "@/components/location/location-suggestion-list";
+import { RestaurantBannerCarousel } from "@/components/commerce/restaurant-banner-carousel";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -574,8 +575,8 @@ function MobileRestaurantCard({
   return (
     <article className="w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
       <div className="relative h-28 overflow-hidden bg-muted md:h-36">
-        <Link href={`/restaurant/${restaurant.slug}`} className="relative block h-full">
-          <MobileRestaurantImageCarousel images={images} alt={restaurant.name} />
+        <Link href={`/restaurant/${restaurant.slug}`} prefetch={false} className="relative block h-full">
+          <RestaurantBannerCarousel images={images} alt={restaurant.name} sizes="250px" intervalMs={5200} />
         </Link>
         <Badge className="absolute left-3 top-3 rounded-md bg-green-600 text-white">{badge}</Badge>
         <button
@@ -588,7 +589,7 @@ function MobileRestaurantCard({
           <Heart className={cn("size-5", saved && "fill-current")} />
         </button>
       </div>
-      <Link href={`/restaurant/${restaurant.slug}`} className="block space-y-2 p-3">
+      <Link href={`/restaurant/${restaurant.slug}`} prefetch={false} className="block space-y-2 p-3">
         <h3 className="truncate text-base font-black md:text-lg">{restaurant.name}</h3>
         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground md:text-sm">
           <Star className="size-4 fill-green-600 text-green-600" />
@@ -605,46 +606,9 @@ function MobileRestaurantCard({
 }
 
 function restaurantListingImages(restaurant: Restaurant) {
-  const images = restaurant.thumbnailImages?.length ? restaurant.thumbnailImages : [restaurant.primaryThumbnail || restaurant.image];
+  const images = restaurant.activeBannerThumbnails?.length ? restaurant.activeBannerThumbnails : restaurant.thumbnailImages ?? [];
   const unique = Array.from(new Set(images.filter(Boolean))).slice(0, 5);
   return unique.length ? unique : [IMAGE_FALLBACKS.restaurant];
-}
-
-function MobileRestaurantImageCarousel({ images, alt }: { images: string[]; alt: string }) {
-  if (images.length <= 1) {
-    return (
-      <SafeImage
-        src={images[0]}
-        alt={alt}
-        fill
-        loading="lazy"
-        decoding="async"
-        fallbackSrc={IMAGE_FALLBACKS.restaurant}
-        sizes="250px"
-        className="object-cover"
-      />
-    );
-  }
-
-  const duration = `${images.length * 3}s`;
-  return (
-    <>
-      {images.map((src, index) => (
-        <SafeImage
-          key={`${src}-${index}`}
-          src={src}
-          alt={index === 0 ? alt : ""}
-          fill
-          loading="lazy"
-          decoding="async"
-          fallbackSrc={IMAGE_FALLBACKS.restaurant}
-          sizes="250px"
-          className={cn("restaurant-card-slide object-cover", index === 0 && "opacity-100")}
-          style={{ "--restaurant-slide-duration": duration, "--restaurant-slide-delay": `${index * 3}s` } as CSSProperties}
-        />
-      ))}
-    </>
-  );
 }
 
 const MemoMobileRestaurantCard = memo(MobileRestaurantCard);

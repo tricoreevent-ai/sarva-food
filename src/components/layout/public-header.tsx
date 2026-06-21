@@ -174,7 +174,7 @@ export function PublicHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-background/94 backdrop-blur-xl">
       <div className="container-page flex min-h-16 items-center justify-between gap-3 py-2 md:min-h-20">
-        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={`${productName} home`}>
+        <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-3" aria-label={`${productName} home`}>
           <BrandLogo className="h-10 w-32 md:h-12 md:w-44" priority />
         </Link>
 
@@ -214,18 +214,18 @@ export function PublicHeader() {
 
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="hidden font-black md:inline-flex">
-            <Link href="/offers">Deals</Link>
+            <Link href="/offers" prefetch={false}>Deals</Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="hidden font-black md:inline-flex">
-            <Link href="/schedule">Schedule</Link>
+            <Link href="/schedule" prefetch={false}>Schedule</Link>
           </Button>
           {loggedIn ? (
             <>
               <Button asChild variant="ghost" size="sm" className="hidden font-black md:inline-flex">
-                <Link href="/orders">Orders</Link>
+                <Link href="/orders" prefetch={false}>Orders</Link>
               </Button>
               <Button asChild variant="ghost" size="sm" className="hidden font-black md:inline-flex">
-                <Link href="/account/profile?tab=favorites">
+                <Link href="/account/profile?tab=favorites" prefetch={false}>
                   <Heart className="size-4" />
                   Favorites
                 </Link>
@@ -233,7 +233,7 @@ export function PublicHeader() {
             </>
           ) : null}
           <Button asChild variant="ghost" size="icon" aria-label="Search" className="md:hidden">
-            <Link href="/restaurants">
+            <Link href="/restaurants" prefetch={false}>
               <Search className="size-4" />
             </Link>
           </Button>
@@ -276,7 +276,7 @@ export function PublicHeader() {
                       <p className="text-xs font-semibold text-muted-foreground">Customer account</p>
                     </div>
                   </div>
-                  <Link href="/loyalty" className="my-3 flex items-center justify-between rounded-xl bg-muted p-3 text-sm font-bold text-foreground hover:bg-orange-50 dark:hover:bg-slate-800">
+                  <Link href="/loyalty" prefetch={false} className="my-3 flex items-center justify-between rounded-xl bg-muted p-3 text-sm font-bold text-foreground hover:bg-orange-50 dark:hover:bg-slate-800">
                     <span className="flex items-center gap-2"><WalletCards className="size-4 text-orange-600" /> Loyalty rewards</span>
                     <span className="text-xs text-muted-foreground">View points</span>
                   </Link>
@@ -301,7 +301,7 @@ export function PublicHeader() {
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <Button asChild size="sm" className="h-11 rounded-lg px-5 shadow-lg shadow-primary/20">
-                <Link href="/login">
+                <Link href="/login" prefetch={false}>
                   <UserRound className="size-4" />
                   Sign in
                 </Link>
@@ -342,6 +342,7 @@ export function PublicHeader() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={false}
                       className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold text-foreground hover:bg-muted"
                     >
                       <Icon className="size-4 text-primary" aria-hidden="true" />
@@ -359,10 +360,10 @@ export function PublicHeader() {
                   </>
                 ) : (
                   <div className="grid gap-2">
-                    <Link href="/login" className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Sign in</Link>
-                    <Link href="/signup" className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Create account</Link>
-                    <Link href="/terms" className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Terms & Conditions</Link>
-                    <Link href="/privacy" className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Privacy Policy</Link>
+                    <Link href="/login" prefetch={false} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Sign in</Link>
+                    <Link href="/signup" prefetch={false} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Create account</Link>
+                    <Link href="/terms" prefetch={false} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Terms & Conditions</Link>
+                    <Link href="/privacy" prefetch={false} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-semibold hover:bg-muted">Privacy Policy</Link>
                   </div>
                 )}
               </div>
@@ -504,6 +505,7 @@ function LocationPicker({
           </div>
           <Link
             href={loggedIn ? "/account/profile?tab=addresses" : "/login?next=/account/profile?tab=addresses"}
+            prefetch={false}
             className="mt-2 flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-orange-200 px-3 text-sm font-black text-primary hover:bg-orange-50"
           >
             <Plus className="size-4" />
@@ -527,7 +529,7 @@ function HeaderMenuLink({
   description?: string;
 }) {
   return (
-    <Link href={href} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-bold text-foreground hover:bg-muted">
+    <Link href={href} prefetch={false} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-bold text-foreground hover:bg-muted">
       <Icon className="size-4 text-primary" />
       <span>
         <span className="block">{label}</span>
@@ -547,7 +549,7 @@ function QuickMenuLink({
   label: string;
 }) {
   return (
-    <Link href={href} className="grid gap-1 rounded-xl bg-card px-2 py-3 text-card-foreground">
+    <Link href={href} prefetch={false} className="grid gap-1 rounded-xl bg-card px-2 py-3 text-card-foreground">
       <Icon className="mx-auto size-5 text-primary" />
       <span>{label}</span>
     </Link>

@@ -302,7 +302,7 @@ function toRestaurantThumbnailUrl(url: string) {
   const [prefix, rest = ""] = url.split(marker);
   const parts = rest.split("/").filter(Boolean);
   if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
-  return `${prefix}${marker}f_webp,q_70,w_400,c_limit/${parts.join("/")}`;
+  return `${prefix}${marker}w_400,h_225,c_fill,f_auto,q_auto/${parts.join("/")}`;
 }
 
 function withUnsplashThumbnail(url: string) {
@@ -311,7 +311,8 @@ function withUnsplashThumbnail(url: string) {
     nextUrl.searchParams.set("auto", "format");
     if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
     nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("q", "70");
+    nextUrl.searchParams.set("h", "225");
+    nextUrl.searchParams.set("q", "75");
     return nextUrl.toString();
   } catch {
     return url;
@@ -1940,7 +1941,7 @@ export const useAppStore = create<AppStore>()(
         const existingRestaurant = get().restaurants.find((restaurant) => restaurant.slug === restaurantSlug);
         const branchId = get().branches[0]?.id ?? DEFAULT_BRANCH_ID;
         const profileComplete = isOwnerProfilePublicComplete(profile);
-        const bannerImages = Array.from(new Set([...(profile.coverImages ?? []), profile.coverImage, profile.logo].filter(Boolean) as string[])).slice(0, 5);
+        const bannerImages = Array.from(new Set([...(profile.coverImages ?? []), profile.coverImage].filter(Boolean) as string[])).slice(0, 5);
         const thumbnailImages = bannerImages.map(toRestaurantThumbnailUrl);
         const branch: RestaurantBranch = {
           id: branchId,
@@ -1971,6 +1972,7 @@ export const useAppStore = create<AppStore>()(
           coverImages: bannerImages,
           bannerImages,
           thumbnailImages,
+          activeBannerThumbnails: thumbnailImages,
           primaryThumbnail: thumbnailImages[0] ?? "",
           isOpen: existingRestaurant?.isOpen ?? true,
           tags: profile.cuisineTypes?.length ? profile.cuisineTypes : [profile.cuisineType].filter(Boolean),
