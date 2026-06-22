@@ -397,7 +397,7 @@ export function PosBillingFlow() {
     });
     await wait(220);
     setWizardStep(5);
-    toast.success("Order placed. Kitchen Queue has been updated.");
+    toast.success("Order placed. Kitchen Operations has been updated.");
   }
 
   function startNewOrder() {
@@ -667,14 +667,14 @@ export function PosBillingFlow() {
         </main>
         <footer className="grid gap-3 border-t border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto]">
           <div className="grid gap-3 sm:grid-cols-3">
-            <StatusPill icon={Utensils} label="Kitchen Queue" value={`${tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length} Active`} />
+            <StatusPill icon={Utensils} label="Kitchen Operations" value={`${tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length} Active`} />
             <StatusPill icon={PackageCheck} label="Held Orders" value={String(heldOrders.length)} />
             <StatusPill icon={ReceiptText} label="Last Sync" value={pendingSync ? `${pendingSync} pending` : "2 min ago"} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => printTicket("kot")} disabled={!bill.lines.length}>
               <ChefHat className="size-4" />
-              View Kitchen Queue
+              View Kitchen Operations
             </Button>
             <Button variant="outline" onClick={() => printTicket("bill")} disabled={!bill.lines.length}>
               <Printer className="size-4" />
@@ -1030,7 +1030,7 @@ function OrderSuccessStep({ order, onNewOrder, onViewActive, onPrint }: { order:
           <p className="mt-2 text-sm font-semibold text-slate-500">Estimated preparation time: 12-30 minutes based on order type.</p>
           <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-left text-sm">
             <SummaryLine label="Order ID" value={order?.orderId ?? "New order"} />
-            <SummaryLine label="KOT ID" value={order?.kotId ?? "Kitchen Queue"} />
+            <SummaryLine label="KOT ID" value={order?.kotId ?? "Kitchen Operations"} />
             <SummaryLine label="Total" value={formatCurrency(order?.total ?? 0)} />
             <SummaryLine label="Payment" value={(order?.payment ?? "cash").toUpperCase()} />
           </div>

@@ -799,6 +799,9 @@ const initialTaxSettings: TaxSettings = {
   igstRate: 0,
   serviceChargeRate: 0,
   defaultPackingCharge: 0,
+  autoPricingEnabled: true,
+  parcelMarkupPercent: 0,
+  deliveryMarkupPercent: 0,
   sac: "996331",
 };
 

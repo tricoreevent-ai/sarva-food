@@ -223,7 +223,7 @@ export default function OwnerEmployeesPage() {
 
       <section className="space-y-5">
         <SectionHeader
-          title="Employees, access and payroll"
+          title="Staff & Access"
           description="Email is the login ID for operational staff. Chefs can remain payroll-only when they do not need app login."
           action={<Badge variant="success"><CheckCircle2 className="size-3" />Tenant scoped</Badge>}
         />

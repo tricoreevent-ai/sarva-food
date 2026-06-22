@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Maximize2, Timer, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, Clock, Maximize2, Printer, Timer, UtensilsCrossed } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,13 @@ const nextStatus: Record<TableOrderStatus, TableOrderStatus> = {
   completed: "completed",
   billed: "completed",
 };
+
+const kitchenColumns: Array<{ id: string; title: string; statuses: TableOrderStatus[]; action: string }> = [
+  { id: "received", title: "Received", statuses: ["new", "occupied"], action: "Accept" },
+  { id: "preparing", title: "Preparing", statuses: ["preparing"], action: "Ready" },
+  { id: "ready", title: "Ready", statuses: ["ready"], action: "Delivered" },
+  { id: "delivered", title: "Delivered", statuses: ["served"], action: "Complete" },
+];
 
 export function KitchenDisplayFlow() {
   const [fullscreen, setFullscreen] = useState(false);
@@ -43,6 +50,24 @@ export function KitchenDisplayFlow() {
       }),
     [orders],
   );
+  const visibleOrders = useMemo(
+    () => sortedOrders.filter((order) => !["completed", "billed"].includes(order.status)),
+    [sortedOrders],
+  );
+  const kitchenStats = useMemo(() => {
+    const today = new Date().toDateString();
+    const completedToday = tableOrders.filter((order) => ["served", "completed", "billed"].includes(order.status) && new Date(order.createdAt).toDateString() === today).length;
+    const delayed = visibleOrders.filter((order) => now && now - new Date(order.createdAt).getTime() > (order.etaMinutes ?? 20) * 60000).length;
+    return {
+      pending: visibleOrders.filter((order) => ["new", "occupied"].includes(order.status)).length,
+      preparing: visibleOrders.filter((order) => order.status === "preparing").length,
+      ready: visibleOrders.filter((order) => order.status === "ready").length,
+      delivered: completedToday,
+      averagePrep: visibleOrders.length ? Math.round(visibleOrders.reduce((sum, order) => sum + (order.etaMinutes ?? 20), 0) / visibleOrders.length) : 0,
+      delayed,
+      priority: visibleOrders.filter((order) => order.priority === "rush").length,
+    };
+  }, [now, tableOrders, visibleOrders]);
 
   useEffect(() => {
     window.setTimeout(() => setNow(Date.now()), 0);
@@ -67,8 +92,8 @@ export function KitchenDisplayFlow() {
   return (
     <div className={fullscreen ? "fixed inset-0 z-50 overflow-auto bg-background p-4" : "space-y-6"}>
       <SectionHeader
-        title="Kitchen display system"
-        description="Live incoming orders, timers, priority sorting, and touch status updates for kitchen screens."
+        title="Kitchen Operations Center"
+        description="Live order board for received, preparing, ready, and delivered kitchen work."
         action={
           <div className="flex flex-wrap gap-2">
             <Badge variant={connectionState === "live" ? "success" : connectionState === "error" ? "warning" : "muted"}>
@@ -78,59 +103,108 @@ export function KitchenDisplayFlow() {
           </div>
         }
       />
-      <section className="grid gap-4 xl:grid-cols-3">
-        {sortedOrders
-          .map((order) => {
-            const ageMinutes = now ? Math.max(1, Math.round((now - new Date(order.createdAt).getTime()) / 60000)) : null;
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+        <KitchenMetric label="Pending" value={kitchenStats.pending} />
+        <KitchenMetric label="Preparing" value={kitchenStats.preparing} />
+        <KitchenMetric label="Ready" value={kitchenStats.ready} />
+        <KitchenMetric label="Delivered today" value={kitchenStats.delivered} />
+        <KitchenMetric label="Avg prep" value={`${kitchenStats.averagePrep}m`} />
+        <KitchenMetric label="Delayed" value={kitchenStats.delayed} danger={kitchenStats.delayed > 0} />
+        <KitchenMetric label="Priority" value={kitchenStats.priority} danger={kitchenStats.priority > 0} />
+      </section>
+      <section className="overflow-x-auto">
+        <div className="grid min-w-[1120px] grid-cols-4 gap-4">
+          {kitchenColumns.map((column) => {
+            const columnOrders = visibleOrders.filter((order) => column.statuses.includes(order.status));
             return (
-            <Card key={order.id} className="border-2">
-              <CardContent className="space-y-5 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-3xl font-black">{order.tableNumber}</p>
-                    <p className="mt-1 text-sm font-bold text-muted-foreground">{order.id} · {order.source}</p>
-                  </div>
-                  <Badge variant={order.priority === "rush" ? "destructive" : "muted"}>{order.priority}</Badge>
+              <div key={column.id} className="max-h-[calc(100vh-260px)] overflow-y-auto rounded-xl border bg-muted/30">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-card p-3">
+                  <h2 className="font-black">{column.title}</h2>
+                  <Badge variant="muted">{columnOrders.length}</Badge>
                 </div>
-                <div className="flex items-center gap-2 text-xl font-black">
-                  <Timer className="size-6 text-warning" />
-                  {ageMinutes ? `${ageMinutes} min live` : "Timer syncing"} · ETA {order.etaMinutes}
-                </div>
-                <div className="space-y-3">
-                  {order.lines.map((line) => (
-                    <div key={line.itemId} className="rounded-md bg-muted p-3">
-                      <p className="text-xl font-black">{line.quantity}x {line.name}</p>
-                      {line.modifiers?.length ? <p className="mt-1 text-sm font-bold text-primary">{line.modifiers.join(", ")}</p> : null}
-                      {line.allergyNote ? <p className="mt-1 text-sm font-bold text-destructive">Allergy: {line.allergyNote}</p> : null}
-                    </div>
+                <div className="grid gap-3 p-3">
+                  {columnOrders.map((order) => (
+                    <KitchenOrderCard
+                      key={order.id}
+                      order={order}
+                      now={now}
+                      action={column.action}
+                      onNext={() => updateTableOrderStatus(order.id, nextStatus[order.status])}
+                    />
                   ))}
+                  {!columnOrders.length ? <p className="rounded-lg border border-dashed bg-card p-6 text-center text-sm font-semibold text-muted-foreground">No orders</p> : null}
                 </div>
-                {order.deliveryAddress ? (
-                  <p className="rounded-md border p-3 text-sm font-semibold text-muted-foreground">
-                    Delivery: {order.deliveryAddress}
-                  </p>
-                ) : null}
-                {order.scheduledFor ? (
-                  <p className="rounded-md border p-3 text-sm font-semibold text-muted-foreground">
-                    Scheduled: {new Date(order.scheduledFor).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                ) : null}
-                <Button className="h-16 w-full text-lg" onClick={() => updateTableOrderStatus(order.id, nextStatus[order.status])}>
-                  <UtensilsCrossed className="size-5" />
-                  Mark {nextStatus[order.status]}
-                </Button>
-                <Badge variant={order.status === "ready" ? "success" : order.status === "preparing" ? "warning" : "default"}>
-                  {order.status}
-                </Badge>
-              </CardContent>
-            </Card>
-          )})}
-        {!sortedOrders.length ? (
-          <Card className="xl:col-span-3">
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">No live kitchen tickets.</CardContent>
-          </Card>
-        ) : null}
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
+  );
+}
+
+function KitchenMetric({ label, value, danger }: { label: string; value: string | number; danger?: boolean }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-3 p-4">
+        <div>
+          <p className="text-xs font-black uppercase text-muted-foreground">{label}</p>
+          <p className={danger ? "mt-1 text-2xl font-black text-destructive" : "mt-1 text-2xl font-black"}>{value}</p>
+        </div>
+        {danger ? <Timer className="size-5 text-destructive" /> : <CheckCircle2 className="size-5 text-primary" />}
+      </CardContent>
+    </Card>
+  );
+}
+
+function KitchenOrderCard({
+  order,
+  now,
+  action,
+  onNext,
+}: {
+  order: ReturnType<typeof useAppStore.getState>["tableOrders"][number];
+  now: number | null;
+  action: string;
+  onNext: () => void;
+}) {
+  const ageMinutes = now ? Math.max(1, Math.round((now - new Date(order.createdAt).getTime()) / 60000)) : null;
+  const delayed = Boolean(ageMinutes && ageMinutes > (order.etaMinutes ?? 20));
+  return (
+    <Card className={delayed ? "border-destructive" : "border-border"}>
+      <CardContent className="space-y-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xl font-black">{order.tableNumber}</p>
+            <p className="mt-1 text-xs font-bold text-muted-foreground">{order.id} · {order.source}</p>
+          </div>
+          <Badge variant={order.priority === "rush" ? "destructive" : delayed ? "warning" : "muted"}>{order.priority === "rush" ? "Priority" : order.status}</Badge>
+        </div>
+        <div className="flex items-center gap-2 text-sm font-black">
+          <Clock className="size-4 text-warning" />
+          {ageMinutes ? `${ageMinutes} min` : "Syncing"} · ETA {order.etaMinutes ?? 20}m
+        </div>
+        <div className="space-y-2">
+          {order.lines.map((line) => (
+            <div key={line.itemId} className="rounded-md bg-muted p-3">
+              <p className="font-black">{line.quantity}x {line.name}</p>
+              {line.modifiers?.length ? <p className="mt-1 text-xs font-bold text-primary">{line.modifiers.join(", ")}</p> : null}
+              {line.allergyNote ? <p className="mt-1 text-xs font-bold text-destructive">Allergy: {line.allergyNote}</p> : null}
+            </div>
+          ))}
+        </div>
+        {order.deliveryAddress ? <p className="rounded-md border p-2 text-xs font-semibold text-muted-foreground">Delivery: {order.deliveryAddress}</p> : null}
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="size-4" />
+            KOT
+          </Button>
+          <Button onClick={onNext}>
+            <UtensilsCrossed className="size-4" />
+            {action}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

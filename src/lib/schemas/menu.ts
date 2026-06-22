@@ -113,6 +113,9 @@ export const taxSettingsSchema = z.object({
   igstRate: taxPercentSchema,
   serviceChargeRate: taxPercentSchema,
   defaultPackingCharge: priceSchema,
+  autoPricingEnabled: z.boolean().optional(),
+  parcelMarkupPercent: taxPercentSchema.optional(),
+  deliveryMarkupPercent: taxPercentSchema.optional(),
   sac: z.literal("996331").optional(),
 }).refine((value) => !value.gstEnabled || value.gstin, "GSTIN is required when GST is enabled").refine((value) => {
   if (!value.gstEnabled) return true;

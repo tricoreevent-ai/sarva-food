@@ -212,7 +212,7 @@ export default function OwnerDashboardPage() {
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard title="Today's Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Gross sales recorded today from POS and online orders." />
         <KpiCard title="Active Orders" value={metrics.activeOrdersCount} delta={`${metrics.ordersToday} today`} icon={ReceiptText} tone="orange" spark={metrics.orderSpark} tooltip="Orders currently being processed." />
-        <KpiCard title="Kitchen Queue" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
+        <KpiCard title="Kitchen Operations" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
         <KpiCard title="Waiters Active" value={metrics.staff.waitersActive} delta={`${metrics.staff.idleWaiters} idle`} icon={Users} tone="green" spark={metrics.staff.spark} tooltip="Active waiter accounts for the current restaurant." />
         <KpiCard title="Avg. Order Value" value={metrics.avgOrderValue} format={formatCurrency} delta={metrics.avgDelta} icon={TrendingUp} tone="purple" spark={metrics.avgSpark} tooltip="Average value of today's completed and active orders." />
         <KpiCard title="New Customers" value={metrics.newCustomers} delta={metrics.customerDelta} icon={UserRound} tone="amber" spark={metrics.customerSpark} tooltip="Customer records available to this restaurant." />
@@ -365,7 +365,7 @@ function LiveOrdersPanel({ orders }: { orders: DashboardOrder[] }) {
 
 function KitchenPanel({ metrics }: { metrics: DashboardMetrics }) {
   return (
-    <DashboardCard title="Kitchen Queue" className="h-full">
+    <DashboardCard title="Kitchen Operations Center" className="h-full">
       <div className="grid grid-cols-2 gap-3" title="Orders waiting in kitchen workflow.">
         <MiniMetric label="Pending KOT" value={metrics.kitchen.pending} tone="orange" />
         <MiniMetric label="Preparing" value={metrics.kitchen.preparing} tone="blue" />
@@ -374,7 +374,7 @@ function KitchenPanel({ metrics }: { metrics: DashboardMetrics }) {
       </div>
       <Button asChild variant="outline" className="mt-4 w-full">
         <Link href="/owner/kitchen">
-          Open Kitchen Queue
+          Open Kitchen Operations
           <ArrowUpRight className="size-4" />
         </Link>
       </Button>

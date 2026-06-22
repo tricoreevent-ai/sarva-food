@@ -312,6 +312,9 @@ export type TaxSettings = {
   igstRate: number;
   serviceChargeRate: number;
   defaultPackingCharge: number;
+  autoPricingEnabled?: boolean;
+  parcelMarkupPercent?: number;
+  deliveryMarkupPercent?: number;
   sac: "996331";
 };
 

@@ -29,7 +29,7 @@ const appConfig = {
   delivery: { name: "Delivery Partner", nav: deliveryNav, homeHref: "/delivery" },
   studio: { name: "Marketing Studio", nav: studioNav, homeHref: "/studio" },
   catering: { name: "Catering", nav: cateringNav, homeHref: "/catering" },
-  pos: { name: "POS Billing", nav: posNav, homeHref: "/owner/pos" },
+  pos: { name: "Order Desk", nav: posNav, homeHref: "/owner/pos" },
 } satisfies Record<DashboardApp, { name: string; nav: typeof ownerNav; homeHref: string }>;
 
 export function DashboardShellClient({

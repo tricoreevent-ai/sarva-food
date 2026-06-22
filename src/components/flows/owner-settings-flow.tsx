@@ -21,7 +21,7 @@ import { operationalSoundOptions, playOperationalSound, type OperationalSound } 
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
-type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "notifications" | "hours" | "taxes" | "social" | "sync";
+type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "pricing" | "notifications" | "hours" | "taxes" | "social" | "sync";
 type SoundPrefs = Record<SoundTarget, {
   sound: OperationalSound;
   volume: number;
@@ -89,6 +89,7 @@ const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: "delivery", label: "Delivery" },
   { value: "payments", label: "Payments" },
   { value: "ordering", label: "Ordering" },
+  { value: "pricing", label: "Pricing Rules" },
   { value: "notifications", label: "Notifications" },
   { value: "hours", label: "Operating Hours" },
   { value: "taxes", label: "Taxes & Charges" },
@@ -133,6 +134,9 @@ export function OwnerSettingsFlow() {
     perItemParcelCharge: 10,
     packagingGst: taxSettings.defaultGstRate,
     gstEnabled: taxSettings.gstEnabled,
+    autoPricingEnabled: taxSettings.autoPricingEnabled ?? true,
+    parcelMarkupPercent: taxSettings.parcelMarkupPercent ?? 0,
+    deliveryMarkupPercent: taxSettings.deliveryMarkupPercent ?? 0,
   });
   const [automation, setAutomation] = useState({
     website: false,
@@ -209,9 +213,12 @@ export function OwnerSettingsFlow() {
       gstEnabled: charges.gstEnabled,
       defaultPackingCharge: charges.parcelEnabled ? Number(charges.fixedParcelCharge) || 0 : 0,
       defaultGstRate: charges.packagingGst === 18 ? 18 : 5,
+      autoPricingEnabled: charges.autoPricingEnabled,
+      parcelMarkupPercent: Number(charges.parcelMarkupPercent) || 0,
+      deliveryMarkupPercent: Number(charges.deliveryMarkupPercent) || 0,
     };
     await updateTaxSettings(nextSettings);
-    setSuccessNotice("Charges saved for POS billing.");
+    setSuccessNotice("Pricing rules saved for menu, parcel, delivery, and POS billing.");
   }
 
   async function saveProfile() {
@@ -594,6 +601,32 @@ export function OwnerSettingsFlow() {
           </DashboardCard>
         </TabsContent>
 
+        <TabsContent value="pricing">
+          <DashboardCard title="Pricing Rules">
+            <div className="grid gap-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <ToggleRow label="Enable auto pricing" checked={charges.autoPricingEnabled} onChange={(value) => setCharges((current) => ({ ...current, autoPricingEnabled: value }))} />
+                <NumberRow label="Parcel markup %" value={charges.parcelMarkupPercent} onChange={(value) => setCharges((current) => ({ ...current, parcelMarkupPercent: value }))} />
+                <NumberRow label="Delivery markup %" value={charges.deliveryMarkupPercent} onChange={(value) => setCharges((current) => ({ ...current, deliveryMarkupPercent: value }))} />
+                <NumberRow label="Packing charge" value={charges.fixedParcelCharge} onChange={(value) => setCharges((current) => ({ ...current, fixedParcelCharge: value, parcelEnabled: value > 0 }))} />
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4 text-sm font-semibold text-muted-foreground">
+                <p className="font-black text-foreground">Live calculation example</p>
+                <div className="mt-3 grid gap-2 md:grid-cols-4">
+                  <span>Base: ₹100</span>
+                  <span>Parcel: ₹{calculateMarkedPrice(100, charges.parcelMarkupPercent)}</span>
+                  <span>Delivery: ₹{calculateMarkedPrice(100, charges.deliveryMarkupPercent)}</span>
+                  <span>Packing: ₹{charges.fixedParcelCharge || 0}</span>
+                </div>
+              </div>
+              <Button onClick={() => void saveCharges()}>
+                <Save className="size-4" />
+                Save Pricing Rules
+              </Button>
+            </div>
+          </DashboardCard>
+        </TabsContent>
+
         <TabsContent value="taxes">
           <DashboardCard title="Charges">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -914,6 +947,10 @@ function NumberRow({ label, value, onChange }: { label: string; value: number; o
       <input className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" type="number" min={0} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} />
     </label>
   );
+}
+
+function calculateMarkedPrice(base: number, markup: number) {
+  return Math.round(base * (1 + (Number(markup) || 0) / 100));
 }
 
 function ThemeChoice({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {

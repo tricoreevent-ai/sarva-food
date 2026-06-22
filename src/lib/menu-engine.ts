@@ -17,6 +17,18 @@ export function getChannelPrice(item: MenuItem, channel: MenuChannel) {
   return item.deliveryPrice ?? item.price;
 }
 
+export function calculateChannelPrices(basePrice: number, settings: TaxSettings) {
+  const base = Number.isFinite(basePrice) && basePrice > 0 ? basePrice : 0;
+  const parcelMarkup = settings.parcelMarkupPercent ?? 0;
+  const deliveryMarkup = settings.deliveryMarkupPercent ?? 0;
+  return {
+    dineInPrice: base,
+    parcelPrice: roundMoney(base * (1 + parcelMarkup / 100)),
+    deliveryPrice: roundMoney(base * (1 + deliveryMarkup / 100)),
+    packingCharge: settings.defaultPackingCharge ?? 0,
+  };
+}
+
 export function isItemVisibleForChannel(item: MenuItem, channel: MenuChannel) {
   return item.menuVisibility?.[channel] ?? true;
 }

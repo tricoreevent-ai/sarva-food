@@ -26,7 +26,7 @@ import { usePublicCategories, usePublicCuisines } from "@/hooks/use-public-data"
 import { useAlert } from "@/hooks/useAlert";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
-import { buildQrPayload, calculateRestaurantTax, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
+import { buildQrPayload, calculateChannelPrices, calculateRestaurantTax, getChannelPrice, getInventoryStatus, MENU_LANGUAGES, parsePricedTokens, shouldAutoSoldOut, type MenuChannel } from "@/lib/menu-engine";
 import { advancedMenuItemSchema, comboSchema, taxSettingsSchema } from "@/lib/schemas/menu";
 import type { ComboOffer, InventoryItem, MenuItem } from "@/lib/types";
 import type { AlertApi } from "@/types/alert.types";
@@ -343,20 +343,32 @@ export function OwnerMenuManagementFlow() {
   const watchedName = useWatch({ control: form.control, name: "name" }) ?? "";
   const watchedCategory = useWatch({ control: form.control, name: "category" }) ?? "";
   const watchedSubcategory = useWatch({ control: form.control, name: "subcategory" }) ?? "";
-  const watchedBasePrice = useWatch({ control: form.control, name: "price" }) ?? 0;
-  const watchedDineInPrice = useWatch({ control: form.control, name: "dineInPrice" });
-  const watchedParcelPrice = useWatch({ control: form.control, name: "parcelPrice" });
-  const watchedDeliveryPrice = useWatch({ control: form.control, name: "deliveryPrice" });
-  const watchedPackingCharge = useWatch({ control: form.control, name: "packingCharge" });
+  const watchedBasePrice = normalizeOptionalPrice(useWatch({ control: form.control, name: "price" })) ?? 0;
+  const watchedDineInPrice = normalizeOptionalPrice(useWatch({ control: form.control, name: "dineInPrice" }));
+  const watchedParcelPrice = normalizeOptionalPrice(useWatch({ control: form.control, name: "parcelPrice" }));
+  const watchedDeliveryPrice = normalizeOptionalPrice(useWatch({ control: form.control, name: "deliveryPrice" }));
+  const watchedPackingCharge = normalizeOptionalPrice(useWatch({ control: form.control, name: "packingCharge" }));
   const watchedFoodType = useWatch({ control: form.control, name: "foodType" }) ?? "";
   const watchedVisibility = buildChannelVisibility(watchedDineInPrice, watchedParcelPrice, watchedDeliveryPrice);
   const watchedDisplayPrice = firstPositivePrice(watchedDeliveryPrice, watchedDineInPrice, watchedParcelPrice, watchedBasePrice) ?? 0;
+  const autoChannelPrices = calculateChannelPrices(watchedBasePrice, taxSettings);
   const activeItemStepIndex = Math.max(0, ITEM_WIZARD_STEPS.findIndex((step) => step.id === activeItemStep));
   const visibleCuisineChoices = useMemo(() => {
     const query = cuisineQuery.trim().toLowerCase();
     if (!query) return cuisineChoices;
     return cuisineChoices.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(query));
   }, [cuisineChoices, cuisineQuery]);
+
+  useEffect(() => {
+    if (!itemEditorOpen || editing || !taxSettings.autoPricingEnabled || !isPositivePrice(watchedBasePrice)) return;
+    const current = form.getValues();
+    if (isPositivePrice(current.dineInPrice) || isPositivePrice(current.parcelPrice) || isPositivePrice(current.deliveryPrice)) return;
+    const next = calculateChannelPrices(watchedBasePrice, taxSettings);
+    if (!isPositivePrice(current.dineInPrice)) form.setValue("dineInPrice", next.dineInPrice, { shouldDirty: true, shouldValidate: true });
+    if (!isPositivePrice(current.parcelPrice)) form.setValue("parcelPrice", next.parcelPrice, { shouldDirty: true, shouldValidate: true });
+    if (!isPositivePrice(current.deliveryPrice)) form.setValue("deliveryPrice", next.deliveryPrice, { shouldDirty: true, shouldValidate: true });
+    if (!isPositivePrice(current.packingCharge)) form.setValue("packingCharge", next.packingCharge, { shouldDirty: true, shouldValidate: true });
+  }, [editing, form, itemEditorOpen, taxSettings, watchedBasePrice]);
 
   function resetItemFilters() {
     setItemSearch("");
@@ -477,6 +489,21 @@ export function OwnerMenuManagementFlow() {
     setImagePreview(item.image);
     setImageGallery(uniqueImageUrls([item.image, ...(item.images ?? [])]));
     setCuisineQuery("");
+  }
+
+  function applyAutoPricing(overwrite = true) {
+    if (!isPositivePrice(watchedBasePrice)) {
+      toast.error("Enter base price before auto-calculating channel prices.");
+      setActiveItemStep("basic");
+      return;
+    }
+    const current = form.getValues();
+    const next = calculateChannelPrices(watchedBasePrice, taxSettings);
+    if (overwrite || !isPositivePrice(current.dineInPrice)) form.setValue("dineInPrice", next.dineInPrice, { shouldDirty: true, shouldValidate: true });
+    if (overwrite || !isPositivePrice(current.parcelPrice)) form.setValue("parcelPrice", next.parcelPrice, { shouldDirty: true, shouldValidate: true });
+    if (overwrite || !isPositivePrice(current.deliveryPrice)) form.setValue("deliveryPrice", next.deliveryPrice, { shouldDirty: true, shouldValidate: true });
+    if (overwrite || !isPositivePrice(current.packingCharge)) form.setValue("packingCharge", next.packingCharge, { shouldDirty: true, shouldValidate: true });
+    toast.success("Channel prices calculated from Pricing Rules.");
   }
 
   function addMenuImage(url: string) {
@@ -1042,7 +1069,7 @@ export function OwnerMenuManagementFlow() {
                         </div>
                         <div className="grid gap-2">
                           <FieldLabel htmlFor="menu-price" help="Default price used when a channel-specific price is not set. Example: 442.">Base price</FieldLabel>
-                          <Input id="menu-price" inputMode="numeric" className="font-semibold text-foreground" {...form.register("price", { valueAsNumber: true })} />
+                          <Input id="menu-price" inputMode="numeric" className="font-semibold text-foreground" {...form.register("price", { setValueAs: parseNumberInput })} />
                           <FieldError message={form.formState.errors.price?.message} />
                         </div>
                         <div className="grid gap-2">
@@ -1218,11 +1245,22 @@ export function OwnerMenuManagementFlow() {
                           <ChannelAvailabilityPill label="Delivery" enabled={watchedVisibility.delivery} price={watchedDeliveryPrice} />
                         </div>
                       </div>
+                      <div className="grid gap-3 rounded-md border bg-muted/20 p-4 md:grid-cols-[1fr_auto] md:items-center">
+                        <div>
+                          <FieldLabel help="Uses Settings → Pricing Rules. Manual edits remain allowed after calculation.">Live calculation preview</FieldLabel>
+                          <p className="mt-2 text-sm font-semibold text-muted-foreground">
+                            Base {formatCurrency(watchedBasePrice)} · Parcel +{taxSettings.parcelMarkupPercent ?? 0}% = {formatCurrency(autoChannelPrices.parcelPrice)} · Delivery +{taxSettings.deliveryMarkupPercent ?? 0}% = {formatCurrency(autoChannelPrices.deliveryPrice)} · Packing {formatCurrency(autoChannelPrices.packingCharge)}
+                          </p>
+                        </div>
+                        <Button type="button" variant="outline" onClick={() => applyAutoPricing(true)}>
+                          Auto Calculate
+                        </Button>
+                      </div>
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        <PriceField label="Dine-in price" id="dine-price" register={form.register("dineInPrice", { valueAsNumber: true })} help="Optional. Price charged for tables and in-house orders. Leave blank when dine-in is not available. Example: 442." />
-                        <PriceField label="Parcel price" id="parcel-price" register={form.register("parcelPrice", { valueAsNumber: true })} help="Optional. Pickup/takeaway price. Leave blank when parcel is not available. Example: 459." />
-                        <PriceField label="Delivery price" id="delivery-price" register={form.register("deliveryPrice", { valueAsNumber: true })} help="Optional. Customer online delivery price. Leave blank to hide this item from customer delivery menus. Example: 479." />
-                        <PriceField label="Packing charge" id="packing-charge" register={form.register("packingCharge", { valueAsNumber: true })} help="Optional per-item parcel/delivery packing charge. Leave blank for zero. Example: 10." />
+                        <PriceField label="Dine-in price" id="dine-price" register={form.register("dineInPrice", { setValueAs: parseNumberInput })} help="Optional. Price charged for tables and in-house orders. Leave blank when dine-in is not available. Example: 442." />
+                        <PriceField label="Parcel price" id="parcel-price" register={form.register("parcelPrice", { setValueAs: parseNumberInput })} help="Optional. Pickup/takeaway price. Leave blank when parcel is not available. Example: 459." />
+                        <PriceField label="Delivery price" id="delivery-price" register={form.register("deliveryPrice", { setValueAs: parseNumberInput })} help="Optional. Customer online delivery price. Leave blank to hide this item from customer delivery menus. Example: 479." />
+                        <PriceField label="Packing charge" id="packing-charge" register={form.register("packingCharge", { setValueAs: parseNumberInput })} help="Optional per-item parcel/delivery packing charge. Leave blank for zero. Example: 10." />
                       </div>
                       <FieldError message={form.formState.errors.dineInPrice?.message ?? form.formState.errors.parcelPrice?.message ?? form.formState.errors.deliveryPrice?.message ?? form.formState.errors.packingCharge?.message} />
                     </div>
@@ -1995,6 +2033,12 @@ function isPositivePrice(value: unknown): value is number {
 
 function normalizeOptionalPrice(value?: number) {
   return isPositivePrice(value) ? value : undefined;
+}
+
+function parseNumberInput(value: unknown) {
+  if (value === "" || value === null || typeof value === "undefined") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function buildChannelVisibility(dineInPrice?: number, parcelPrice?: number, deliveryPrice?: number): Record<MenuChannel, boolean> {
