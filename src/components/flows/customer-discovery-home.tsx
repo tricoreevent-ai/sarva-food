@@ -50,6 +50,13 @@ const STALE_DEFAULT_HOME_TITLES = new Set(["craving something delicious?"]);
 const STALE_DEFAULT_HOME_SUBTITLES = new Set([
   "order from verified nearby restaurants with live menus, quick delivery, and direct restaurant support.",
 ]);
+const CUSTOMER_HERO_FALLBACK_IMAGE = "/images/customer-hero-restaurant.svg";
+const LOGO_IMAGE_PATTERNS = [
+  "/brand/nammude-logo",
+  "/icons/nammude-",
+  "/_next/image?url=%2fbrand%2fnammude-logo",
+  "/_next/image?url=%2ficons%2fnammude-",
+];
 
 export function CustomerDiscoveryHome() {
   const router = useRouter();
@@ -219,12 +226,12 @@ export function CustomerDiscoveryHome() {
     );
   }
 
-  const heroItem = popularItems[0];
   const freeDeliveryTarget = heroRestaurant.deliverySettings?.freeDeliveryAbove;
   const freeDeliveryProgress = freeDeliveryTarget ? Math.min(100, Math.round((cartSubtotal / freeDeliveryTarget) * 100)) : 0;
   const freeDeliveryRemaining = freeDeliveryTarget ? Math.max(0, freeDeliveryTarget - cartSubtotal) : 0;
   const homepageTitle = resolveDirectHomepageTitle(cmsSettings.homepage?.title);
   const homepageSubtitle = resolveDirectHomepageSubtitle(cmsSettings.homepage?.subtitle);
+  const heroImage = resolveCustomerHeroImage(cmsSettings.homepage?.backgroundImage);
 
   return (
     <main className="min-h-screen overflow-hidden pb-8 md:pb-16">
@@ -267,11 +274,11 @@ export function CustomerDiscoveryHome() {
           <div className="relative h-32 overflow-visible">
             <div className="absolute -right-10 bottom-0 size-32 overflow-hidden rounded-full bg-orange-100 shadow-2xl">
               <SafeImage
-                src={heroItem?.image ?? heroRestaurant.image}
-                alt={heroItem?.name ?? heroRestaurant.name}
+                src={heroImage}
+                alt="Restaurant ordering illustration"
                 fill
                 priority
-                fallbackSrc={IMAGE_FALLBACKS.food}
+                fallbackSrc={CUSTOMER_HERO_FALLBACK_IMAGE}
                 sizes="130px"
                 className="object-cover"
               />
@@ -359,11 +366,11 @@ export function CustomerDiscoveryHome() {
               <div className="absolute inset-16 rounded-full bg-primary/10" />
               <div className="absolute right-14 top-20 size-[24rem] overflow-hidden rounded-full bg-white shadow-2xl ring-8 ring-white/60 xl:size-[27rem]">
                 <SafeImage
-                  src={cmsSettings.homepage.backgroundImage || heroItem?.image || heroRestaurant.image}
-                  alt={heroItem?.name ?? heroRestaurant.name}
+                  src={heroImage}
+                  alt="Restaurant ordering illustration"
                   fill
                   priority
-                  fallbackSrc={IMAGE_FALLBACKS.food}
+                  fallbackSrc={CUSTOMER_HERO_FALLBACK_IMAGE}
                   sizes="460px"
                   className="object-cover"
                 />
@@ -652,4 +659,11 @@ function resolveDirectHomepageSubtitle(value?: string) {
   const normalized = value?.trim();
   if (!normalized || STALE_DEFAULT_HOME_SUBTITLES.has(normalized.toLowerCase())) return DIRECT_HOMEPAGE_SUBTITLE;
   return normalized;
+}
+
+function resolveCustomerHeroImage(value?: string) {
+  const image = value?.trim() ?? "";
+  if (!image) return CUSTOMER_HERO_FALLBACK_IMAGE;
+  const normalized = image.toLowerCase();
+  return LOGO_IMAGE_PATTERNS.some((pattern) => normalized.includes(pattern)) ? CUSTOMER_HERO_FALLBACK_IMAGE : image;
 }

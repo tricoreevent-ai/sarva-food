@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, Moon, PackageCheck, Percent, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -21,7 +21,7 @@ import { operationalSoundOptions, playOperationalSound, type OperationalSound } 
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
-type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "offers" | "ordering" | "notifications" | "hours" | "taxes" | "social" | "sync";
+type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "notifications" | "hours" | "taxes" | "social" | "sync";
 type SoundPrefs = Record<SoundTarget, {
   sound: OperationalSound;
   volume: number;
@@ -88,7 +88,6 @@ const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: "appearance", label: "Appearance" },
   { value: "delivery", label: "Delivery" },
   { value: "payments", label: "Payments" },
-  { value: "offers", label: "Offers" },
   { value: "ordering", label: "Ordering" },
   { value: "notifications", label: "Notifications" },
   { value: "hours", label: "Operating Hours" },
@@ -576,18 +575,6 @@ export function OwnerSettingsFlow() {
                 <ThemeChoice icon={MonitorSmartphone} label="System" active={theme === "system"} onClick={() => setTheme("system")} />
               </div>
               <FullscreenToggle />
-            </div>
-          </DashboardCard>
-        </TabsContent>
-
-        <TabsContent value="offers">
-          <DashboardCard title="Offers">
-            <div className="grid gap-4 md:grid-cols-3">
-              <SettingTile icon={Percent} title="Owner offers" description="Create and edit restaurant-specific offers from the Marketing page; saved offers appear on customer restaurant pages." />
-              <SettingTile icon={Store} title="Restaurant rules" description="Minimum order and free-delivery thresholds are saved under Delivery settings and used at checkout." />
-              <Button asChild className="h-auto min-h-24 justify-start p-4 text-left">
-                <a href="/owner/offers">Open offer manager</a>
-              </Button>
             </div>
           </DashboardCard>
         </TabsContent>

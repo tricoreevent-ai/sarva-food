@@ -1,6 +1,6 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-16
+Last updated: 2026-06-22
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
@@ -18,6 +18,8 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Owner enterprise Phase 1 tracker and offer consolidation completed on 2026-06-22: added `docs/project-tracker.md` with the required status table, removed the duplicate Settings → Offers entry, and kept `/owner/offers` as the single owner offer configuration surface. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
+- [x] Customer homepage hero image source corrected on 2026-06-22: customer hero visuals now use Admin CMS `homepage.backgroundImage` only, reject known logo asset paths, and fall back to a restaurant-themed vector illustration when Admin has no configured banner. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Customer/Owner/Admin production code batch completed on 2026-06-16: removed duplicate mobile home "Deliver to" block, made popular items database-driven by `orderCount`, added Admin Featured Menu Items with `featuredEnabled`/`featuredOrder`, added owner menu display-order controls with customer menu sorting by `displayOrder`, incremented menu `orderCount` during order creation, displayed full scheduled slots on restaurant/customer details/confirmation, autofilled checkout name/phone/address for logged-in customers, fixed owner offer dirty tracking/save lock/5-minute timeout, updated admin nav and architecture notes. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`, and local production route checks for `/`, `/admin/featured-menu-items`, `/owner/menu`, `/owner/offers`, `/checkout`, and `/restaurant/cafe-al-arab-thanisandra`.
 - [x] Schedule Later redesign completed on 2026-06-15: added shared `ScheduleOrderDialog`, generated 30-minute restaurant-hour slots from one utility, replaced restaurant/schedule/cart/checkout schedule pickers, persisted cart-to-checkout scheduled-order state, and clarified scheduled order cards. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`, and local production route smoke checks for `/schedule`, `/cart`, `/checkout`, `/owner/orders`, and `/restaurant/cafe-al-arab-thanisandra`.
 - [x] Final P0 local stability follow-up completed on 2026-06-15: owner menu loads through the authenticated owner menu API before falling back to scoped Firestore listeners, tenant aliases normalize Cafe Al Arab ids, owner/POS no longer force a post-hydration light theme, Appearance theme controls save to local storage and `user_preferences`, owner dark theme tokens are imported, and the service worker no longer caches owner reports/inventory or customer catalog routes. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
