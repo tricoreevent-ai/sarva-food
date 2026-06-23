@@ -44,6 +44,26 @@ const dashboardPrefsKey = "sarva-owner-dashboard-prefs:v2";
 const widgetIds = ["live", "kitchen", "alerts", "sales", "trend", "type", "top", "actions", "system", "staff"] as const;
 type WidgetId = (typeof widgetIds)[number];
 
+type CanonicalOrder = {
+  id: string;
+  restaurantId: string;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress?: string;
+  lines: Array<{ menuItemId: string; name: string; price: number; quantity: number; notes?: string }>;
+  subtotal: number;
+  discount: number;
+  deliveryFee: number;
+  tax: number;
+  total: number;
+  status: DemoOrder["status"];
+  paymentStatus?: string;
+  channel: DemoOrder["channel"];
+  fulfillmentType?: DemoOrder["fulfillmentType"];
+  createdAt: string;
+  deliveryOtp?: string;
+};
+
 const widgetLabels: Record<WidgetId, string> = {
   live: "Live orders",
   kitchen: "Kitchen queue",
@@ -59,16 +79,15 @@ const widgetLabels: Record<WidgetId, string> = {
 
 export default function OwnerDashboardPage() {
   const authUser = useAppStore((state) => state.authUser);
-  const orders = useAppStore((state) => state.orders);
-  const tableOrders = useAppStore((state) => state.tableOrders);
   const menuItems = useAppStore((state) => state.menuItems);
   const restaurants = useAppStore((state) => state.restaurants);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
-  const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
   const staffMembers = useAppStore((state) => state.staffMembers);
   const posTables = useAppStore((state) => state.posTables);
   const offlineQueue = useAppStore((state) => state.offlineQueue);
   const printerSettings = useAppStore((state) => state.printerSettings);
+  const [canonicalOrders, setCanonicalOrders] = useState<DemoOrder[]>([]);
+  const [canonicalCustomerCount, setCanonicalCustomerCount] = useState(0);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [hiddenWidgets, setHiddenWidgets] = useState<Set<WidgetId>>(new Set());
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([...widgetIds]);
@@ -78,16 +97,16 @@ export default function OwnerDashboardPage() {
 
   const metrics = useMemo(
     () => buildDashboardMetrics({
-      orders,
-      tableOrders,
+      orders: canonicalOrders,
+      tableOrders: [],
       menuItems,
-      customerCount: loyaltyCustomers.length,
+      customerCount: canonicalCustomerCount,
       staffMembers,
       posTables,
       offlineQueue,
       printerSettings,
     }),
-    [loyaltyCustomers.length, menuItems, offlineQueue, orders, posTables, printerSettings, staffMembers, tableOrders],
+    [canonicalCustomerCount, canonicalOrders, menuItems, offlineQueue, posTables, printerSettings, staffMembers],
   );
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
   const ownerName = displayOwnerGreetingName(ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
@@ -117,6 +136,18 @@ export default function OwnerDashboardPage() {
   useEffect(() => {
     const interval = window.setInterval(() => setUpdatedSeconds((value) => value + 1), 1000);
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/analytics", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: { orders?: CanonicalOrder[]; customerCount?: number } }) => {
+        if (!active) return;
+        setCanonicalOrders((payload.data?.orders ?? []).map(canonicalToDemoOrder));
+        setCanonicalCustomerCount(Number(payload.data?.customerCount ?? 0));
+      });
+    return () => { active = false; };
   }, []);
 
   function toggleWidget(id: WidgetId) {
@@ -260,6 +291,22 @@ function displayOwnerGreetingName(ownerName?: string, hotelName?: string, restau
   return [ownerName, hotelName, restaurantName, authName]
     .map((value) => value?.trim())
     .find((value): value is string => Boolean(value && value !== "Anonymous" && !isMachineDisplayName(value))) || "Owner";
+}
+
+function canonicalToDemoOrder(order: CanonicalOrder): DemoOrder {
+  return {
+    id: order.id,
+    restaurantSlug: order.restaurantId,
+    customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
+    lines: order.lines.map((line) => ({ itemId: line.menuItemId, name: line.name, price: line.price, quantity: line.quantity, notes: line.notes })),
+    totals: { subtotal: order.subtotal, discount: order.discount, deliveryFee: order.deliveryFee, tax: order.tax, total: order.total },
+    payment: order.paymentStatus === "paid" ? "upi" : "cod",
+    channel: order.channel,
+    status: order.status,
+    createdAt: order.createdAt,
+    deliveryOtp: order.deliveryOtp ?? "",
+    fulfillmentType: order.fulfillmentType,
+  };
 }
 
 function isMachineDisplayName(value?: string) {
@@ -516,7 +563,7 @@ function QuickActionsPanel() {
         <QuickActionButton href="/owner/pos" icon={ReceiptText} label="Open POS" tone="green" />
         <QuickActionButton href="/owner/orders?new=1" icon={CalendarPlus} label="New Order" tone="orange" />
         <QuickActionButton href="/owner/tables?tab=reservations" icon={CalendarPlus} label="Reservation" tone="blue" />
-        <QuickActionButton href="/owner/loyalty" icon={UserPlus} label="Customer" tone="orange" />
+        <QuickActionButton href="/owner/customers" icon={UserPlus} label="Customer" tone="orange" />
         <QuickActionButton href="/owner/kitchen" icon={ChefHat} label="Kitchen" tone="green" />
         <QuickActionButton href="/owner/tables" icon={Table2} label="Tables" tone="blue" />
         <QuickActionButton href="/owner/menu" icon={Utensils} label="Menu" tone="orange" />

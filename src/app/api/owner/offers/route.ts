@@ -4,6 +4,8 @@ import { adminDb } from "@/firebase/admin";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { OfferRepository } from "@/repositories/offer-repository";
+import { tenantScope } from "@/repositories/shared";
 import type { Offer } from "@/lib/types";
 import type { UserRole } from "@/types/firebase";
 
@@ -36,16 +38,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const tenantId = resolveTenantId(restaurantId);
-  const queryIds = Array.from(new Set([restaurantId, tenantId].filter(Boolean)));
-  const snapshots = await Promise.all(queryIds.flatMap((id) =>
-    (["restaurantId", "tenantId", "restaurantSlug"] as const).map((field) =>
-      adminDb().collection("offers").where(field, "==", id).limit(200).get(),
-    ),
-  ));
-  const offers = snapshots
-    .flatMap((snapshot) => snapshot.docs)
-    .map((doc) => ownerOfferFromDoc(doc.id, doc.data()))
+  const offers = (await new OfferRepository().list(tenantScope(session, restaurantId)))
+    .map((doc) => ownerOfferFromDoc(String(doc.id), doc as FirebaseFirestore.DocumentData))
     .filter((offer) => offer.code && offer.restaurantSlug === restaurantId);
 
   return NextResponse.json({

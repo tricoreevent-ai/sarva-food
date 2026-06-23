@@ -49,7 +49,7 @@ export const ownerNav: NavItem[] = [
   { label: "Menu", href: "/owner/menu", icon: Utensils, featureKey: "menu" },
   { label: "Banners", href: "/owner/settings?tab=branding", icon: ImagePlus, featureKey: "settings" },
   { label: "Tables", href: "/owner/tables", icon: Table2, featureKey: "tables" },
-  { label: "Customers", href: "/owner/loyalty", icon: Users, featureKey: "customers" },
+  { label: "Customers", href: "/owner/customers", icon: Users, featureKey: "customers" },
   { label: "Marketing", href: "/owner/offers", icon: Percent, featureKey: "marketing", minimumPlan: "Growth" },
   { label: "Reports", href: "/owner/reports", icon: BarChart3, featureKey: "reports" },
   { label: "Inventory", href: "/owner/inventory", icon: PackageCheck, featureKey: "inventory" },

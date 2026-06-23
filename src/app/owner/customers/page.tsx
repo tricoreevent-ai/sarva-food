@@ -1,0 +1,107 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { History, IndianRupee, Star, Users } from "lucide-react";
+import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
+import { SectionHeader } from "@/components/layout/section-header";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
+
+type Customer = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  totalOrders: number;
+  lifetimeValue: number;
+  loyaltyPoints: number;
+  tier: string;
+  favoriteItems?: string[];
+  lastOrderAt?: string;
+};
+
+type Detail = { customer: Customer; orders: Array<{ id: string; total?: number; status?: string; createdAt?: string; lines?: Array<{ name: string }> }>; loyalty: { points?: number; tier?: string } };
+
+export default function OwnerCustomersPage() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState<Detail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/customers", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: Customer[] }) => { if (active) setCustomers(payload.data ?? []); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let active = true;
+    void fetch(`/api/owner/customers?id=${encodeURIComponent(selectedId)}`, { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: Detail }) => { if (active) setDetail(payload.data ?? null); });
+    return () => { active = false; };
+  }, [selectedId]);
+
+  const totals = useMemo(() => ({
+    spend: customers.reduce((sum, customer) => sum + Number(customer.lifetimeValue ?? 0), 0),
+    points: customers.reduce((sum, customer) => sum + Number(customer.loyaltyPoints ?? 0), 0),
+  }), [customers]);
+  const columns: AdvancedColumn<Customer>[] = [
+    { key: "name", label: "Customer" },
+    { key: "phone", label: "Phone" },
+    { key: "totalOrders", label: "Visits", align: "right" },
+    { key: "lifetimeValue", label: "Total spend", align: "right", render: (row) => formatCurrency(row.lifetimeValue), exportValue: (row) => row.lifetimeValue },
+    { key: "loyaltyPoints", label: "Points", align: "right" },
+    { key: "tier", label: "Tier", render: (row) => <Badge variant={row.tier === "VIP" || row.tier === "Gold" ? "success" : "muted"}>{row.tier}</Badge> },
+    { key: "id", label: "", sortable: false, render: (row) => <Button size="sm" variant="outline" onClick={() => { setDetail(null); setSelectedId(row.id); }}>Profile</Button> },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader title="Customers" description="Canonical customer records, spend, visits, loyalty, wallet points, favorite items, and order history." />
+      <section className="dashboard-grid">
+        <Metric icon={<Users className="size-5" />} title="Customers" value={String(customers.length)} />
+        <Metric icon={<IndianRupee className="size-5" />} title="Lifetime spend" value={formatCurrency(totals.spend)} />
+        <Metric icon={<Star className="size-5" />} title="Loyalty points" value={String(totals.points)} />
+      </section>
+      <AdvancedDataTable title={loading ? "Loading customers" : "Customer CRM"} columns={columns} rows={customers} searchPlaceholder="Search customer name or phone" exportFilename="customers.csv" />
+      {detail ? <CustomerProfile detail={detail} onClose={() => { setDetail(null); setSelectedId(""); }} /> : null}
+    </div>
+  );
+}
+
+function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => void }) {
+  const { customer, orders, loyalty } = detail;
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="text-lg font-black">{customer.name}</p><p className="text-sm text-muted-foreground">{customer.phone} {customer.email ? `· ${customer.email}` : ""}</p></div>
+          <Button variant="outline" onClick={onClose}>Close profile</Button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <ProfileValue label="Visits" value={String(customer.totalOrders)} />
+          <ProfileValue label="Spend" value={formatCurrency(customer.lifetimeValue)} />
+          <ProfileValue label="Points" value={String(loyalty.points ?? customer.loyaltyPoints)} />
+          <ProfileValue label="Tier" value={String(loyalty.tier ?? customer.tier)} />
+        </div>
+        <div><p className="text-sm font-black">Favorite items</p><p className="mt-1 text-sm text-muted-foreground">{customer.favoriteItems?.join(", ") || "No order history yet"}</p></div>
+        <div className="space-y-2"><p className="flex items-center gap-2 text-sm font-black"><History className="size-4" />Order history</p>{orders.length ? orders.slice(0, 10).map((order) => <div key={order.id} className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{order.id} · {order.lines?.map((line) => line.name).join(", ") || "Order"}</span><span className="font-bold">{formatCurrency(Number(order.total ?? 0))}</span></div>) : <p className="text-sm text-muted-foreground">No orders recorded.</p>}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+  return <Card><CardContent className="p-5">{icon}<p className="mt-3 text-sm font-bold text-muted-foreground">{title}</p><p className="mt-1 text-3xl font-black">{value}</p></CardContent></Card>;
+}
+
+function ProfileValue({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border p-3"><p className="text-xs font-bold text-muted-foreground">{label}</p><p className="mt-1 font-black">{value}</p></div>;
+}

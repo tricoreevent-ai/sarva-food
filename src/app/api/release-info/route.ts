@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { APP_NAME } from "@/lib/constants";
+import { getBuildCommit } from "@/lib/server/build-info";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,11 +14,7 @@ export function GET() {
       appName: APP_NAME,
       releaseBranch: RELEASE_BRANCH,
       releaseMarker: RELEASE_MARKER,
-      buildCommit:
-        process.env.HOSTINGER_GIT_COMMIT_SHA ||
-        process.env.GIT_COMMIT_SHA ||
-        process.env.NEXT_PUBLIC_BUILD_COMMIT ||
-        "unknown",
+      buildCommit: getBuildCommit(),
       generatedAt: new Date().toISOString(),
     },
     {

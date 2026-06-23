@@ -481,6 +481,17 @@ service cloud.firestore {
       allow update, delete: if tenantScopedUpdate();
     }
 
+    match /customerTransactions/{id} {
+      allow read: if tenantScopedRead() || ("customerId" in resource.data && ownsUser(resource.data.customerId));
+      allow create: if tenantScopedCreate();
+      allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /loyaltyRules/{id} {
+      allow read: if tenantScopedRead();
+      allow create, update, delete: if tenantScopedUpdate();
+    }
+
     match /tables/{id} {
       allow read: if tenantScopedRead();
       allow create: if tenantScopedCreate();

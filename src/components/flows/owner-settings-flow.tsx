@@ -10,6 +10,7 @@ import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-wid
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
+import { LoyaltyRulesPanel } from "@/components/owner/loyalty-rules-panel";
 import { Button } from "@/components/ui/button";
 import { CreatableMultiSelect, type MultiSelectOption } from "@/components/ui/creatable-multi-select";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -21,7 +22,7 @@ import { operationalSoundOptions, playOperationalSound, type OperationalSound } 
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
-type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "pricing" | "notifications" | "hours" | "taxes" | "social" | "sync";
+type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "pricing" | "notifications" | "hours" | "taxes" | "social" | "loyalty" | "sync";
 type SoundPrefs = Record<SoundTarget, {
   sound: OperationalSound;
   volume: number;
@@ -94,6 +95,7 @@ const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: "hours", label: "Operating Hours" },
   { value: "taxes", label: "Taxes & Charges" },
   { value: "social", label: "Social & Marketing" },
+  { value: "loyalty", label: "Loyalty Rules" },
   { value: "sync", label: "Data & Sync" },
 ];
 
@@ -669,8 +671,13 @@ export function OwnerSettingsFlow() {
           </DashboardCard>
         </TabsContent>
 
+        <TabsContent value="loyalty">
+          <LoyaltyRulesPanel />
+        </TabsContent>
+
         <TabsContent value="sync">
           <DashboardCard title="Data & Sync">
+            <Button variant="outline" onClick={() => router.push("/owner/settings/diagnostics")}>System Diagnostics</Button>
             <DataSyncPanel />
           </DashboardCard>
         </TabsContent>

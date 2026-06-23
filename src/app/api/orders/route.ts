@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
 import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
+import { OrderRepository } from "@/repositories/order-repository";
 import type { OfferDoc, OrderDoc, OrderLineDoc, RestaurantDoc } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
@@ -154,20 +154,13 @@ export async function POST(request: NextRequest) {
       ...(offerValidation.offerCode ? { offerCode: offerValidation.offerCode } : {}),
     }) as OrderDoc;
 
-    const batch = adminDb().batch();
-    batch.set(orderRef, order);
-    batch.set(adminDb().collection("customerOrders").doc(orderRef.id), order);
-    for (const line of lines) {
-      if (line.menuItemId && line.quantity > 0) {
-        batch.set(adminDb().collection("menus").doc(line.menuItemId), { orderCount: FieldValue.increment(line.quantity), updatedAt: now }, { merge: true });
-        batch.set(adminDb().collection("menuItems").doc(line.menuItemId), { orderCount: FieldValue.increment(line.quantity), updatedAt: now }, { merge: true });
-      }
-    }
-    if (order.deliveryAddress && order.deliveryGeo) {
+    const address = order.deliveryAddress && order.deliveryGeo ? (() => {
       const addressId = `${session.uid}-default`;
-      batch.set(adminDb().collection("customerAddresses").doc(addressId), {
+      return {
         id: addressId,
         customerId: session.uid,
+        tenantId: order.tenantId,
+        restaurantId: order.restaurantId,
         label: order.deliveryAddressLabel,
         address: order.deliveryAddress,
         fullAddress: order.deliveryAddress,
@@ -179,9 +172,9 @@ export async function POST(request: NextRequest) {
         createdAt: now,
         updatedAt: now,
         ...(order.deliveryPlaceId ? { placeId: order.deliveryPlaceId } : {}),
-      }, { merge: true });
-    }
-    await batch.commit();
+      };
+    })() : undefined;
+    await new OrderRepository().create(order, address);
 
     return NextResponse.json({
       ok: true,

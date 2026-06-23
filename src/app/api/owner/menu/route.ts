@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { adminDb } from "@/firebase/admin";
-import { DEFAULT_RESTAURANT_ID, resolveTenantId, tenantAliases } from "@/lib/tenant";
+import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { MenuRepository } from "@/repositories/menu-repository";
+import { tenantScope } from "@/repositories/shared";
 import type { MenuDoc, UserRole } from "@/types/firebase";
 
 const ownerReadRoles = new Set<UserRole>([
@@ -26,20 +27,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `Access setup required: this user is not linked to restaurant ${restaurantId}.` }, { status: 403 });
   }
 
-  const ids = tenantAliases(restaurantId);
-  const snapshots = await Promise.all((["menus", "menuItems"] as const).flatMap((collectionName) =>
-    ids.flatMap((id) =>
-      (["tenantId", "restaurantId"] as const).map((field) =>
-        adminDb().collection(collectionName).where(field, "==", id).limit(250).get(),
-      ),
-    ),
-  ));
-  const docs = snapshots
-    .flatMap((snapshot) => snapshot.docs)
-    .map((doc) => {
-      const data = serializeFirestoreValue(doc.data()) as Record<string, unknown>;
-      return { id: doc.id, ...data } as MenuDoc;
-    })
+  const docs = (await new MenuRepository().list(tenantScope(session, restaurantId)))
+    .map((item) => item as MenuDoc)
     .filter((item) => !item.isDeleted)
     .map((item) => ({ ...item, tenantId: restaurantId, restaurantId }))
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0) || first.name.localeCompare(second.name));
@@ -53,15 +42,4 @@ function canAccessRestaurant(
 ) {
   const allowed = new Set([session.tenantId, ...session.tenantIds, ...session.restaurantIds].filter(Boolean).map(resolveTenantId));
   return !allowed.size || allowed.has(restaurantId);
-}
-
-function serializeFirestoreValue(value: unknown): unknown {
-  if (!value || typeof value !== "object") return value;
-  if ("toDate" in value && typeof value.toDate === "function") return value.toDate().toISOString();
-  if (Array.isArray(value)) return value.map(serializeFirestoreValue);
-  return Object.fromEntries(
-    Object.entries(value)
-      .map(([key, entry]) => [key, serializeFirestoreValue(entry)] as const)
-      .filter(([, entry]) => typeof entry !== "undefined"),
-  );
 }
