@@ -5,6 +5,7 @@ Last updated: 2026-06-22
 | Feature | Status | Progress % | Pending Work | Owner | Date |
 | --- | --- | ---: | --- | --- | --- |
 | Customer hero image source | Tested | 100 | None | Codex | 2026-06-22 |
+| Critical data-parity investigation | In Progress | 45 | Runtime Firebase parity proven for browser/local Admin; authenticated Hostinger Admin parity, listener failure capture, canonical CRM pipeline, and repository migration remain | Codex | 2026-06-23 |
 | TASK-01 Offer Consolidation | Tested | 100 | None | Codex | 2026-06-22 |
 | TASK-02 Centralized Menu Pricing Engine | Tested | 100 | Manual browser screenshot pass on owner device | Codex | 2026-06-22 |
 | TASK-03 Table CRUD Management | Pending | 0 | Build enterprise table CRUD flow | Codex | 2026-06-22 |

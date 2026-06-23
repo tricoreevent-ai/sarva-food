@@ -6,6 +6,7 @@ Last updated: 2026-06-22
 
 - Completed: Offer Consolidation.
 - Completed: Centralized Menu Pricing Engine.
+- Blocking gate: complete the local/production data-parity investigation before further owner feature work.
 - Next: Staff & Access restructure with Staff, User Accounts, Roles, Activity Logs, and View Switching tabs.
 
 ## Phase 2 - Operations Modes

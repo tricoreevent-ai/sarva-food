@@ -6,6 +6,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## In Progress
 
+- [ ] Critical local/production data-parity investigation: public Firebase runtime and local Admin credentials both target `sarva-food-app`; canonical Cafe Al Arab data has 5 orders and INR 3,732 revenue but 0 `customers`/`loyaltyCustomers`. Owner dashboard/reports/loyalty are not yet canonical repository-backed, and listener permission failures still need authenticated production capture. Audit evidence: `docs/firebase-runtime-audit.md`, `docs/tenant-trace.md`, `docs/firestore-collection-trace.md`, `docs/firestore-rule-failures.md`, and `docs/data-parity-report.md`. Do not start deferred feature work until this is closed.
 - [ ] Customer/Owner/Admin live verification follow-up: production Firestore backfill for existing menu `displayOrder`/`orderCount` defaults and full manual mobile/desktop E2E validation still require live access/test orders.
 
 ## Blocked / External Access Required
