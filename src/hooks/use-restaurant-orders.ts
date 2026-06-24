@@ -5,7 +5,7 @@ import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { listenToRestaurantOrders } from "@/services/order-service";
 import type { OrderDoc, OrderStatus } from "@/types/firebase";
 
-export function useRestaurantOrders(restaurantId?: string | string[], statuses?: OrderStatus[]) {
+export function useOrderStream(restaurantId?: string | string[], statuses?: OrderStatus[]) {
   const [orders, setOrders] = useState<OrderDoc[]>([]);
   const [loading, setLoading] = useState(Boolean(restaurantId));
   const statusKey = statuses?.join(",") ?? "new,accepted,preparing,ready";

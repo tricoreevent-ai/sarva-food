@@ -6,7 +6,6 @@ import { getFirebaseApp, getFirebaseAuth, isFirebaseConfigured } from "@/firebas
 import { listenPublicCms, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
 import { menuDocToUi } from "@/services/public-data-service";
 import { fetchOwnerMenuItems, listenMenuItems } from "@/services/advanced-menu-service";
-import { listenKitchenOrders } from "@/services/restaurant-ops-service";
 import { listenInventory, listenLoyaltyCustomers } from "@/services/production-data-service";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
@@ -108,9 +107,6 @@ export function FirestoreStoreHydrator() {
               if (active) applyOwnerMenuItems(items);
             })
             .catch(() => undefined);
-        }),
-        listenKitchenOrders(restaurantId, undefined, (tableOrders) => {
-          useAppStore.setState({ tableOrders });
         }),
         listenInventory((items) => {
           useAppStore.setState({

@@ -5,9 +5,8 @@ import { persist } from "zustand/middleware";
 import { calculateRestaurantTax } from "@/lib/menu-engine";
 import { shouldUseFirebase } from "@/lib/env";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
-import { applyInventoryMovements, buildRecipeMovements, calculateRecipeCost } from "@/lib/inventory-engine";
-import { enqueueOfflineOperation, isOnline, syncQueuedOperations, type OfflineWrite } from "@/lib/offline";
-import { readableOrderId, readableTableOrderId } from "@/lib/order-display";
+import { applyInventoryMovements, calculateRecipeCost } from "@/lib/inventory-engine";
+import { enqueueOfflineOperation, isOnline, syncQueuedOperations } from "@/lib/offline";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { createOrderWithRetry, updateOrderStatus as updateFirestoreOrderStatus } from "@/services/order-service";
 import { safeCreateCategory, safeDeleteMenuItem, safeUpdateCategory, safeUpsertMenuItem } from "@/services/advanced-menu-service";
@@ -59,17 +58,11 @@ import type {
   Supplier,
   SupplierPayment,
   TableOrder,
-  TableOrderStatus,
   TaxSettings,
 } from "@/lib/types";
 import {
   canUseOperationalFirestore,
   normalizePhone,
-  safeCreateKitchenOrder,
-  safeUpdateKitchenOrder,
-  safeRecordPosPayment,
-  safeUpdateKitchenOrderStatus,
-  safeUpsertCustomerFromBill,
 } from "@/services/restaurant-ops-service";
 
 function persistenceErrorMessage(error: unknown) {
@@ -184,17 +177,12 @@ export type AppStore = {
   setPosTable: (table: string) => void;
   setPosOrderType: (orderType: PosBill["orderType"]) => void;
   setPosCustomer: (customer: { id?: string; name?: string; phone?: string }) => void;
-  linkPosKitchenOrder: (orderId: string) => void;
   setPosPayment: (payment: PaymentOption) => void;
-  payPosBill: () => Promise<void>;
   resetPosBill: () => void;
   upsertLoyaltyCustomerFromBill: (bill: PosBill, total: number) => void;
   saveOwnerBusinessProfile: (profile: OwnerBusinessProfile) => Promise<void>;
   createSocialPost: (input: Omit<SocialPost, "id" | "status" | "submittedAt">) => Promise<SocialPost>;
   reviewSocialPost: (postId: string, status: Exclude<SocialPostStatus, "pending">, note?: string) => Promise<void>;
-  createTableOrder: (input: Omit<TableOrder, "id" | "status" | "createdAt">) => Promise<TableOrder>;
-  updateTableOrder: (orderId: string, patch: Partial<Omit<TableOrder, "id" | "createdAt">>) => Promise<void>;
-  updateTableOrderStatus: (orderId: string, status: TableOrderStatus) => Promise<void>;
   updatePrinterSettings: (settings: PrinterSettings) => void;
   createStaffMember: (member: Omit<StaffMember, "id" | "lastActivity">) => Promise<void>;
   updateStaffMember: (member: StaffMember) => Promise<void>;
@@ -466,240 +454,6 @@ function toMenuCategoryDoc(category: MenuCategory, ownerId?: string): MenuCatego
 
 function shouldQueueOfflineSync() {
   return shouldUseFirebase() || !isOnline();
-}
-
-async function queuePosPaymentSync(
-  bill: PosBill,
-  branch: RestaurantBranch,
-  taxSettings: TaxSettings,
-  total: number,
-  restaurantId = DEFAULT_RESTAURANT_ID,
-) {
-  const tenantId = resolveTenantId(restaurantId);
-  const invoiceNumber = bill.invoiceNumber ?? createInvoiceNumber();
-  const effectiveTaxSettings = effectiveTaxSettingsForBill(bill, taxSettings);
-  const subtotal = bill.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-  const tax = calculateRestaurantTax({
-    amount: Math.max(0, subtotal - (bill.discount ?? 0)),
-    settings: effectiveTaxSettings,
-    packingCharge: packingChargeForBill(bill, taxSettings),
-  });
-  const createdAt = new Date().toISOString();
-  const writes: OfflineWrite[] = [
-    {
-      collectionName: "receipts",
-      docId: `receipt-${invoiceNumber}`,
-      operation: "set" as const,
-      merge: true,
-      tenantId,
-      branchId: branch.id,
-      data: {
-        id: `receipt-${invoiceNumber}`,
-        tenantId,
-        restaurantId,
-        branchId: branch.id,
-        invoiceNumber,
-        orderId: bill.linkedKitchenOrderId ?? invoiceNumber,
-        cashier: bill.cashierName ?? "Cashier",
-        paymentMethod: bill.payment,
-        subtotal,
-        taxBreakup: {
-          cgst: tax.cgst,
-          sgst: tax.sgst,
-          igst: tax.igst,
-          serviceCharge: tax.serviceCharge,
-          packingCharge: tax.packingCharge,
-        },
-        total: tax.total,
-        createdAt,
-      },
-    },
-    {
-      collectionName: "paymentTransactions",
-      docId: `pay-${invoiceNumber}`,
-      operation: "set" as const,
-      merge: true,
-      tenantId,
-      branchId: branch.id,
-      data: {
-        id: `pay-${invoiceNumber}`,
-        tenantId,
-        restaurantId,
-        branchId: branch.id,
-        receiptId: `receipt-${invoiceNumber}`,
-        invoiceNumber,
-        method: bill.payment === "card" ? "card" : bill.payment === "upi" ? "upi" : "cash",
-        amount: total,
-        cashierId: bill.cashierName ?? "cashier",
-        status: "paid",
-        createdAt,
-      },
-    },
-  ];
-
-  if (bill.linkedKitchenOrderId) {
-    writes.push({
-      collectionName: "kitchenOrders",
-      docId: bill.linkedKitchenOrderId,
-      operation: "set",
-      merge: true,
-      tenantId,
-      branchId: branch.id,
-      data: {
-        id: bill.linkedKitchenOrderId,
-        tenantId,
-        restaurantId,
-        branchId: branch.id,
-        paymentStatus: "paid",
-        receiptId: `receipt-${invoiceNumber}`,
-        status: "completed",
-      },
-    });
-  }
-
-  const normalizedPhone = normalizePhone(bill.customerPhone ?? "");
-  if (bill.customerName && normalizedPhone) {
-    writes.push({
-      collectionName: "customers",
-      docId: `cust-${restaurantId}-${normalizedPhone}`,
-      operation: "set",
-      merge: true,
-      tenantId,
-      branchId: branch.id,
-      data: {
-        id: `cust-${restaurantId}-${normalizedPhone}`,
-        tenantId,
-        restaurantId,
-        branchId: branch.id,
-        name: bill.customerName,
-        phone: bill.customerPhone ?? normalizedPhone,
-        normalizedPhone,
-        lastOrderAt: createdAt,
-        previousOrderIds: [invoiceNumber],
-      },
-    });
-    writes.push({
-      collectionName: "loyaltyAccounts",
-      docId: `loyalty-${restaurantId}-${normalizedPhone}`,
-      operation: "set",
-      merge: true,
-      tenantId,
-      branchId: branch.id,
-      data: {
-        id: `loyalty-${restaurantId}-${normalizedPhone}`,
-        tenantId,
-        restaurantId,
-        branchId: branch.id,
-        customerId: `cust-${restaurantId}-${normalizedPhone}`,
-        phone: bill.customerPhone ?? normalizedPhone,
-        points: Math.floor(total / 100),
-        lastOrderAt: createdAt,
-      },
-    });
-  }
-
-  return enqueueOfflineOperation({
-    module: "billing",
-    action: `Save payment for bill ${invoiceNumber}`,
-    writes,
-  });
-}
-
-async function queueKitchenOrderSync(
-  order: TableOrder,
-  input: {
-    id: string;
-    restaurantId: string;
-    branchId: string;
-    orderType: PosBill["orderType"];
-    source: TableOrder["source"];
-    tableNumber?: string;
-    customerName?: string;
-    customerPhone?: string;
-    deliveryAddress?: string;
-    scheduledFor?: string;
-    waiterId?: string;
-    waiterName?: string;
-    lines: OrderLine[];
-    priority?: "normal" | "rush";
-    etaMinutes?: number;
-  },
-) {
-  const tenantId = resolveTenantId(input.restaurantId);
-  const subtotal = input.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-  return enqueueOfflineOperation({
-    module: "kitchen",
-    action: `Send kitchen ticket for ${order.tableNumber}`,
-    writes: [
-      {
-        collectionName: "kitchenOrders",
-        docId: order.id,
-        operation: "set",
-        merge: true,
-        tenantId,
-        branchId: input.branchId,
-        data: {
-          id: order.id,
-          tenantId,
-          restaurantId: input.restaurantId,
-          branchId: input.branchId,
-          orderType: input.orderType,
-          source: input.source,
-          tableNumber: input.tableNumber,
-          customerName: input.customerName,
-          customerPhone: input.customerPhone,
-          deliveryAddress: input.deliveryAddress,
-          scheduledFor: input.scheduledFor,
-          waiterId: input.waiterId,
-          waiterName: input.waiterName,
-          status: "new",
-          priority: input.priority ?? "normal",
-          lines: input.lines.map((line) => ({
-            menuItemId: line.itemId,
-            name: line.name,
-            price: line.price,
-            quantity: line.quantity,
-            notes: line.notes,
-          })),
-          subtotal,
-          total: order.total ?? subtotal,
-          paymentStatus: "pending",
-          etaMinutes: input.etaMinutes ?? 12,
-          createdAt: order.createdAt,
-        },
-      },
-    ],
-  });
-}
-
-async function queueKitchenStatusSync(
-  orderId: string,
-  status: TableOrderStatus,
-  restaurantId = DEFAULT_RESTAURANT_ID,
-  branchId = DEFAULT_BRANCH_ID,
-) {
-  const tenantId = resolveTenantId(restaurantId);
-  return enqueueOfflineOperation({
-    module: "kitchen",
-    action: `Update kitchen ticket to ${status}`,
-    writes: [
-      {
-        collectionName: "kitchenOrders",
-        docId: orderId,
-        operation: "set",
-        merge: true,
-        tenantId,
-        branchId,
-        data: {
-          id: orderId,
-          tenantId,
-          restaurantId,
-          branchId,
-          status,
-        },
-      },
-    ],
-  });
 }
 
 async function queueInventorySync(item: InventoryItem) {
@@ -1782,14 +1536,6 @@ export const useAppStore = create<AppStore>()(
           },
         })),
 
-      linkPosKitchenOrder: (orderId) =>
-        set((state) => ({
-          posBill: {
-            ...state.posBill,
-            linkedKitchenOrderId: orderId,
-          },
-        })),
-
       setPosPayment: (payment) =>
         set((state) => ({
           posBill: {
@@ -1798,113 +1544,6 @@ export const useAppStore = create<AppStore>()(
             paid: false,
           },
         })),
-
-      payPosBill: async () => {
-        set({ apiPhase: "loading", apiMessage: "Taking POS payment..." });
-        const bill = get().posBill;
-        const branch = get().branches[0] ?? createOperationalFallbackBranch(get().ownerBusinessProfile, get().authUser);
-        const taxSettings = get().taxSettings;
-        const effectiveTaxSettings = effectiveTaxSettingsForBill(bill, taxSettings);
-        const restaurantId = get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
-        const subtotal = bill.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-        const tax = calculateRestaurantTax({
-          amount: Math.max(0, subtotal - (bill.discount ?? 0)),
-          settings: effectiveTaxSettings,
-          packingCharge: packingChargeForBill(bill, taxSettings),
-        });
-        const paid: PosBill = {
-          ...bill,
-          paid: true,
-          tenderedAmount: bill.tenderedAmount && bill.tenderedAmount > 0 ? bill.tenderedAmount : tax.total,
-          invoiceNumber: bill.invoiceNumber && bill.invoiceNumber !== "INV-POS-DRAFT" ? bill.invoiceNumber : createInvoiceNumber(),
-        };
-        const billLink = typeof window !== "undefined"
-          ? `${window.location.origin}/bill/${paid.invoiceNumber}`
-          : `/bill/${paid.invoiceNumber}`;
-        paid.billDeliveryLink = billLink;
-        paid.billDeliveryQr = billLink;
-
-        const canWriteNow = canUseOperationalFirestore() && isOnline();
-        const writeResults = canWriteNow
-          ? await Promise.allSettled([
-              safeRecordPosPayment({ bill: paid, branch, taxSettings, restaurantId }),
-              safeUpsertCustomerFromBill({ bill: paid, total: tax.total, restaurantId }),
-              paid.linkedKitchenOrderId ? safeUpdateKitchenOrderStatus(paid.linkedKitchenOrderId, "completed", restaurantId, branch.id) : Promise.resolve(),
-            ])
-          : [];
-        const shouldQueue = shouldQueueOfflineSync()
-          && (!canWriteNow || writeResults.some((result) => result.status === "rejected"));
-        const directInventoryMovements: InventoryMovement[] = paid.lines
-          .filter((line) => line.lineType === "inventory")
-          .flatMap((line) => {
-            const inventoryItem = get().inventoryItems.find((item) => item.id === line.itemId);
-            if (!inventoryItem) return [];
-            return [{
-              id: createLocalId("mov"),
-              inventoryItemId: inventoryItem.id,
-              inventoryItemName: inventoryItem.name,
-              branchId: inventoryItem.branchId,
-              movementType: "deduct" as const,
-              quantity: -line.quantity,
-              unit: inventoryItem.unit,
-              reason: `POS sale ${paid.invoiceNumber}`,
-              orderId: paid.invoiceNumber,
-              createdAt: new Date().toISOString(),
-              createdBy: get().authUser.id,
-            }];
-          });
-        const recipeMovements = buildRecipeMovements({
-          lines: paid.lines.filter((line) => line.lineType !== "inventory"),
-          recipes: get().recipes,
-          inventoryItems: get().inventoryItems,
-          branchId: branch.id,
-          orderId: paid.invoiceNumber ?? paid.table,
-          createdBy: get().authUser.id,
-        });
-        const stockMovements = [...directInventoryMovements, ...recipeMovements];
-
-        set((state) => ({
-          posBill: paid,
-          branches: state.branches.length ? state.branches : [branch],
-          inventoryItems: stockMovements.length ? applyInventoryMovements(state.inventoryItems, stockMovements) : state.inventoryItems,
-          inventoryMovements: stockMovements.length
-            ? [...stockMovements, ...state.inventoryMovements].slice(0, 500)
-            : state.inventoryMovements,
-          auditLogs: stockMovements.length
-            ? [
-                createAuditLogEntry(state, {
-                  module: "pos",
-                  action: "pos.stock-deducted",
-                  entityId: paid.invoiceNumber,
-                  entityName: paid.table,
-                  after: {
-                    movementCount: stockMovements.length,
-                    movements: stockMovements.map((movement) => ({
-                      inventoryItemId: movement.inventoryItemId,
-                      quantity: movement.quantity,
-                      unit: movement.unit,
-                      reason: movement.reason,
-                    })),
-                  },
-                }),
-                ...state.auditLogs,
-              ].slice(0, 250)
-            : state.auditLogs,
-          tableOrders: paid.linkedKitchenOrderId
-            ? state.tableOrders.map((order) => order.id === paid.linkedKitchenOrderId ? { ...order, status: "completed" } : order)
-            : state.tableOrders,
-          apiPhase: "success",
-          apiMessage: shouldQueue
-            ? `Payment captured locally for ${paid.table === "DIRECT" ? paid.orderType : paid.table}; sync pending.`
-            : `Payment captured for ${paid.table === "DIRECT" ? paid.orderType : paid.table}.`,
-        }));
-        get().upsertLoyaltyCustomerFromBill(paid, tax.total);
-        if (shouldQueue) {
-          void queuePosPaymentSync(paid, branch, taxSettings, tax.total, restaurantId)
-            .then(() => syncQueuedOperations())
-            .catch(() => undefined);
-        }
-      },
 
       resetPosBill: () => set({ posBill: { ...initialPosBill, invoiceNumber: createInvoiceNumber() } }),
 
@@ -2069,128 +1708,6 @@ export const useAppStore = create<AppStore>()(
           ),
           apiPhase: "success",
           apiMessage: `${postId} marked ${status}.`,
-        }));
-      },
-
-      createTableOrder: async (input) => {
-        const restaurantId = get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
-        const branchId = input.branchId ?? get().branches[0]?.id ?? DEFAULT_BRANCH_ID;
-        const createdAt = new Date().toISOString();
-        const localId = readableOrderId({
-          source: input.source,
-          orderType: input.orderType,
-          tableNumber: input.tableNumber,
-          createdAt,
-          sequence: get().tableOrders.length + 1,
-        });
-        const order: TableOrder = {
-          ...input,
-          branchId,
-          id: localId,
-          status: "new",
-          createdAt,
-        };
-        const kitchenWrite = {
-          id: localId,
-          restaurantId,
-          branchId,
-          orderType: input.orderType ?? "dine-in",
-          source: input.source,
-          tableNumber: input.tableNumber === "DIRECT" ? undefined : input.tableNumber,
-          customerName: input.customerName ?? input.guestName,
-          customerPhone: input.customerPhone,
-          deliveryAddress: input.deliveryAddress,
-          scheduledFor: input.scheduledFor,
-          waiterId: input.waiterId,
-          waiterName: input.waiterName,
-          lines: input.lines,
-          taxSettings: get().taxSettings,
-          priority: input.priority,
-          etaMinutes: input.etaMinutes,
-        };
-        const canWriteNow = canUseOperationalFirestore() && isOnline();
-        if (canWriteNow) {
-          void safeCreateKitchenOrder(kitchenWrite).then((result) => {
-            if (!result && shouldQueueOfflineSync()) {
-              return queueKitchenOrderSync(order, kitchenWrite);
-            }
-            return undefined;
-          }).then(() => syncQueuedOperations()).catch(() => {
-            void queueKitchenOrderSync(order, kitchenWrite).then(() => syncQueuedOperations()).catch(() => undefined);
-          });
-        } else if (shouldQueueOfflineSync()) {
-          void queueKitchenOrderSync(order, kitchenWrite).then(() => syncQueuedOperations()).catch(() => undefined);
-        }
-        set((state) => ({
-          tableOrders: [order, ...state.tableOrders],
-          apiPhase: "success",
-          apiMessage: canWriteNow
-            ? `Kitchen ticket created for ${order.tableNumber}.`
-            : `Kitchen ticket saved offline for ${order.tableNumber}.`,
-        }));
-        return order;
-      },
-
-      updateTableOrder: async (orderId, patch) => {
-        const current = get().tableOrders.find((item) => item.id === orderId);
-        if (!current) {
-          set({ apiPhase: "error", apiMessage: "Kitchen ticket not found." });
-          return;
-        }
-        const nextOrder: TableOrder = { ...current, ...patch };
-        const restaurantId = get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
-        const branchId = nextOrder.branchId ?? get().branches[0]?.id ?? DEFAULT_BRANCH_ID;
-        if (canUseOperationalFirestore() && isOnline()) {
-          void safeUpdateKitchenOrder({
-            id: orderId,
-            restaurantId,
-            branchId,
-            orderType: nextOrder.orderType ?? "dine-in",
-            source: nextOrder.source,
-            tableNumber: nextOrder.tableNumber === "DIRECT" ? undefined : nextOrder.tableNumber,
-            customerName: nextOrder.customerName ?? nextOrder.guestName,
-            customerPhone: nextOrder.customerPhone,
-            deliveryAddress: nextOrder.deliveryAddress,
-            scheduledFor: nextOrder.scheduledFor,
-            waiterName: nextOrder.waiterName,
-            lines: nextOrder.lines,
-            taxSettings: get().taxSettings,
-            priority: nextOrder.priority,
-            etaMinutes: nextOrder.etaMinutes,
-            status: nextOrder.status === "occupied" ? "new" : nextOrder.status === "billed" ? "completed" : nextOrder.status,
-          }).catch(() => {
-            void queueKitchenStatusSync(orderId, nextOrder.status, restaurantId, branchId).then(() => syncQueuedOperations()).catch(() => undefined);
-          });
-        } else if (shouldQueueOfflineSync()) {
-          void queueKitchenStatusSync(orderId, nextOrder.status, restaurantId, branchId).then(() => syncQueuedOperations()).catch(() => undefined);
-        }
-        set((state) => ({
-          tableOrders: state.tableOrders.map((item) => (item.id === orderId ? nextOrder : item)),
-          apiPhase: "success",
-          apiMessage: `${readableTableOrderId(nextOrder)} updated.`,
-        }));
-      },
-
-      updateTableOrderStatus: async (orderId, status) => {
-        const firebaseStatus = status === "occupied" ? "new" : status === "billed" ? "completed" : status;
-        const order = get().tableOrders.find((item) => item.id === orderId);
-        const restaurantId = get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
-        const branchId = order?.branchId ?? get().branches[0]?.id ?? DEFAULT_BRANCH_ID;
-        if (canUseOperationalFirestore() && isOnline()) {
-          void safeUpdateKitchenOrderStatus(orderId, firebaseStatus, restaurantId, branchId).catch(() => {
-            void queueKitchenStatusSync(orderId, firebaseStatus, restaurantId, branchId).then(() => syncQueuedOperations()).catch(() => undefined);
-          });
-        } else if (shouldQueueOfflineSync()) {
-          void queueKitchenStatusSync(orderId, firebaseStatus, restaurantId, branchId).then(() => syncQueuedOperations()).catch(() => undefined);
-        }
-        set((state) => ({
-          tableOrders: state.tableOrders.map((order) =>
-            order.id === orderId ? { ...order, status } : order,
-          ),
-          apiPhase: "success",
-          apiMessage: canUseOperationalFirestore() && isOnline()
-            ? `${order ? readableTableOrderId(order) : "Kitchen ticket"} is ${status}.`
-            : `${order ? readableTableOrderId(order) : "Kitchen ticket"} is ${status}; sync pending.`,
         }));
       },
 

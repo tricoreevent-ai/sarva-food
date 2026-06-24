@@ -47,4 +47,17 @@ export class OrderRepository {
     const active = orders.filter((order) => !["cancelled", "rejected", "delivered", "completed"].includes(order.status));
     return { orders, orderCount: orders.length, billableOrderCount: billable.length, revenue, tax, activeOrderCount: active.length };
   }
+
+  async updateStatus(scope: TenantScope, orderId: string, status: OrderDoc["status"]) {
+    const ref = this.db.collection("orders").doc(orderId);
+    const snapshot = await ref.get();
+    if (!snapshot.exists) throw new Error("Order not found.");
+    const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+    if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+    await Promise.all([
+      ref.set({ status, updatedAt: FieldValue.serverTimestamp() }, { merge: true }),
+      this.db.collection("customerOrders").doc(orderId).set({ status, updatedAt: FieldValue.serverTimestamp() }, { merge: true }),
+    ]);
+    return { ...order, status };
+  }
 }

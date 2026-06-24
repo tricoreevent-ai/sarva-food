@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import type { ElementType } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Ban, Brush, CalendarCheck, CheckCircle2, CircleX, Edit3, Grid2X2, LayoutGrid, List, Plus, Printer, Search, Settings2, Table2, Trash2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
 import type { PosTable, TableOrder } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -22,12 +21,8 @@ const statusTone: Record<DisplayStatus, string> = {
 };
 
 export function RestaurantTablesFlow() {
-  const configuredTables = useAppStore((state) => state.posTables);
-  const orders = useAppStore((state) => state.tableOrders);
-  const printerSettings = useAppStore((state) => state.printerSettings);
-  const upsertPosTable = useAppStore((state) => state.upsertPosTable);
-  const deletePosTable = useAppStore((state) => state.deletePosTable);
-  const updateTableOrderStatus = useAppStore((state) => state.updateTableOrderStatus);
+  const [configuredTables, setConfiguredTables] = useState<PosTable[]>([]);
+  const [orders, setOrders] = useState<TableOrder[]>([]);
   const [selectedTableId, setSelectedTable] = useState("");
   const [query, setQuery] = useState("");
   const [floor, setFloor] = useState("All Floors");
@@ -35,16 +30,22 @@ export function RestaurantTablesFlow() {
   const [showInactive, setShowInactive] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
 
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      fetch("/api/owner/tables", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
+      fetch("/api/owner/kitchen", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+    ]).then(([tables, kitchen]) => {
+      if (!active) return;
+      setConfiguredTables(tables.data ?? []);
+      setOrders(kitchen.data ?? []);
+    });
+    return () => { active = false; };
+  }, []);
+
   const tableRows = useMemo(() => {
-    const rows = new Map<string, PosTable>();
-    configuredTables.forEach((table) => rows.set(table.table, table));
-    orders
-      .filter((order) => order.orderType === "dine-in" || /^t/i.test(order.tableNumber))
-      .forEach((order) => {
-        if (!rows.has(order.tableNumber)) rows.set(order.tableNumber, { table: order.tableNumber, seats: "4", status: "Dining", amount: String(order.total ?? 0) });
-      });
-    return Array.from(rows.values()).sort((first, second) => first.table.localeCompare(second.table, undefined, { numeric: true }));
-  }, [configuredTables, orders]);
+    return configuredTables.slice().sort((first, second) => first.table.localeCompare(second.table, undefined, { numeric: true }));
+  }, [configuredTables]);
 
   const selectedTable = tableRows.find((table) => table.table === selectedTableId) ?? tableRows[0];
   const selectedActiveOrder = selectedTable ? findActiveOrder(orders, selectedTable.table) : undefined;
@@ -69,19 +70,49 @@ export function RestaurantTablesFlow() {
   };
 
   function nextTable() {
-    const max = tableRows.reduce((value, table) => Math.max(value, Number(table.table.replace(/\D/g, "")) || 0), 0) + 1;
+    const occupiedNumbers = orders.map((order) => Number(order.tableNumber.replace(/\D/g, "")) || 0);
+    const configuredNumbers = tableRows.map((table) => Number(table.table.replace(/\D/g, "")) || 0);
+    const max = Math.max(0, ...occupiedNumbers, ...configuredNumbers) + 1;
     return `T${String(max).padStart(2, "0")}`;
   }
 
   function addTable() {
     const table = nextTable();
-    upsertPosTable({ table, seats: "4", status: "Open", amount: "0", floor: inferFloor(table), lastCleanedAt: new Date().toISOString() });
+    void saveTable({ table, seats: "4", status: "Open", amount: "0", floor: inferFloor(table), lastCleanedAt: new Date().toISOString() });
     setSelectedTable(table);
   }
 
   function updateSelected(patch: Partial<PosTable>) {
     if (!selectedTable) return;
-    upsertPosTable({ ...selectedTable, ...patch });
+    void saveTable({ ...selectedTable, ...patch });
+  }
+
+  async function saveTable(table: PosTable) {
+    const response = await fetch("/api/owner/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(table),
+    });
+    const payload = await response.json() as { data?: PosTable };
+    const next = payload.data ?? table;
+    setConfiguredTables((current) => current.some((item) => item.table === next.table) ? current.map((item) => item.table === next.table ? next : item) : [...current, next]);
+  }
+
+  async function deleteTable(table: string) {
+    const response = await fetch(`/api/owner/tables?table=${encodeURIComponent(table)}`, { method: "DELETE" });
+    if (!response.ok) return;
+    setConfiguredTables((current) => current.filter((item) => item.table !== table));
+    setSelectedTable((current) => current === table ? "" : current);
+  }
+
+  async function changeTableTicketStatus(orderId: string, nextStatus: TableOrder["status"]) {
+    const response = await fetch("/api/owner/kitchen", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: orderId, status: nextStatus === "billed" ? "completed" : nextStatus }),
+    });
+    const payload = await response.json() as { data?: TableOrder };
+    setOrders((current) => current.map((order) => order.id === orderId ? payload.data ?? { ...order, status: nextStatus } : order));
   }
 
   return (
@@ -201,12 +232,12 @@ export function RestaurantTablesFlow() {
                   <Button variant="outline" onClick={() => updateSelected({ status: "Cleaning", lastCleanedAt: new Date().toISOString() })}><Brush className="size-4" /> Mark as Cleaning</Button>
                   <Button variant="outline" onClick={() => updateSelected({ status: "Inactive" })}><Ban className="size-4" /> Mark as Inactive</Button>
                   {selectedActiveOrder ? (
-                    <Button variant="outline" onClick={() => void updateTableOrderStatus(selectedActiveOrder.id, selectedActiveOrder.status === "ready" ? "served" : "ready")}>
+                    <Button variant="outline" onClick={() => void changeTableTicketStatus(selectedActiveOrder.id, selectedActiveOrder.status === "ready" ? "served" : "ready")}>
                       <CheckCircle2 className="size-4" />
                       Mark {selectedActiveOrder.status === "ready" ? "served" : "ready"}
                     </Button>
                   ) : null}
-                  <Button variant="outline" className="border-red-200 text-red-600" disabled={Boolean(selectedActiveOrder)} onClick={() => { deletePosTable(selectedTable.table); setSelectedTable(""); }}>
+                  <Button variant="outline" className="border-red-200 text-red-600" disabled={Boolean(selectedActiveOrder)} onClick={() => { void deleteTable(selectedTable.table); setSelectedTable(""); }}>
                     <Trash2 className="size-4" />
                     Delete Table
                   </Button>
@@ -222,7 +253,7 @@ export function RestaurantTablesFlow() {
             <h3 className="font-black">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline"><LayoutGrid className="size-4" /> Table Layout</Button>
-              <Button variant="outline" onClick={() => window.print()} disabled={!printerSettings.autoPrintOrders}><Printer className="size-4" /> Print Layout</Button>
+              <Button variant="outline" onClick={() => window.print()}><Printer className="size-4" /> Print Layout</Button>
             </div>
           </CardContent>
         </Card>

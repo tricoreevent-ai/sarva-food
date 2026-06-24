@@ -1,0 +1,200 @@
+import { parseFirestoreDateIso } from "@/lib/firestore-date";
+import type { DemoOrder, LoyaltyCustomer, MenuItem, PosTable, StaffMember, TableOrder } from "@/lib/types";
+import type { KitchenOrderDoc, OrderDoc } from "@/types/firebase";
+
+export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
+  return {
+    id: order.id,
+    restaurantSlug: order.restaurantId,
+    customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
+    lines: (order.lines ?? []).map((line) => ({ itemId: line.menuItemId, name: line.name, price: Number(line.price ?? 0), quantity: Number(line.quantity ?? 0) })),
+    totals: { subtotal: Number(order.subtotal ?? 0), discount: Number(order.discount ?? 0), deliveryFee: Number(order.deliveryFee ?? 0), tax: Number(order.tax ?? 0), total: Number(order.total ?? 0) },
+    offerCode: order.offerCode,
+    payment: "upi",
+    channel: order.channel === "instagram" ? "Instagram" : order.channel === "whatsapp" ? "WhatsApp" : order.channel === "pos" ? "POS" : order.channel === "catering" ? "Catering" : "Web",
+    status: order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
+    createdAt: parseFirestoreDateIso(order.createdAt) ?? new Date().toISOString(),
+    deliveryOtp: order.deliveryOtp,
+    fulfillmentType: normalizeFulfillment(order.fulfillmentType ?? order.orderType),
+    scheduleMode: order.scheduleMode,
+    scheduledFor: parseFirestoreDateIso(order.scheduledFor),
+    scheduledStatus: order.scheduledStatus,
+    prepEstimateMinutes: order.prepEstimateMinutes,
+    cutoffAt: parseFirestoreDateIso(order.cutoffAt),
+    guestCount: order.guestCount,
+  };
+}
+
+export function kitchenDocToTableOrder(order: KitchenOrderDoc | Record<string, unknown>): TableOrder {
+  const lines = Array.isArray(order.lines) ? order.lines as Array<Record<string, unknown>> : [];
+  return {
+    id: str(order.id),
+    tableNumber: str(order.tableNumber) || labelForOrderType(str(order.orderType)),
+    source: sourceFor(str(order.source)),
+    orderType: normalizePosOrderType(str(order.orderType)),
+    guestName: str(order.customerName),
+    customerName: str(order.customerName),
+    customerPhone: str(order.customerPhone),
+    deliveryAddress: str(order.deliveryAddress),
+    scheduledFor: parseFirestoreDateIso(order.scheduledFor),
+    lines: lines.map((line) => ({ itemId: str(line.menuItemId || line.itemId), name: str(line.name), price: num(line.price), quantity: num(line.quantity), notes: str(line.notes) })),
+    status: str(order.status) === "cancelled" ? "completed" : tableStatus(str(order.status)),
+    priority: str(order.priority) === "rush" ? "rush" : "normal",
+    waiterId: str(order.waiterId),
+    waiterName: str(order.waiterName),
+    branchId: str(order.branchId),
+    createdAt: parseFirestoreDateIso(order.createdAt) ?? new Date().toISOString(),
+    etaMinutes: num(order.etaMinutes, 12),
+    total: num(order.total),
+  };
+}
+
+export function menuDocToMenuItem(item: Record<string, unknown>): MenuItem {
+  const category = str(item.category || item.categoryName || item.categoryId) || "Menu";
+  const image = str(item.image || item.imagePath || first(item.imagePaths));
+  return {
+    id: str(item.id),
+    restaurantSlug: str(item.restaurantId || item.tenantId),
+    name: str(item.name),
+    category,
+    categoryId: str(item.categoryId),
+    subcategory: str(item.subcategory),
+    cuisineIds: Array.isArray(item.cuisineIds) ? item.cuisineIds.filter((id): id is string => typeof id === "string") : [],
+    description: str(item.description),
+    longDescription: str(item.longDescription),
+    price: num(item.price || item.deliveryPrice || item.dineInPrice),
+    dineInPrice: finite(item.dineInPrice),
+    parcelPrice: finite(item.parcelPrice),
+    deliveryPrice: finite(item.deliveryPrice),
+    taxRate: item.taxRate === 18 ? 18 : 5,
+    packingCharge: finite(item.packingCharge),
+    image,
+    images: [image, ...(Array.isArray(item.imagePaths) ? item.imagePaths.filter((value): value is string => typeof value === "string") : [])].filter(Boolean),
+    isVeg: item.isVeg !== false && item.foodType !== "nonveg",
+    foodType: foodType(str(item.foodType)),
+    isPopular: Boolean(item.isPopular ?? item.featuredEnabled),
+    prepTime: str(item.prepTime) || "15 min",
+    soldOut: item.soldOut === true || item.available === false,
+    tags: Array.isArray(item.tags) ? item.tags.filter((value): value is string => typeof value === "string") : [],
+    badges: Array.isArray(item.badges) ? item.badges.filter((value): value is string => typeof value === "string") : [],
+    modifiers: Array.isArray(item.modifiers) ? item.modifiers as MenuItem["modifiers"] : [],
+    addOns: Array.isArray(item.addOns) ? item.addOns as MenuItem["addOns"] : [],
+  };
+}
+
+export function customerDocToLoyaltyCustomer(customer: Record<string, unknown>): LoyaltyCustomer {
+  return {
+    id: str(customer.id),
+    name: str(customer.name || customer.displayName) || "Customer",
+    phone: str(customer.phone),
+    email: str(customer.email),
+    points: num(customer.loyaltyPoints || customer.points),
+    tier: loyaltyTier(str(customer.tier)),
+    lifetimeValue: num(customer.lifetimeValue),
+    totalOrders: num(customer.totalOrders),
+    lastOrderAt: parseFirestoreDateIso(customer.lastOrderAt),
+    inactiveDays: num(customer.inactiveDays),
+    previousOrderIds: Array.isArray(customer.previousOrderIds) ? customer.previousOrderIds.filter((id): id is string => typeof id === "string") : [],
+    orderFrequency: str(customer.orderFrequency) || "Recent",
+    inactiveRisk: Boolean(customer.inactiveRisk),
+  };
+}
+
+export function staffDocToStaffMember(user: Record<string, unknown>): StaffMember {
+  const active = user.active !== false;
+  return {
+    id: str(user.id || user.uid),
+    name: str(user.name || user.displayName) || "Staff member",
+    email: str(user.email),
+    phone: str(user.phone),
+    role: staffRole(str(user.role)),
+    roleId: str(user.roleId || user.role),
+    status: str(user.status) === "invited" ? "invited" : active ? "active" : "off-duty",
+    branchId: str(user.branchId || first(user.branchIds)) || "main",
+    permissions: Array.isArray(user.permissions) ? user.permissions.filter((item): item is string => typeof item === "string") : [],
+    lastActivity: str(user.lastActivity) || "Repository synced",
+    requiresLogin: user.requiresLogin !== false,
+    employmentType: user.employmentType === "contract" ? "contract" : "fixed",
+    monthlySalary: finite(user.monthlySalary),
+    contractRate: finite(user.contractRate),
+    panNumber: str(user.panNumber),
+    pfNumber: str(user.pfNumber),
+    esiNumber: str(user.esiNumber),
+    professionalTaxState: str(user.professionalTaxState),
+    tdsSection: user.tdsSection === "194C" || user.tdsSection === "194J" ? user.tdsSection : "salary",
+    payrollEstimate: typeof user.payrollEstimate === "object" && user.payrollEstimate ? user.payrollEstimate as StaffMember["payrollEstimate"] : undefined,
+  };
+}
+
+export function tableDocToPosTable(table: Record<string, unknown>): PosTable {
+  const number = str(table.table || table.tableNumber || table.name) || "T01";
+  return {
+    table: number,
+    seats: String(num(table.seats || table.capacity, 4)),
+    status: posTableStatus(str(table.status)),
+    amount: String(num(table.amount)),
+    floor: str(table.floor || table.section),
+    note: str(table.note),
+    lastCleanedAt: parseFirestoreDateIso(table.lastCleanedAt),
+  };
+}
+
+function normalizeFulfillment(value?: string) {
+  return value === "dine-in" || value === "parcel" || value === "delivery" ? value : "parcel";
+}
+
+function normalizePosOrderType(value: string) {
+  return value === "takeaway" || value === "parcel" || value === "delivery" ? value : "dine-in";
+}
+
+function tableStatus(value: string): TableOrder["status"] {
+  return ["new", "occupied", "preparing", "ready", "served", "completed", "billed"].includes(value) ? value as TableOrder["status"] : "new";
+}
+
+function sourceFor(value: string): TableOrder["source"] {
+  return ["QR", "Waiter", "POS", "Takeaway", "Parcel", "Delivery"].includes(value) ? value as TableOrder["source"] : "POS";
+}
+
+function labelForOrderType(value: string) {
+  if (value === "delivery") return "Online";
+  if (value === "takeaway") return "Quick Bill";
+  if (value === "parcel") return "Parcel";
+  return "Dine-in";
+}
+
+function foodType(value: string): MenuItem["foodType"] {
+  return ["veg", "nonveg", "egg", "vegan", "jain"].includes(value) ? value as MenuItem["foodType"] : undefined;
+}
+
+function loyaltyTier(value: string): LoyaltyCustomer["tier"] {
+  return ["Silver", "Gold", "VIP"].includes(value) ? value as LoyaltyCustomer["tier"] : "Regular";
+}
+
+function staffRole(value: string): StaffMember["role"] {
+  return ["owner", "manager", "cashier", "waiter", "chef", "kitchen-manager", "delivery-staff", "delivery", "accountant", "admin", "inventory-manager"].includes(value) ? value as StaffMember["role"] : "waiter";
+}
+
+function posTableStatus(value: string): PosTable["status"] {
+  if (["Dining", "Bill requested", "Reserved", "Cleaning", "Inactive"].includes(value)) return value as PosTable["status"];
+  if (["occupied", "preparing", "ready", "served"].includes(value)) return "Dining";
+  if (value === "billed" || value === "completed") return "Bill requested";
+  return "Open";
+}
+
+function first(value: unknown) {
+  return Array.isArray(value) ? value.find((item) => typeof item === "string") : undefined;
+}
+
+function str(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function num(value: unknown, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function finite(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}

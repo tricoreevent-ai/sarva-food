@@ -6,10 +6,7 @@ import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
-import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
-import { listenKitchenOrders } from "@/services/restaurant-ops-service";
-import type { TableOrderStatus } from "@/lib/types";
+import type { TableOrder, TableOrderStatus } from "@/lib/types";
 
 const nextStatus: Record<TableOrderStatus, TableOrderStatus> = {
   new: "preparing",
@@ -25,23 +22,15 @@ const kitchenColumns: Array<{ id: string; title: string; statuses: TableOrderSta
   { id: "received", title: "Received", statuses: ["new", "occupied"], action: "Accept" },
   { id: "preparing", title: "Preparing", statuses: ["preparing"], action: "Ready" },
   { id: "ready", title: "Ready", statuses: ["ready"], action: "Delivered" },
-  { id: "delivered", title: "Delivered", statuses: ["served"], action: "Complete" },
+  { id: "delivered", title: "Delivered", statuses: ["served", "completed"], action: "Complete" },
 ];
 
 export function KitchenDisplayFlow() {
   const [fullscreen, setFullscreen] = useState(false);
   const [now, setNow] = useState<number | null>(null);
-  const authUser = useAppStore((state) => state.authUser);
-  const branch = useAppStore((state) => state.branches[0]);
-  const localTableOrders = useAppStore((state) => state.tableOrders);
-  const updateTableOrderStatus = useAppStore((state) => state.updateTableOrderStatus);
-  const [realtimeOrders, setRealtimeOrders] = useState<typeof localTableOrders | null>(null);
-  const [connectionState, setConnectionState] = useState<"local" | "live" | "error">("local");
-  const tableOrders = realtimeOrders ?? localTableOrders;
-  const orders = useMemo(
-    () => tableOrders.filter((order) => !["completed", "billed"].includes(order.status)),
-    [tableOrders],
-  );
+  const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
+  const [connectionState, setConnectionState] = useState<"repository" | "error" | "loading">("loading");
+  const orders = tableOrders;
   const sortedOrders = useMemo(
     () =>
       orders.slice().sort((a, b) => {
@@ -50,20 +39,16 @@ export function KitchenDisplayFlow() {
       }),
     [orders],
   );
-  const visibleOrders = useMemo(
-    () => sortedOrders.filter((order) => !["completed", "billed"].includes(order.status)),
-    [sortedOrders],
-  );
+  const visibleOrders = sortedOrders;
   const kitchenStats = useMemo(() => {
-    const today = new Date().toDateString();
-    const completedToday = tableOrders.filter((order) => ["served", "completed", "billed"].includes(order.status) && new Date(order.createdAt).toDateString() === today).length;
-    const delayed = visibleOrders.filter((order) => now && now - new Date(order.createdAt).getTime() > (order.etaMinutes ?? 20) * 60000).length;
+    const completed = tableOrders.filter((order) => ["served", "completed", "billed"].includes(order.status)).length;
+    const delayed = visibleOrders.filter((order) => !["served", "completed", "billed"].includes(order.status) && now && now - new Date(order.createdAt).getTime() > (order.etaMinutes ?? 20) * 60000).length;
     return {
       pending: visibleOrders.filter((order) => ["new", "occupied"].includes(order.status)).length,
       preparing: visibleOrders.filter((order) => order.status === "preparing").length,
       ready: visibleOrders.filter((order) => order.status === "ready").length,
-      delivered: completedToday,
-      averagePrep: visibleOrders.length ? Math.round(visibleOrders.reduce((sum, order) => sum + (order.etaMinutes ?? 20), 0) / visibleOrders.length) : 0,
+      delivered: completed,
+      averagePrep: tableOrders.length ? Math.round(tableOrders.reduce((sum, order) => sum + (order.etaMinutes ?? 20), 0) / tableOrders.length) : 0,
       delayed,
       priority: visibleOrders.filter((order) => order.priority === "rush").length,
     };
@@ -76,18 +61,33 @@ export function KitchenDisplayFlow() {
   }, []);
 
   useEffect(() => {
-    return listenKitchenOrders(
-      authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID,
-      branch?.id ?? DEFAULT_BRANCH_ID,
-      (nextOrders) => {
-        setRealtimeOrders(nextOrders);
-        setConnectionState("live");
-      },
-      () => {
-        setConnectionState("error");
-      },
-    );
-  }, [authUser.restaurantSlug, branch?.id]);
+    let active = true;
+    void fetch("/api/owner/kitchen", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: TableOrder[] }) => {
+        if (!active) return;
+        setTableOrders(payload.data ?? []);
+        setConnectionState("repository");
+      })
+      .catch(() => {
+        if (active) setConnectionState("error");
+      });
+    return () => { active = false; };
+  }, []);
+
+  async function changeKitchenTicketStatus(orderId: string, status: TableOrderStatus) {
+    const response = await fetch("/api/owner/kitchen", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: orderId, status: status === "occupied" || status === "billed" ? "completed" : status }),
+    });
+    if (!response.ok) {
+      setConnectionState("error");
+      return;
+    }
+    const payload = await response.json() as { data?: TableOrder };
+    setTableOrders((current) => current.map((order) => order.id === orderId ? payload.data ?? { ...order, status } : order));
+  }
 
   return (
     <div className={fullscreen ? "fixed inset-0 z-50 overflow-auto bg-background p-4" : "space-y-6"}>
@@ -96,8 +96,8 @@ export function KitchenDisplayFlow() {
         description="Live order board for received, preparing, ready, and delivered kitchen work."
         action={
           <div className="flex flex-wrap gap-2">
-            <Badge variant={connectionState === "live" ? "success" : connectionState === "error" ? "warning" : "muted"}>
-              {connectionState === "live" ? "Firestore live" : connectionState === "error" ? "Local fallback" : "Local queue"}
+            <Badge variant={connectionState === "repository" ? "success" : connectionState === "error" ? "warning" : "muted"}>
+              {connectionState === "repository" ? "Repository API" : connectionState === "error" ? "Sync error" : "Loading"}
             </Badge>
             <Button variant="outline" onClick={() => setFullscreen((value) => !value)}><Maximize2 className="size-4" />{fullscreen ? "Exit" : "Full screen"}</Button>
           </div>
@@ -107,7 +107,7 @@ export function KitchenDisplayFlow() {
         <KitchenMetric label="Pending" value={kitchenStats.pending} />
         <KitchenMetric label="Preparing" value={kitchenStats.preparing} />
         <KitchenMetric label="Ready" value={kitchenStats.ready} />
-        <KitchenMetric label="Delivered today" value={kitchenStats.delivered} />
+        <KitchenMetric label="Completed" value={kitchenStats.delivered} />
         <KitchenMetric label="Avg prep" value={`${kitchenStats.averagePrep}m`} />
         <KitchenMetric label="Delayed" value={kitchenStats.delayed} danger={kitchenStats.delayed > 0} />
         <KitchenMetric label="Priority" value={kitchenStats.priority} danger={kitchenStats.priority > 0} />
@@ -129,7 +129,8 @@ export function KitchenDisplayFlow() {
                       order={order}
                       now={now}
                       action={column.action}
-                      onNext={() => updateTableOrderStatus(order.id, nextStatus[order.status])}
+                      onNext={() => changeKitchenTicketStatus(order.id, nextStatus[order.status])}
+                      done={order.status === "completed" || order.status === "billed"}
                     />
                   ))}
                   {!columnOrders.length ? <p className="rounded-lg border border-dashed bg-card p-6 text-center text-sm font-semibold text-muted-foreground">No orders</p> : null}
@@ -162,11 +163,13 @@ function KitchenOrderCard({
   now,
   action,
   onNext,
+  done,
 }: {
-  order: ReturnType<typeof useAppStore.getState>["tableOrders"][number];
+  order: TableOrder;
   now: number | null;
   action: string;
   onNext: () => void;
+  done?: boolean;
 }) {
   const ageMinutes = now ? Math.max(1, Math.round((now - new Date(order.createdAt).getTime()) / 60000)) : null;
   const delayed = Boolean(ageMinutes && ageMinutes > (order.etaMinutes ?? 20));
@@ -199,9 +202,9 @@ function KitchenOrderCard({
             <Printer className="size-4" />
             KOT
           </Button>
-          <Button onClick={onNext}>
+          <Button onClick={onNext} disabled={done}>
             <UtensilsCrossed className="size-4" />
-            {action}
+            {done ? "Completed" : action}
           </Button>
         </div>
       </CardContent>

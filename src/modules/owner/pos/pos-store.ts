@@ -25,14 +25,9 @@ export type OwnerPosStore = Pick<
   | "setPosTable"
   | "setPosOrderType"
   | "setPosCustomer"
-  | "linkPosKitchenOrder"
   | "setPosPayment"
-  | "payPosBill"
   | "resetPosBill"
   | "upsertLoyaltyCustomerFromBill"
-  | "createTableOrder"
-  | "updateTableOrder"
-  | "updateTableOrderStatus"
   | "updatePrinterSettings"
   | "queueOfflineAction"
 >;
@@ -48,7 +43,6 @@ export const ownerPosStoreSelectors = {
   offlineQueue: (state: AppStore) => state.offlineQueue,
   addItem: (state: AppStore) => state.addPosItem,
   addProduct: (state: AppStore) => state.addPosProduct,
-  payBill: (state: AppStore) => state.payPosBill,
   resetBill: (state: AppStore) => state.resetPosBill,
 };
 

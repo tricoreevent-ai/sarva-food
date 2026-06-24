@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
@@ -31,14 +31,9 @@ import { PartnerCard } from "@/components/orders/partner-card";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRestaurantOrders } from "@/hooks/use-restaurant-orders";
-import { useAppStore } from "@/lib/app-store";
-import { shouldUseFirebase } from "@/lib/env";
-import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { updateOrderStatus as updateFirebaseOrderStatus } from "@/services/order-service";
 import type { OrderDoc } from "@/types/firebase";
 
 type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
@@ -55,46 +50,15 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
 };
 
 export function OwnerOrderManagementFlow() {
-  const [tab, setTab] = useState<OrderTab>("live");
+  const [tab, setTab] = useState<OrderTab>("all");
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [autoAccept, setAutoAccept] = useState(false);
   const [dialogPartner, setDialogPartner] = useState("");
   const [operationsOpen, setOperationsOpen] = useState(true);
-  const firebaseEnabled = shouldUseFirebase();
-  const authUser = useAppStore((state) => state.authUser);
-  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
-  const restaurants = useAppStore((state) => state.restaurants);
-  const restaurantIds = useMemo(() => {
-    const ownedRestaurants = restaurants.filter((restaurant) =>
-      restaurant.slug === authUser.restaurantSlug ||
-      restaurant.id === authUser.restaurantSlug ||
-      restaurant.tenantId === authUser.tenantId ||
-      restaurant.ownerId === authUser.id ||
-      restaurant.ownerIds?.includes(authUser.id),
-    );
-    return Array.from(new Set([
-      authUser.restaurantSlug,
-      authUser.tenantId,
-      ...ownedRestaurants.flatMap((restaurant) => [restaurant.slug, restaurant.id, restaurant.tenantId]),
-      ownerBusinessProfile?.completed ? DEFAULT_RESTAURANT_ID : undefined,
-      DEFAULT_RESTAURANT_ID,
-    ].filter((id): id is string => Boolean(id))));
-  }, [authUser.id, authUser.restaurantSlug, authUser.tenantId, ownerBusinessProfile?.completed, restaurants]);
-  const firebaseQueue = useRestaurantOrders(firebaseEnabled ? restaurantIds : undefined);
-  const localOrders = useAppStore((state) => state.orders);
-  const tableOrders = useAppStore((state) => state.tableOrders);
-  const cateringInquiries = useAppStore((state) => state.cateringInquiries);
-  const updateMockOrderStatus = useAppStore((state) => state.updateOrderStatus);
-  const updateTableOrderStatus = useAppStore((state) => state.updateTableOrderStatus);
-  const updateCateringInquiryStatus = useAppStore((state) => state.updateCateringInquiryStatus);
-  const convertCateringInquiryToOrder = useAppStore((state) => state.convertCateringInquiryToOrder);
-  const firebaseOrders = useMemo(() => firebaseQueue.orders.map(toDemoOrder), [firebaseQueue.orders]);
-  const firebaseOrderIds = useMemo(() => new Set(firebaseQueue.orders.map((order) => order.id)), [firebaseQueue.orders]);
-  const orders = useMemo(() => {
-    const merged = new Map(localOrders.map((order) => [order.id, order]));
-    for (const order of firebaseOrders) merged.set(order.id, order);
-    return Array.from(merged.values());
-  }, [firebaseOrders, localOrders]);
+  const [orders, setOrders] = useState<DemoOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const tableOrders = useMemo<TableOrder[]>(() => [], []);
+  const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders), [orders, tableOrders]);
   const tabOrders = mappedOrders.filter((order) => matchesTab(order, tab));
   const tabCatering = cateringInquiries.filter((quote) => matchesCateringTab(quote, tab));
@@ -103,12 +67,38 @@ export function OwnerOrderManagementFlow() {
   const metrics = buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries);
   const filters = buildFilters(tabOrders, tabCatering);
 
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/orders", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: OrderDoc[] }) => {
+        if (active) setOrders((payload.data ?? []).map(toDemoOrder));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
   async function updateOrder(orderId: string, status: OrderStatus) {
-    if (firebaseEnabled && firebaseOrderIds.has(orderId)) {
-      await updateFirebaseOrderStatus(orderId, status).catch(() => undefined);
+    const response = await fetch("/api/owner/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, status }),
+    });
+    if (!response.ok) {
+      toast.error("Order status could not be updated.");
       return;
     }
-    await updateMockOrderStatus(orderId, status);
+    setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order));
+  }
+
+  async function updateCateringInquiryStatus() {
+    toast.error("Catering requests are not part of the repository-backed order queue yet.");
+  }
+
+  async function convertCateringInquiryToOrder() {
+    toast.error("Catering conversion is not part of the repository-backed order queue yet.");
   }
 
   return (
@@ -181,10 +171,9 @@ export function OwnerOrderManagementFlow() {
                 onComplete={() => void updateOrder(order.id, "delivered")}
               />
             ))}
-            {tab === "kot" ? (
-              <KitchenCards orders={tableOrders} onNext={(order) => void updateTableOrderStatus(order.id, nextKitchenStatus[order.status])} />
-            ) : null}
+            {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={() => undefined} /> : null}
             {!visibleOrders.length && !visibleCatering.length && tab !== "kot" ? <EmptyOrders /> : null}
+            {loading ? <p className="text-sm font-bold text-slate-500">Loading canonical orders...</p> : null}
           </div>
         </main>
 

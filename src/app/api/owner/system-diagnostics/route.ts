@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminApp } from "@/firebase/admin";
 import { CustomerRepository } from "@/repositories/customer-repository";
+import { KitchenRepository } from "@/repositories/kitchen-repository";
 import { LoyaltyRepository } from "@/repositories/loyalty-repository";
 import { MenuRepository } from "@/repositories/menu-repository";
 import { OfferRepository } from "@/repositories/offer-repository";
@@ -20,9 +21,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const scope = tenantScope(session, request.nextUrl.searchParams.get("restaurantId"));
-    const [orders, customers, loyalty, offers, menu, tables, staff] = await Promise.all([
+    const [orders, customers, loyalty, offers, menu, tables, staff, kitchen] = await Promise.all([
       new OrderRepository().summary(scope), new CustomerRepository().list(scope), new LoyaltyRepository().list(scope),
-      new OfferRepository().list(scope), new MenuRepository().list(scope), new TableRepository().list(scope), new StaffRepository().list(scope),
+      new OfferRepository().list(scope), new MenuRepository().list(scope), new TableRepository().list(scope), new StaffRepository().list(scope), new KitchenRepository().list(scope),
     ]);
     return NextResponse.json({
       data: {
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
         tablesCount: tables.length,
         staffCount: staff.length,
         loyaltyCount: loyalty.length,
+        kitchenCount: kitchen.length,
         revenue: orders.revenue,
       },
     });

@@ -19,7 +19,6 @@ import {
   ReceiptText,
   Settings2,
   Table2,
-  TrendingUp,
   UserPlus,
   UserRound,
   Users,
@@ -64,6 +63,16 @@ type CanonicalOrder = {
   deliveryOtp?: string;
 };
 
+type AnalyticsSnapshot = {
+  orderCount: number;
+  revenue: number;
+  customerCount: number;
+  loyaltyCount: number;
+  menuCount: number;
+  staffCount: number;
+  kitchenCount: number;
+};
+
 const widgetLabels: Record<WidgetId, string> = {
   live: "Live orders",
   kitchen: "Kitchen queue",
@@ -79,15 +88,16 @@ const widgetLabels: Record<WidgetId, string> = {
 
 export default function OwnerDashboardPage() {
   const authUser = useAppStore((state) => state.authUser);
-  const menuItems = useAppStore((state) => state.menuItems);
   const restaurants = useAppStore((state) => state.restaurants);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
-  const staffMembers = useAppStore((state) => state.staffMembers);
-  const posTables = useAppStore((state) => state.posTables);
-  const offlineQueue = useAppStore((state) => state.offlineQueue);
   const printerSettings = useAppStore((state) => state.printerSettings);
   const [canonicalOrders, setCanonicalOrders] = useState<DemoOrder[]>([]);
   const [canonicalCustomerCount, setCanonicalCustomerCount] = useState(0);
+  const [canonicalMenuItems, setCanonicalMenuItems] = useState<MenuItem[]>([]);
+  const [canonicalStaffMembers, setCanonicalStaffMembers] = useState<StaffMember[]>([]);
+  const [canonicalTables, setCanonicalTables] = useState<PosTable[]>([]);
+  const [canonicalKitchenOrders, setCanonicalKitchenOrders] = useState<TableOrder[]>([]);
+  const [analyticsSnapshot, setAnalyticsSnapshot] = useState<AnalyticsSnapshot | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [hiddenWidgets, setHiddenWidgets] = useState<Set<WidgetId>>(new Set());
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([...widgetIds]);
@@ -98,15 +108,16 @@ export default function OwnerDashboardPage() {
   const metrics = useMemo(
     () => buildDashboardMetrics({
       orders: canonicalOrders,
-      tableOrders: [],
-      menuItems,
+      tableOrders: canonicalKitchenOrders,
+      menuItems: canonicalMenuItems,
       customerCount: canonicalCustomerCount,
-      staffMembers,
-      posTables,
-      offlineQueue,
-      printerSettings,
+      analytics: analyticsSnapshot,
+      staffMembers: canonicalStaffMembers,
+      posTables: canonicalTables,
+      offlineQueue: [],
+      printerSettings: { ...printerSettings, connectionStatus: "browser-preview" },
     }),
-    [canonicalCustomerCount, canonicalOrders, menuItems, offlineQueue, posTables, printerSettings, staffMembers],
+    [analyticsSnapshot, canonicalCustomerCount, canonicalKitchenOrders, canonicalMenuItems, canonicalOrders, canonicalStaffMembers, canonicalTables, printerSettings],
   );
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
   const ownerName = displayOwnerGreetingName(ownerBusinessProfile?.ownerName, ownerBusinessProfile?.hotelName, currentRestaurant?.displayName || currentRestaurant?.name, authUser.name);
@@ -142,10 +153,24 @@ export default function OwnerDashboardPage() {
     let active = true;
     void fetch("/api/owner/analytics", { cache: "no-store" })
       .then((response) => response.json())
-      .then((payload: { data?: { orders?: CanonicalOrder[]; customerCount?: number } }) => {
+      .then((payload: { data?: Partial<AnalyticsSnapshot> & { orders?: CanonicalOrder[]; customerCount?: number; menu?: MenuItem[]; staff?: StaffMember[]; tables?: PosTable[]; kitchen?: TableOrder[] } }) => {
         if (!active) return;
+        const data = payload.data;
         setCanonicalOrders((payload.data?.orders ?? []).map(canonicalToDemoOrder));
         setCanonicalCustomerCount(Number(payload.data?.customerCount ?? 0));
+        setCanonicalMenuItems(payload.data?.menu ?? []);
+        setCanonicalStaffMembers(payload.data?.staff ?? []);
+        setCanonicalTables(payload.data?.tables ?? []);
+        setCanonicalKitchenOrders(payload.data?.kitchen ?? []);
+        setAnalyticsSnapshot({
+          orderCount: Number(data?.orderCount ?? data?.orders?.length ?? 0),
+          revenue: Number(data?.revenue ?? 0),
+          customerCount: Number(data?.customerCount ?? 0),
+          loyaltyCount: Number(data?.loyaltyCount ?? 0),
+          menuCount: Number(data?.menuCount ?? data?.menu?.length ?? 0),
+          staffCount: Number(data?.staffCount ?? data?.staff?.length ?? 0),
+          kitchenCount: Number(data?.kitchenCount ?? data?.kitchen?.length ?? 0),
+        });
       });
     return () => { active = false; };
   }, []);
@@ -241,12 +266,12 @@ export default function OwnerDashboardPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <KpiCard title="Today's Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Gross sales recorded today from POS and online orders." />
-        <KpiCard title="Active Orders" value={metrics.activeOrdersCount} delta={`${metrics.ordersToday} today`} icon={ReceiptText} tone="orange" spark={metrics.orderSpark} tooltip="Orders currently being processed." />
+        <KpiCard title="Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Repository revenue for this restaurant." />
+        <KpiCard title="Orders" value={metrics.activeOrdersCount} delta={`${metrics.ordersToday} total`} icon={ReceiptText} tone="orange" spark={metrics.orderSpark} tooltip="Canonical order count from analytics." />
         <KpiCard title="Kitchen Operations" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
-        <KpiCard title="Waiters Active" value={metrics.staff.waitersActive} delta={`${metrics.staff.idleWaiters} idle`} icon={Users} tone="green" spark={metrics.staff.spark} tooltip="Active waiter accounts for the current restaurant." />
-        <KpiCard title="Avg. Order Value" value={metrics.avgOrderValue} format={formatCurrency} delta={metrics.avgDelta} icon={TrendingUp} tone="purple" spark={metrics.avgSpark} tooltip="Average value of today's completed and active orders." />
-        <KpiCard title="New Customers" value={metrics.newCustomers} delta={metrics.customerDelta} icon={UserRound} tone="amber" spark={metrics.customerSpark} tooltip="Customer records available to this restaurant." />
+        <KpiCard title="Staff" value={metrics.staff.total} delta={`${metrics.staff.waitersActive} waiters`} icon={Users} tone="green" spark={metrics.staff.spark} tooltip="Repository staff count for this restaurant." />
+        <KpiCard title="Menu" value={metrics.menuCount} delta={`${metrics.loyaltyCount} loyalty`} icon={Utensils} tone="purple" spark={metrics.avgSpark} tooltip="Repository menu count." />
+        <KpiCard title="Customers" value={metrics.newCustomers} delta={`${metrics.loyaltyCount} loyalty`} icon={UserRound} tone="amber" spark={metrics.customerSpark} tooltip="Customer and loyalty records available to this restaurant." />
       </section>
 
       {liveWidgets.length ? (
@@ -837,6 +862,7 @@ function buildDashboardMetrics({
   tableOrders,
   menuItems,
   customerCount,
+  analytics,
   staffMembers,
   posTables,
   offlineQueue,
@@ -846,6 +872,7 @@ function buildDashboardMetrics({
   tableOrders: TableOrder[];
   menuItems: MenuItem[];
   customerCount: number;
+  analytics: AnalyticsSnapshot | null;
   staffMembers: StaffMember[];
   posTables: PosTable[];
   offlineQueue: OfflineQueueItem[];
@@ -879,9 +906,9 @@ function buildDashboardMetrics({
   const yesterday = addDays(today, -1);
   const todayOrders = combined.filter((order) => isSameDay(order.createdAt, today));
   const yesterdayOrders = combined.filter((order) => isSameDay(order.createdAt, yesterday));
-  const revenueToday = sum(todayOrders.map((order) => order.amount));
+  const revenueToday = analytics?.revenue ?? sum(todayOrders.map((order) => order.amount));
   const revenueYesterday = sum(yesterdayOrders.map((order) => order.amount));
-  const ordersToday = todayOrders.length;
+  const ordersToday = analytics?.orderCount ?? todayOrders.length;
   const ordersYesterday = yesterdayOrders.length;
   const avgOrderValue = ordersToday ? revenueToday / ordersToday : 0;
   const avgYesterday = ordersYesterday ? revenueYesterday / ordersYesterday : 0;
@@ -889,7 +916,7 @@ function buildDashboardMetrics({
   const weekRevenue = week.map((date) => sum(combined.filter((order) => isSameDay(order.createdAt, date)).map((order) => order.amount)));
   const weekOrders = week.map((date) => combined.filter((order) => isSameDay(order.createdAt, date)).length);
   const activeOrders = sorted.filter((order) => !isTerminal(order.status));
-  const kitchenOrders = tableOrders.filter((order) => !isTerminal(order.status));
+  const kitchenOrders = tableOrders;
   const preparing = kitchenOrders.filter((order) => order.status === "preparing" || order.status === "occupied").length;
   const ready = kitchenOrders.filter((order) => order.status === "ready").length;
   const pending = kitchenOrders.filter((order) => order.status === "new").length;
@@ -908,10 +935,10 @@ function buildDashboardMetrics({
     revenueDelta: percentDelta(revenueToday, revenueYesterday),
     ordersToday,
     ordersDelta: percentDelta(ordersToday, ordersYesterday),
-    activeOrdersCount: activeOrders.length,
+    activeOrdersCount: analytics?.orderCount ?? activeOrders.length,
     avgOrderValue,
     avgDelta: percentDelta(avgOrderValue, avgYesterday),
-    newCustomers: customerCount,
+    newCustomers: analytics?.customerCount ?? customerCount,
     customerDelta: "+0%",
     revenueSpark: weekRevenue,
     orderSpark: weekOrders,
@@ -926,7 +953,7 @@ function buildDashboardMetrics({
     typeCounts,
     typeTotal: sum(typeCounts.map((item) => item.value)),
     kitchen: {
-      total: kitchenOrders.length,
+      total: analytics?.kitchenCount ?? kitchenOrders.length,
       pending,
       preparing,
       ready,
@@ -934,6 +961,7 @@ function buildDashboardMetrics({
       spark: week.map((date) => tableOrders.filter((order) => isSameDay(order.createdAt, date) && !isTerminal(order.status)).length),
     },
     staff: {
+      total: analytics?.staffCount ?? staffMembers.length,
       waitersActive,
       serving,
       idleWaiters: Math.max(0, waitersActive - serving),
@@ -945,6 +973,8 @@ function buildDashboardMetrics({
     printerLabel,
     printerTone: printerTone as "green" | "red",
     activeTables: posTables.filter((table) => table.status === "Dining" || table.status === "Bill requested").length,
+    menuCount: analytics?.menuCount ?? menuItems.length,
+    loyaltyCount: analytics?.loyaltyCount ?? 0,
     alerts,
   };
 }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CustomerRepository } from "@/repositories/customer-repository";
+import { KitchenRepository } from "@/repositories/kitchen-repository";
 import { LoyaltyRepository } from "@/repositories/loyalty-repository";
 import { MenuRepository } from "@/repositories/menu-repository";
 import { OfferRepository } from "@/repositories/offer-repository";
@@ -8,6 +9,7 @@ import { StaffRepository } from "@/repositories/staff-repository";
 import { TableRepository } from "@/repositories/table-repository";
 import { ownerReadRoles, tenantScope } from "@/repositories/shared";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { kitchenDocToTableOrder, menuDocToMenuItem, staffDocToStaffMember, tableDocToPosTable } from "@/lib/operational-api-mappers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     const scope = tenantScope(session, request.nextUrl.searchParams.get("restaurantId"));
     const from = parseDate(request.nextUrl.searchParams.get("from"));
     const to = parseDate(request.nextUrl.searchParams.get("to"), true);
-    const [summary, customers, loyalty, offers, menu, tables, staff] = await Promise.all([
+    const [summary, customers, loyalty, offers, menu, tables, staff, kitchen] = await Promise.all([
       new OrderRepository().summary(scope, { from, to }),
       new CustomerRepository().list(scope),
       new LoyaltyRepository().list(scope),
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
       new MenuRepository().list(scope),
       new TableRepository().list(scope),
       new StaffRepository().list(scope),
+      new KitchenRepository().list(scope),
     ]);
     return NextResponse.json({
       data: {
@@ -38,12 +41,14 @@ export async function GET(request: NextRequest) {
         menuCount: menu.length,
         tableCount: tables.length,
         staffCount: staff.length,
+        kitchenCount: kitchen.length,
         customers,
         loyalty,
         offers,
-        menu,
-        tables,
-        staff,
+        menu: menu.map(menuDocToMenuItem),
+        tables: tables.map(tableDocToPosTable),
+        staff: staff.map(staffDocToStaffMember),
+        kitchen: kitchen.map(kitchenDocToTableOrder),
       },
     });
   } catch (error) {

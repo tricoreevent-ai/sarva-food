@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Grid2X2, Loader2, MapPin, PackageCheck, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Grid2X2, Loader2, MapPin, Printer, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
@@ -19,10 +19,10 @@ import { useAppStore } from "@/lib/app-store";
 import { subscribeOfflineQueue, type OfflineQueueEntry } from "@/lib/offline";
 import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
-import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuItem, OwnerBusinessProfile, PosBill, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
+import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PosBill, PosTable, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
-import { normalizePhone, safeFindCustomerByPhone } from "@/services/restaurant-ops-service";
+import { normalizePhone } from "@/services/restaurant-ops-service";
 
 const posTabs = ["menu", "custom", "combos"] as const;
 const heldOrdersKey = "sarva-pos-held-orders:v1";
@@ -32,6 +32,17 @@ type HeldPosOrder = {
   label: string;
   createdAt: string;
   bill: PosBill;
+};
+
+type PosReadModel = {
+  menuItems: MenuItem[];
+  menuCategories: MenuCategory[];
+  inventoryItems: InventoryItem[];
+  orders: DemoOrder[];
+  tables: PosTable[];
+  loyaltyCustomers: LoyaltyCustomer[];
+  tableOrders: TableOrder[];
+  staffMembers: StaffMember[];
 };
 
 export function PosBillingFlow() {
@@ -47,27 +58,30 @@ export function PosBillingFlow() {
   const [orderNote, setOrderNote] = useState("");
   const [foodFilter, setFoodFilter] = useState<"all" | "veg" | "nonveg">("all");
   const [sortMode, setSortMode] = useState<"popular" | "name" | "price-low" | "price-high">("popular");
-  const [availableOnly, setAvailableOnly] = useState(true);
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [compactGrid, setCompactGrid] = useState(false);
   const [showKot, setShowKot] = useState(false);
   const [ticketCreatedAt, setTicketCreatedAt] = useState<Date | null>(null);
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueEntry[]>([]);
   const [heldOrders, setHeldOrders] = useState<HeldPosOrder[]>([]);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const menuCategories = useAppStore((state) => state.menuCategories);
-  const inventoryItems = useAppStore((state) => state.inventoryItems);
-  const orders = useAppStore((state) => state.orders);
+  const [readModel, setReadModel] = useState<PosReadModel>(() => ({
+    menuItems: [],
+    menuCategories: [],
+    inventoryItems: [],
+    orders: [],
+    tables: [],
+    loyaltyCustomers: [],
+    tableOrders: [],
+    staffMembers: [],
+  }));
+  const { menuItems, menuCategories, inventoryItems, orders, tables, loyaltyCustomers, tableOrders, staffMembers } = readModel;
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
   const configuredBranch = useAppStore((state) => state.branches[0]);
   const taxSettings = useAppStore((state) => state.taxSettings);
   const printerSettings = useAppStore((state) => state.printerSettings);
-  const tables = useAppStore((state) => state.posTables);
   const bill = useAppStore((state) => state.posBill);
-  const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
-  const tableOrders = useAppStore((state) => state.tableOrders);
-  const staffMembers = useAppStore((state) => state.staffMembers);
   const { categories: masterCategories } = usePublicCategories();
   const addPosItem = useAppStore((state) => state.addPosItem);
   const addPosProduct = useAppStore((state) => state.addPosProduct);
@@ -78,10 +92,6 @@ export function PosBillingFlow() {
   const setPosOrderType = useAppStore((state) => state.setPosOrderType);
   const setPosCustomer = useAppStore((state) => state.setPosCustomer);
   const setPosPayment = useAppStore((state) => state.setPosPayment);
-  const createTableOrder = useAppStore((state) => state.createTableOrder);
-  const updateTableOrder = useAppStore((state) => state.updateTableOrder);
-  const linkPosKitchenOrder = useAppStore((state) => state.linkPosKitchenOrder);
-  const payPosBill = useAppStore((state) => state.payPosBill);
   const resetPosBill = useAppStore((state) => state.resetPosBill);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
   const branch = useMemo(
@@ -105,6 +115,24 @@ export function PosBillingFlow() {
   useEffect(() => {
     window.localStorage.setItem(heldOrdersKey, JSON.stringify(heldOrders));
   }, [heldOrders]);
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/pos", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: { menu?: MenuItem[]; orders?: DemoOrder[]; tables?: PosTable[]; customers?: LoyaltyCustomer[]; kitchen?: TableOrder[]; staff?: StaffMember[] } }) => {
+        if (!active) return;
+        setReadModel((current) => ({
+          ...current,
+          menuItems: payload.data?.menu ?? [],
+          orders: payload.data?.orders ?? [],
+          tables: payload.data?.tables ?? [],
+          loyaltyCustomers: payload.data?.customers ?? [],
+          tableOrders: payload.data?.kitchen ?? [],
+          staffMembers: payload.data?.staff ?? [],
+        }));
+      });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (panel !== "new" || wizardStep <= 1 || wizardStep >= 4) return;
     window.history.pushState({ sarvaPosWizardStep: wizardStep }, "");
@@ -229,10 +257,9 @@ export function PosBillingFlow() {
   const kotContext = buildKotContext(billContext);
   const totals = calculateBillTotals(billContext);
   const activeKitchenOrder = bill.linkedKitchenOrderId ? tableOrders.find((order) => order.id === bill.linkedKitchenOrderId) : undefined;
-  const pendingSync = offlineQueue.filter((item) => item.status !== "synced").length;
   const activeKotCount = tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length;
-  const activeOrderCount = orders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status)).length + activeKotCount;
-  const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status)).length + tableOrders.filter((order) => ["completed", "billed"].includes(order.status)).length;
+  const activeOrderCount = orders.length;
+  const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status)).length;
 
   function handleAdd(item: PosProduct) {
     if (item.source === "menu") {
@@ -260,11 +287,7 @@ export function PosBillingFlow() {
       toast.success(`${localCustomer.name} selected.`);
       return;
     }
-    const remoteCustomer = await safeFindCustomerByPhone(normalized).catch(() => null);
-    if (remoteCustomer) {
-      setPosCustomer({ id: remoteCustomer.id, name: remoteCustomer.name, phone: remoteCustomer.phone });
-      toast.success(`${remoteCustomer.name} selected.`);
-    }
+    toast.error("No repository customer found for this phone.");
   }
 
   async function sendKot() {
@@ -294,20 +317,31 @@ export function PosBillingFlow() {
       total: totals.total,
     };
     if (bill.linkedKitchenOrderId) {
-      await updateTableOrder(bill.linkedKitchenOrderId, kitchenPayload);
-      setShowKot(true);
-      toast.success("Kitchen ticket updated with the latest items.");
-      return {
+      const response = await fetch("/api/owner/kitchen", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...kitchenPayload, id: bill.linkedKitchenOrderId, status: activeKitchenOrder?.status ?? "new" }),
+      });
+      const result = await response.json() as { data?: TableOrder };
+      const next = result.data ?? {
         ...kitchenPayload,
         id: bill.linkedKitchenOrderId,
         status: activeKitchenOrder?.status ?? "new",
         createdAt: activeKitchenOrder?.createdAt ?? new Date().toISOString(),
       } satisfies TableOrder;
+      setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((order) => order.id === next.id ? next : order) }));
+      setShowKot(true);
+      toast.success("Kitchen ticket updated with the latest items.");
+      return next;
     }
-    const order = await createTableOrder({
-      ...kitchenPayload,
+    const response = await fetch("/api/owner/kitchen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(kitchenPayload),
     });
-    linkPosKitchenOrder(order.id);
+    const result = await response.json() as { data?: TableOrder };
+    const order = result.data ?? { ...kitchenPayload, id: `kot-${Date.now()}`, status: "new", createdAt: new Date().toISOString() } satisfies TableOrder;
+    setReadModel((current) => ({ ...current, tableOrders: [order, ...current.tableOrders] }));
     setPosBill({ ...bill, linkedKitchenOrderId: order.id, applyGst, waiveParcelCharge });
     setShowKot(true);
     toast.success(`Kitchen ticket sent for ${order.tableNumber}.`);
@@ -323,7 +357,25 @@ export function PosBillingFlow() {
       toast.error("Add at least one item before checkout.");
       return false;
     }
-    await payPosBill();
+    const invoiceNumber = bill.invoiceNumber && bill.invoiceNumber !== "INV-POS-DRAFT" ? bill.invoiceNumber : `INV-${Date.now().toString(36).toUpperCase()}`;
+    const billLink = `${window.location.origin}/bill/${invoiceNumber}`;
+    setPosBill({
+      ...bill,
+      paid: true,
+      tenderedAmount: bill.tenderedAmount && bill.tenderedAmount > 0 ? bill.tenderedAmount : totals.total,
+      invoiceNumber,
+      billDeliveryLink: billLink,
+      billDeliveryQr: billLink,
+    });
+    if (bill.linkedKitchenOrderId) {
+      const response = await fetch("/api/owner/kitchen", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: bill.linkedKitchenOrderId, status: "completed" }),
+      });
+      const result = await response.json() as { data?: TableOrder };
+      if (result.data) setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((order) => order.id === result.data!.id ? result.data! : order) }));
+    }
     toast.success("Payment captured and bill is ready.");
     return true;
   }
@@ -594,30 +646,10 @@ export function PosBillingFlow() {
           ) : panel === "active" ? (
             <ActiveOrdersPanel
               orders={orders}
-              tableOrders={tableOrders}
               onOpenNew={startNewOrder}
-              onEditKitchenOrder={(order) => {
-                setPosBill({
-                  ...bill,
-                  table: order.orderType === "dine-in" ? order.tableNumber : "DIRECT",
-                  orderType: order.orderType ?? "dine-in",
-                  lines: order.lines,
-                  payment: bill.payment ?? "cash",
-                  paid: false,
-                  customerName: order.customerName ?? order.guestName ?? "",
-                  customerPhone: order.customerPhone ?? "",
-                  linkedKitchenOrderId: order.id,
-                  waiterName: order.waiterName ?? authUser.name,
-                  applyGst,
-                  waiveParcelCharge,
-                });
-                setPanel("new");
-                setWizardStep(1);
-                toast.success("Active order loaded. You can edit items before billing.");
-              }}
             />
           ) : panel === "past" ? (
-            <PastOrdersPanel orders={orders} tableOrders={tableOrders} />
+            <PastOrdersPanel orders={orders} />
           ) : panel === "customers" ? (
             <CustomersPanel customers={loyaltyCustomers} onSelect={(customer) => {
               setPosCustomer({ id: customer.id, name: customer.name, phone: customer.phone });
@@ -666,10 +698,11 @@ export function PosBillingFlow() {
           /> : null}
         </main>
         <footer className="grid gap-3 border-t border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto]">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <StatusPill icon={Grid2X2} label="Menu Items" value={String(menu.length)} />
+            <StatusPill icon={UsersRound} label="Customers" value={String(loyaltyCustomers.length)} />
+            <StatusPill icon={ClipboardList} label="Orders" value={String(orders.length)} />
             <StatusPill icon={Utensils} label="Kitchen Operations" value={`${tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length} Active`} />
-            <StatusPill icon={PackageCheck} label="Held Orders" value={String(heldOrders.length)} />
-            <StatusPill icon={ReceiptText} label="Last Sync" value={pendingSync ? `${pendingSync} pending` : "2 min ago"} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => printTicket("kot")} disabled={!bill.lines.length}>
@@ -825,7 +858,7 @@ function CustomerOrderDetailsStep({
   onNext,
 }: {
   bill: PosBill;
-  tables: ReturnType<typeof useAppStore.getState>["posTables"];
+  tables: PosTable[];
   lookupItems: CustomerLookupItem[];
   activeWaiters: StaffMember[];
   deliveryAddress: string;
@@ -1124,43 +1157,25 @@ function HeldOrdersPanel({
 
 function ActiveOrdersPanel({
   orders,
-  tableOrders,
   onOpenNew,
-  onEditKitchenOrder,
 }: {
   orders: DemoOrder[];
-  tableOrders: TableOrder[];
   onOpenNew: () => void;
-  onEditKitchenOrder: (order: TableOrder) => void;
 }) {
   const activeCustomerOrders = orders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status));
-  const activeKitchenOrders = tableOrders.filter((order) => !["completed", "billed"].includes(order.status));
 
   return (
     <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-black text-slate-950">Active Orders</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Live website, POS, parcel, delivery, and kitchen tickets.</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Canonical website, POS, parcel, and delivery orders.</p>
         </div>
         <Button onClick={onOpenNew}>New Order</Button>
       </div>
       <div className="mt-5 grid gap-3">
-        {[...activeKitchenOrders, ...activeCustomerOrders].length ? (
+        {activeCustomerOrders.length ? (
           <>
-            {activeKitchenOrders.map((order, index) => (
-              <OrderPanelRow
-                key={order.id}
-                id={readableTableOrderId(order, index + 1)}
-                customer={order.customerName ?? order.guestName ?? order.tableNumber}
-                amount={order.total ?? order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0)}
-                time={actualOrderTime(order.createdAt)}
-                status={order.status}
-                source={order.source}
-                actionLabel="Edit bill"
-                onAction={() => onEditKitchenOrder(order)}
-              />
-            ))}
             {activeCustomerOrders.map((order, index) => (
               <OrderPanelRow
                 key={order.id}
@@ -1183,7 +1198,7 @@ function ActiveOrdersPanel({
   );
 }
 
-function PastOrdersPanel({ orders, tableOrders }: { orders: DemoOrder[]; tableOrders: TableOrder[] }) {
+function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [since] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -1201,21 +1216,6 @@ function PastOrdersPanel({ orders, tableOrders }: { orders: DemoOrder[]; tableOr
         source: order.channel,
         gst: order.totals.tax,
         discount: order.totals.discount,
-        status: order.status,
-      })),
-    ...tableOrders
-      .filter((order) => ["completed", "billed"].includes(order.status) && Date.parse(order.createdAt) >= since)
-      .map((order, index) => ({
-        id: readableTableOrderId(order, index + 1),
-        rawId: order.id,
-        customer: order.customerName ?? order.guestName ?? order.tableNumber,
-        amount: order.total ?? order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0),
-        payment: "POS",
-        time: actualOrderTime(order.createdAt),
-        waiter: order.waiterName ?? "-",
-        source: order.source,
-        gst: 0,
-        discount: 0,
         status: order.status,
       })),
   ];

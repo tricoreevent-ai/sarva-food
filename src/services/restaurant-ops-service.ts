@@ -87,30 +87,6 @@ export function kitchenDocToTableOrder(order: KitchenOrderDoc): TableOrder {
   };
 }
 
-export function listenKitchenOrders(
-  restaurantId = RESTAURANT_ID,
-  branchId = BRANCH_ID,
-  onData: (orders: TableOrder[]) => void,
-  onError?: (error: Error) => void,
-): Unsubscribe {
-  if (!canUseOperationalFirestore()) return () => undefined;
-
-  const q = query(
-    refs.kitchenOrders(getFirebaseDb()),
-    where("tenantId", "==", resolveTenantId(restaurantId)),
-    where("branchId", "==", branchId),
-    where("status", "in", ["new", "preparing", "ready", "served"]),
-    orderBy("createdAt", "desc"),
-    limit(100),
-  );
-
-  return onSnapshot(
-    q,
-    (snapshot) => onData(snapshot.docs.map((item) => kitchenDocToTableOrder(item.data()))),
-    (error) => onError?.(error),
-  );
-}
-
 export async function safeCreateKitchenOrder(input: {
   id?: string;
   restaurantId?: string;
@@ -250,7 +226,7 @@ export async function safeUpdateKitchenOrder(input: {
   return true;
 }
 
-export async function safeFindCustomerByPhone(
+export async function findCustomerByPhoneForPos(
   phone: string,
   restaurantId = RESTAURANT_ID,
 ) {
@@ -278,7 +254,7 @@ export async function safeUpsertCustomerFromBill(input: {
 
   const restaurantId = input.restaurantId ?? RESTAURANT_ID;
   const customerId = `cust-${restaurantId}-${normalizedPhone}`;
-  const previous = await safeFindCustomerByPhone(normalizedPhone, restaurantId);
+  const previous = await findCustomerByPhoneForPos(normalizedPhone, restaurantId);
   const totalOrders = (previous?.totalOrders ?? 0) + 1;
   const lifetimeValue = (previous?.lifetimeValue ?? 0) + input.total;
   const customer: CustomerDoc = {

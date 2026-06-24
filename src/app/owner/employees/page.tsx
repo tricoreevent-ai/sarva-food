@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { Calculator, CheckCircle2, Edit3, KeyRound, Trash2, UserPlus, type LucideIcon } from "lucide-react";
 import toast from "react-hot-toast";
@@ -50,12 +50,19 @@ type EmployeeDraft = {
 
 export default function OwnerEmployeesPage() {
   const branches = useAppStore((state) => state.branches);
-  const staffMembers = useAppStore((state) => state.staffMembers);
-  const createStaffMember = useAppStore((state) => state.createStaffMember);
-  const updateStaffMember = useAppStore((state) => state.updateStaffMember);
-  const deleteStaffMember = useAppStore((state) => state.deleteStaffMember);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [step, setStep] = useState<WizardStep>(0);
   const [draft, setDraft] = useState<EmployeeDraft>(() => emptyDraft(branches[0]?.id ?? ""));
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/staff", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: StaffMember[] }) => {
+        if (active) setStaffMembers(payload.data ?? []);
+      });
+    return () => { active = false; };
+  }, []);
 
   const estimate = useMemo(
     () => calculatePayrollEstimate({
@@ -73,7 +80,6 @@ export default function OwnerEmployeesPage() {
   const employeeRows = useMemo(
     () =>
       staffMembers
-        .filter((member) => member.role !== "owner" && member.role !== "admin")
         .map((member) => ({
           ...member,
           branch: branches.find((branch) => branch.id === member.branchId)?.name ?? member.branchId,
@@ -98,8 +104,8 @@ export default function OwnerEmployeesPage() {
       sortable: false,
       render: (row) => (
         <div className="flex min-w-44 gap-2">
-          <Button size="sm" variant="outline" onClick={() => editEmployee(row)}><Edit3 className="size-3" />Edit</Button>
-          <Button size="sm" variant="destructive" onClick={() => void removeEmployee(row)}><Trash2 className="size-3" />Delete</Button>
+          <Button size="sm" variant="outline" disabled={!canManageEmployee(row)} onClick={() => editEmployee(row)}><Edit3 className="size-3" />Edit</Button>
+          <Button size="sm" variant="destructive" disabled={!canManageEmployee(row)} onClick={() => void removeEmployee(row)}><Trash2 className="size-3" />Delete</Button>
         </div>
       ),
     },
@@ -155,10 +161,15 @@ export default function OwnerEmployeesPage() {
 
     if (draft.id) {
       const existing = staffMembers.find((member) => member.id === draft.id);
-      await updateStaffMember({ ...payload, id: draft.id, lastActivity: "Updated by owner", status: existing?.status ?? "active" });
+      const next = { ...payload, id: draft.id, lastActivity: "Updated by owner", status: existing?.status ?? "active" };
+      const response = await fetch("/api/owner/staff", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
+      const result = await response.json() as { data?: StaffMember };
+      setStaffMembers((current) => current.map((member) => member.id === draft.id ? result.data ?? next : member));
       toast.success(`${payload.name} updated.`);
     } else {
-      await createStaffMember(payload);
+      const response = await fetch("/api/owner/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const result = await response.json() as { data?: StaffMember };
+      if (result.data) setStaffMembers((current) => [result.data!, ...current]);
       toast.success(`${payload.name} created.`);
     }
     setDraft(emptyDraft(branches[0]?.id ?? ""));
@@ -190,7 +201,8 @@ export default function OwnerEmployeesPage() {
   }
 
   async function removeEmployee(member: StaffMember) {
-    await deleteStaffMember(member.id);
+    await fetch(`/api/owner/staff?id=${encodeURIComponent(member.id)}`, { method: "DELETE" });
+    setStaffMembers((current) => current.filter((item) => item.id !== member.id));
     toast.success(`${member.name} removed from active staff.`);
   }
 
@@ -244,6 +256,10 @@ export default function OwnerEmployeesPage() {
       </section>
     </div>
   );
+}
+
+function canManageEmployee(member: StaffMember) {
+  return member.role !== "owner" && member.role !== "admin";
 }
 
 function StepTabs({ step, onStep }: { step: WizardStep; onStep: (step: WizardStep) => void }) {
