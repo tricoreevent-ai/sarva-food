@@ -9,68 +9,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAppStore } from "@/lib/app-store";
-import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
+import { useOwnerAccounting, type AccountingEntry } from "@/hooks/use-owner-repository-data";
+import { DEFAULT_BRANCH_ID } from "@/lib/tenant";
 import { formatCurrency } from "@/lib/utils";
-import { saveAccountingEntry } from "@/services/production-data-service";
 
 type AccountingEntryType = "income" | "expense";
 type ApprovalStatus = "draft" | "pending" | "approved" | "rejected";
-type AccountingEntry = {
-  id: string;
-  type: AccountingEntryType;
-  category: string;
-  branchId: string;
-  amount: number;
-  gst: number;
-  paymentMode: "cash" | "upi" | "card" | "bank";
-  notes: string;
-  attachment: string;
-  createdBy: string;
-  approvalStatus: ApprovalStatus;
-  createdAt: string;
-};
 
 const incomeCategories = ["sales income", "online income", "other income", "delivery income", "catering income"];
 const expenseCategories = ["employee salary", "contractor payment", "ingredient purchase", "gas/electricity", "rent", "maintenance", "internet", "packaging", "transport", "marketing", "miscellaneous"];
 
 export default function AccountingPage() {
-  const expenses = useAppStore((state) => state.expenses);
-  const transactions = useAppStore((state) => state.transactions);
-  const branches = useAppStore((state) => state.branches);
-  const staffMembers = useAppStore((state) => state.staffMembers);
-  const authUser = useAppStore((state) => state.authUser);
-  const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
-  const [entries, setEntries] = useState<AccountingEntry[]>(() => [
-    ...transactions.map((transaction) => ({
-      id: transaction.id,
-      type: "income" as const,
-      category: transaction.type === "sale" ? "sales income" : "other income",
-      branchId: transaction.branchId,
-      amount: transaction.total,
-      gst: transaction.taxData.gstAmount,
-      paymentMode: transaction.paymentMethod === "cod" ? "cash" as const : transaction.paymentMethod,
-      notes: transaction.orderId,
-      attachment: "",
-      createdBy: transaction.userId,
-      approvalStatus: "approved" as const,
-      createdAt: transaction.timestamp,
-    })),
-    ...expenses.map((expense) => ({
-      id: expense.id,
-      type: "expense" as const,
-      category: "ingredient purchase",
-      branchId: expense.branchId,
-      amount: expense.amount,
-      gst: expense.taxAmount,
-      paymentMode: expense.paidBy === "cod" ? "cash" as const : expense.paidBy,
-      notes: expense.note,
-      attachment: "",
-      createdBy: "staff-accountant",
-      approvalStatus: "pending" as const,
-      createdAt: expense.timestamp,
-    })),
-  ]);
+  const {
+    entries,
+    branches,
+    staff: staffMembers,
+    status,
+    error,
+    retry,
+    save: saveAccountingEntry,
+    remove: deleteAccountingEntry,
+  } = useOwnerAccounting();
   const [draft, setDraft] = useState<AccountingEntry>(() => emptyEntry(branches[0]?.id ?? DEFAULT_BRANCH_ID));
   const [editingId, setEditingId] = useState<string | null>(null);
   const income = entries.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
@@ -142,7 +101,7 @@ export default function AccountingPage() {
       render: (row) => (
         <div className="flex min-w-44 gap-2">
           <Button size="sm" variant="outline" onClick={() => { setEditingId(row.id); setDraft(row); }}><Edit3 className="size-3" />Edit</Button>
-          <Button size="sm" variant="destructive" onClick={() => setEntries((current) => current.filter((entry) => entry.id !== row.id))}><Trash2 className="size-3" />Delete</Button>
+          <Button size="sm" variant="destructive" onClick={() => void deleteAccountingEntry(row.id)}><Trash2 className="size-3" />Delete</Button>
         </div>
       ),
     },
@@ -151,22 +110,11 @@ export default function AccountingPage() {
   async function saveEntry() {
     if (!draft.amount || !draft.category) return;
     if (editingId) {
-      setEntries((current) => current.map((entry) => entry.id === editingId ? draft : entry));
-      await saveAccountingEntry({
-        ...draft,
-        id: editingId,
-        attachmentUrl: draft.attachment,
-        restaurantId,
-      });
+      await saveAccountingEntry({ ...draft, id: editingId });
       setEditingId(null);
     } else {
       const next = { ...draft, id: `acc-${Date.now()}`, createdAt: new Date().toISOString() };
-      setEntries((current) => [next, ...current]);
-      await saveAccountingEntry({
-        ...next,
-        attachmentUrl: next.attachment,
-        restaurantId,
-      });
+      await saveAccountingEntry(next);
     }
     setDraft(emptyEntry(branches[0]?.id ?? DEFAULT_BRANCH_ID));
   }
@@ -178,6 +126,17 @@ export default function AccountingPage() {
         description="Income, expenses, approvals, journal entries, ledger, cashbook, GST summary, analytics, exports, and print."
         action={<Button variant="outline" onClick={() => window.print()}><Printer className="size-4" />Print</Button>}
       />
+      {status === "loading" ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading accounting data">
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-md bg-muted" />)}
+        </div>
+      ) : null}
+      {error ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
+          <span>{error}</span>
+          <Button variant="outline" size="sm" onClick={retry}>Retry</Button>
+        </div>
+      ) : null}
       <section className="dashboard-grid">
         <Metric title="Income" value={formatCurrency(income)} />
         <Metric title="Expenses" value={formatCurrency(expense)} />

@@ -36,6 +36,33 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ data: Array.from(new Map(docs.map((item) => [item.id, item])).values()) });
 }
 
+export async function POST(request: NextRequest) {
+  return upsert(request);
+}
+
+export async function PATCH(request: NextRequest) {
+  return upsert(request);
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await getSessionFromRequest(request, "owner");
+  if (!session || !ownerReadRoles.has(session.role)) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Menu item id is required." }, { status: 400 });
+  const scope = tenantScope(session, request.nextUrl.searchParams.get("restaurantId"));
+  return NextResponse.json({ data: await new MenuRepository().delete(scope, id) });
+}
+
+async function upsert(request: NextRequest) {
+  const session = await getSessionFromRequest(request, "owner");
+  if (!session || !ownerReadRoles.has(session.role)) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
+  const body = await request.json().catch(() => ({})) as { item?: Record<string, unknown>; restaurantId?: string };
+  if (!body.item?.name) return NextResponse.json({ error: "Menu item name is required." }, { status: 400 });
+  const scope = tenantScope(session, body.restaurantId);
+  const data = await new MenuRepository().upsert(scope, { ...body.item, ownerId: session.uid });
+  return NextResponse.json({ data });
+}
+
 function canAccessRestaurant(
   session: NonNullable<Awaited<ReturnType<typeof getSessionFromRequest>>>,
   restaurantId: string,

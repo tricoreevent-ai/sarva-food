@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { CreatableMultiSelect, type MultiSelectOption } from "@/components/ui/creatable-multi-select";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data";
 import { useAppStore } from "@/lib/app-store";
 import { useThemeMode } from "@/lib/theme-provider";
 import { getConnectivitySnapshot, offlineQueueManager, startOfflineSyncEngine, subscribeConnectivity, subscribeOfflineQueue, type ConnectivitySnapshot, type OfflineQueueEntry } from "@/lib/offline";
@@ -781,8 +782,6 @@ function escapeCsv(value: string) {
 
 function DataSyncPanel() {
   const authUser = useAppStore((state) => state.authUser);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const offers = useAppStore((state) => state.offers);
   const orders = useAppStore((state) => state.orders);
   const loyaltyCustomers = useAppStore((state) => state.loyaltyCustomers);
   const restaurants = useAppStore((state) => state.restaurants);
@@ -792,8 +791,8 @@ function DataSyncPanel() {
   const [connectivity, setConnectivity] = useState<ConnectivitySnapshot>(() => ({ online: true, lastChangedAt: new Date(0).toISOString() }));
   const [queue, setQueue] = useState<OfflineQueueEntry[]>([]);
   const restaurantSlug = authUser.restaurantSlug ?? restaurants[0]?.slug ?? "restaurant";
-  const restaurantMenu = menuItems.filter((item) => item.restaurantSlug === restaurantSlug);
-  const restaurantOffers = offers.filter((offer) => !offer.restaurantSlug || offer.restaurantSlug === restaurantSlug);
+  const { items: restaurantMenu } = useOwnerMenu(restaurantSlug);
+  const { offers: restaurantOffers } = useOwnerOffers(restaurantSlug);
   const pending = queue.filter((item) => item.status === "queued" || item.status === "retrying").length;
   const failed = queue.filter((item) => item.status === "failed" || item.status === "conflict").length;
   const lastSynced = queue

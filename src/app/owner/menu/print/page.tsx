@@ -6,12 +6,14 @@ import { EmptyStateCard } from "@/components/layout/empty-state";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOwnerMenu } from "@/hooks/use-owner-repository-data";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { useAppStore } from "@/lib/app-store";
 import { formatCurrency } from "@/lib/utils";
 
 export default function PrintMenuPage() {
-  const menuItems = useAppStore((state) => state.menuItems);
+  const restaurantId = useAppStore((state) => state.authUser.restaurantSlug);
+  const { items: menuItems, status, error, retry } = useOwnerMenu(restaurantId);
   const profile = useAppStore((state) => state.ownerBusinessProfile);
   const categories = Array.from(new Set(menuItems.map((item) => item.category)));
 
@@ -24,7 +26,11 @@ export default function PrintMenuPage() {
       />
       <Card>
         <CardContent className="p-3 sm:p-6">
-          {!menuItems.length ? (
+          {status === "loading" ? (
+            <div className="h-96 animate-pulse rounded-md bg-muted" aria-label="Loading printable menu" />
+          ) : error ? (
+            <EmptyStateCard title="Menu unavailable" description={error} actionHref={null} onRetry={retry} />
+          ) : !menuItems.length ? (
             <EmptyStateCard
               title="No menu to print"
               description="Add menu items before printing a customer-facing menu."

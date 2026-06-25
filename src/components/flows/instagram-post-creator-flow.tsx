@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Loader2, Send, Wand2 } from "lucide-react";
 import { SocialTemplateCard } from "@/components/studio/social-template-card";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data";
 import { useAppStore } from "@/lib/app-store";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { buildInstagramDeepLink } from "@/lib/social-commerce";
@@ -23,8 +24,9 @@ import {
 
 export function InstagramPostCreatorFlow() {
   const templates = useAppStore((state) => state.templates);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const offers = useAppStore((state) => state.offers);
+  const restaurantId = useAppStore((state) => state.authUser.restaurantSlug);
+  const { items: menuItems } = useOwnerMenu(restaurantId);
+  const { offers } = useOwnerOffers(restaurantId);
   const socialPosts = useAppStore((state) => state.socialPosts);
   const createSocialPost = useAppStore((state) => state.createSocialPost);
   const apiMessage = useAppStore((state) => state.apiMessage);
@@ -41,6 +43,13 @@ export function InstagramPostCreatorFlow() {
   const [postId, setPostId] = useState("");
   const selectedTemplate = templates.find((template) => template.id === templateId) ?? templates[0];
   const selectedFormat = SOCIAL_FORMATS[outputFormat];
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (image === BRAND_ASSETS.appIcon && menuItems[0]?.image) setImage(menuItems[0].image);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [image, menuItems]);
 
   const exportPayload = useMemo(
     () =>

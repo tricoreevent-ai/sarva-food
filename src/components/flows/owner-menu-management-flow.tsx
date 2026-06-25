@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePublicCategories, usePublicCuisines } from "@/hooks/use-public-data";
+import { useOwnerInventory, useOwnerMenu } from "@/hooks/use-owner-repository-data";
 import { useAlert } from "@/hooks/useAlert";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
@@ -147,26 +148,35 @@ type ComboDraft = {
 
 export function OwnerMenuManagementFlow() {
   const { confirm, prompt } = useAlert();
-  const allMenuItems = useAppStore((state) => state.menuItems);
   const { categories: masterCategories } = usePublicCategories();
   const { cuisines: masterCuisines } = usePublicCuisines();
   const taxSettings = useAppStore((state) => state.taxSettings);
   const combos = useAppStore((state) => state.comboOffers);
-  const inventoryItems = useAppStore((state) => state.inventoryItems);
   const authUser = useAppStore((state) => state.authUser);
   const restaurantId = resolveTenantId(authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
-  const createMenuItem = useAppStore((state) => state.createMenuItem);
-  const updateMenuItem = useAppStore((state) => state.updateMenuItem);
-  const deleteMenuItem = useAppStore((state) => state.deleteMenuItem);
-  const toggleSoldOut = useAppStore((state) => state.toggleSoldOut);
+  const {
+    items: menuItems,
+    status: menuStatus,
+    error: menuError,
+    retry: retryMenu,
+    create: createMenuItem,
+    update: updateMenuItem,
+    remove: deleteMenuItem,
+    toggleSoldOut,
+  } = useOwnerMenu(restaurantId);
+  const {
+    items: inventoryItems,
+    error: inventoryError,
+    retry: retryInventory,
+    saveItem: updateInventoryItem,
+    deleteItem: deleteInventoryItem,
+  } = useOwnerInventory(restaurantId);
   const updateTaxSettings = useAppStore((state) => state.updateTaxSettings);
   const createComboOffer = useAppStore((state) => state.createComboOffer);
   const updateComboOffer = useAppStore((state) => state.updateComboOffer);
   const deleteComboOffer = useAppStore((state) => state.deleteComboOffer);
-  const updateInventoryItem = useAppStore((state) => state.updateInventoryItem);
-  const deleteInventoryItem = useAppStore((state) => state.deleteInventoryItem);
-  const apiPhase = useAppStore((state) => state.apiPhase);
-  const apiMessage = useAppStore((state) => state.apiMessage);
+  const apiPhase = menuStatus === "loading" || menuStatus === "refreshing" ? "loading" : menuStatus;
+  const apiMessage = menuError || inventoryError;
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [imagePreview, setImagePreview] = useState(fallbackImage);
   const [imageGallery, setImageGallery] = useState<string[]>([]);
@@ -224,10 +234,6 @@ export function OwnerMenuManagementFlow() {
     defaultPackingCharge: String(taxSettings.defaultPackingCharge),
   });
   const whatsappShare = useWhatsAppShare();
-  const menuItems = useMemo(
-    () => allMenuItems.filter((item) => item.restaurantSlug === restaurantId),
-    [allMenuItems, restaurantId],
-  );
   const cuisineChoices = useMemo(() => {
     return masterCuisines
       .filter((item) => item.active)
@@ -913,6 +919,17 @@ export function OwnerMenuManagementFlow() {
         title="Enterprise menu engine"
         description="Dine-in, parcel, and delivery menus with GST, admin master categories/cuisines, modifiers, combos, inventory links, QR menus, and Firestore-ready persistence."
       />
+      {menuStatus === "loading" ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading menu">
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-md bg-muted" />)}
+        </div>
+      ) : null}
+      {apiMessage ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
+          <span>{apiMessage}</span>
+          <Button variant="outline" size="sm" onClick={() => { retryMenu(); retryInventory(); }}>Retry</Button>
+        </div>
+      ) : null}
       <TabsList className="customer-scroll max-w-full overflow-x-auto">
         <TabsTrigger value="items">Items</TabsTrigger>
         <TabsTrigger value="tax">GST & menus</TabsTrigger>

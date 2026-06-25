@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CalendarClock, Eye, EyeOff, Loader2, MessageCircle, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { defaultRestaurantMarketingSettings } from "@/features/marketing/messageTemplates";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
+import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data";
 import { useAppStore } from "@/lib/app-store";
 import { isOfferActive, sortOffers } from "@/lib/offer-engine";
 import type { MenuItem, Offer } from "@/lib/types";
@@ -107,17 +108,21 @@ const emptyForm: OfferForm = {
 };
 
 export default function OwnerOffersPage() {
-  const offers = useAppStore((state) => state.offers);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const menuCategories = useAppStore((state) => state.menuCategories);
   const restaurants = useAppStore((state) => state.restaurants);
   const authUser = useAppStore((state) => state.authUser);
-  const createOffer = useAppStore((state) => state.createOffer);
-  const updateOffer = useAppStore((state) => state.updateOffer);
-  const deleteOffer = useAppStore((state) => state.deleteOffer);
   const updateRestaurantCapabilities = useAppStore((state) => state.updateRestaurantCapabilities);
-  const apiMessage = useAppStore((state) => state.apiMessage);
   const restaurantSlug = authUser.restaurantSlug ?? restaurants[0]?.slug ?? "cafe-al-arab-thanisandra";
+  const { items: menuItems, error: menuError, retry: retryMenu } = useOwnerMenu(restaurantSlug);
+  const {
+    offers,
+    status: offerStatus,
+    error: offerError,
+    retry: retryOffers,
+    create: createOffer,
+    update: updateOffer,
+    remove: deleteOffer,
+  } = useOwnerOffers(restaurantSlug);
+  const apiMessage = offerError || menuError;
   const restaurant = restaurants.find((item) => item.slug === restaurantSlug) ?? restaurants[0];
   const whatsappShare = useWhatsAppShare();
   const [form, setForm] = useState<OfferForm>(emptyForm);
@@ -143,37 +148,10 @@ export default function OwnerOffersPage() {
   }));
   const ownerOffers = useMemo(() => sortOffers(offers.filter((offer) => !offer.restaurantSlug || offer.restaurantSlug === restaurantSlug)), [offers, restaurantSlug]);
 
-  useEffect(() => {
-    if (!restaurantSlug || authUser.role === "customer") return;
-    let active = true;
-    void fetch(`/api/owner/offers?restaurantId=${encodeURIComponent(restaurantSlug)}`, {
-      credentials: "include",
-      headers: { Accept: "application/json" },
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Owner offers are not available yet.");
-        return response.json() as Promise<{ data?: Offer[] }>;
-      })
-      .then((payload) => {
-        if (!active || !Array.isArray(payload.data)) return;
-        const remoteOffers = payload.data;
-        useAppStore.setState((state) => ({
-          offers: [
-            ...remoteOffers,
-            ...state.offers.filter((offer) => offer.restaurantSlug && offer.restaurantSlug !== restaurantSlug),
-          ],
-        }));
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [authUser.role, restaurantSlug]);
   const categories = useMemo(() => {
-    const names = menuCategories.map((category) => category.name || category.id);
     const itemCategories = menuItems.map((item) => item.category);
-    return Array.from(new Set([...names, ...itemCategories].filter(Boolean)));
-  }, [menuCategories, menuItems]);
+    return Array.from(new Set(itemCategories.filter(Boolean)));
+  }, [menuItems]);
   const filteredOffers = useMemo(() => {
     const search = query.trim().toLowerCase();
     return ownerOffers.filter((offer) => {
@@ -298,6 +276,17 @@ export default function OwnerOffersPage() {
         description="Manage active offers, reuse expired campaigns, and control where customers see promotions."
         action={<Button onClick={openNewOffer}><Plus className="size-4" />Add New Offer</Button>}
       />
+      {offerStatus === "loading" ? (
+        <div className="grid gap-4 md:grid-cols-2" aria-label="Loading offers">
+          {[0, 1].map((item) => <div key={item} className="h-48 animate-pulse rounded-md bg-muted" />)}
+        </div>
+      ) : null}
+      {apiMessage ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
+          <span>{apiMessage}</span>
+          <Button variant="outline" size="sm" onClick={() => { retryOffers(); retryMenu(); }}>Retry</Button>
+        </div>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-4">
         <Metric label="Total offers" value={ownerOffers.length} />

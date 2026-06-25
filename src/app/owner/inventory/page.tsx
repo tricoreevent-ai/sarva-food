@@ -28,7 +28,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/lib/app-store";
+import { useOwnerInventory } from "@/hooks/use-owner-repository-data";
 import {
   generateInventorySku,
   getInventoryStatus,
@@ -140,23 +140,27 @@ const emptyRecipe = {
 };
 
 export default function OwnerInventoryPage() {
-  const items = useAppStore((state) => state.inventoryItems);
-  const branches = useAppStore((state) => state.branches);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const recipes = useAppStore((state) => state.recipes);
-  const suppliers = useAppStore((state) => state.suppliers);
-  const purchaseOrders = useAppStore((state) => state.purchaseOrders);
-  const movements = useAppStore((state) => state.inventoryMovements);
-  const auditLogs = useAppStore((state) => state.auditLogs);
-  const updateInventoryItem = useAppStore((state) => state.updateInventoryItem);
-  const deleteInventoryItem = useAppStore((state) => state.deleteInventoryItem);
-  const adjustInventoryStock = useAppStore((state) => state.adjustInventoryStock);
-  const upsertRecipe = useAppStore((state) => state.upsertRecipe);
-  const deleteRecipe = useAppStore((state) => state.deleteRecipe);
-  const upsertSupplier = useAppStore((state) => state.upsertSupplier);
-  const upsertPurchaseOrder = useAppStore((state) => state.upsertPurchaseOrder);
-  const receivePurchaseOrder = useAppStore((state) => state.receivePurchaseOrder);
-  const apiMessage = useAppStore((state) => state.apiMessage);
+  const {
+    items,
+    branches,
+    menuItems,
+    recipes,
+    suppliers,
+    purchaseOrders,
+    movements,
+    auditLogs,
+    status,
+    error: apiMessage,
+    retry,
+    saveItem: updateInventoryItem,
+    deleteItem: deleteInventoryItem,
+    adjust: adjustInventoryStock,
+    saveRecipe: upsertRecipe,
+    deleteRecipe,
+    saveSupplier: upsertSupplier,
+    savePurchase: upsertPurchaseOrder,
+    receivePurchase: receivePurchaseOrder,
+  } = useOwnerInventory();
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("inventory");
   const [activeType, setActiveType] = useState<InventoryFilter>("all");
   const [draft, setDraft] = useState<InventoryDraft>(emptyInventoryDraft);
@@ -461,6 +465,17 @@ export default function OwnerInventoryPage() {
           </Button>
         }
       />
+      {status === "loading" ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Loading inventory">
+          {[0, 1, 2, 3, 4].map((item) => <div key={item} className="h-24 animate-pulse rounded-md bg-muted" />)}
+        </div>
+      ) : null}
+      {apiMessage ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
+          <span>{apiMessage}</span>
+          <Button type="button" variant="outline" size="sm" onClick={retry}>Retry</Button>
+        </div>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Metric title="Inventory items" value={String(items.length)} icon={Boxes} />
@@ -493,7 +508,6 @@ export default function OwnerInventoryPage() {
       </div>
 
       {error ? <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{error}</div> : null}
-      {apiMessage ? <div className="rounded-md border bg-muted/40 p-3 text-sm font-semibold text-muted-foreground">{apiMessage}</div> : null}
 
       {workspaceTab === "inventory" ? (
         <section className="grid gap-4 xl:grid-cols-[15rem_minmax(0,1fr)_19rem]">

@@ -1,6 +1,6 @@
 # Screen Migration Tracker
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
 
 | Screen | Current Source | Target Source | Status |
 | --- | --- | --- | --- |
@@ -9,17 +9,48 @@ Last updated: 2026-06-24
 | Owner Reports | `/api/owner/analytics` | `/api/owner/analytics` | Completed |
 | Owner Customers | `/api/owner/customers` | `/api/owner/customers` | Completed |
 | Owner Loyalty | `/api/owner/analytics` | `/api/owner/analytics` plus `LoyaltyRepository` | Completed |
-| Owner Menu | `useAppStore.menuItems` hydrated by direct Firestore listener/API fallback | `MenuRepository` through owner menu API | Partial |
-| Owner Offers | `useAppStore.offers` plus `/api/owner/offers` mutations | `OfferRepository` through owner offers API | Partial |
+| Owner Menu | `/api/owner/menu` | `MenuRepository` through owner menu API | Completed |
+| Owner Offers | `/api/owner/offers` | `OfferRepository` through owner offers API | Completed |
 | Owner Tables | `/api/owner/tables` and `/api/owner/kitchen` | `TableRepository` through owner tables API | Completed |
 | Owner Kitchen | `/api/owner/kitchen` | `KitchenRepository`/`OrderRepository` API | Completed |
 | Owner POS | `/api/owner/pos`; bill draft remains UI state | `OrderRepository`, `MenuRepository`, `TableRepository`, `CustomerRepository` APIs | Completed |
 | Owner Employees | `/api/owner/staff` | `StaffRepository` API | Completed |
-| Owner Inventory | `useAppStore.inventoryItems` from direct Firestore listener | Inventory repository API | Pending |
-| Owner Accounting | `useAppStore.expenses`, `useAppStore.transactions` | Accounting repository API | Pending |
+| Owner Inventory | `/api/owner/inventory` | `InventoryRepository` API | Completed |
+| Owner Accounting | `/api/owner/accounting` | `AccountingRepository` API | Completed |
 | Admin Dashboard | `useAppStore.restaurants`, `staffMembers`, `orders` | Admin repository/API layer | Pending |
 | Admin Analytics | `useAppStore.orders`, `restaurants`, `staffMembers` | Admin analytics repository/API | Pending |
 | Admin Restaurants | `useAppStore.restaurants`, `businessApplications`, `branches`, `staffMembers`, `orders` | Admin restaurant repository/API | Pending |
 | Customer Cart | `useCartStore` | Cart UI state allowed; persisted cart API for cross-device | Partial |
 | Customer Checkout | `useCartStore` plus `/api/orders` | `/api/orders` with `OrderRepository`; cart remains UI state | Partial |
 | Customer Order History | `order-service.getOrderHistory` direct Firestore query | Customer order API using `OrderRepository` | Pending |
+
+## Operational Production Validation
+
+Release: `operational-migration-stable`
+Commit: `c11a00d89c008db64afbd3a29fb5850c0986ee93`
+
+| Screen | Firestore/API | Production Screen | Result |
+| --- | ---: | ---: | --- |
+| Owner Dashboard orders | 5 | 5 | PASS |
+| Owner Dashboard revenue | INR 1976 | INR 1976 | PASS |
+| Owner Dashboard customers | 3 | 3 | PASS |
+| Owner Dashboard loyalty | 3 | 3 | PASS |
+| Owner Dashboard menu | 8 | 8 | PASS |
+| Owner Dashboard staff | 2 | 2 | PASS |
+| Owner Dashboard kitchen | 4 | 4 | PASS |
+| Owner Orders | 5 | 5 | PASS |
+| Owner Kitchen | 4 | 4 | PASS |
+| Owner POS menu/customers/orders | 8 / 3 / 5 | 8 / 3 / 5 | PASS |
+| Owner Employees | 2 | 2 | PASS |
+| Owner Tables | 0 | 0 | PASS |
+
+## Sprint 1 Local Validation
+
+| Screen | Firestore | Repository API | Local Screen | Result |
+| --- | ---: | ---: | ---: | --- |
+| Owner Menu | 8 | 8 | 8 | PASS |
+| Owner Offers | 2 | 2 | 2 | PASS |
+| Owner Inventory | 0 | 0 | 0 | PASS |
+| Owner Accounting | 0 | 0 | 0 | PASS |
+
+Temporary verification records were created through each repository API and removed. Inventory stock adjustment also passed. All collections returned to their baseline counts.

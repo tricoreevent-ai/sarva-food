@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Maximize2, QrCode, Tv } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data";
 import { useAppStore } from "@/lib/app-store";
 import { formatCurrency } from "@/lib/utils";
 
@@ -24,13 +25,9 @@ export default function DigitalMenuPage() {
   const [layoutScale, setLayoutScale] = useState(1);
   const [autoScroll, setAutoScroll] = useState(true);
   const authUser = useAppStore((state) => state.authUser);
-  const allMenuItems = useAppStore((state) => state.menuItems);
-  const offers = useAppStore((state) => state.offers);
   const restaurantId = authUser.restaurantSlug;
-  const menuItems = useMemo(
-    () => restaurantId ? allMenuItems.filter((item) => item.restaurantSlug === restaurantId) : allMenuItems,
-    [allMenuItems, restaurantId],
-  );
+  const { items: menuItems, status: menuStatus, error: menuError, retry: retryMenu } = useOwnerMenu(restaurantId);
+  const { offers, error: offerError, retry: retryOffers } = useOwnerOffers(restaurantId);
 
   return (
     <main className={`${fullscreen ? "fixed inset-0 z-50 overflow-auto" : "min-h-screen"} ${themes[theme]} p-4`}>
@@ -77,6 +74,13 @@ export default function DigitalMenuPage() {
           Auto-scroll banners
         </label>
       </div>
+      {menuStatus === "loading" ? <div className="mb-4 h-32 animate-pulse rounded-md bg-white/10" aria-label="Loading digital menu" /> : null}
+      {menuError || offerError ? (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-red-300 bg-red-950/40 p-3 text-sm font-semibold text-white" role="alert">
+          <span>{menuError || offerError}</span>
+          <Button variant="secondary" size="sm" onClick={() => { retryMenu(); retryOffers(); }}>Retry</Button>
+        </div>
+      ) : null}
       <section
         className={`grid gap-4 ${orientation === "landscape" ? "xl:grid-cols-[1.2fr_0.8fr]" : ""}`}
         style={{ fontSize: `${fontScale}rem`, transform: `scale(${layoutScale})`, transformOrigin: "top left", width: `${100 / layoutScale}%` }}

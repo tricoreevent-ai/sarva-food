@@ -1,6 +1,4 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
-import { adminDb } from "@/firebase/admin";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
@@ -70,7 +68,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  await adminDb().collection("offers").doc(code).set(sanitize({
+  const data = await new OfferRepository().upsert(tenantScope(session, restaurantId), sanitize({
     ...offer,
     id: code,
     code,
@@ -82,15 +80,14 @@ export async function POST(request: NextRequest) {
     active: (offer.status ?? "active") === "active",
     status: offer.status ?? "active",
     discountType: offer.discountType ?? (offer.offerType === "flat" ? "flat" : offer.offerType === "free-delivery" ? "free-delivery" : "percentage"),
-    startsAt: offer.validFrom ? new Date(offer.validFrom) : undefined,
-    endsAt: offer.validTo ? new Date(offer.validTo) : undefined,
-    updatedAt: FieldValue.serverTimestamp(),
+    startsAt: offer.validFrom,
+    endsAt: offer.validTo,
     updatedBy: session.uid,
     createdBy: session.uid,
     isDeleted: false,
-  }), { merge: true });
+  }));
 
-  return NextResponse.json({ ok: true, code });
+  return NextResponse.json({ ok: true, code, data: ownerOfferFromDoc(code, data) });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -104,8 +101,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Offer code is required." }, { status: 400 });
   }
 
-  await adminDb().collection("offers").doc(code).delete();
-  return NextResponse.json({ ok: true, code });
+  const restaurantId = request.nextUrl.searchParams.get("restaurantId") || session.tenantId || DEFAULT_RESTAURANT_ID;
+  const data = await new OfferRepository().delete(tenantScope(session, restaurantId), code);
+  return NextResponse.json({ ok: true, code, data });
 }
 
 function assertRestaurantAccess(
