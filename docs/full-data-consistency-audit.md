@@ -12,10 +12,10 @@ Tenant: `cafe-al-arab-thanisandra`
 | Orders | Complete |
 | CRM | Complete |
 | Loyalty | Complete |
-| Offers | Complete locally |
-| Menu | Complete locally |
-| Inventory | Complete locally |
-| Accounting | Complete locally |
+| Offers | Complete |
+| Menu | Complete |
+| Inventory | Complete |
+| Accounting | Complete |
 | Tables | Complete |
 | Kitchen | Complete |
 | POS | Complete |
@@ -187,6 +187,19 @@ Owner menu, digital menu, print menu, social post menu selection, and settings d
 | Accounting | 0 | 0 | 0 | Create/delete PASS | PASS |
 
 Build gates: typecheck PASS, lint PASS, build PASS.
+
+## Sprint 1 Production Evidence
+
+Commit, release branch, and Hostinger build: `e75a3c5cf0873a0d212263010e75b0c4b3470aeb`
+
+| Module | Firestore | Production API | Production Screen | Result |
+| --- | ---: | ---: | ---: | --- |
+| Menu | 8 | 8 | 8 | PASS |
+| Offers | 2 | 2 | 2 | PASS |
+| Inventory | 0 | 0 | 0 | PASS |
+| Accounting | 0 | 0 | 0 | PASS |
+
+Sprint 1 result: CLOSED.
 
 ## Admin Module Audit
 

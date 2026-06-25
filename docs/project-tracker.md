@@ -24,7 +24,7 @@ Last updated: 2026-06-25
 | Owner Offers Repository Migration | Completed | 100 | Firestore, API, and local screen count all equal 2; CRUD baseline restored | Codex | 2026-06-25 |
 | Inventory Repository Migration | Completed | 100 | Repository/API/screen baseline 0; create, adjust, delete passed | Codex | 2026-06-25 |
 | Accounting Repository Migration | Completed | 100 | Repository/API/screen baseline 0; create and delete passed | Codex | 2026-06-25 |
-| Sprint 1 Repository Migration | Completed Locally | 95 | Await Hostinger production SHA and screen verification | Codex | 2026-06-25 |
+| Sprint 1 Repository Migration | Completed | 100 | Local and Hostinger production validation passed at `e75a3c5` | Codex | 2026-06-25 |
 | Admin Data Repository Migration | Pending | 0 | Replace admin business-data store reads with admin repository/API layer | Codex | 2026-06-23 |
 | Customer Ordering Repository Audit | In Progress | 35 | `/api/orders` is repository-backed; cart/history flows still need separation and validation | Codex | 2026-06-23 |
 | TASK-01 Offer Consolidation | Tested | 100 | None | Codex | 2026-06-22 |
@@ -38,7 +38,20 @@ Last updated: 2026-06-25
 | TASK-09 Audit Logs | Pending | 0 | Activity log data model and owner UI | Codex | 2026-06-22 |
 | TASK-10 Project Tracking | Tested | 100 | None | Codex | 2026-06-22 |
 | Kitchen Operations Center Redesign | Tested | 70 | KPI board, Kanban, full-screen shell done; virtualization and advanced TV styling pending | Codex | 2026-06-22 |
-| Enterprise Staff & Access Sprint | Pending Release Gate | 0 | Starts after Sprint 1 production validation | Codex | 2026-06-25 |
+| Enterprise Staff & Access Sprint | In Progress | 5 | User management, protected view switching, permission enforcement, and audit logs | Codex | 2026-06-25 |
+
+## Sprint 1 Repository Migration
+
+| Field | Value |
+| --- | --- |
+| Commit SHA | `e75a3c5cf0873a0d212263010e75b0c4b3470aeb` |
+| Release SHA | `e75a3c5cf0873a0d212263010e75b0c4b3470aeb` |
+| Hostinger build SHA | `e75a3c5cf0873a0d212263010e75b0c4b3470aeb` |
+| Menu | Firestore 8 / API 8 / Production screen 8 |
+| Offers | Firestore 2 / API 2 / Production screen 2 |
+| Inventory | Firestore 0 / API 0 / Production screen 0 |
+| Accounting | Firestore 0 / API 0 / Production screen 0 |
+| Result | PASS |
 
 ## Operational Migration Stable
 

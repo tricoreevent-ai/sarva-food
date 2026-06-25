@@ -28,3 +28,4 @@
 - Verified local counts: Menu 8, Offers 2, Inventory 0, Accounting 0.
 - Verified temporary CRUD records were removed and all baseline counts were restored.
 - Verification passed with `npm run typecheck`, `npm run lint`, and `npm run build`.
+- Hostinger production verified the same baseline counts on API and actual screens at commit `e75a3c5`.
