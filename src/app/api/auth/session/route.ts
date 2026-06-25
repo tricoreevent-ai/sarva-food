@@ -11,6 +11,7 @@ import {
   type VerifiedSession,
 } from "@/lib/server-auth";
 import { adminDb } from "@/firebase/admin";
+import { AuditRepository } from "@/repositories/audit-repository";
 
 function getCookieOptions(request: NextRequest) {
   const host = request.headers.get("host") ?? request.nextUrl.host;
@@ -96,6 +97,13 @@ export async function POST(request: NextRequest) {
 
   writeSessionCookies(response, session, surface, cookieOptions);
   deleteCookieGroup(response, legacySessionCookieNames);
+  const tenantId = session.tenantId ?? session.tenantIds[0] ?? "platform";
+  const sessionId = `${session.uid}-${Date.now()}`;
+  const audit = new AuditRepository();
+  await Promise.all([
+    audit.record({ tenantId, restaurantId: session.tenantId, userId: session.uid, role: session.role, action: "login", module: "auth", ip: request.headers.get("x-forwarded-for") ?? undefined, userAgent: request.headers.get("user-agent") ?? undefined }),
+    audit.openSession({ sessionId, tenantId, restaurantId: session.tenantId, userId: session.uid, role: session.role, action: "login", module: "auth", ip: request.headers.get("x-forwarded-for") ?? undefined, userAgent: request.headers.get("user-agent") ?? undefined }),
+  ]);
 
   return response;
 }
@@ -118,6 +126,7 @@ function sessionVerificationMessage(error: unknown, surface?: SessionSurface | n
 
 export async function DELETE(request: NextRequest) {
   const surface = parseSessionSurface(request.nextUrl.searchParams.get("surface") ?? request.headers.get("x-sarva-surface"));
+  const session = await getSessionFromCookies(surface);
   const response = NextResponse.json({ ok: true });
   if (surface) {
     deleteCookieGroup(response, scopedSessionCookieNames[surface]);
@@ -126,6 +135,14 @@ export async function DELETE(request: NextRequest) {
     deleteCookieGroup(response, scopedSessionCookieNames.customer);
     deleteCookieGroup(response, scopedSessionCookieNames.owner);
     deleteCookieGroup(response, scopedSessionCookieNames.admin);
+  }
+  if (session) {
+    const tenantId = session.tenantId ?? session.tenantIds[0] ?? "platform";
+    const audit = new AuditRepository();
+    await Promise.all([
+      audit.record({ tenantId, restaurantId: session.tenantId, userId: session.uid, role: session.role, action: "logout", module: "auth", ip: request.headers.get("x-forwarded-for") ?? undefined, userAgent: request.headers.get("user-agent") ?? undefined }),
+      audit.closeLatestSession(session.uid),
+    ]);
   }
   return response;
 }

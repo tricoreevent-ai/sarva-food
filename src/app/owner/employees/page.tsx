@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import { Calculator, CheckCircle2, Edit3, KeyRound, Trash2, UserPlus, type LucideIcon } from "lucide-react";
+import { Calculator, CheckCircle2, Edit3, KeyRound, Power, Trash2, UserPlus, type LucideIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -21,7 +21,6 @@ import {
   type PayrollEmploymentType,
   type PayrollTdsSection,
 } from "@/lib/payroll";
-import { useAppStore } from "@/lib/app-store";
 import type { StaffMember, StaffRole } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -49,10 +48,13 @@ type EmployeeDraft = {
 };
 
 export default function OwnerEmployeesPage() {
-  const branches = useAppStore((state) => state.branches);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [step, setStep] = useState<WizardStep>(0);
-  const [draft, setDraft] = useState<EmployeeDraft>(() => emptyDraft(branches[0]?.id ?? ""));
+  const [draft, setDraft] = useState<EmployeeDraft>(() => emptyDraft("main"));
+  const branches = useMemo(() => {
+    const ids = Array.from(new Set(["main", ...staffMembers.map((member) => member.branchId).filter(Boolean)]));
+    return ids.map((id) => ({ id, name: id === "main" ? "Main Branch" : id }));
+  }, [staffMembers]);
 
   useEffect(() => {
     let active = true;
@@ -103,8 +105,10 @@ export default function OwnerEmployeesPage() {
       label: "Actions",
       sortable: false,
       render: (row) => (
-        <div className="flex min-w-44 gap-2">
+        <div className="flex min-w-72 flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={!canManageEmployee(row)} onClick={() => editEmployee(row)}><Edit3 className="size-3" />Edit</Button>
+          <Button size="sm" variant="outline" disabled={!canManageEmployee(row)} onClick={() => void toggleEmployee(row)}><Power className="size-3" />{row.status === "active" ? "Disable" : "Enable"}</Button>
+          <Button size="sm" variant="secondary" disabled={!canManageEmployee(row) || !row.email} onClick={() => void resetPassword(row)}><KeyRound className="size-3" />Reset</Button>
           <Button size="sm" variant="destructive" disabled={!canManageEmployee(row)} onClick={() => void removeEmployee(row)}><Trash2 className="size-3" />Delete</Button>
         </div>
       ),
@@ -163,13 +167,15 @@ export default function OwnerEmployeesPage() {
       const existing = staffMembers.find((member) => member.id === draft.id);
       const next = { ...payload, id: draft.id, lastActivity: "Updated by owner", status: existing?.status ?? "active" };
       const response = await fetch("/api/owner/staff", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
-      const result = await response.json() as { data?: StaffMember };
+      const result = await response.json() as { data?: StaffMember; error?: string };
+      if (!response.ok || !result.data) return toast.error(result.error || "Unable to update employee.");
       setStaffMembers((current) => current.map((member) => member.id === draft.id ? result.data ?? next : member));
       toast.success(`${payload.name} updated.`);
     } else {
       const response = await fetch("/api/owner/staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await response.json() as { data?: StaffMember };
-      if (result.data) setStaffMembers((current) => [result.data!, ...current]);
+      const result = await response.json() as { data?: StaffMember; error?: string };
+      if (!response.ok || !result.data) return toast.error(result.error || "Unable to create employee.");
+      setStaffMembers((current) => [result.data!, ...current]);
       toast.success(`${payload.name} created.`);
     }
     setDraft(emptyDraft(branches[0]?.id ?? ""));
@@ -201,9 +207,35 @@ export default function OwnerEmployeesPage() {
   }
 
   async function removeEmployee(member: StaffMember) {
-    await fetch(`/api/owner/staff?id=${encodeURIComponent(member.id)}`, { method: "DELETE" });
+    const response = await fetch(`/api/owner/staff?id=${encodeURIComponent(member.id)}`, { method: "DELETE" });
+    if (!response.ok) return toast.error("Unable to delete this user.");
     setStaffMembers((current) => current.filter((item) => item.id !== member.id));
-    toast.success(`${member.name} removed from active staff.`);
+    toast.success(`${member.name} deleted.`);
+  }
+
+  async function toggleEmployee(member: StaffMember) {
+    const action = member.status === "active" ? "disable" : "enable";
+    const response = await fetch("/api/owner/staff", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: member.id, action }),
+    });
+    const result = await response.json() as { data?: StaffMember; error?: string };
+    if (!response.ok || !result.data) return toast.error(result.error || "Unable to update user access.");
+    setStaffMembers((current) => current.map((item) => item.id === member.id ? result.data! : item));
+    toast.success(`${member.name} ${action}d.`);
+  }
+
+  async function resetPassword(member: StaffMember) {
+    const response = await fetch("/api/owner/staff", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: member.id, action: "reset-password" }),
+    });
+    const result = await response.json() as { data?: { resetLink?: string }; error?: string };
+    if (!response.ok || !result.data?.resetLink) return toast.error(result.error || "Unable to create password reset link.");
+    await navigator.clipboard.writeText(result.data.resetLink);
+    toast.success("Password reset link copied.");
   }
 
   return (
@@ -242,8 +274,8 @@ export default function OwnerEmployeesPage() {
         <div className="grid gap-3 md:grid-cols-4">
           <Metric label="Total employees" value={employeeRows.length} />
           <Metric label="Login enabled" value={employeeRows.filter((row) => row.requiresLogin !== false).length} />
+          <Metric label="Active sessions" value={employeeRows.reduce((sum, row) => sum + (row.activeSessions ?? 0), 0)} />
           <Metric label="Payroll gross" value={formatCurrency(employeeRows.reduce((sum, row) => sum + row.gross, 0))} />
-          <Metric label="Net payout" value={formatCurrency(employeeRows.reduce((sum, row) => sum + row.net, 0))} />
         </div>
         <AdvancedDataTable title="Employee register" columns={columns} rows={employeeRows} pageSize={8} exportFilename="employee-payroll.csv" />
         <Card>

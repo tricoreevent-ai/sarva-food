@@ -2,13 +2,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { calculateRestaurantTax } from "@/lib/menu-engine";
 import { shouldUseFirebase } from "@/lib/env";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { applyInventoryMovements, calculateRecipeCost } from "@/lib/inventory-engine";
 import { enqueueOfflineOperation, isOnline, syncQueuedOperations } from "@/lib/offline";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
-import { createOrderWithRetry, updateOrderStatus as updateFirestoreOrderStatus } from "@/services/order-service";
 import { safeCreateCategory, safeDeleteMenuItem, safeUpdateCategory, safeUpsertMenuItem } from "@/services/advanced-menu-service";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { deleteOwnerOffer, safeDeleteEmployeeUser, safeUpsertEmployeeUser, saveOwnerOffer, saveOwnerRestaurantProfile } from "@/services/production-data-service";
@@ -335,16 +333,6 @@ function createInvoiceNumber() {
   return `INV-POS-${Date.now()}`;
 }
 
-function effectiveTaxSettingsForBill(bill: PosBill, taxSettings: TaxSettings): TaxSettings {
-  return bill.applyGst === false
-    ? { ...taxSettings, gstEnabled: false, cgstRate: 0, sgstRate: 0, igstRate: 0, serviceChargeRate: 0 }
-    : taxSettings;
-}
-
-function packingChargeForBill(bill: PosBill, taxSettings: TaxSettings) {
-  return bill.orderType === "dine-in" || bill.waiveParcelCharge ? 0 : taxSettings.defaultPackingCharge;
-}
-
 function mapOrderChannel(channel: OrderChannel): "web" | "instagram" | "whatsapp" | "pos" | "catering" {
   const normalized = channel.toLowerCase();
   if (normalized === "instagram") return "instagram";
@@ -352,6 +340,43 @@ function mapOrderChannel(channel: OrderChannel): "web" | "instagram" | "whatsapp
   if (normalized === "pos") return "pos";
   if (normalized === "catering") return "catering";
   return "web";
+}
+
+async function createOrderViaApi(input: {
+  restaurantId: string;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress?: string;
+  channel: "web" | "instagram" | "whatsapp" | "pos" | "catering";
+  fulfillmentType: "delivery" | "parcel" | "dine-in";
+  scheduleMode: "now" | "scheduled";
+  scheduledFor?: string;
+  guestCount?: number;
+  lines: Array<{ menuItemId: string; name: string; price: number; quantity: number; notes?: string }>;
+  offerCode?: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  deliveryFee: number;
+  total: number;
+}) {
+  const response = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...input, acceptedTermsVersion: "current", acceptedTermsAt: new Date().toISOString() }),
+  });
+  const payload = await response.json().catch(() => ({})) as { ok?: boolean; orderId?: string; status?: OrderStatus; error?: string };
+  if (!response.ok || !payload.ok || !payload.orderId) throw new Error(payload.error || "Unable to create order.");
+  return { id: payload.orderId, status: payload.status ?? "new", deliveryOtp: payload.orderId.slice(-4) };
+}
+
+async function updateOrderStatusViaApi(orderId: string, status: OrderStatus) {
+  const response = await fetch("/api/owner/orders", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ orderId, status }),
+  });
+  if (!response.ok) throw new Error("Unable to update order status.");
 }
 
 function toMenuDoc(item: MenuItem): MenuDoc {
@@ -950,9 +975,8 @@ export const useAppStore = create<AppStore>()(
         let order = localOrder;
         let savedToFirestore = false;
         if (canUseOperationalFirestore() && isOnline()) {
-          const saved = await createOrderWithRetry({
+          const saved = await createOrderViaApi({
             restaurantId: input.restaurantSlug,
-            customerId,
             customerName: input.customer.name,
             customerPhone: input.customer.phone,
             deliveryAddress: input.customer.address,
@@ -960,10 +984,6 @@ export const useAppStore = create<AppStore>()(
             fulfillmentType: input.fulfillmentType ?? "delivery",
             scheduleMode: input.scheduleMode ?? "now",
             scheduledFor: input.scheduledFor,
-            scheduledDateLabel: input.scheduledFor ? new Date(input.scheduledFor).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : undefined,
-            scheduledSlotId: input.scheduledFor ? `${input.restaurantSlug}-${new Date(input.scheduledFor).toISOString()}` : undefined,
-            prepEstimateMinutes: input.prepEstimateMinutes,
-            cutoffAt: input.cutoffAt,
             guestCount: input.guestCount,
             lines: input.lines.map((line) => ({
               menuItemId: line.itemId,
@@ -1086,7 +1106,7 @@ export const useAppStore = create<AppStore>()(
 
         set({ apiPhase: "loading", apiMessage: `Updating ${orderId}...` });
         if (canUseOperationalFirestore() && isOnline()) {
-          void updateFirestoreOrderStatus(orderId, status).catch(() => undefined);
+          void updateOrderStatusViaApi(orderId, status).catch(() => undefined);
         }
         const updated = {
           ...order,

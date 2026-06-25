@@ -31,11 +31,14 @@ import { ScheduleStepper } from "@/components/schedule/schedule-stepper";
 import { ScheduleSummary } from "@/components/schedule/schedule-summary";
 import { Button } from "@/components/ui/button";
 import { useLocationCommerce, type CommerceLocation } from "@/hooks/use-location-commerce";
+import { useAuthUser } from "@/hooks/use-auth-user";
+import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicMenu, usePublicRestaurants } from "@/hooks/use-public-data";
-import { useAppStore } from "@/lib/app-store";
 import { formatScheduleDate, formatScheduleSlot, getScheduleSlotsForDate, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import { placeCustomerOrder } from "@/services/customer-order-api";
+import type { CateringQuote } from "@/lib/types";
 
 type ScheduleType = "delivery" | "pickup" | "bulk" | "catering";
 type DiscoveryMode = "scheduled" | "catering";
@@ -59,8 +62,8 @@ const defaultCatering: CateringDraft = {
 
 export function ScheduleOrderFlow() {
   const { restaurants } = usePublicRestaurants();
-  const createOrder = useAppStore((state) => state.createOrder);
-  const createCateringQuote = useAppStore((state) => state.createCateringQuote);
+  const auth = useAuthUser();
+  const customer = useCustomerData(auth.user?.uid);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [step, setStep] = useState(1);
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("scheduled");
@@ -218,7 +221,12 @@ export function ScheduleOrderFlow() {
     setSubmitting(true);
     try {
       if (scheduleType === "catering") {
-        const quote = await createCateringQuote({
+        if (!auth.user) throw new Error("Sign in before sending a catering request.");
+        const response = await fetch("/api/customer/catering", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+          restaurantId: restaurant.slug,
           name: catering.fullName,
           phone: catering.phone,
           email: catering.email,
@@ -231,7 +239,11 @@ export function ScheduleOrderFlow() {
           eventNotes: buildCateringNotes(catering, cart, restaurant),
           callbackRequested: true,
           contactPreference: "email",
+          }),
         });
+        const payload = await response.json().catch(() => ({})) as { data?: CateringQuote; error?: string };
+        if (!response.ok || !payload.data) throw new Error(payload.error || "Could not create catering request.");
+        const quote = payload.data;
         setPlacedResult({ id: quote.id, kind: "catering" });
         toast.success("Catering request sent. The restaurant will email a revised quotation.");
         return;
@@ -242,23 +254,22 @@ export function ScheduleOrderFlow() {
       const lineNote = scheduleType === "bulk"
         ? `Bulk order: ${bulk.quantityEstimate || "quantity pending"}; ${bulk.packaging}; ${bulk.instructions}`
         : undefined;
-      const order = await createOrder({
-        restaurantSlug: restaurant.slug,
-        customer: {
-          name: "Scheduled Customer",
-          phone: "",
-          address: scheduleType === "pickup" ? "" : "Scheduled delivery address",
-        },
+      if (!auth.user) throw new Error("Sign in before scheduling an order.");
+      const profile = customer.profile as { displayName?: string; phone?: string } | null;
+      const address = customer.addresses.find((item) => item.isDefault) ?? customer.addresses[0];
+      const order = await placeCustomerOrder({
+        restaurantId: restaurant.slug,
+        customerName: profile?.displayName || auth.user.displayName || "Scheduled Customer",
+        customerPhone: profile?.phone || auth.user.phoneNumber || "",
+        deliveryAddress: scheduleType === "pickup" ? "" : address?.fullAddress || address?.address || "",
+        deliveryGeo: scheduleType === "pickup" || typeof address?.latitude !== "number" || typeof address.longitude !== "number" ? undefined : { lat: address.latitude, lng: address.longitude },
+        deliveryPlaceId: address?.placeId,
+        deliveryAddressLabel: address?.label,
         lines: cart.map((item) => ({ itemId: item.id, name: item.name, price: item.price, quantity: item.quantity, notes: lineNote })),
         totals: { subtotal, discount: 0, deliveryFee, tax, total: subtotal + deliveryFee + tax },
-        payment: "upi",
-        channel: "Web",
         fulfillmentType: scheduleType === "pickup" || scheduleType === "bulk" ? "parcel" : "delivery",
         scheduleMode: "scheduled",
         scheduledFor: selectedSlot,
-        scheduledStatus: "requested",
-        prepEstimateMinutes: scheduleType === "bulk" ? 90 : 45,
-        cutoffAt: new Date(new Date(selectedSlot).getTime() - 45 * 60_000).toISOString(),
       });
       setPlacedResult({ id: order.id, kind: "order" });
       toast.success("Scheduled order sent to the restaurant.");

@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsBanner, CmsSettings } from "@/lib/types";
@@ -48,55 +48,27 @@ const emptyBanner: CmsBanner = {
 };
 
 export default function AdminCmsPage() {
-  const storedSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
-  const updateCmsSettings = useAppStore((state) => state.updateCmsSettings);
+  const { cmsSettings: storedSettings = defaultCmsSettings, loading, updateCmsSettings } = useAdminRepositoryData();
   const [settings, setSettings] = useState<CmsSettings>(() => resolveCmsSettings({ ...defaultCmsSettings, ...storedSettings }));
   const [surface, setSurface] = useState<BannerSurface>("banners");
   const [draft, setDraft] = useState<CmsBanner>(emptyBanner);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("desktop");
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const loadedRef = useRef(false);
   const activeItems = [...(settings[surface] ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/admin/cms", { cache: "no-store" })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || "Could not load CMS settings.");
-        return payload.data as CmsSettings;
-      })
-      .then((data) => {
-        if (!active) return;
-        const next = resolveCmsSettings(data);
-        setSettings(next);
-        void updateCmsSettings(next);
-      })
-      .catch((error) => {
-        toast.error(error instanceof Error ? error.message : "Could not load CMS settings.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [updateCmsSettings]);
+    if (loading || loadedRef.current) return;
+    loadedRef.current = true;
+    queueMicrotask(() => setSettings(resolveCmsSettings(storedSettings)));
+  }, [loading, storedSettings]);
 
   async function saveCms() {
     setSaving(true);
     try {
-      const response = await fetch("/api/admin/cms", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ settings }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Could not save CMS settings.");
-      const next = resolveCmsSettings(payload.data as CmsSettings);
-      setSettings(next);
+      const next = resolveCmsSettings(settings);
       await updateCmsSettings(next);
+      setSettings(next);
       toast.success("CMS settings saved.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save CMS settings.");

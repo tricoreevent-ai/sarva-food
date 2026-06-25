@@ -11,9 +11,9 @@ Last updated: 2026-06-25
 | CRM | Completed | 100 | None | Codex | 2026-06-23 |
 | Loyalty | Completed | 100 | None | Codex | 2026-06-23 |
 | Critical data-parity investigation | Completed | 100 | Firestore, APIs, and production screens match current Cafe Al Arab data: 5 orders, INR 1976 billable revenue, 3 customers, 3 loyalty accounts | Codex | 2026-06-24 |
-| Phase 2 Full Data Consistency Audit | In Progress | 82 | Owner repository migration complete; Admin and Customer Ordering migration remain | Codex | 2026-06-25 |
+| Phase 2 Full Data Consistency Audit | In Progress | 92 | Admin and customer repository paths now compile; browser and production validation remain | Codex | 2026-06-25 |
 | Operational Migration Sprint | Closed | 100 | Local and Hostinger production runtime validation passed at `c11a00d` | Codex | 2026-06-24 |
-| Screen Migration Tracker | In Progress | 82 | Owner screens completed; Admin and Customer History remain | Codex | 2026-06-25 |
+| Screen Migration Tracker | In Progress | 92 | Admin and customer history repository paths added; browser and production validation remain | Codex | 2026-06-25 |
 | Dashboard Repository Migration | Completed | 100 | Analytics runtime: 5 orders, INR 1976 billable revenue, 3 customers, 3 loyalty, 8 menu, 2 staff, 4 kitchen | Codex | 2026-06-24 |
 | Owner Orders Repository Migration | Completed | 100 | Firestore, API, and screen count all equal 5 | Codex | 2026-06-24 |
 | Kitchen Queue Repository Migration | Completed | 100 | Firestore, API, and screen count all equal 4 | Codex | 2026-06-24 |
@@ -25,20 +25,20 @@ Last updated: 2026-06-25
 | Inventory Repository Migration | Completed | 100 | Repository/API/screen baseline 0; create, adjust, delete passed | Codex | 2026-06-25 |
 | Accounting Repository Migration | Completed | 100 | Repository/API/screen baseline 0; create and delete passed | Codex | 2026-06-25 |
 | Sprint 1 Repository Migration | Completed | 100 | Local and Hostinger production validation passed at `e75a3c5` | Codex | 2026-06-25 |
-| Admin Data Repository Migration | Pending | 0 | Replace admin business-data store reads with admin repository/API layer | Codex | 2026-06-23 |
-| Customer Ordering Repository Audit | In Progress | 35 | `/api/orders` is repository-backed; cart/history flows still need separation and validation | Codex | 2026-06-23 |
+| Admin Data Repository Migration | In Progress | 90 | Repository/API migration compiles; browser and production screen validation remain | Codex | 2026-06-25 |
+| Customer Ordering Repository Audit | In Progress | 90 | Order create/history/profile API paths compile; browser and production validation remain | Codex | 2026-06-25 |
 | TASK-01 Offer Consolidation | Tested | 100 | None | Codex | 2026-06-22 |
 | TASK-02 Centralized Menu Pricing Engine | Tested | 100 | Manual browser screenshot pass on owner device | Codex | 2026-06-22 |
 | TASK-03 Table CRUD Management | Completed | 100 | T99 persistence lifecycle verified | Codex | 2026-06-24 |
 | TASK-04 Order Desk Mobile Redesign | In Progress | 15 | Navigation rename done; waiter-first mobile Order Desk redesign still pending | Codex | 2026-06-22 |
-| TASK-05 Printer Configuration | Pending | 0 | Complete printer profiles, routing, and test print UX | Codex | 2026-06-22 |
-| TASK-06 Staff & Access | In Progress | 15 | Navigation/header rename done; user accounts, roles, logs, view switching pending | Codex | 2026-06-22 |
+| TASK-05 Printer Configuration | In Progress | 60 | Repository/API/hooks compile; browser test print and routing validation remain | Codex | 2026-06-25 |
+| TASK-06 Staff & Access | In Progress | 55 | Staff repository writes, scoped APIs, and view-switching compile; permission browser validation remains | Codex | 2026-06-25 |
 | TASK-07 Role-Based Dashboards | Pending | 0 | Owner/waiter/kitchen dashboards and permission navigation | Codex | 2026-06-22 |
-| TASK-08 Security Controls | Pending | 0 | Owner-password verification for view switching | Codex | 2026-06-22 |
-| TASK-09 Audit Logs | Pending | 0 | Activity log data model and owner UI | Codex | 2026-06-22 |
+| TASK-08 Security Controls | In Progress | 45 | Owner-password view-switching API compiles; authenticated browser validation remains | Codex | 2026-06-25 |
+| TASK-09 Audit Logs | In Progress | 55 | Audit repository/API/screen route compile; filter/session validation remains | Codex | 2026-06-25 |
 | TASK-10 Project Tracking | Tested | 100 | None | Codex | 2026-06-22 |
 | Kitchen Operations Center Redesign | Tested | 70 | KPI board, Kanban, full-screen shell done; virtualization and advanced TV styling pending | Codex | 2026-06-22 |
-| Enterprise Staff & Access Sprint | In Progress | 5 | User management, protected view switching, permission enforcement, and audit logs | Codex | 2026-06-25 |
+| Enterprise Staff & Access Sprint | In Progress | 45 | Admin/customer repository paths and owner staff/printer/audit/view APIs compile; browser and production validation remain | Codex | 2026-06-25 |
 
 ## Sprint 1 Repository Migration
 

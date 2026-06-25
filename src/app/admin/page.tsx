@@ -8,12 +8,10 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 
 export default function AdminDashboardPage() {
-  const restaurants = useAppStore((state) => state.restaurants);
-  const staff = useAppStore((state) => state.staffMembers);
-  const orders = useAppStore((state) => state.orders);
+  const { restaurants, staffMembers: staff, orders } = useAdminRepositoryData();
   const adminStats = [
     { label: "Restaurants", value: String(restaurants.length), delta: "Firestore", tone: "info" as const },
     { label: "Users", value: String(staff.length), delta: "RBAC", tone: "success" as const },

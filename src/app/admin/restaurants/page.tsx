@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import {
   getPlanDefinition,
@@ -41,7 +41,7 @@ import {
   type OwnerFeatureKey,
   type PlanKey,
 } from "@/lib/access-control";
-import type { Restaurant, RestaurantBranch, StaffMember } from "@/lib/types";
+import type { DemoOrder, Restaurant, RestaurantBranch, StaffMember } from "@/lib/types";
 import { cn, formatCurrency, getInitials } from "@/lib/utils";
 
 type AdminStatus = NonNullable<Restaurant["adminStatus"]>;
@@ -104,14 +104,16 @@ const emptyDraft: CreateDraft = {
 };
 
 export default function AdminRestaurantsPage() {
-  const restaurants = useAppStore((state) => state.restaurants);
-  const applications = useAppStore((state) => state.businessApplications);
-  const branches = useAppStore((state) => state.branches);
-  const staffMembers = useAppStore((state) => state.staffMembers);
-  const orders = useAppStore((state) => state.orders);
-  const submitBusinessApplication = useAppStore((state) => state.submitBusinessApplication);
-  const reviewBusinessApplication = useAppStore((state) => state.reviewBusinessApplication);
-  const updateRestaurantAdminState = useAppStore((state) => state.updateRestaurantAdminState);
+  const {
+    restaurants,
+    businessApplications: applications,
+    branches,
+    staffMembers,
+    orders,
+    submitBusinessApplication,
+    reviewBusinessApplication,
+    updateRestaurantAdminState,
+  } = useAdminRepositoryData();
 
   const [query, setQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<"All" | PlanKey>("All");
@@ -762,7 +764,7 @@ function CreateRestaurantDialog({ open, onOpenChange, step, setStep, draft, setD
   );
 }
 
-function buildRestaurantRow(restaurant: Restaurant, branches: RestaurantBranch[], staff: StaffMember[], orders: ReturnType<typeof useAppStore.getState>["orders"]): RestaurantRow {
+function buildRestaurantRow(restaurant: Restaurant, branches: RestaurantBranch[], staff: StaffMember[], orders: DemoOrder[]): RestaurantRow {
   const restaurantBranches = branches.filter((branch) => branch.restaurantSlug === restaurant.slug || branch.restaurantSlug === restaurant.id);
   const branchIds = restaurantBranches.map((branch) => branch.id);
   const owner = staff.find((member) => member.id === restaurant.ownerId || restaurant.ownerIds?.includes(member.id) || member.email === restaurant.ownerProfile?.businessEmail);

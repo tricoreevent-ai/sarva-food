@@ -6,7 +6,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## In Progress
 
-- [ ] Critical local/production data-parity investigation: public Firebase runtime and local Admin credentials both target `sarva-food-app`; canonical Cafe Al Arab data has 5 orders and INR 3,732 revenue but 0 `customers`/`loyaltyCustomers`. Owner dashboard/reports/loyalty are not yet canonical repository-backed, and listener permission failures still need authenticated production capture. Audit evidence: `docs/firebase-runtime-audit.md`, `docs/tenant-trace.md`, `docs/firestore-collection-trace.md`, `docs/firestore-rule-failures.md`, and `docs/data-parity-report.md`. Do not start deferred feature work until this is closed.
+- [ ] Sprint 2 stabilization follow-up: Admin/customer repository paths, owner staff/printer/audit/view APIs, typecheck, lint, build, and diff check are passing locally. Remaining work is authenticated browser validation, permission matrix validation, production validation, commit, push, and Hostinger SHA verification.
 - [ ] Customer/Owner/Admin live verification follow-up: production Firestore backfill for existing menu `displayOrder`/`orderCount` defaults and full manual mobile/desktop E2E validation still require live access/test orders.
 
 ## Blocked / External Access Required
@@ -19,6 +19,8 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Sprint 2 duplicate-work check and local compiler stabilization completed on 2026-06-25: skipped closed owner repository migration work, continued the interrupted Admin/customer/staff/printer/audit/view-switching changes, and verified `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
+- [x] Critical local/production data-parity investigation completed on 2026-06-24: local and production Firestore/API/screens were aligned for Cafe Al Arab operational data; owner repository migration follow-ups were tracked separately.
 - [x] Owner critical gap batch completed on 2026-06-22: added Settings → Pricing Rules with auto pricing, parcel/delivery markup percentages, and packing charge; fixed owner menu wizard channel-price `NaN` handling; added live pricing preview and Auto Calculate; renamed visible owner labels to Order Desk, Staff & Access, and Kitchen Operations Center; redesigned the kitchen page into a KPI + Kanban Operations Center; and added `docs/roadmap.md` plus `docs/changelog.md`. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Owner enterprise Phase 1 tracker and offer consolidation completed on 2026-06-22: added `docs/project-tracker.md` with the required status table, removed the duplicate Settings → Offers entry, and kept `/owner/offers` as the single owner offer configuration surface. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Customer homepage hero image source corrected on 2026-06-22: customer hero visuals now use Admin CMS `homepage.backgroundImage` only, reject known logo asset paths, and fall back to a restaurant-themed vector illustration when Admin has no configured banner. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.

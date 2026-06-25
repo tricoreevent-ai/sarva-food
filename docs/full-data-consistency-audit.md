@@ -19,8 +19,8 @@ Tenant: `cafe-al-arab-thanisandra`
 | Tables | Complete |
 | Kitchen | Complete |
 | POS | Complete |
-| Admin | Pending |
-| Customer Ordering | Partial |
+| Admin | Code Complete |
+| Customer Ordering | Code Complete |
 
 ## Operational Runtime Proof
 
@@ -134,7 +134,7 @@ Current revenue is INR 1976 because only the INR 1488 new order and INR 488 deli
 | Reports | 5 production / 0 local partial | `/api/owner/analytics` screen output | Needs stable local browser recheck |
 | Kitchen Queue | 4 | Runtime screen | Match |
 | POS Orders | 5 | Runtime screen operational summary | Match |
-| Customer Orders | Not screen-validated | `order-service.getOrderHistory` direct Firestore query | Pending |
+| Customer Orders | Not screen-validated | `/api/customer/orders` through `OrderRepository` | Browser validation pending |
 
 Operational order mismatch: resolved locally through repository APIs.
 
@@ -205,21 +205,21 @@ Sprint 1 result: CLOSED.
 
 | Screen | Current Source | Repository-backed | Status |
 | --- | --- | --- | --- |
-| `/admin` | `useAppStore.restaurants`, `staffMembers`, `orders` | No | Pending |
-| `/admin/analytics` | `useAppStore.orders`, `restaurants`, `staffMembers` | No | Pending |
-| `/admin/restaurants` | `useAppStore.restaurants`, `businessApplications`, `branches`, `staffMembers`, `orders` | No | Pending |
-| `/admin/users` | `useAppStore.staffMembers` | No | Pending |
-| `/admin/campaigns` | `useAppStore.offers`, `menuItems`, `restaurants` | No | Pending |
-| `/admin/cms` | API-backed CMS plus `useAppStore.cmsSettings` | Partial | Partial |
+| `/admin` | `/api/admin/data` | Yes | Browser validation pending |
+| `/admin/analytics` | `/api/admin/data` | Yes | Browser validation pending |
+| `/admin/restaurants` | `/api/admin/data` | Yes | Browser validation pending |
+| `/admin/users` | `/api/admin/data` | Yes | Browser validation pending |
+| `/admin/campaigns` | `/api/admin/data` | Yes | Browser validation pending |
+| `/admin/cms` | `/api/admin/cms` plus `/api/admin/data` | Yes | Browser validation pending |
 
 ## Customer Ordering Audit
 
 | Surface | Current Source | Repository-backed | Status |
 | --- | --- | --- | --- |
-| Cart | `useCartStore` | UI state allowed, but not repository-backed | Partial |
-| Checkout order creation | `/api/orders` uses `OrderRepository`; component still imports `useAppStore.createOrder` | Partial | Partial |
-| Restaurant detail cart/order flow | `useCartStore`; still imports `useAppStore.createOrder` | Partial | Partial |
-| Customer order history | `order-service.getOrderHistory` direct Firestore query | No | Pending |
+| Cart | `useCartStore` | UI state allowed; persisted cart API remains available | Partial |
+| Checkout order creation | `/api/orders` uses `OrderRepository` | Yes | Browser validation pending |
+| Restaurant detail cart/order flow | `/api/orders` and customer API helpers | Yes | Browser validation pending |
+| Customer order history | `/api/customer/orders` using `OrderRepository` | Yes | Browser validation pending |
 
 ## ACTION REQUIRED
 
@@ -229,17 +229,17 @@ Closed
 Evidence:  
 Dashboard, Orders, Kitchen, POS, Employees, and Tables matched canonical repository data locally and in Hostinger production. T99 CRUD survived refresh and deleted cleanly in local validation.
 
-Admin Module  
-Pending
+Admin Module
+Code Complete
 
-Root Cause:  
-Admin dashboards and analytics still read business data from `useAppStore`.
+Evidence:
+Admin pages now use the repository-backed `/api/admin/data` surface for restaurants, orders, staff, offers, menu items, branches, plans, campaigns, subscriptions, reviews, and featured menu data.
 
-Fix:  
-Create admin repository/API read paths for restaurants, orders, staff, offers, and analytics.
+Customer Ordering
+Code Complete
 
-Files:  
-`src/app/admin/page.tsx`, `src/app/admin/analytics/page.tsx`, `src/app/admin/restaurants/page.tsx`
+Evidence:
+Customer order creation and history now route through repository-backed APIs. Cart remains UI state, which is allowed.
 
-Priority:  
-P2
+Remaining Validation:
+Authenticated browser validation and production validation.

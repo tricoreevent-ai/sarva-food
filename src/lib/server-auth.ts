@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/firebase/admin";
+import { defaultOperationalView, type OperationalView } from "@/lib/operational-access";
+import { inheritedPermissions } from "@/lib/rbac";
 import type { UserRole } from "@/types/firebase";
 
 export type SessionSurface = "customer" | "owner" | "admin";
@@ -12,6 +14,8 @@ export type VerifiedSession = {
   tenantIds: string[];
   branchIds: string[];
   restaurantIds: string[];
+  permissions: string[];
+  viewMode: OperationalView;
 };
 
 type AuthBackedCustomerProfile = {
@@ -33,6 +37,7 @@ const sessionProfileCache = new Map<string, { expiresAt: number; session: Verifi
 const ownerRoles = new Set<UserRole>(["owner", "manager", "cashier", "waiter", "chef", "kitchen-manager", "accountant", "inventory-manager", "delivery-staff", "delivery"]);
 const adminRoles = new Set<UserRole>(["admin", "super_admin"]);
 const customerRoles = new Set<UserRole>(["customer"]);
+export const ownerViewCookieName = "sarva_owner_view";
 
 export const scopedSessionCookieNames = {
   customer: {
@@ -90,6 +95,7 @@ export async function verifyFirebaseIdToken(idToken: string, options: { ensureCu
         tenantIds?: string[];
         restaurantIds?: string[];
         branchIds?: string[];
+        permissions?: string[];
         active?: boolean;
       }
     | undefined;
@@ -107,6 +113,8 @@ export async function verifyFirebaseIdToken(idToken: string, options: { ensureCu
     tenantIds,
     branchIds: user.branchIds ?? [],
     restaurantIds: user.restaurantIds ?? [],
+    permissions: user.permissions ?? inheritedPermissions(user.role),
+    viewMode: defaultOperationalView(user.role),
   };
   sessionProfileCache.set(decoded.uid, {
     expiresAt: Date.now() + SESSION_PROFILE_CACHE_TTL_MS,
@@ -183,38 +191,45 @@ function omitUndefinedFields<T extends Record<string, unknown>>(input: T) {
 export async function getSessionFromCookies(surface?: SessionSurface) {
   const cookieStore = await cookies();
   if (surface) {
-    return sessionFromCookieReader((name) => cookieStore.get(name)?.value, scopedSessionCookieNames[surface], surface);
+    return hydrateCookieSession(
+      sessionFromCookieReader((name) => cookieStore.get(name)?.value, scopedSessionCookieNames[surface], surface),
+      surface === "owner" ? cookieStore.get(ownerViewCookieName)?.value : undefined,
+    );
   }
 
   for (const nextSurface of ["customer", "owner", "admin"] as const) {
     const session = sessionFromCookieReader((name) => cookieStore.get(name)?.value, scopedSessionCookieNames[nextSurface], nextSurface);
-    if (session) return session;
+    if (session) return hydrateCookieSession(session, nextSurface === "owner" ? cookieStore.get(ownerViewCookieName)?.value : undefined);
   }
 
-  return sessionFromCookieReader((name) => cookieStore.get(name)?.value, legacySessionCookieNames);
+  return hydrateCookieSession(sessionFromCookieReader((name) => cookieStore.get(name)?.value, legacySessionCookieNames));
 }
 
 export async function getSessionFromRequest(request: NextRequest | Request, surface?: SessionSurface) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+  const nextRequest = "cookies" in request ? request as NextRequest : undefined;
 
   if (token) {
-    return verifyFirebaseIdToken(token);
+    const session = await verifyFirebaseIdToken(token);
+    return { ...session, viewMode: readOperationalView(nextRequest?.cookies.get(ownerViewCookieName)?.value, session.role) };
   }
 
   const requestedSurface = surface ?? parseSessionSurface(request.headers.get("x-sarva-surface")) ?? inferSessionSurfaceFromRequest(request);
-  const nextRequest = "cookies" in request ? request as NextRequest : undefined;
   if (nextRequest) {
     if (requestedSurface) {
-      return sessionFromCookieReader((name) => nextRequest.cookies.get(name)?.value, scopedSessionCookieNames[requestedSurface], requestedSurface);
+      return hydrateCookieSession(
+        sessionFromCookieReader((name) => nextRequest.cookies.get(name)?.value, scopedSessionCookieNames[requestedSurface], requestedSurface),
+        requestedSurface === "owner" ? nextRequest.cookies.get(ownerViewCookieName)?.value : undefined,
+      );
     }
 
     for (const nextSurface of ["customer", "owner", "admin"] as const) {
       const session = sessionFromCookieReader((name) => nextRequest.cookies.get(name)?.value, scopedSessionCookieNames[nextSurface], nextSurface);
-      if (session) return session;
+      if (session) return hydrateCookieSession(session, nextSurface === "owner" ? nextRequest.cookies.get(ownerViewCookieName)?.value : undefined);
     }
 
-    return sessionFromCookieReader((name) => nextRequest.cookies.get(name)?.value, legacySessionCookieNames);
+    return hydrateCookieSession(sessionFromCookieReader((name) => nextRequest.cookies.get(name)?.value, legacySessionCookieNames));
   }
 
   return getSessionFromCookies(requestedSurface);
@@ -242,7 +257,48 @@ function sessionFromCookieReader(
     tenantIds: tenantIds ? tenantIds.split(",").filter(Boolean) : tenantId ? [tenantId] : [],
     branchIds: branchIds ? branchIds.split(",").filter(Boolean) : [],
     restaurantIds: restaurantIds ? restaurantIds.split(",").filter(Boolean) : [],
+    permissions: inheritedPermissions(role),
+    viewMode: defaultOperationalView(role),
   } satisfies VerifiedSession;
+}
+
+async function hydrateCookieSession(session: VerifiedSession | null, requestedView?: string) {
+  if (!session) return null;
+  const cached = sessionProfileCache.get(session.uid);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { ...cached.session, viewMode: readOperationalView(requestedView, cached.session.role) };
+  }
+  const profile = await adminDb().collection("users").doc(session.uid).get().catch(() => null);
+  const user = profile?.data() as {
+    role?: UserRole;
+    tenantId?: string;
+    tenantIds?: string[];
+    restaurantIds?: string[];
+    branchIds?: string[];
+    permissions?: string[];
+    active?: boolean;
+  } | undefined;
+  if (!user?.active || !user.role) return null;
+  const tenantIds = user.tenantIds ?? (user.tenantId ? [user.tenantId] : user.restaurantIds ?? []);
+  const hydrated: VerifiedSession = {
+    uid: session.uid,
+    role: user.role,
+    tenantId: user.tenantId ?? tenantIds[0],
+    tenantIds,
+    branchIds: user.branchIds ?? [],
+    restaurantIds: user.restaurantIds ?? [],
+    permissions: user.permissions ?? inheritedPermissions(user.role),
+    viewMode: readOperationalView(requestedView, user.role),
+  };
+  sessionProfileCache.set(session.uid, { expiresAt: Date.now() + SESSION_PROFILE_CACHE_TTL_MS, session: hydrated });
+  return hydrated;
+}
+
+function readOperationalView(value: string | undefined, role: UserRole) {
+  const allowed: OperationalView[] = ["owner", "manager", "cashier", "kitchen", "waiter", "delivery"];
+  return role === "owner" && allowed.includes(value as OperationalView)
+    ? value as OperationalView
+    : defaultOperationalView(role);
 }
 
 export function requireRoles(session: VerifiedSession | null, roles: UserRole[]) {

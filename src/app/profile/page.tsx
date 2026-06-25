@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { updateEmail, updatePassword, updateProfile, type User } from "firebase/auth";
-import { deleteDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   Bell,
   Building2,
@@ -49,11 +48,9 @@ import { useCustomerData, type CustomerCouponDoc } from "@/hooks/use-customer-da
 import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { useAlert } from "@/hooks/useAlert";
 import { parseFirestoreDate } from "@/lib/firestore-date";
-import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
-import { COLLECTIONS } from "@/firebase/collections";
+import { getFirebaseAuth, isFirebaseConfigured } from "@/firebase/client";
 import { ensureCustomerProfile, signOutUser } from "@/services/auth-service";
 import { signOutStackCustomer } from "@/services/auth/stack-auth-client";
-import { deleteCustomerFavoriteRestaurant } from "@/services/customer-favorites-service";
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
@@ -100,7 +97,6 @@ export default function ProfilePage() {
   const { profile: customerProfile, retry: retryCustomer, status: customerStatus } = customer;
   const setAuthUser = useAppStore((state) => state.setAuthUser);
   const clearCart = useCartStore((state) => state.clearCart);
-  const cateringInquiries = useAppStore((state) => state.cateringInquiries);
   const phoneRequired = searchParams.get("phoneRequired") === "1";
   const [activeTab, setActiveTab] = useState(() => phoneRequired ? "settings" : profileTabFromUrl(searchParams.get("tab")));
   const [signingOut, setSigningOut] = useState(false);
@@ -190,11 +186,12 @@ export default function ProfilePage() {
         setAddressMessage("Could not connect to Firebase. Please refresh and try again.");
         return;
       }
-      await setDoc(docRef(COLLECTIONS.customerAddresses, id), {
-        ...payload,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      const response = await fetch("/api/customer/account", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ resource: "addresses", id, data: payload }),
+      });
+      if (!response.ok) throw new Error("Address save failed.");
       customer.retry();
       setAddressDraft(emptyAddressDraft);
       setEditingAddressId(null);
@@ -221,9 +218,11 @@ export default function ProfilePage() {
       setAddressMessage("Could not find this address in Firebase. Refresh and try again.");
       return;
     }
-    await deleteDoc(docRef(COLLECTIONS.customerAddresses, addressId)).catch(() => {
+    const response = await fetch(`/api/customer/account?resource=addresses&id=${encodeURIComponent(addressId)}`, { method: "DELETE" });
+    if (!response.ok) {
       setAddressMessage("Could not delete address. Try again.");
-    });
+      return;
+    }
     customer.retry();
     setAddressMessage("Address deleted.");
   }
@@ -239,7 +238,8 @@ export default function ProfilePage() {
     });
     if (!confirmed) return;
     try {
-      await deleteCustomerFavoriteRestaurant(favoriteId);
+      const response = await fetch(`/api/customer/account?resource=savedRestaurants&id=${encodeURIComponent(favoriteId)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Favorite removal failed.");
       customer.retry();
     } catch {
       customer.retry();
@@ -375,7 +375,7 @@ export default function ProfilePage() {
   const currentEmail = effectiveProfile.email ?? "";
   const currentPhone = effectiveProfile.phone ?? "";
   const phoneMissing = !currentPhone.trim();
-  const profileCateringInquiries = filterProfileCatering(cateringInquiries, currentEmail, currentPhone, effectiveProfile.displayName);
+  const profileCateringInquiries = filterProfileCatering(customer.cateringInquiries, currentEmail, currentPhone, effectiveProfile.displayName);
 
   function selectProfileTab(tab: string) {
     setActiveTab(tab);
@@ -417,21 +417,16 @@ export default function ProfilePage() {
       if (nextDisplayName || nextPhotoURL) await updateProfile(authUser, { displayName: nextLocalProfile.displayName, photoURL: nextLocalProfile.photoURL });
       if (nextEmail && nextEmail !== currentEmail) await updateEmail(authUser, nextEmail);
       if (nextPassword) await updatePassword(authUser, nextPassword);
-      await setDoc(docRef(COLLECTIONS.users, user.uid), {
-        displayName: nextLocalProfile.displayName,
-        email: nextLocalProfile.email,
-        phone: nextLocalProfile.phone,
-        photoURL: nextLocalProfile.photoURL,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      await setDoc(docRef(COLLECTIONS.customerProfiles, user.uid), {
-        displayName: nextLocalProfile.displayName,
-        email: nextLocalProfile.email,
-        phone: nextLocalProfile.phone,
-        photoURL: nextLocalProfile.photoURL,
-        phoneVerified: Boolean(nextPhone || currentPhone),
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      const response = await fetch("/api/customer/account", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          resource: "profile",
+          id: user.uid,
+          data: { ...nextLocalProfile, phoneVerified: Boolean(nextPhone || currentPhone) },
+        }),
+      });
+      if (!response.ok) throw new Error("Profile save failed.");
       setAccountDraft({ displayName: "", email: "", phone: "", photoURL: "", password: "" });
       setAccountMessage("Account details updated.");
       customer.retry();
@@ -1262,10 +1257,6 @@ function dateFromFirestore(value?: FirestoreDate) {
 function formatShortDate(value?: FirestoreDate) {
   const date = dateFromFirestore(value);
   return date ? date.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Date pending";
-}
-
-function docRef(collectionName: string, id: string) {
-  return doc(getFirebaseDb(), collectionName, id);
 }
 
 function buildFullAddress(draft: AddressDraft) {

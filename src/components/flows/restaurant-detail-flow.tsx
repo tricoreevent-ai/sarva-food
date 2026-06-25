@@ -46,7 +46,6 @@ import { useAlert } from "@/hooks/useAlert";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicCategories, usePublicCuisines, usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
-import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
 import { runDataConsistencyAudit } from "@/lib/DataConsistencyAudit";
 import { isOfferActive, isOfferForSurface, offerAppliesToFulfillment, sortOffers } from "@/lib/offer-engine";
@@ -57,6 +56,7 @@ import { useThemeMode } from "@/lib/theme-provider";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerAddressDoc } from "@/types/firebase";
+import { placeCustomerOrder } from "@/services/customer-order-api";
 
 type WizardStep = "menu" | "offers" | "details" | "confirm" | "success";
 type FulfillmentType = "delivery" | "parcel" | "dine-in";
@@ -95,7 +95,6 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const { cuisines: masterCuisines } = usePublicCuisines();
   const auth = useAuthUser();
   const customerData = useCustomerData(auth.user?.uid);
-  const createOrder = useAppStore((state) => state.createOrder);
   const cartItems = useCartStore((state) => state.items);
   const offerCode = useCartStore((state) => state.offerCode);
   const addItem = useCartStore((state) => state.addItem);
@@ -438,13 +437,15 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
         price: itemPrice(item, fulfillmentType),
         quantity: item.quantity,
       }));
-      const order = await createOrder({
-        restaurantSlug: restaurant.slug,
-        customer: {
-          name: checkoutCustomer.name.trim(),
-          phone: checkoutCustomer.phone.trim(),
-          address: [checkoutCustomer.address.trim(), checkoutCustomer.landmark.trim()].filter(Boolean).join(", "),
-        },
+      const address = customerData.addresses.find((item) => item.isDefault) ?? customerData.addresses[0];
+      const order = await placeCustomerOrder({
+        restaurantId: restaurant.slug,
+        customerName: checkoutCustomer.name.trim(),
+        customerPhone: checkoutCustomer.phone.trim(),
+        deliveryAddress: [checkoutCustomer.address.trim(), checkoutCustomer.landmark.trim()].filter(Boolean).join(", "),
+        deliveryGeo: typeof address?.latitude === "number" && typeof address.longitude === "number" ? { lat: address.latitude, lng: address.longitude } : undefined,
+        deliveryPlaceId: address?.placeId,
+        deliveryAddressLabel: address?.label,
         lines: orderLines,
         totals: {
           subtotal: totals.subtotal,
@@ -454,14 +455,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
           total: totals.total,
         },
         offerCode: totals.appliedOffer?.code,
-        payment: "cod",
-        channel: "Web",
         fulfillmentType,
         scheduleMode: orderTiming === "scheduled" ? "scheduled" : "now",
         scheduledFor: scheduledIso,
-        scheduledStatus: orderTiming === "scheduled" ? "requested" : undefined,
-        prepEstimateMinutes: estimatePrepMinutes(restaurantCart),
-        cutoffAt: scheduledFor ? new Date(scheduledFor.getTime() - 45 * 60_000).toISOString() : undefined,
       });
       void notifyOwnerAboutOrder({
         orderId: order.id,

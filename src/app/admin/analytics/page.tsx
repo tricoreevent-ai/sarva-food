@@ -3,12 +3,10 @@
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 
 export default function AdminAnalyticsPage() {
-  const orders = useAppStore((state) => state.orders);
-  const restaurants = useAppStore((state) => state.restaurants);
-  const staff = useAppStore((state) => state.staffMembers);
+  const { orders, restaurants, staffMembers: staff } = useAdminRepositoryData();
   const adminStats = [
     { label: "GMV", value: String(orders.reduce((sum, order) => sum + order.totals.total, 0)), delta: "Firestore", tone: "success" as const },
     { label: "Restaurants", value: String(restaurants.length), delta: "Live", tone: "info" as const },

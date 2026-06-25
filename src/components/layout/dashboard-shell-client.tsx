@@ -1,13 +1,15 @@
 "use client";
 
-import { ReactNode, useSyncExternalStore, type CSSProperties } from "react";
-import { usePathname } from "next/navigation";
+import { ReactNode, useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-status";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { DashboardTopbar } from "@/components/layout/dashboard-topbar";
 import { DashboardQuickActions, MobileOfflineBanner } from "@/components/mobile/mobile-experience";
 import { useAppStore } from "@/lib/app-store";
 import { filterOwnerNavigationForRestaurant } from "@/lib/access-control";
+import { filterNavigationForOperationalView } from "@/lib/operational-access";
+import { useOperationalView } from "@/hooks/use-operational-view";
 import { moduleThemeKey } from "@/lib/theme-provider";
 import { normalizeTheme, resolveThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -40,20 +42,21 @@ export function DashboardShellClient({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
   const restaurants = useAppStore((state) => state.restaurants);
   const themeSurface = app === "admin" ? "admin" : app === "owner" || app === "pos" ? "owner" : null;
   const moduleTheme = useModuleTheme(themeSurface, authUser.id);
-
-  if (pathname === "/admin/login" || pathname === "/owner/login") {
-    return children;
-  }
+  const operational = useOperationalView(app === "owner" || app === "pos");
 
   const config = appConfig[app];
   const currentRestaurant = restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug);
-  const navItems = app === "owner" || app === "pos"
+  const roleNavItems = app === "owner" || app === "pos"
     ? filterOwnerNavigationForRestaurant(config.nav, currentRestaurant, authUser.role)
     : config.nav;
+  const navItems = (app === "owner" || app === "pos") && operational.session
+    ? filterNavigationForOperationalView(roleNavItems, operational.session)
+    : roleNavItems;
   const isPosWorkspace = pathname.startsWith("/owner/pos") || pathname.startsWith("/pos");
   const adminStyle = app === "admin"
     ? ({
@@ -62,6 +65,18 @@ export function DashboardShellClient({
         "--admin-console-primary": adminTheme.colors.primary,
       } as CSSProperties)
     : undefined;
+
+  useEffect(() => {
+    if (!(app === "owner" || app === "pos") || operational.loading || !operational.session) return;
+    const route = [...config.nav]
+      .sort((first, second) => second.href.length - first.href.length)
+      .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    if (route?.featureKey && !navItems.some((item) => item.featureKey === route.featureKey)) {
+      router.replace(operational.session.viewMode === "kitchen" ? "/owner/kitchen" : operational.session.viewMode === "cashier" || operational.session.viewMode === "waiter" ? "/owner/pos" : "/owner");
+    }
+  }, [app, config.nav, navItems, operational.loading, operational.session, pathname, router]);
+
+  if (pathname === "/admin/login" || pathname === "/owner/login") return children;
 
   return (
     <div

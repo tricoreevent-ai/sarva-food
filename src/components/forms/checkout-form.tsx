@@ -16,8 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
-import { useAppStore } from "@/lib/app-store";
-import { isOnline } from "@/lib/offline";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/schemas/checkout";
 import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
@@ -26,7 +24,34 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import type { CommerceLocation } from "@/hooks/use-location-commerce";
 import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { captureException, trackAnalyticsEvent } from "@/services/analytics-service";
-import type { CreateOrderInput } from "@/services/order-service";
+
+type CreateOrderRequest = {
+  restaurantId: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress?: string;
+  deliveryGeo?: { lat: number; lng: number };
+  deliveryPlaceId?: string;
+  deliveryAddressLabel?: string;
+  channel: "web";
+  fulfillmentType: "delivery" | "parcel" | "dine-in";
+  scheduleMode: "now" | "scheduled";
+  scheduledFor?: string;
+  scheduledDateLabel?: string;
+  prepEstimateMinutes: number;
+  cutoffAt?: Date;
+  guestCount?: number;
+  lines: Array<{ menuItemId: string; name: string; price: number; quantity: number }>;
+  offerCode?: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  deliveryFee: number;
+  total: number;
+  acceptedTermsVersion: string;
+  acceptedTermsAt: string;
+};
 
 export function CheckoutForm({
   fastMode = false,
@@ -45,8 +70,7 @@ export function CheckoutForm({
   const offerCode = useCartStore((state) => state.offerCode);
   const applyOffer = useCartStore((state) => state.applyOffer);
   const clearCart = useCartStore((state) => state.clearCart);
-  const createOrder = useAppStore((state) => state.createOrder);
-  const cmsVersion = useAppStore((state) => state.cmsSettings.cmsVersion);
+  const cmsVersion = "current";
   const cartRestaurantSlug = items[0]?.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
   const { offers } = usePublicMenu(cartRestaurantSlug);
   const { restaurant } = usePublicRestaurant(cartRestaurantSlug);
@@ -188,63 +212,22 @@ export function CheckoutForm({
                 acceptedTermsAt: new Date().toISOString(),
               };
 
-              if (isOnline()) {
-                try {
-                  const order = await createOrderThroughServer(firebaseOrderInput);
-                  clearScheduledOrderDraft();
-                  clearCart();
-                  await trackAnalyticsEvent("order_created", {
-                    restaurantSlug,
-                    orderId: order.orderId,
-                    offerCode: appliedOfferCode,
-                  });
-                  router.push(`/order-success?orderId=${order.orderId}`);
-                  return;
-                } catch (error) {
-                  const safeMessage = error instanceof Error ? error.message : "Unable to create order right now.";
-                  setSubmitError(safeMessage);
-                  await captureException(error, { surface: "checkout-server-order" });
-                  setSubmitting(false);
-                  return;
-                }
+              try {
+                const order = await createOrderThroughServer(firebaseOrderInput);
+                clearScheduledOrderDraft();
+                clearCart();
+                await trackAnalyticsEvent("order_created", {
+                  restaurantSlug,
+                  orderId: order.orderId,
+                  offerCode: appliedOfferCode,
+                });
+                router.push(`/order-success?orderId=${order.orderId}`);
+              } catch (error) {
+                const safeMessage = error instanceof Error ? error.message : "Unable to create order right now.";
+                setSubmitError(safeMessage);
+                await captureException(error, { surface: "checkout-server-order" });
+                setSubmitting(false);
               }
-
-              const order = await createOrder({
-                restaurantSlug,
-                customer: {
-                  name: values.name,
-                  phone: values.phone,
-                  address: values.fulfillmentType === "delivery" ? values.address ?? "" : "",
-                },
-                lines: items.map((item) => ({
-                  itemId: item.id,
-                  name: item.name,
-                  price: item.price,
-                  quantity: item.quantity,
-                })),
-                totals,
-                offerCode: appliedOfferCode,
-                payment: values.payment,
-                channel: "Web",
-                fulfillmentType: values.fulfillmentType,
-                scheduleMode: values.scheduleMode,
-                scheduledFor,
-                scheduledStatus: values.scheduleMode === "scheduled" ? "requested" : undefined,
-                prepEstimateMinutes: estimatePrepMinutes(items.length),
-                cutoffAt: scheduledFor ? new Date(new Date(scheduledFor).getTime() - 45 * 60_000).toISOString() : undefined,
-                guestCount: values.fulfillmentType === "dine-in" ? values.guestCount : undefined,
-                acceptedTermsVersion: cmsVersion ?? "default",
-                acceptedTermsAt: new Date().toISOString(),
-              });
-              clearScheduledOrderDraft();
-              clearCart();
-              await trackAnalyticsEvent("order_created", {
-                restaurantSlug,
-                orderId: order.id,
-                source: "pwa",
-                offerCode: appliedOfferCode,
-              });
-              router.push(`/order-success?orderId=${order.id}`);
             } catch (error) {
               await trackAnalyticsEvent("order_failed", {
                 restaurantSlug,
@@ -256,7 +239,6 @@ export function CheckoutForm({
             }
           })}
         >
-          {/* Submit writes Firestore orders when Firebase/auth are enabled and keeps a local fallback for offline development. */}
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" autoComplete="name" {...register("name")} />
@@ -420,7 +402,7 @@ export function CheckoutForm({
   );
 }
 
-async function createOrderThroughServer(input: CreateOrderInput) {
+async function createOrderThroughServer(input: CreateOrderRequest) {
   const response = await fetch("/api/orders", {
     method: "POST",
     headers: { "content-type": "application/json" },

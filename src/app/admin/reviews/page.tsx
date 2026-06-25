@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import type { Restaurant } from "@/lib/types";
 
 const reviewModules = [
@@ -23,14 +23,10 @@ const reviewModules = [
 ];
 
 export default function AdminOwnerReviewsPage() {
-  const restaurants = useAppStore((state) => state.restaurants);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const offers = useAppStore((state) => state.offers);
-  const socialPosts = useAppStore((state) => state.socialPosts);
-  const updateRestaurantAdminState = useAppStore((state) => state.updateRestaurantAdminState);
+  const { restaurants, menuItems, offers, socialPosts, updateRestaurantAdminState } = useAdminRepositoryData();
   const [selectedSlug, setSelectedSlug] = useState(restaurants[0]?.slug ?? "");
   const [note, setNote] = useState("");
-  const selected = restaurants.find((restaurant) => restaurant.slug === selectedSlug) ?? restaurants[0];
+  const selected = restaurants.find((restaurant) => restaurant.slug === (selectedSlug || restaurants[0]?.slug)) ?? restaurants[0];
 
   const rows = useMemo(() => restaurants.map((restaurant) => ({
     restaurant,

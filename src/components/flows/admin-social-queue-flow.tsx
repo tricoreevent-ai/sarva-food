@@ -6,11 +6,10 @@ import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 
 export function AdminSocialQueueFlow() {
-  const posts = useAppStore((state) => state.socialPosts);
-  const reviewSocialPost = useAppStore((state) => state.reviewSocialPost);
+  const { socialPosts: posts, reviewSocialPost } = useAdminRepositoryData();
 
   return (
     <div className="space-y-6">

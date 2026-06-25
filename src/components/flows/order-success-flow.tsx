@@ -7,13 +7,16 @@ import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
+import { useRealtimeOrder } from "@/hooks/use-realtime-order";
+import { InlineLoading } from "@/components/state/page-state";
 import { formatCurrency } from "@/lib/utils";
 
 export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
-  const order = useAppStore((state) =>
-    state.orders.find((item) => item.id === orderId) ?? state.orders[0],
-  );
+  const { order, loading } = useRealtimeOrder(orderId);
+
+  if (loading || !order) {
+    return <CustomerShell><main className="container-page py-8"><InlineLoading label="Loading order receipt" /></main></CustomerShell>;
+  }
 
   // Success receipt reads the order cache immediately after checkout; tracking can subscribe to Firestore by order ID.
   return (
@@ -39,7 +42,7 @@ export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
             <CardContent className="space-y-3 p-5">
               <h2 className="font-bold">Order summary</h2>
               {order.lines.map((line) => (
-                <div key={line.itemId} className="flex justify-between gap-3 text-sm">
+                <div key={line.menuItemId} className="flex justify-between gap-3 text-sm">
                   <span>
                     {line.name} x {line.quantity}
                   </span>
@@ -50,7 +53,7 @@ export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
               ))}
               <div className="flex justify-between border-t pt-3 font-bold">
                 <span>Total paid</span>
-                <span>{formatCurrency(order.totals.total)}</span>
+                <span>{formatCurrency(order.total)}</span>
               </div>
             </CardContent>
           </Card>

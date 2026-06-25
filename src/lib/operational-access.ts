@@ -1,84 +1,76 @@
-"use client";
+import type { NavItem, StaffRole } from "@/lib/types";
+import type { UserRole } from "@/types/firebase";
+import { canRolePerform, roleAllowsFeature, type AccessOperation, type OwnerFeatureKey } from "@/lib/access-control";
+import { inheritedPermissions, type AppPermission } from "@/lib/rbac";
 
-import { doc, getDoc } from "firebase/firestore";
-import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
-import { COLLECTIONS } from "@/firebase/collections";
-import { DEFAULT_BRANCH_ID, DEFAULT_TENANT_ID } from "@/lib/tenant";
-import { shouldUseFirebase } from "@/lib/env";
-import type { UserDoc, UserRole } from "@/types/firebase";
+export type OperationalView = "owner" | "manager" | "cashier" | "kitchen" | "waiter" | "delivery";
 
-const operationalRoles: UserRole[] = [
-  "owner",
-  "manager",
-  "cashier",
-  "waiter",
-  "chef",
-  "kitchen-manager",
-  "accountant",
-  "inventory-manager",
-  "delivery-staff",
-];
-
-type AccessCache = {
-  uid: string;
-  profile: UserDoc | null;
-  fetchedAt: number;
+type AccessUser = {
+  role: UserRole;
+  permissions?: string[];
+  viewMode?: OperationalView;
 };
 
-let accessCache: AccessCache | null = null;
-const cacheTtlMs = 5 * 60 * 1000;
-
-export type OperationalAccessResult = {
-  allowed: boolean;
-  profile: UserDoc | null;
-  reason?: string;
+const viewFeatures: Record<OperationalView, OwnerFeatureKey[]> = {
+  owner: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "accounting", "settings", "integrations", "api", "auditLogs", "franchise", "aiInsights"],
+  manager: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "settings", "auditLogs"],
+  cashier: ["overview", "orders", "pos", "menu", "tables", "customers", "reports"],
+  kitchen: ["overview", "orders", "kitchen", "menu", "inventory"],
+  waiter: ["overview", "orders", "kitchen", "pos", "tables", "customers"],
+  delivery: ["overview", "orders"],
 };
 
-export async function resolveOperationalAccess(force = false): Promise<OperationalAccessResult> {
-  if (!shouldUseFirebase() || !isFirebaseConfigured || typeof window === "undefined") {
-    return { allowed: true, profile: null };
-  }
+const featurePermissions: Partial<Record<OwnerFeatureKey, Partial<Record<AccessOperation, AppPermission>>>> = {
+  orders: { create: "canUsePOS", update: "canEditBill", delete: "canDeleteBill", export: "canViewReports" },
+  kitchen: { read: "canUseKDS", create: "canPrintKOT", update: "canUseKDS", export: "canPrintKOT" },
+  pos: { read: "canUsePOS", create: "canUsePOS", update: "canEditBill", delete: "canDeleteBill", billing: "canUsePOS" },
+  menu: { create: "canEditMenu", update: "canEditMenu", delete: "canEditMenu" },
+  inventory: { read: "canManageInventory", create: "canManageInventory", update: "canManageInventory", delete: "canManageInventory", export: "canViewReports" },
+  reports: { read: "canViewReports", export: "canExportReports" },
+  accounting: { read: "canViewAccounting", create: "canManageAccounting", update: "canManageAccounting", delete: "canManageAccounting", export: "canExportReports" },
+  employees: { read: "canManageUsers", create: "canManageUsers", update: "canManageUsers", delete: "canManageUsers" },
+  auditLogs: { read: "canViewAuditLogs", export: "canViewAuditLogs" },
+};
 
-  const auth = getFirebaseAuth();
-  const user = auth.currentUser;
-  if (!user) return { allowed: false, profile: null, reason: "No signed-in Firebase user. Sign in again before retrying sync." };
-
-  if (!force && accessCache?.uid === user.uid && Date.now() - accessCache.fetchedAt < cacheTtlMs) {
-    return validateProfile(accessCache.profile);
-  }
-
-  const snapshot = await getDoc(doc(getFirebaseDb(), COLLECTIONS.users, user.uid));
-  const profile = snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as UserDoc) : null;
-  accessCache = { uid: user.uid, profile, fetchedAt: Date.now() };
-  return validateProfile(profile);
+export function defaultOperationalView(role: UserRole): OperationalView {
+  if (role === "manager") return "manager";
+  if (role === "cashier") return "cashier";
+  if (role === "waiter") return "waiter";
+  if (role === "chef" || role === "kitchen-manager") return "kitchen";
+  if (role === "delivery" || role === "delivery-staff") return "delivery";
+  return "owner";
 }
 
-export async function assertCanSyncTenant(input: { tenantId?: string; branchId?: string }) {
-  const access = await resolveOperationalAccess();
-  if (!access.allowed) throw new Error(access.reason ?? "Operational access is not configured for this user.");
-
-  const profile = access.profile;
-  if (!profile) return;
-
-  const tenantId = input.tenantId ?? DEFAULT_TENANT_ID;
-  const branchId = input.branchId ?? DEFAULT_BRANCH_ID;
-  const tenantIds = new Set([...(profile.tenantIds ?? []), ...(profile.restaurantIds ?? []), profile.tenantId].filter(Boolean));
-  if (!tenantIds.has(tenantId)) {
-    throw new Error(`Access setup required: this user is not linked to restaurant ${tenantId}. Add it to users/${profile.id}.restaurantIds or tenantId.`);
-  }
-  if (profile.branchIds?.length && !profile.branchIds.includes(branchId)) {
-    throw new Error(`Access setup required: this user is not linked to branch ${branchId}. Add it to users/${profile.id}.branchIds.`);
-  }
+export function roleForOperationalView(view: OperationalView): StaffRole {
+  if (view === "kitchen") return "chef";
+  if (view === "delivery") return "delivery-staff";
+  return view;
 }
 
-function validateProfile(profile: UserDoc | null): OperationalAccessResult {
-  if (!profile) return { allowed: false, profile, reason: "User profile missing in Firestore users collection." };
-  if (!profile.active) return { allowed: false, profile, reason: "User profile is inactive in Firestore." };
-  if (!operationalRoles.includes(profile.role)) {
-    return { allowed: false, profile, reason: `Role ${profile.role} cannot run owner/POS sync.` };
-  }
-  if (!profile.tenantId && !profile.tenantIds?.length && !profile.restaurantIds?.length) {
-    return { allowed: false, profile, reason: "User profile has no restaurantId or tenantId access." };
-  }
-  return { allowed: true, profile };
+export function canUseOperationalView(role: UserRole, view: OperationalView) {
+  if (role === "owner" || role === "admin" || role === "super_admin") return true;
+  return defaultOperationalView(role) === view;
 }
+
+export function canAccessOperationalFeature(user: AccessUser, feature: OwnerFeatureKey, operation: AccessOperation = "read") {
+  if (user.role === "admin" || user.role === "super_admin") return true;
+  const view = user.viewMode ?? defaultOperationalView(user.role);
+  if (!viewFeatures[view].includes(feature)) return false;
+  const effectiveRole = user.role === "owner" ? roleForOperationalView(view) : user.role;
+  if (!roleAllowsFeature(effectiveRole, feature)) return false;
+
+  const permissions = new Set([...inheritedPermissions(user.role), ...(user.permissions ?? [])]);
+  const required = featurePermissions[feature]?.[operation];
+  if (required && !permissions.has(required)) return false;
+  return canRolePerform(effectiveRole as StaffRole, feature, operation);
+}
+
+export function filterNavigationForOperationalView(items: NavItem[], user: AccessUser) {
+  return items.filter((item) => !item.featureKey || canAccessOperationalFeature(user, item.featureKey as OwnerFeatureKey, "read"));
+}
+
+export function operationalViewLabel(view: OperationalView) {
+  return `${view.charAt(0).toUpperCase()}${view.slice(1)} View`;
+}
+
+export const operationalViews = Object.keys(viewFeatures) as OperationalView[];

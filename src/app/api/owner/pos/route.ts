@@ -5,17 +5,17 @@ import { MenuRepository } from "@/repositories/menu-repository";
 import { OrderRepository } from "@/repositories/order-repository";
 import { StaffRepository } from "@/repositories/staff-repository";
 import { TableRepository } from "@/repositories/table-repository";
-import { ownerReadRoles, tenantScope } from "@/repositories/shared";
-import { getSessionFromRequest } from "@/lib/server-auth";
+import { tenantScope } from "@/repositories/shared";
+import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { customerDocToLoyaltyCustomer, kitchenDocToTableOrder, menuDocToMenuItem, orderDocToDemoOrder, staffDocToStaffMember, tableDocToPosTable } from "@/lib/operational-api-mappers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const session = await getSessionFromRequest(request, "owner");
-  if (!session || !ownerReadRoles.has(session.role)) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
-  const scope = tenantScope(session, request.nextUrl.searchParams.get("restaurantId"));
+  const access = await requireOwnerFeature(request, "pos", "read");
+  if (access.error) return access.error;
+  const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
   const [orders, kitchen, menu, customers, tables, staff] = await Promise.all([
     new OrderRepository().list(scope, { limit: 500 }),
     new KitchenRepository().list(scope),

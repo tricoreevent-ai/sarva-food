@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { getFirebaseApp, getFirebaseAuth, isFirebaseConfigured } from "@/firebase/client";
 import { listenPublicCms, listenPublicOffers, listenPublicRestaurants } from "@/services/public-data-service";
 import { menuDocToUi } from "@/services/public-data-service";
 import { fetchOwnerMenuItems, listenMenuItems } from "@/services/advanced-menu-service";
@@ -42,7 +41,6 @@ export function FirestoreStoreHydrator() {
 
   useEffect(() => {
     window.__BUILD_INFO__ = BUILD_INFO;
-    console.log("BUILD_INFO", window.__BUILD_INFO__);
   }, []);
 
   useEffect(() => {
@@ -80,7 +78,6 @@ export function FirestoreStoreHydrator() {
       const applyOwnerMenuItems = (items: Parameters<typeof menuDocToUi>[1][]) => {
         useAppStore.setState({ menuItems: items.map((item) => menuDocToUi(item.id, item)) });
       };
-      logOwnerRuntimeDiagnostics(restaurantId);
       useAppStore.setState({
         menuItems: [],
         menuCategories: [],
@@ -149,27 +146,4 @@ export function FirestoreStoreHydrator() {
   }, [adminSurface, loginSurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
 
   return null;
-}
-
-function logOwnerRuntimeDiagnostics(restaurantId: string) {
-  const state = useAppStore.getState();
-  const auth = isFirebaseConfigured ? getFirebaseAuth() : null;
-  const app = isFirebaseConfigured ? getFirebaseApp() : null;
-  const restaurant = state.restaurants.find((item) => item.slug === restaurantId || item.id === restaurantId);
-  const ownerId = auth?.currentUser?.uid ?? state.authUser.id;
-  const slug = restaurant?.slug ?? restaurantId;
-
-  console.log("PROJECT_ID", app?.options.projectId ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "");
-  console.log("APP_ID", app?.options.appId ?? process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "");
-  console.log("AUTH_USER", auth?.currentUser?.uid);
-  console.log("RESTAURANT_ID", restaurantId);
-  console.log("OWNER_ID", ownerId);
-  console.log("RESTAURANT_SLUG", slug);
-  console.log("RESTAURANT_LOOKUP", {
-    id: restaurant?.id ?? restaurantId,
-    slug,
-    ownerId: restaurant?.ownerId ?? ownerId,
-    email: restaurant?.ownerProfile?.businessEmail,
-    name: restaurant?.name,
-  });
 }

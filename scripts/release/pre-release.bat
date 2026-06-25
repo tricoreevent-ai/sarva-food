@@ -1,0 +1,26 @@
+@echo off
+setlocal EnableExtensions
+cd /d "%~dp0..\.."
+
+call scripts\release\cleanup.bat
+if errorlevel 1 exit /b 1
+
+for /f %%B in ('git branch --show-current') do set "BRANCH=%%B"
+echo [pre-release] Branch: %BRANCH%
+if not "%BRANCH%"=="main" (
+  echo [pre-release] FAIL: expected main branch.
+  exit /b 1
+)
+
+git diff --check
+if errorlevel 1 exit /b 1
+
+git diff --name-only --diff-filter=U | findstr . >nul
+if not errorlevel 1 (
+  echo [pre-release] FAIL: merge conflicts present.
+  exit /b 1
+)
+
+git status --short
+echo [pre-release] PASS
+endlocal

@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicCategories } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
-import { subscribeOfflineQueue, type OfflineQueueEntry } from "@/lib/offline";
 import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PosBill, PosTable, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
@@ -63,7 +62,6 @@ export function PosBillingFlow() {
   const [compactGrid, setCompactGrid] = useState(false);
   const [showKot, setShowKot] = useState(false);
   const [ticketCreatedAt, setTicketCreatedAt] = useState<Date | null>(null);
-  const [offlineQueue, setOfflineQueue] = useState<OfflineQueueEntry[]>([]);
   const [heldOrders, setHeldOrders] = useState<HeldPosOrder[]>([]);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
@@ -101,7 +99,6 @@ export function PosBillingFlow() {
   const applyGst = bill.applyGst ?? true;
   const waiveParcelCharge = Boolean(bill.waiveParcelCharge);
 
-  useEffect(() => subscribeOfflineQueue(setOfflineQueue), []);
   useEffect(() => {
     const id = window.setTimeout(() => {
       try {

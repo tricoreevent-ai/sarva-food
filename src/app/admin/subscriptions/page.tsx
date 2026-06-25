@@ -8,7 +8,7 @@ import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { normalizePlan, planDefinitions } from "@/lib/access-control";
 import type { Restaurant } from "@/lib/types";
 
@@ -28,9 +28,7 @@ type SubscriptionRow = Restaurant & {
 };
 
 export default function AdminSubscriptionsPage() {
-  const restaurants = useAppStore((state) => state.restaurants);
-  const staff = useAppStore((state) => state.staffMembers);
-  const updateRestaurantAdminState = useAppStore((state) => state.updateRestaurantAdminState);
+  const { restaurants, staffMembers: staff, updateRestaurantAdminState } = useAdminRepositoryData();
   const [planFilter, setPlanFilter] = useState<"All" | Plan>("All");
   const [statusFilter, setStatusFilter] = useState<"All" | AdminStatus>("All");
 

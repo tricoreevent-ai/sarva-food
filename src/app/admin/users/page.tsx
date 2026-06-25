@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { KeyRound, ShieldCheck, UserPlus, UserX } from "lucide-react";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import type { StaffMember } from "@/lib/types";
 
 type AdminRole = "Super Admin" | "Operations" | "Support" | "Marketing" | "Finance";
@@ -30,9 +31,7 @@ type AdminRow = StaffMember & {
 };
 
 export default function AdminUsersPage() {
-  const staff = useAppStore((state) => state.staffMembers);
-  const createStaffMember = useAppStore((state) => state.createStaffMember);
-  const updateStaffMember = useAppStore((state) => state.updateStaffMember);
+  const { staffMembers: staff, createStaffMember, resetAdminPassword, setAdminDisabled, updateStaffMember } = useAdminRepositoryData();
   const [draft, setDraft] = useState({
     name: "",
     email: "",
@@ -79,11 +78,11 @@ export default function AdminUsersPage() {
       sortable: false,
       render: (row) => (
         <div className="flex min-w-64 flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => void updateStaffMember({ ...row, status: row.status === "active" ? "off-duty" : "active", lastActivity: `${row.status === "active" ? "Disabled" : "Enabled"} by Super Admin` })}>
+          <Button size="sm" variant="outline" onClick={() => void toggleAdmin(row)}>
             <UserX className="size-3" />
             {row.status === "active" ? "Disable" : "Enable"}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => void updateStaffMember({ ...row, lastActivity: "Password reset requested by Super Admin" })}>
+          <Button size="sm" variant="secondary" onClick={() => void resetPassword(row)}>
             <KeyRound className="size-3" />
             Change password
           </Button>
@@ -93,8 +92,8 @@ export default function AdminUsersPage() {
   ];
 
   async function createAdmin() {
-    if (!draft.name.trim()) return;
-    await createStaffMember({
+    if (!draft.name.trim() || !draft.email.trim()) return;
+    const result = await createStaffMember({
       name: draft.name.trim(),
       email: draft.email.trim() || undefined,
       role: "admin",
@@ -103,7 +102,24 @@ export default function AdminUsersPage() {
       branchId: "platform",
       permissions: [`admin-role:${draft.adminRole}`, ...adminRolePermissions[draft.adminRole]],
     });
+    const resetLink = (result as { resetLink?: string } | undefined)?.resetLink;
+    if (resetLink) {
+      await navigator.clipboard.writeText(resetLink);
+      toast.success("Admin created. Password setup link copied.");
+    }
     setDraft({ name: "", email: "", adminRole: "Operations" });
+  }
+
+  async function toggleAdmin(row: AdminRow) {
+    await setAdminDisabled(row.id, row.status === "active");
+    toast.success(`${row.name} ${row.status === "active" ? "disabled" : "enabled"}.`);
+  }
+
+  async function resetPassword(row: AdminRow) {
+    const result = await resetAdminPassword(row.id) as { resetLink?: string } | undefined;
+    if (!result?.resetLink) return toast.error("Could not create a password reset link.");
+    await navigator.clipboard.writeText(result.resetLink);
+    toast.success("Password reset link copied.");
   }
 
   async function updateAdminRole(row: AdminRow, adminRole: AdminRole) {
@@ -140,7 +156,7 @@ export default function AdminUsersPage() {
               {adminRoles.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
           </label>
-          <Button onClick={() => void createAdmin()} disabled={!draft.name.trim()}>
+          <Button onClick={() => void createAdmin()} disabled={!draft.name.trim() || !draft.email.trim()}>
             <UserPlus className="size-4" />
             Save
           </Button>

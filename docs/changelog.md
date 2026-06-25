@@ -29,3 +29,8 @@
 - Verified temporary CRUD records were removed and all baseline counts were restored.
 - Verification passed with `npm run typecheck`, `npm run lint`, and `npm run build`.
 - Hostinger production verified the same baseline counts on API and actual screens at commit `e75a3c5`.
+- Continued Sprint 2 stabilization without duplicating closed owner repository work.
+- Added admin repository/API data paths for admin dashboards, analytics, restaurants, users, campaigns, CMS-adjacent data, plans, subscriptions, reviews, and featured menu item flows.
+- Added customer account/order/catering repository API paths and moved customer order history to `/api/customer/orders`.
+- Added owner staff lifecycle, scoped owner API access, operational view switching, audit log, and printer settings repository/API surfaces.
+- Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.

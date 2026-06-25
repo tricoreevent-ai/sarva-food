@@ -10,20 +10,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/app-store";
+import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { buildBillContext, buildEscPosPlan, buildKotContext, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
 import { printTemplateSchema, printerProfileSchema } from "@/lib/schemas/printing";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
-import type { PrinterProfile, PrintTemplate, RestaurantBranch } from "@/lib/types";
+import type { PrinterProfile, PrintTemplate, RestaurantBranch, TaxSettings } from "@/lib/types";
 
 export function PrinterSettingsFlow() {
-  const settings = useAppStore((state) => state.printerSettings);
-  const updatePrinterSettings = useAppStore((state) => state.updatePrinterSettings);
-  const latestOrder = useAppStore((state) => state.tableOrders[0]);
-  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
+  const { settings, context, save: updatePrinterSettings, log: recordPrint } = usePrinterSettings();
+  const { latestOrder, profile: ownerBusinessProfile } = context;
   const authUser = useAppStore((state) => state.authUser);
   const bill = useAppStore((state) => state.posBill);
-  const configuredBranch = useAppStore((state) => state.branches[0]);
-  const taxSettings = useAppStore((state) => state.taxSettings);
+  const configuredBranch = context.branch;
+  const taxSettings = context.taxSettings ?? defaultTaxSettings;
   const billTemplate = settings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate;
   const kotTemplate = settings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate;
   const [testPrintType, setTestPrintType] = useState<"bill" | "kot">("bill");
@@ -47,7 +46,7 @@ export function PrinterSettingsFlow() {
   function updateProfile(profile: PrinterProfile) {
     const parsed = printerProfileSchema.safeParse({ ...profile, copies: profile.copies ?? 1, autoCut: profile.autoCut ?? true, encoding: profile.encoding ?? "utf-8", marginMm: profile.marginMm ?? 2, fontScale: profile.fontScale ?? "normal" });
     if (!parsed.success) return;
-    updatePrinterSettings({
+    void updatePrinterSettings({
       ...settings,
       profiles: settings.profiles?.map((item) => (item.id === profile.id ? profile : item)),
     });
@@ -56,13 +55,21 @@ export function PrinterSettingsFlow() {
   function updateTemplate(template: PrintTemplate) {
     const parsed = printTemplateSchema.safeParse(template);
     if (!parsed.success) return;
-    updatePrinterSettings({
+    void updatePrinterSettings({
       ...settings,
       templates: settings.templates?.map((item) => (item.id === template.id ? template : item)),
     });
   }
 
   function testPrint() {
+    void recordPrint({
+      type: "test",
+      status: activeProfile?.status === "offline" ? "queued" : "printed",
+      user: authUser.name,
+      branchId: branch.id,
+      printerProfileId: activeProfile?.id ?? "browser",
+      referenceId: `test-${Date.now()}`,
+    });
     window.document.body.classList.add("print-ticket-mode");
     window.setTimeout(() => {
       window.print();
@@ -76,14 +83,14 @@ export function PrinterSettingsFlow() {
         <SectionHeader title="Thermal printers" description="Branch printer routing, ESC/POS hooks, kitchen ticket copies, billing receipts, and browser fallback." />
         <Card>
           <CardContent className="space-y-4 p-5">
-            <Field label="Kitchen printer" value={settings.kitchenPrinterName} onChange={(value) => updatePrinterSettings({ ...settings, kitchenPrinterName: value })} />
-            <Field label="Billing printer" value={settings.billingPrinterName} onChange={(value) => updatePrinterSettings({ ...settings, billingPrinterName: value })} />
+            <Field label="Kitchen printer" value={settings.kitchenPrinterName} onChange={(value) => void updatePrinterSettings({ ...settings, kitchenPrinterName: value })} />
+            <Field label="Billing printer" value={settings.billingPrinterName} onChange={(value) => void updatePrinterSettings({ ...settings, billingPrinterName: value })} />
             <label className="flex items-center gap-2 rounded-md border p-3 text-sm font-semibold">
-              <input type="checkbox" checked={settings.autoPrintOrders} onChange={(event) => updatePrinterSettings({ ...settings, autoPrintOrders: event.target.checked })} />
+              <input type="checkbox" checked={settings.autoPrintOrders} onChange={(event) => void updatePrinterSettings({ ...settings, autoPrintOrders: event.target.checked })} />
               Auto print new orders
             </label>
             <label className="flex items-center gap-2 rounded-md border p-3 text-sm font-semibold">
-              <input type="checkbox" checked={settings.compactTickets} onChange={(event) => updatePrinterSettings({ ...settings, compactTickets: event.target.checked })} />
+              <input type="checkbox" checked={settings.compactTickets} onChange={(event) => void updatePrinterSettings({ ...settings, compactTickets: event.target.checked })} />
               Compact 58/80mm layout
             </label>
             <Badge variant="success"><Wifi className="mr-1 size-3" />{settings.connectionStatus}</Badge>
@@ -175,6 +182,21 @@ export function PrinterSettingsFlow() {
     </div>
   );
 }
+
+const defaultTaxSettings: TaxSettings = {
+  id: "printer-default-tax",
+  restaurantSlug: DEFAULT_RESTAURANT_ID,
+  branchId: DEFAULT_BRANCH_ID,
+  gstEnabled: false,
+  pricingMode: "inclusive",
+  defaultGstRate: 5,
+  cgstRate: 2.5,
+  sgstRate: 2.5,
+  igstRate: 0,
+  serviceChargeRate: 0,
+  defaultPackingCharge: 0,
+  sac: "996331",
+};
 
 function Select({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: string[] }) {
   return (

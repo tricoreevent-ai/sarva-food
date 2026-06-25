@@ -901,6 +901,9 @@ export type StaffMember = {
   branchId: string;
   permissions: string[];
   lastActivity: string;
+  lastLoginAt?: string;
+  activeSessions?: number;
+  loginHistory?: Array<{ id: string; loginAt?: string; logoutAt?: string; active?: boolean; ip?: string; userAgent?: string }>;
   requiresLogin?: boolean;
   employmentType?: "fixed" | "contract";
   monthlySalary?: number;

@@ -17,12 +17,21 @@ Last updated: 2026-06-25
 | Owner Employees | `/api/owner/staff` | `StaffRepository` API | Completed |
 | Owner Inventory | `/api/owner/inventory` | `InventoryRepository` API | Completed |
 | Owner Accounting | `/api/owner/accounting` | `AccountingRepository` API | Completed |
-| Admin Dashboard | `useAppStore.restaurants`, `staffMembers`, `orders` | Admin repository/API layer | Pending |
-| Admin Analytics | `useAppStore.orders`, `restaurants`, `staffMembers` | Admin analytics repository/API | Pending |
-| Admin Restaurants | `useAppStore.restaurants`, `businessApplications`, `branches`, `staffMembers`, `orders` | Admin restaurant repository/API | Pending |
+| Admin Dashboard | `/api/admin/data` | `AdminRepository` snapshot API | Code Complete |
+| Admin Analytics | `/api/admin/data` | `AdminRepository` analytics data from repository snapshot | Code Complete |
+| Admin Restaurants | `/api/admin/data` | `AdminRepository` restaurant/staff/order/application data | Code Complete |
 | Customer Cart | `useCartStore` | Cart UI state allowed; persisted cart API for cross-device | Partial |
-| Customer Checkout | `useCartStore` plus `/api/orders` | `/api/orders` with `OrderRepository`; cart remains UI state | Partial |
-| Customer Order History | `order-service.getOrderHistory` direct Firestore query | Customer order API using `OrderRepository` | Pending |
+| Customer Checkout | `useCartStore` plus `/api/orders` | `/api/orders` with `OrderRepository`; cart remains UI state | Code Complete |
+| Customer Order History | `/api/customer/orders` | Customer order API using `OrderRepository` | Code Complete |
+
+## Sprint 2 Local Build Validation
+
+| Gate | Result |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm run lint` | PASS |
+| `npm run build` | PASS |
+| `git diff --check` | PASS |
 
 ## Operational Production Validation
 

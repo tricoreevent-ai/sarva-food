@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Megaphone, MessageCircle, Plus, Save } from "lucide-react";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
@@ -14,22 +15,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { defaultMarketingSettings, whatsappTemplateOptions, type MarketingSettings, type WhatsAppTemplateKind } from "@/features/marketing/messageTemplates";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import type { MenuItem, Offer } from "@/lib/types";
-import { readStoredMarketingSettings, writeStoredMarketingSettings } from "@/services/whatsappTemplate";
 
 export default function AdminCampaignsPage() {
-  const offers = useAppStore((state) => state.offers);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const restaurants = useAppStore((state) => state.restaurants);
+  const { offers, menuItems, restaurants, campaignSettings, loading, saveCampaignSettings } = useAdminRepositoryData();
   const whatsappShare = useWhatsAppShare();
-  const [marketingSettings, setMarketingSettings] = useState<MarketingSettings>(() => ({
-    ...defaultMarketingSettings,
-    ...readStoredMarketingSettings(),
-  }));
+  const [marketingSettings, setMarketingSettings] = useState<MarketingSettings>(defaultMarketingSettings);
+  const loadedRef = useRef(false);
 
-  function saveMarketingSettings() {
-    writeStoredMarketingSettings(marketingSettings);
+  useEffect(() => {
+    if (loading || loadedRef.current) return;
+    loadedRef.current = true;
+    const stored = campaignSettings[0];
+    if (stored) queueMicrotask(() => setMarketingSettings({ ...defaultMarketingSettings, ...stored }));
+  }, [campaignSettings, loading]);
+
+  async function saveSettings() {
+    await saveCampaignSettings(marketingSettings);
     toast.success("Marketing settings saved.");
   }
 
@@ -39,9 +42,11 @@ export default function AdminCampaignsPage() {
         title="Campaigns"
         description="Platform campaign overview for offers, Instagram pushes, and merchant promotions."
         action={
-          <Button>
+          <Button asChild>
+            <a href="#campaign-list">
             <Plus className="size-4" />
-            New campaign
+            Review campaigns
+            </a>
           </Button>
         }
       />
@@ -69,13 +74,13 @@ export default function AdminCampaignsPage() {
             <Label>Promotional footer</Label>
             <Textarea value={marketingSettings.promotionalFooter} onChange={(event) => setMarketingSettings({ ...marketingSettings, promotionalFooter: event.target.value })} rows={3} />
           </div>
-          <Button onClick={saveMarketingSettings}>
+          <Button onClick={() => void saveSettings()}>
             <Save className="size-4" />
             Save settings
           </Button>
         </CardContent>
       </Card>
-      <section className="grid gap-4 md:grid-cols-3">
+      <section id="campaign-list" className="grid gap-4 md:grid-cols-3">
         {offers.length ? offers.map((offer) => (
           <AdminCampaignCard
             key={offer.code}
@@ -128,7 +133,7 @@ function AdminCampaignCard({
         <OfferBadge offer={offer} />
         <h2 className="font-bold">{offer.title}</h2>
         <p className="text-sm text-muted-foreground">{offer.description}</p>
-        <Button className="w-full" variant="outline">Review targeting</Button>
+        <Button className="w-full" variant="outline" asChild><Link href={`/admin/restaurants?restaurant=${encodeURIComponent(offer.restaurantSlug ?? "")}`}>Review targeting</Link></Button>
         {relatedItems.length ? (
           <div className="rounded-lg border bg-muted/40 p-3">
             <p className="text-xs font-black uppercase text-muted-foreground">Share campaign items</p>

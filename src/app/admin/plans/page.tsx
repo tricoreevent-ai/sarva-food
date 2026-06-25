@@ -1,24 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { CheckCircle2, Edit3, Gauge, Plus, Save, Store, Users, WalletCards } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { getPlanDefinition, normalizePlan, ownerModuleDefinitions, planDefinitions, type PlanDefinition, type PlanKey } from "@/lib/access-control";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type EditablePlan = PlanDefinition & { enabled: boolean };
 
 export default function AdminPlansPage() {
-  const restaurants = useAppStore((state) => state.restaurants);
-  const updateRestaurantAdminState = useAppStore((state) => state.updateRestaurantAdminState);
+  const { restaurants, plans: storedPlans, loading, savePlan, updateRestaurantAdminState } = useAdminRepositoryData();
   const [plans, setPlans] = useState<EditablePlan[]>(planDefinitions.map((plan) => ({ ...plan, enabled: true })));
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>("Growth");
   const [selectedRestaurant, setSelectedRestaurant] = useState(restaurants[0]?.slug ?? "");
+  const restaurantId = selectedRestaurant || restaurants[0]?.slug || "";
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || loadedRef.current) return;
+    loadedRef.current = true;
+    if (storedPlans.length) queueMicrotask(() => setPlans(storedPlans));
+  }, [loading, storedPlans]);
 
   const activePlan = plans.find((plan) => plan.key === selectedPlan) ?? plans[0];
   const assignedCounts = useMemo(() => {
@@ -40,9 +47,9 @@ export default function AdminPlansPage() {
   }
 
   async function assignPlan() {
-    if (!selectedRestaurant) return toast.error("Select a restaurant.");
+    if (!restaurantId) return toast.error("Select a restaurant.");
     const plan = getPlanDefinition(selectedPlan);
-    await updateRestaurantAdminState(selectedRestaurant, {
+    await updateRestaurantAdminState(restaurantId, {
       subscriptionPlan: selectedPlan,
       subscriptionStatus: selectedPlan === "Trial" ? "trialing" : "active",
       billingStatus: selectedPlan === "Enterprise" ? "custom" : "current",
@@ -54,10 +61,9 @@ export default function AdminPlansPage() {
     toast.success("Plan assigned to restaurant.");
   }
 
-  function addCustomPlan() {
-    const key = `Enterprise` as PlanKey;
-    setSelectedPlan(key);
-    toast.success("Use Enterprise as the custom pricing template.");
+  async function saveActivePlan() {
+    await savePlan(activePlan);
+    toast.success("Plan configuration saved.");
   }
 
   return (
@@ -71,9 +77,9 @@ export default function AdminPlansPage() {
           <h1 className="mt-3 text-3xl font-black tracking-normal">Plans & Pricing</h1>
           <p className="mt-1 text-sm font-semibold text-slate-400">Configure plan pricing, modules, limits, trials, restrictions, and restaurant assignments.</p>
         </div>
-        <Button className="bg-violet-500 text-white hover:bg-violet-400" onClick={addCustomPlan}>
+        <Button className="bg-violet-500 text-white hover:bg-violet-400" onClick={() => setSelectedPlan("Enterprise")}>
           <Plus className="size-4" />
-          Create custom plan
+          Edit enterprise plan
         </Button>
       </section>
 
@@ -106,9 +112,9 @@ export default function AdminPlansPage() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-2xl font-black">{activePlan.label} configuration</h2>
-              <p className="text-sm font-semibold text-slate-400">Changes are applied in this admin session and can be persisted later to a dedicated plan collection.</p>
+              <p className="text-sm font-semibold text-slate-400">Changes persist to the platform plan repository.</p>
             </div>
-            <Button className="bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={() => toast.success("Plan configuration saved locally.")}>
+            <Button className="bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={() => void saveActivePlan()}>
               <Save className="size-4" />
               Save plan
             </Button>
@@ -150,7 +156,7 @@ export default function AdminPlansPage() {
           <h2 className="text-xl font-black">Assign plan</h2>
           <p className="mt-1 text-sm text-slate-400">Apply plan limits and module visibility to a restaurant.</p>
           <div className="mt-4 grid gap-3">
-            <select value={selectedRestaurant} onChange={(event) => setSelectedRestaurant(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-white">
+            <select value={restaurantId} onChange={(event) => setSelectedRestaurant(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-white">
               {restaurants.map((restaurant) => <option key={restaurant.slug} value={restaurant.slug}>{restaurant.name}</option>)}
             </select>
             <select value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanKey)} className="h-11 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-white">

@@ -26,7 +26,6 @@ export function listenMenuItems(restaurantId: string, onData: (items: MenuDoc[])
     { name: "menuItems", ref: refs.menuItems(db) },
   ];
 
-  logMenuQueryDiagnostics("menus+menuItems", filters, restaurantId, tenantId);
 
   const unsubscribers = collections.flatMap((collectionRef) => filters.map((filter) => {
     const q = query(collectionRef.ref, where(filter.key, "==", filter.value), limit(150));
@@ -201,18 +200,4 @@ export function buildMenuDoc(input: MenuItemFormValues & { id: string; tenantId?
 function mergeMenuDocs(items: MenuDoc[]) {
   return Array.from(new Map(items.map((item) => [item.id, item])).values())
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0) || first.name.localeCompare(second.name));
-}
-
-function logMenuQueryDiagnostics(
-  collectionPath: string,
-  filters: Array<{ key: string; value: string }>,
-  restaurantId: string,
-  tenantId: string,
-) {
-  if (typeof window === "undefined") return;
-  console.log("MENU_QUERY");
-  console.log(collectionPath);
-  console.log(filters.map((filter) => ({ field: filter.key, op: "==", value: filter.value })));
-  console.log(restaurantId);
-  console.log({ restaurantId, tenantId });
 }

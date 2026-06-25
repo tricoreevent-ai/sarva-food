@@ -6,14 +6,12 @@ import { SectionHeader } from "@/components/layout/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import type { MenuItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export default function AdminFeaturedMenuItemsPage() {
-  const restaurants = useAppStore((state) => state.restaurants);
-  const menuItems = useAppStore((state) => state.menuItems);
-  const updateMenuItem = useAppStore((state) => state.updateMenuItem);
+  const { restaurants, menuItems, updateMenuItem } = useAdminRepositoryData();
   const [restaurantQuery, setRestaurantQuery] = useState("");
   const [itemQuery, setItemQuery] = useState("");
   const [savingId, setSavingId] = useState("");

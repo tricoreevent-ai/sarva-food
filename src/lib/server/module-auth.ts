@@ -2,6 +2,9 @@ import { randomBytes, randomInt, createHash, timingSafeEqual } from "node:crypto
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/firebase/admin";
+import { AuditRepository } from "@/repositories/audit-repository";
+import { defaultOperationalView } from "@/lib/operational-access";
+import { inheritedPermissions } from "@/lib/rbac";
 import {
   legacySessionCookieNames,
   scopedSessionCookieNames,
@@ -87,6 +90,37 @@ export async function handleModuleLogin(request: NextRequest, surface: ModuleSur
     restaurantIds: session.restaurantIds,
   });
   writeModuleSessionCookies(request, response, session, surface);
+  const tenantId = session.tenantId ?? session.tenantIds[0] ?? "platform";
+  const audit = new AuditRepository();
+  const sessionId = `${session.uid}-${Date.now()}`;
+  await Promise.all([
+    audit.record({
+      tenantId,
+      restaurantId: session.tenantId,
+      userId: session.uid,
+      role: session.role,
+      action: "login",
+      module: "auth",
+      ip: request.headers.get("x-forwarded-for") ?? undefined,
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    }),
+    audit.openSession({
+      sessionId,
+      tenantId,
+      restaurantId: session.tenantId,
+      userId: session.uid,
+      role: session.role,
+      action: "login",
+      module: "auth",
+      ip: request.headers.get("x-forwarded-for") ?? undefined,
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    }),
+    adminDb().collection("users").doc(session.uid).set({
+      lastLoginAt: new Date().toISOString(),
+      lastSessionId: sessionId,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }),
+  ]);
   return response;
 }
 
@@ -126,6 +160,7 @@ async function verifiedModuleSession(uid: string, surface: ModuleSurface): Promi
     tenantIds?: string[];
     restaurantIds?: string[];
     branchIds?: string[];
+    permissions?: string[];
     active?: boolean;
   } | undefined;
 
@@ -139,6 +174,8 @@ async function verifiedModuleSession(uid: string, surface: ModuleSurface): Promi
     tenantIds,
     branchIds: user.branchIds ?? [],
     restaurantIds: user.restaurantIds ?? [],
+    permissions: user.permissions ?? inheritedPermissions(user.role),
+    viewMode: defaultOperationalView(user.role),
   };
 }
 
@@ -302,7 +339,7 @@ async function getAllowedModuleAccount(email: string, surface: ModuleSurface) {
   return session ? { uid: authUser.uid, session } : null;
 }
 
-async function verifyFirebasePassword(email: string, password: string) {
+export async function verifyFirebasePassword(email: string, password: string) {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim();
   if (!apiKey) throw new Error("NEXT_PUBLIC_FIREBASE_API_KEY is missing.");
 

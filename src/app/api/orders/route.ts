@@ -1,10 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { adminDb } from "@/firebase/admin";
-import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
 import { OrderRepository } from "@/repositories/order-repository";
-import type { OfferDoc, OrderDoc, OrderLineDoc, RestaurantDoc } from "@/types/firebase";
+import { AuditRepository } from "@/repositories/audit-repository";
+import type { OrderDoc, OrderLineDoc, RestaurantDoc } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -44,11 +43,11 @@ export async function POST(request: NextRequest) {
     const fulfillmentType = body.fulfillmentType ?? "delivery";
     const scheduleMode = body.scheduleMode ?? "now";
     const scheduledFor = parseScheduledFor(body.scheduledFor);
-    const lines = Array.isArray(body.lines) ? body.lines.filter(isValidLine) : [];
+    const requestedLines = Array.isArray(body.lines) ? body.lines.filter(isValidLine) : [];
     const deliveryGeo = body.deliveryGeo;
     const hasCoordinates = typeof deliveryGeo?.lat === "number" && typeof deliveryGeo.lng === "number";
 
-    if (!restaurantId || !lines.length || !body.customerName?.trim() || !body.customerPhone?.trim()) {
+    if (!restaurantId || !requestedLines.length || !body.customerName?.trim() || !body.customerPhone?.trim()) {
       return NextResponse.json({ ok: false, error: "Restaurant, customer, and order lines are required." }, { status: 400 });
     }
     if (fulfillmentType === "delivery" && !hasCoordinates) {
@@ -61,15 +60,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "A valid scheduled date and time is required." }, { status: 400 });
     }
 
-    const restaurantSnapshot = await adminDb().collection("restaurants").doc(restaurantId).get();
-    if (!restaurantSnapshot.exists) {
+    const repository = new OrderRepository();
+    const restaurant = await repository.restaurant(restaurantId);
+    if (!restaurant) {
       return NextResponse.json({ ok: false, error: "Restaurant is not available." }, { status: 404 });
     }
 
-    const restaurant = { id: restaurantSnapshot.id, ...restaurantSnapshot.data() } as RestaurantDoc;
     if (!restaurant.active || (fulfillmentType === "delivery" && (typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number"))) {
       return NextResponse.json({ ok: false, error: "Restaurant is not accepting delivery orders." }, { status: 409 });
     }
+    const lines = await repository.resolveOrderLines(restaurantId, fulfillmentType, requestedLines);
+    if (!lines) return NextResponse.json({ ok: false, error: "One or more menu items are unavailable or invalid." }, { status: 422 });
 
     const deliveryPoint = hasCoordinates ? { lat: deliveryGeo.lat as number, lng: deliveryGeo.lng as number } : undefined;
     const distanceKm = fulfillmentType === "delivery" && deliveryPoint
@@ -101,21 +102,25 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const orderRef = adminDb().collection("orders").doc();
+    const orderId = repository.newOrderId();
     const deliveryAddress = fulfillmentType === "delivery" ? body.deliveryAddress?.trim() : undefined;
     const deliveryPlaceId = body.deliveryPlaceId?.trim();
     const offerCode = body.offerCode?.trim().toUpperCase();
-    const subtotal = money(body.subtotal);
-    const offerValidation = await validateOffer({ restaurantId, offerCode, subtotal, fulfillmentType });
+    const subtotal = money(lines.reduce((sum, line) => sum + line.price * line.quantity, 0));
+    const offerValidation = await repository.validateOffer({ restaurantId, offerCode, subtotal, fulfillmentType, lines });
     if (!offerValidation.ok) {
       return NextResponse.json({ ok: false, error: offerValidation.error }, { status: 422 });
     }
     const discount = offerValidation.discount ?? money(body.discount);
-    const tax = money(body.tax);
-    const deliveryFee = offerValidation.freeDelivery ? 0 : money(body.deliveryFee);
+    const tax = money((subtotal - discount) * 0.05);
+    const configuredDeliveryFee = Number(restaurant.deliverySettings?.baseFee ?? 39);
+    const freeDeliveryAbove = Number(restaurant.deliverySettings?.freeDeliveryAbove ?? 499);
+    const deliveryFee = fulfillmentType !== "delivery" || offerValidation.freeDelivery || subtotal > freeDeliveryAbove
+      ? 0
+      : money(configuredDeliveryFee);
     const total = Math.max(0, money(subtotal - discount + deliveryFee + tax));
     const order = stripUndefined({
-      id: orderRef.id,
+      id: orderId,
       tenantId: restaurant.tenantId ?? restaurantId,
       restaurantId,
       branchId: restaurant.branchId ?? restaurant.primaryBranchId,
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
       deliveryFee,
       total,
       paymentStatus: "pending",
-      deliveryOtp: orderRef.id.slice(-4),
+      deliveryOtp: orderId.slice(-4),
       fulfillmentType,
       orderType: fulfillmentType,
       scheduleMode,
@@ -174,7 +179,18 @@ export async function POST(request: NextRequest) {
         ...(order.deliveryPlaceId ? { placeId: order.deliveryPlaceId } : {}),
       };
     })() : undefined;
-    await new OrderRepository().create(order, address);
+    await repository.create(order, address);
+    await new AuditRepository().record({
+      tenantId: order.tenantId,
+      restaurantId: order.restaurantId,
+      branchId: order.branchId,
+      userId: session.uid,
+      role: session.role,
+      action: "order_create",
+      module: "orders",
+      entityId: order.id,
+      after: { fulfillmentType, scheduleMode, total: order.total, status: order.status },
+    });
 
     return NextResponse.json({
       ok: true,
@@ -286,7 +302,7 @@ async function validateSchedule(input: {
 
   const cutoffAt = new Date(input.scheduledFor.getTime() - settings.cutoffMinutes * 60_000);
   const scheduledSlotId = buildSlotId(input.restaurantId, input.scheduledFor, slotMinutes);
-  const reservedOrders = await countScheduledOrdersForSlot(scheduledSlotId);
+  const reservedOrders = await new OrderRepository().countScheduledOrdersForSlot(scheduledSlotId);
   if (reservedOrders >= maxOrders) {
     return { ok: false as const, error: "This scheduled slot is full. Please choose another time." };
   }
@@ -303,76 +319,6 @@ async function validateSchedule(input: {
       deliveryCapacityOk: reservedOrders < maxOrders,
     },
   };
-}
-
-async function countScheduledOrdersForSlot(scheduledSlotId: string) {
-  const snapshot = await adminDb()
-    .collection("orders")
-    .where("scheduledSlotId", "==", scheduledSlotId)
-    .limit(100)
-    .get();
-
-  return snapshot.docs.filter((doc) => {
-    const data = doc.data();
-    return data.status !== "cancelled" && data.scheduledStatus !== "rejected";
-  }).length;
-}
-
-async function validateOffer(input: {
-  restaurantId: string;
-  offerCode?: string;
-  subtotal: number;
-  fulfillmentType: "delivery" | "parcel" | "dine-in";
-}) {
-  if (!input.offerCode) return { ok: true as const };
-  const snapshot = await adminDb()
-    .collection("offers")
-    .where("restaurantId", "==", input.restaurantId)
-    .where("code", "==", input.offerCode)
-    .limit(1)
-    .get();
-  const doc = snapshot.docs[0]?.data() as OfferDoc | undefined;
-  if (!doc || doc.isDeleted || !doc.active || (doc.status && doc.status !== "active")) {
-    return { ok: false as const, error: "This offer is no longer active." };
-  }
-  if (!isOfferDateValid(doc)) {
-    return { ok: false as const, error: "This offer is not valid for the current date or time." };
-  }
-  if (input.subtotal < (doc.minimumOrder ?? 0)) {
-    return { ok: false as const, error: `Minimum order for this offer is ₹${doc.minimumOrder}.` };
-  }
-  if (doc.appliesTo?.length && !doc.appliesTo.includes(input.fulfillmentType)) {
-    return { ok: false as const, error: "This offer is not valid for the selected order type." };
-  }
-
-  const rawDiscount =
-    doc.discountType === "flat"
-      ? Math.min(input.subtotal, doc.discountValue)
-      : doc.discountType === "free-delivery"
-        ? 0
-        : Math.round(input.subtotal * ((doc.discountValue ?? 0) / 100));
-  const discount = doc.maxDiscount ? Math.min(rawDiscount, doc.maxDiscount) : rawDiscount;
-  return { ok: true as const, offerCode: input.offerCode, discount, freeDelivery: doc.discountType === "free-delivery" };
-}
-
-function isOfferDateValid(doc: OfferDoc) {
-  const now = new Date();
-  const startsAt = dateMillis(doc.startsAt);
-  const endsAt = dateMillis(doc.endsAt);
-  if (startsAt && startsAt > now.getTime()) return false;
-  if (endsAt && endsAt < now.getTime()) return false;
-  if (doc.daysOfWeek?.length) {
-    const day = now.toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
-    if (!doc.daysOfWeek.map((item) => item.toLowerCase().slice(0, 3)).includes(day)) return false;
-  }
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  if (doc.startTime && currentTime < doc.startTime) return false;
-  if (doc.endTime && currentTime > doc.endTime) return false;
-  return true;
-}
-
-function dateMillis(value: unknown) {
-  return parseFirestoreDateMillis(value);
 }
 
 function buildSlotId(restaurantId: string, scheduledFor: Date, slotMinutes: number) {

@@ -37,11 +37,13 @@ import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { SidebarLinks } from "@/components/layout/dashboard-sidebar";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
+import { OperationalViewSwitcher } from "@/components/owner/operational-view-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppStore } from "@/lib/app-store";
+import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { playOperationalSound } from "@/lib/operational-sounds";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
@@ -279,6 +281,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {app === "owner" || app === "pos" ? <OperationalViewSwitcher /> : null}
             <HeaderIconButton className="lg:hidden" icon={Search} title="Search" description="Find orders, customers, tables, and menu items." onClick={() => setMobileSearchOpen(true)} />
 
             <div className="relative">
@@ -598,10 +601,7 @@ type AdminAlert = {
 function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
   const router = useRouter();
   const authUser = useAppStore((state) => state.authUser);
-  const restaurants = useAppStore((state) => state.restaurants);
-  const applications = useAppStore((state) => state.businessApplications);
-  const socialPosts = useAppStore((state) => state.socialPosts);
-  const cateringInquiries = useAppStore((state) => state.cateringInquiries);
+  const { restaurants, businessApplications: applications, socialPosts, cateringInquiries } = useAdminRepositoryData();
   const offlineQueue = useAppStore((state) => state.offlineQueue);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);

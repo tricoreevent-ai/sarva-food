@@ -9,8 +9,6 @@ import { SectionHeader } from "@/components/layout/section-header";
 import { InlineLoading } from "@/components/state/page-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppStore } from "@/lib/app-store";
-import { shouldUseFirebase } from "@/lib/env";
 import { useRealtimeOrder } from "@/hooks/use-realtime-order";
 import type { OrderStatus, TimelineStep } from "@/lib/types";
 import type { OrderStatus as FirebaseOrderStatus } from "@/types/firebase";
@@ -51,13 +49,9 @@ function makeTimeline(status: OrderStatus): TimelineStep[] {
 }
 
 export function OrderTrackingFlow({ orderId }: { orderId: string }) {
-  const firebaseEnabled = shouldUseFirebase();
-  const { order: firebaseOrder, loading } = useRealtimeOrder(firebaseEnabled ? orderId : undefined);
-  const order = useAppStore((state) =>
-    state.orders.find((item) => item.id === orderId) ?? state.orders[0],
-  );
+  const { order, loading } = useRealtimeOrder(orderId);
 
-  if (loading && !order) {
+  if (loading) {
     return (
       <CustomerShell>
         <main className="container-page py-6">
@@ -67,7 +61,7 @@ export function OrderTrackingFlow({ orderId }: { orderId: string }) {
     );
   }
 
-  if (!firebaseOrder && !order) {
+  if (!order) {
     return (
       <CustomerShell>
         <main className="container-page py-6">
@@ -82,7 +76,7 @@ export function OrderTrackingFlow({ orderId }: { orderId: string }) {
     );
   }
 
-  const activeOrder = firebaseOrder ?? order;
+  const activeOrder = order;
   const status = activeOrder.status as OrderStatus | FirebaseOrderStatus;
   const timeline = makeTimeline(status === "cancelled" ? "rejected" : (status as OrderStatus));
 
@@ -103,9 +97,7 @@ export function OrderTrackingFlow({ orderId }: { orderId: string }) {
           <SectionHeader
             title={`Order ${activeOrder.id}`}
             description={
-              firebaseOrder
-                ? `Live Firebase status: ${firebaseOrder.status}`
-                : order?.statusNote ?? "Live order status will update as staff move the order."
+              `Live order status: ${order.status}`
             }
           />
           <OrderTimeline steps={timeline} />
