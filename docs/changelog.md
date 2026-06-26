@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-26
+
+- Released final enterprise stabilization to `https://violet-squid-380447.hostingersite.com`.
+- Verified Hostinger build commit `35017398773ba04efbdc3ab37d250cfa547c0675`.
+- Passed production Firestore, API, browser, permission, audit, printer, and view-switching validation.
+- Confirmed production counts: 5 orders, INR 1976 revenue, 3 customers, 3 loyalty accounts, 4 kitchen orders, 2 staff, 8 menu items, 2 offers, 0 inventory items, 0 accounting entries, and 18 customer orders.
+- Remaining manual item: owner password-protected view switch verification.
+
 ## 2026-06-22
 
 - Added Settings -> Pricing Rules with auto pricing, parcel markup %, delivery markup %, and packing charge controls.

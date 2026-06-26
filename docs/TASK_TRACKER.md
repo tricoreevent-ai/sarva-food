@@ -196,6 +196,11 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Deployment Follow-Up
 
+- [x] Final Hostinger release validated at `https://violet-squid-380447.hostingersite.com`.
+- [x] Hostinger serves build commit `35017398773ba04efbdc3ab37d250cfa547c0675`.
+- [x] Production API, Firestore, browser, permission, audit, printer, and view-switching validation passed on 2026-06-26.
+- [x] Final release timestamp recorded: `2026-06-26T04:48:26.958Z`.
+- [ ] Owner password-protected view switch manual verification.
 - [ ] Add the required production environment variables in Hostinger.
 - [ ] Set `DATABASE_ALERT_EMAIL` in Hostinger to the admin mailbox that should receive database outage alerts.
 - [ ] Open Admin → System Settings → Customer service alerts and save the same recipient address.
