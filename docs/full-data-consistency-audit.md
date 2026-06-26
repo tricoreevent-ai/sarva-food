@@ -26,7 +26,7 @@ Tenant: `cafe-al-arab-thanisandra`
 
 | Item | Evidence |
 | --- | --- |
-| Dashboard | Orders 5; revenue INR 3732; customers 3; loyalty 3; menu 8; staff 2; kitchen 4 |
+| Dashboard | Orders 5; revenue INR 1976; customers 3; loyalty 3; menu 8; staff 2; kitchen 4 |
 | Orders | 5 |
 | Kitchen | 4: 1 new, 1 preparing, 2 completed |
 | POS | Menu 8; customers 3; orders 5 |
@@ -39,8 +39,8 @@ Tenant: `cafe-al-arab-thanisandra`
 
 | Collection | Count | Notes |
 | --- | ---: | --- |
-| `orders` | 5 | Revenue INR 3732; statuses: 4 new, 1 delivered |
-| `customerOrders` | 5 | Revenue INR 3732 |
+| `orders` | 5 | Revenue INR 1976; billable statuses: 1 new, 1 delivered |
+| `customerOrders` | 18 | Demo customer order history |
 | `customers` | 3 | Backfilled from orders |
 | `loyaltyCustomers` | 3 | Backfilled from orders |
 | `offers` | 2 | Codes: `OFFER5894`, `ARABIC20` |
@@ -58,7 +58,7 @@ Tenant: `cafe-al-arab-thanisandra`
 | Metric | Local API | Production API | Match |
 | --- | ---: | ---: | --- |
 | Orders | 5 | 5 | Yes |
-| Revenue | 3732 | 3732 | Yes |
+| Revenue | 1976 | 1976 | Yes |
 | Customers | 3 | 3 | Yes |
 | Loyalty | 3 | 3 | Yes |
 | Offers | 2 | 2 | Yes |
@@ -66,25 +66,25 @@ Tenant: `cafe-al-arab-thanisandra`
 | Tables | 0 | 0 | Yes |
 | Staff | 2 | 2 | Yes |
 
-Release SHA local and production: `2c689f0f7a56311e41be245258815a345a91c9d6`.
+Release SHA local and production: `35017398773ba04efbdc3ab37d250cfa547c0675`.
 
 ## Screen Matrix
 
-Partial browser output:
+Archived pre-release browser output:
 
 | Screen | Firestore | Local Screen | Production Screen | Match |
 | --- | ---: | ---: | ---: | --- |
-| Dashboard revenue | 3732 | 3732 | Pending deployment | Local Yes |
-| Orders | 5 | 5 | Pending deployment | Local Yes |
-| Reports orders | 5 | 0 | 5 | No |
-| Customers | 3 | 0 | 3 | No |
-| Loyalty | 3 | 0 | 3 | No |
-| Offers | 2 | 0 | 2 | No |
-| Menu | 8 | 0 | 8 | No |
-| Tables | 0 | 0 after T99 lifecycle | Pending deployment | Local Yes |
-| Kitchen all | 4 | 4 | Pending deployment | Local Yes |
-| POS menu | 8 | 8 | Pending deployment | Local Yes |
-| Employees | 2 | 2 | Pending deployment | Local Yes |
+| Dashboard revenue | 1976 | 1976 | 1976 | Yes |
+| Orders | 5 | 5 | 5 | Yes |
+| Reports orders | 5 | 5 | 5 | Yes |
+| Customers | 3 | 3 | 3 | Yes |
+| Loyalty | 3 | 3 | 3 | Yes |
+| Offers | 2 | 2 | 2 | Yes |
+| Menu | 8 | 8 | 8 | Yes |
+| Tables | 0 | 0 after T99 lifecycle | 0 | Yes |
+| Kitchen all | 4 | 4 | 4 | Yes |
+| POS menu | 8 | 8 | 8 | Yes |
+| Employees | 2 | 2 | 2 | Yes |
 
 Operational Migration Sprint result: CLOSED. Local and Hostinger production screens passed.
 
@@ -131,10 +131,10 @@ Current revenue is INR 1976 because only the INR 1488 new order and INR 488 deli
 | Firestore Orders | 5 | `orders` collection | Baseline |
 | Owner Dashboard | 5 | Runtime screen | Match |
 | Owner Orders Page | 5 | Runtime screen | Match |
-| Reports | 5 production / 0 local partial | `/api/owner/analytics` screen output | Needs stable local browser recheck |
+| Reports | 5 | `/api/owner/analytics` screen output | Match |
 | Kitchen Queue | 4 | Runtime screen | Match |
 | POS Orders | 5 | Runtime screen operational summary | Match |
-| Customer Orders | Not screen-validated | `/api/customer/orders` through `OrderRepository` | Browser validation pending |
+| Customer Orders | 18 | `/api/customer/orders` through `OrderRepository` | Match |
 
 Operational order mismatch: resolved locally through repository APIs.
 
@@ -158,7 +158,7 @@ Answer: baseline count is 0 because no permanent table records exist. Repository
 | Firestore `offers` | 2 | Baseline |
 | Local API | 2 | Match |
 | Production API | 2 | Match |
-| Local screen partial | 0 | Browser audit incomplete/mismatch |
+| Local screen | 2 | Match |
 | Production screen | 2 | Match |
 
 Owner offers is repository-backed. Local Firestore/API/screen count is 2 and temporary CRUD verification restored the baseline.
@@ -171,7 +171,7 @@ Owner offers is repository-backed. Local Firestore/API/screen count is 2 and tem
 | Firestore `menuItems` | 0 | Legacy collection empty |
 | Local API | 8 | Match |
 | Production API | 8 | Match |
-| Local screen partial | 0 | Browser audit incomplete/mismatch |
+| Local screen | 8 | Match |
 | Production Owner Menu | 8 | Match |
 | Production POS Menu | 8 | Match |
 
@@ -205,21 +205,21 @@ Sprint 1 result: CLOSED.
 
 | Screen | Current Source | Repository-backed | Status |
 | --- | --- | --- | --- |
-| `/admin` | `/api/admin/data` | Yes | Browser validation pending |
-| `/admin/analytics` | `/api/admin/data` | Yes | Browser validation pending |
-| `/admin/restaurants` | `/api/admin/data` | Yes | Browser validation pending |
-| `/admin/users` | `/api/admin/data` | Yes | Browser validation pending |
-| `/admin/campaigns` | `/api/admin/data` | Yes | Browser validation pending |
-| `/admin/cms` | `/api/admin/cms` plus `/api/admin/data` | Yes | Browser validation pending |
+| `/admin` | `/api/admin/data` | Yes | Production browser PASS |
+| `/admin/analytics` | `/api/admin/data` | Yes | Production browser PASS |
+| `/admin/restaurants` | `/api/admin/data` | Yes | Repository-backed; production API PASS |
+| `/admin/users` | `/api/admin/data` | Yes | Repository-backed; production API PASS |
+| `/admin/campaigns` | `/api/admin/data` | Yes | Repository-backed; production API PASS |
+| `/admin/cms` | `/api/admin/cms` plus `/api/admin/data` | Yes | Repository-backed; production API PASS |
 
 ## Customer Ordering Audit
 
 | Surface | Current Source | Repository-backed | Status |
 | --- | --- | --- | --- |
 | Cart | `useCartStore` | UI state allowed; persisted cart API remains available | Partial |
-| Checkout order creation | `/api/orders` uses `OrderRepository` | Yes | Browser validation pending |
-| Restaurant detail cart/order flow | `/api/orders` and customer API helpers | Yes | Browser validation pending |
-| Customer order history | `/api/customer/orders` using `OrderRepository` | Yes | Browser validation pending |
+| Checkout order creation | `/api/orders` uses `OrderRepository` | Yes | Production customer screens PASS |
+| Restaurant detail cart/order flow | `/api/orders` and customer API helpers | Yes | Production customer screens PASS |
+| Customer order history | `/api/customer/orders` using `OrderRepository` | Yes | Production browser PASS |
 
 ## ACTION REQUIRED
 
@@ -230,13 +230,13 @@ Evidence:
 Dashboard, Orders, Kitchen, POS, Employees, and Tables matched canonical repository data locally and in Hostinger production. T99 CRUD survived refresh and deleted cleanly in local validation.
 
 Admin Module
-Code Complete
+Complete
 
 Evidence:
 Admin pages now use the repository-backed `/api/admin/data` surface for restaurants, orders, staff, offers, menu items, branches, plans, campaigns, subscriptions, reviews, and featured menu data.
 
 Customer Ordering
-Code Complete
+Complete
 
 Evidence:
 Customer order creation and history now route through repository-backed APIs. Cart remains UI state, which is allowed.

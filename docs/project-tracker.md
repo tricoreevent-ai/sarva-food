@@ -30,7 +30,7 @@ Last updated: 2026-06-26
 | TASK-01 Offer Consolidation | Tested | 100 | None | Codex | 2026-06-22 |
 | TASK-02 Centralized Menu Pricing Engine | Tested | 100 | Manual browser screenshot pass on owner device | Codex | 2026-06-22 |
 | TASK-03 Table CRUD Management | Completed | 100 | T99 persistence lifecycle verified | Codex | 2026-06-24 |
-| TASK-04 Order Desk Mobile Redesign | In Progress | 15 | Navigation rename done; waiter-first mobile Order Desk redesign still pending | Codex | 2026-06-22 |
+| TASK-04 Order Desk Mobile Redesign | Deferred | 15 | Future feature work outside the final release baseline | Codex | 2026-06-22 |
 | TASK-05 Printer Configuration | Completed | 100 | Production printer API and screen validation passed | Codex | 2026-06-26 |
 | TASK-06 Staff & Access | Completed | 100 | Production permission matrix passed | Codex | 2026-06-26 |
 | TASK-07 Role-Based Dashboards | Pending | 0 | Owner/waiter/kitchen dashboards and permission navigation | Codex | 2026-06-22 |

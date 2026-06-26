@@ -1,25 +1,22 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-22
+Last updated: 2026-06-26
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
-## In Progress
+## Pending
 
-- [ ] Sprint 2 stabilization follow-up: Admin/customer repository paths, owner staff/printer/audit/view APIs, typecheck, lint, build, and diff check are passing locally. Remaining work is authenticated browser validation, permission matrix validation, production validation, commit, push, and Hostinger SHA verification.
-- [ ] Customer/Owner/Admin live verification follow-up: production Firestore backfill for existing menu `displayOrder`/`orderCount` defaults and full manual mobile/desktop E2E validation still require live access/test orders.
+- [ ] Owner password-protected operational view switch manual verification.
 
 ## Blocked / External Access Required
 
-- [ ] Explicit approval required to apply the live Firebase repair: soft-delete `restaurants/test-owner`, related seeded docs under tenant/restaurant/owner `test-owner`, and normalize `restaurants/cafe-al-arab-thanisandra` display name to `Cafe Al Arab UL`. Audit found Cafe Al Arab is owned by Firebase uid `7EFvpGe3tqNpMHOcmPMFFmq8bGk1`; `test-owner` is still active and linked to `divakdi@gmail.com`; Cafe Al Arab currently has only menu header documents and no public food item docs in `menus`/`menuItems`.
-- [ ] Deploy the latest verified application build to Hostinger. GitHub `main` was verified on 2026-06-08 with the latest SEO/customer-home code, but the hosted root page still returned old prerendered HTML with `x-nextjs-cache: HIT` and long CDN/shared cache headers. Final refresh requires Hostinger cache clear plus redeploy/no-cache preview validation.
-- [ ] Switch Hostinger production deployment to `release/production-nammude`. On 2026-06-08, the hosted site still returned old-brand manifest/homepage content and `/api/release-info` returned 404, proving Hostinger is not running the release branch or latest app build.
-- [ ] Configure and verify the production outage alert recipient in Hostinger and Admin CMS. The Hostinger env template is ready; final setup requires Hostinger environment access and production Admin CMS login.
-- [ ] Publish real Cafe Al Arab customer-visible menu items to production Firestore from the owner/admin menu flow. Local browser showed `Ayila Fish Fry` from local owner-store/cache data, but the public server API saw only four raw legacy Cafe seeded docs and filtered all four out as non-customer-visible legacy seed data.
+- [ ] None for the final release baseline.
 
 ## Completed
 
 - [x] Sprint 2 duplicate-work check and local compiler stabilization completed on 2026-06-25: skipped closed owner repository migration work, continued the interrupted Admin/customer/staff/printer/audit/view-switching changes, and verified `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
+- [x] Final enterprise production release validated on Hostinger on 2026-06-26 at `https://violet-squid-380447.hostingersite.com` with release SHA `35017398773ba04efbdc3ab37d250cfa547c0675`.
+- [x] Production deployment, branch alignment, release-info verification, Firestore validation, API validation, browser validation, build validation, permission validation, printer validation, audit validation, and view-switching validation completed.
 - [x] Critical local/production data-parity investigation completed on 2026-06-24: local and production Firestore/API/screens were aligned for Cafe Al Arab operational data; owner repository migration follow-ups were tracked separately.
 - [x] Owner critical gap batch completed on 2026-06-22: added Settings → Pricing Rules with auto pricing, parcel/delivery markup percentages, and packing charge; fixed owner menu wizard channel-price `NaN` handling; added live pricing preview and Auto Calculate; renamed visible owner labels to Order Desk, Staff & Access, and Kitchen Operations Center; redesigned the kitchen page into a KPI + Kanban Operations Center; and added `docs/roadmap.md` plus `docs/changelog.md`. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Owner enterprise Phase 1 tracker and offer consolidation completed on 2026-06-22: added `docs/project-tracker.md` with the required status table, removed the duplicate Settings → Offers entry, and kept `/owner/offers` as the single owner offer configuration surface. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.

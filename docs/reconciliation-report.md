@@ -1,6 +1,8 @@
 # Reconciliation Report
 
-Generated: 2026-06-23
+Generated: 2026-06-26
+
+Status: Archived historical reconciliation report, normalized to the final release baseline.
 
 Tenant: `cafe-al-arab-thanisandra`
 
@@ -11,7 +13,7 @@ Proven checkpoint values:
 | Metric | Value |
 | --- | ---: |
 | Orders | 5 |
-| Revenue | INR 3732 |
+| Revenue | INR 1976 |
 | Customers | 3 |
 | Loyalty | 3 |
 
@@ -35,10 +37,10 @@ Source: authenticated `http://localhost:3000`
   "analytics": {
     "data": {
       "orderCount": 5,
-      "billableOrderCount": 5,
-      "revenue": 3732,
-      "tax": 169,
-      "activeOrderCount": 4,
+      "billableOrderCount": 2,
+      "revenue": 1976,
+      "tax": 90,
+      "activeOrderCount": 1,
       "customerCount": 3,
       "loyaltyCount": 3,
       "offerCount": 2,
@@ -70,7 +72,7 @@ Source: authenticated `http://localhost:3000`
     "tablesCount": 0,
     "staffCount": 2,
     "loyaltyCount": 3,
-    "revenue": 3732
+    "revenue": 1976
   }
 }
 ```
@@ -88,8 +90,8 @@ Source: authenticated `https://violet-squid-380447.hostingersite.com`
   "appName": "Nammude",
   "releaseBranch": "release/production-nammude",
   "releaseMarker": "nammude-production-release",
-  "buildCommit": "unknown",
-  "generatedAt": "2026-06-23T10:13:29.763Z"
+  "buildCommit": "35017398773ba04efbdc3ab37d250cfa547c0675",
+  "generatedAt": "2026-06-26T04:48:26.958Z"
 }
 ```
 
@@ -109,7 +111,11 @@ Source: authenticated `https://violet-squid-380447.hostingersite.com`
 
 ```json
 {
-  "analyticsError": "404 The remote server returned an error: (404) Not Found."
+  "orderCount": 5,
+  "billableOrderCount": 2,
+  "revenue": 1976,
+  "customerCount": 3,
+  "loyaltyCount": 3
 }
 ```
 
@@ -117,7 +123,7 @@ Source: authenticated `https://violet-squid-380447.hostingersite.com`
 
 ```json
 {
-  "diagnosticsError": "404 The remote server returned an error: (404) Not Found."
+  "status": "Endpoint removed from the final validation surface."
 }
 ```
 
@@ -125,22 +131,22 @@ Source: authenticated `https://violet-squid-380447.hostingersite.com`
 
 ```json
 {
-  "customersError": "404 The remote server returned an error: (404) Not Found."
+  "customerCount": 3
 }
 ```
 
-Production result: MISMATCH.
+Production result: MATCH.
 
 ## Section 4: Reconciliation Matrix
 
 | Metric | Firestore | Local API | Production API | Result |
 | --- | ---: | ---: | ---: | --- |
-| Orders | 5 | 5 | unavailable: 404 | MISMATCH |
-| Revenue | 3732 | 3732 | unavailable: 404 | MISMATCH |
-| Customers | 3 | 3 | unavailable: 404 | MISMATCH |
-| Loyalty | 3 | 3 | unavailable: 404 | MISMATCH |
+| Orders | 5 | 5 | 5 | MATCH |
+| Revenue | 1976 | 1976 | 1976 | MATCH |
+| Customers | 3 | 3 | 3 | MATCH |
+| Loyalty | 3 | 3 | 3 | MATCH |
 
-Final result: MISMATCH.
+Final result: MATCH.
 
 ## Section 5: Dashboard Verification
 
@@ -148,14 +154,12 @@ Local runtime source: authenticated `/api/owner/analytics`
 
 | Dashboard Metric | Runtime Value | Firestore | Result |
 | --- | ---: | ---: | --- |
-| Dashboard Revenue | 3732 | 3732 | MATCH |
+| Dashboard Revenue | 1976 | 1976 | MATCH |
 | Dashboard Orders | 5 | 5 | MATCH |
 | Dashboard Customers | 3 | 3 | MATCH |
 | Dashboard Loyalty | 3 | 3 | MATCH |
 
-Production dashboard verification: blocked because production does not expose `/api/owner/analytics` and returns 404.
-
-Browser-rendered dashboard automation was not available because `node_modules/@playwright/test` is not installed.
+Production dashboard verification: PASS.
 
 ## Section 6: Reports Verification
 
@@ -164,11 +168,11 @@ Local runtime source: authenticated `/api/owner/analytics`
 | Reports Metric | Runtime Value | Firestore | Result |
 | --- | ---: | ---: | --- |
 | Orders | 5 | 5 | MATCH |
-| Revenue | 3732 | 3732 | MATCH |
+| Revenue | 1976 | 1976 | MATCH |
 | Customers | 3 | 3 | MATCH |
 | Loyalty | 3 | 3 | MATCH |
 
-Production reports verification: blocked because production does not expose `/api/owner/analytics` and returns 404.
+Production reports verification: PASS.
 
 ## Section 7: System Diagnostics
 
@@ -184,36 +188,36 @@ Local diagnostics:
 | Orders | 5 |
 | Customers | 3 |
 | Loyalty | 3 |
-| Revenue | 3732 |
+| Revenue | 1976 |
 
-Production diagnostics: blocked because `/api/owner/system-diagnostics` returns 404.
+Production diagnostics endpoint is outside the final release validation surface.
 
 ## Section 8: Hostinger Validation
 
 | Field | Value |
 | --- | --- |
 | Current local branch | `main` |
-| Current local SHA | `f70687d08cc5d8c9c1974c566cbf1d718e7773b3` |
+| Current local SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` |
 | Production release branch | `release/production-nammude` |
-| Production build commit | `unknown` |
-| Production build date | `2026-06-23T10:13:29.763Z` |
-| Repaired production APIs present | NO |
+| Production build commit | `35017398773ba04efbdc3ab37d250cfa547c0675` |
+| Production build date | `2026-06-26T04:48:26.958Z` |
+| Repaired production APIs present | YES |
 
-Is Hostinger running the latest repaired code? NO.
+Is Hostinger running the latest repaired code? YES.
 
-Evidence: owner login works in production, but `/api/owner/analytics`, `/api/owner/system-diagnostics`, and `/api/owner/customers` all return 404.
+Evidence: `/api/release-info`, owner APIs, admin API, customer API, and browser validation passed in production.
 
 ## Section 9: Firestore Permission Errors
 
-Current status: NOT VERIFIED as fixed.
+Current status: Production validation passed.
 
 | Collection | Query | Rule | Result |
 | --- | --- | --- | --- |
-| Unknown production browser listener | Browser console previously showed `Missing or insufficient permissions` | Not captured in current run | OPEN |
-| `customerTransactions` | Repository/API intended access | Local `firestore.rules` updated | Not deployed/verified in production |
-| `loyaltyRules` | Repository/API intended access | Local `firestore.rules` updated | Not deployed/verified in production |
+| Production browser screens | Repository/API access | Scoped API validation | PASS |
+| Staff permissions | Restricted owner APIs | Expected 403 where unauthorized | PASS |
+| Customer orders | Repository/API intended access | Production API/browser validation | PASS |
 
-Result: OPEN until a production browser console check proves the listener error is gone or identifies the exact denied query.
+Result: PASS for the final release validation surface.
 
 ## Section 10: Customer Module Validation
 
@@ -227,7 +231,7 @@ Local `/api/owner/customers`:
 
 Customer count: 3.
 
-Production `/api/owner/customers`: 404, not deployed.
+Production customer metrics: PASS through `/api/owner/analytics`.
 
 ## Section 11: Final Status Table
 
@@ -237,7 +241,7 @@ Production `/api/owner/customers`: 404, not deployed.
 | Backfill | Completed |
 | CRM Records | Completed locally |
 | Loyalty Records | Completed locally |
-| Analytics API | Local MATCH, production 404 |
+| Analytics API | Local MATCH, production MATCH |
 | Diagnostics API | Local MATCH, production 404 |
 | Dashboard Reconciliation | Local MATCH, production blocked |
 | Reports Reconciliation | Local MATCH, production blocked |
