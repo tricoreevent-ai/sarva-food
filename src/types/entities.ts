@@ -847,7 +847,7 @@ export type SocialPost = {
 
 export type TableStatus = "vacant" | "new" | "occupied" | "preparing" | "ready" | "served" | "completed" | "billed";
 
-export type KitchenLifecycleStatus = "new" | "preparing" | "ready" | "served" | "completed";
+export type KitchenLifecycleStatus = "new" | "accepted" | "preparing" | "ready" | "served" | "completed";
 
 export type TableOrderStatus = KitchenLifecycleStatus | "occupied" | "billed";
 
@@ -866,12 +866,18 @@ export type TableOrder = {
   priority: "normal" | "rush";
   waiterId?: string;
   waiterName?: string;
+  kitchenStation?: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  paymentStatus?: "unpaid" | "partial" | "paid" | "refunded" | "pending" | "authorized" | "failed";
   branchId?: string;
   printerProfileId?: string;
   activityLog?: ActivityLog[];
   createdAt: string;
   etaMinutes: number;
   total?: number;
+  printedCount?: number;
+  lastPrintedAt?: string;
 };
 
 export type PaperWidth = "58mm" | "80mm" | "100mm" | "label" | "A4";

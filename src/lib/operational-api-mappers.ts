@@ -42,10 +42,16 @@ export function kitchenDocToTableOrder(order: KitchenOrderDoc | Record<string, u
     priority: str(order.priority) === "rush" ? "rush" : "normal",
     waiterId: str(order.waiterId),
     waiterName: str(order.waiterName),
+    kitchenStation: str(order.kitchenStation),
+    assignedStaffId: str(order.assignedStaffId),
+    assignedStaffName: str(order.assignedStaffName),
+    paymentStatus: paymentStatus(str(order.paymentStatus)),
     branchId: str(order.branchId),
     createdAt: parseFirestoreDateIso(order.createdAt) ?? new Date().toISOString(),
     etaMinutes: num(order.etaMinutes, 12),
     total: num(order.total),
+    printedCount: num(order.printedCount),
+    lastPrintedAt: parseFirestoreDateIso(order.lastPrintedAt),
   };
 }
 
@@ -151,7 +157,14 @@ function normalizePosOrderType(value: string) {
 }
 
 function tableStatus(value: string): TableOrder["status"] {
-  return ["new", "occupied", "preparing", "ready", "served", "completed", "billed"].includes(value) ? value as TableOrder["status"] : "new";
+  return ["new", "accepted", "occupied", "preparing", "ready", "served", "completed", "billed"].includes(value) ? value as TableOrder["status"] : "new";
+}
+
+function paymentStatus(value: string): TableOrder["paymentStatus"] {
+  if (value === "authorized") return "partial";
+  if (value === "pending" || value === "failed") return "unpaid";
+  if (value === "paid" || value === "refunded") return value;
+  return "unpaid";
 }
 
 function sourceFor(value: string): TableOrder["source"] {

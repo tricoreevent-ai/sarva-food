@@ -40,10 +40,11 @@ type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
 type SourceFilter = "all" | "website" | "pos" | "zomato" | "swiggy" | "dine-in" | "parcel" | "catering";
 
 const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
-  new: "preparing",
-  occupied: "preparing",
+  new: "accepted",
+  occupied: "accepted",
+  accepted: "preparing",
   preparing: "ready",
-  ready: "served",
+  ready: "completed",
   served: "completed",
   completed: "completed",
   billed: "completed",
@@ -56,8 +57,8 @@ export function OwnerOrderManagementFlow() {
   const [dialogPartner, setDialogPartner] = useState("");
   const [operationsOpen, setOperationsOpen] = useState(true);
   const [orders, setOrders] = useState<DemoOrder[]>([]);
+  const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const tableOrders = useMemo<TableOrder[]>(() => [], []);
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders), [orders, tableOrders]);
   const tabOrders = mappedOrders.filter((order) => matchesTab(order, tab));
@@ -69,10 +70,14 @@ export function OwnerOrderManagementFlow() {
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/owner/orders", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((payload: { data?: OrderDoc[] }) => {
-        if (active) setOrders((payload.data ?? []).map(toDemoOrder));
+    void Promise.all([
+      fetch("/api/owner/orders", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: OrderDoc[] }>,
+      fetch("/api/owner/kitchen", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+    ])
+      .then(([ordersPayload, kitchenPayload]) => {
+        if (!active) return;
+        setOrders((ordersPayload.data ?? []).map(toDemoOrder));
+        setTableOrders(kitchenPayload.data ?? []);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -91,6 +96,25 @@ export function OwnerOrderManagementFlow() {
       return;
     }
     setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order));
+  }
+
+  async function updateKitchenOrder(order: TableOrder) {
+    const status = nextKitchenStatus[order.status];
+    if (!status || status === order.status) return;
+    const previous = tableOrders;
+    setTableOrders((current) => current.map((item) => item.id === order.id ? { ...item, status } : item));
+    const response = await fetch("/api/owner/kitchen", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: order.id, status }),
+    }).catch(() => null);
+    const payload = await response?.json().catch(() => ({})) as { data?: TableOrder } | undefined;
+    if (!response?.ok) {
+      setTableOrders(previous);
+      toast.error("Kitchen status could not be updated.");
+      return;
+    }
+    if (payload?.data) setTableOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
   }
 
   async function updateCateringInquiryStatus() {
@@ -171,7 +195,7 @@ export function OwnerOrderManagementFlow() {
                 onComplete={() => void updateOrder(order.id, "delivered")}
               />
             ))}
-            {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={() => undefined} /> : null}
+            {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={(order) => void updateKitchenOrder(order)} /> : null}
             {!visibleOrders.length && !visibleCatering.length && tab !== "kot" ? <EmptyOrders /> : null}
             {loading ? <p className="text-sm font-bold text-slate-500">Loading canonical orders...</p> : null}
           </div>

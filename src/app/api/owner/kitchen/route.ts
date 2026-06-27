@@ -9,7 +9,7 @@ import type { KitchenOrderStatus } from "@/types/firebase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const statuses = new Set<KitchenOrderStatus>(["new", "preparing", "ready", "served", "completed", "cancelled"]);
+const statuses = new Set<KitchenOrderStatus>(["new", "accepted", "preparing", "ready", "served", "completed", "cancelled"]);
 
 export async function GET(request: NextRequest) {
   const access = await requireOwnerFeature(request, "kitchen", "read");
@@ -35,7 +35,15 @@ export async function PATCH(request: NextRequest) {
   if (!body.id) return NextResponse.json({ error: "Kitchen order id is required." }, { status: 400 });
   if (body.status && !statuses.has(body.status)) return NextResponse.json({ error: "Invalid kitchen status." }, { status: 400 });
   const scope = tenantScope(access.session, body.restaurantId);
-  const data = await new KitchenRepository().update(scope, body.id, body);
-  await new AuditRepository().record({ tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid, role: access.session.role, action: "kitchen_status", module: "kitchen", entityId: body.id, after: body });
+  const data = await new KitchenRepository().update(scope, body.id, body).catch((error) => {
+    if (error instanceof Error && /Invalid kitchen status transition/i.test(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  });
+  if (data instanceof NextResponse) return data;
+  if (!("unchanged" in data)) {
+    await new AuditRepository().record({ tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid, role: access.session.role, action: "kitchen_status", module: "kitchen", entityId: body.id, after: body });
+  }
   return NextResponse.json({ data: kitchenDocToTableOrder(data) });
 }

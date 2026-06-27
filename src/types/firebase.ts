@@ -385,7 +385,7 @@ export type OrderDoc = TenantScopedDoc & {
   acceptedTermsAt?: FirestoreDate;
 };
 
-export type KitchenOrderStatus = "new" | "preparing" | "ready" | "served" | "completed" | "cancelled";
+export type KitchenOrderStatus = "new" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
 
 export type KitchenOrderDoc = TenantScopedDoc & {
   restaurantId: string;
@@ -402,6 +402,9 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   waiterName?: string;
   status: KitchenOrderStatus;
   priority: "normal" | "rush";
+  kitchenStation?: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
   lines: OrderLineDoc[];
   subtotal: number;
   tax: number;
@@ -409,6 +412,9 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   paymentStatus: "pending" | "authorized" | "paid" | "failed" | "refunded";
   etaMinutes: number;
   receiptId?: string;
+  printedCount?: number;
+  lastPrintedAt?: FirestoreDate;
+  statusHistory?: Array<{ status: KitchenOrderStatus; at: FirestoreDate; by?: string }>;
 };
 
 export type CustomerProfileDoc = BaseDoc & {

@@ -5,6 +5,10 @@ import { adminDb } from "@/firebase/admin";
 import type { KitchenOrderDoc, KitchenOrderStatus } from "@/types/firebase";
 import { dataWithId, dateMs, readTenantDocs, type TenantScope } from "@/repositories/shared";
 
+const statusFlow: KitchenOrderStatus[] = ["new", "accepted", "preparing", "ready", "served", "completed"];
+type KitchenOrderPatch = Partial<KitchenOrderDoc> & { printedCountIncrement?: number };
+type KitchenUpdateResult = KitchenOrderDoc & { unchanged?: boolean };
+
 export class KitchenRepository {
   private readonly db = adminDb();
 
@@ -41,17 +45,36 @@ export class KitchenRepository {
     return dataWithId<KitchenOrderDoc>(ref.id, (await ref.get()).data() ?? order);
   }
 
-  async update(scope: TenantScope, id: string, patch: Partial<KitchenOrderDoc>) {
-    await this.assertTenant(scope, id);
+  async update(scope: TenantScope, id: string, patch: KitchenOrderPatch) {
+    const current = await this.assertTenant(scope, id);
+    const sameStatus = Boolean(patch.status && current.status === patch.status);
+    const hasMaterialPatch = Object.entries(patch).some(([key, value]) => (
+      typeof value !== "undefined" && !["id", "tenantId", "restaurantId", "status"].includes(key)
+    ));
+    if (sameStatus && !hasMaterialPatch) return { ...dataWithId<KitchenOrderDoc>(id, current), unchanged: true } satisfies KitchenUpdateResult;
+    if (patch.status && current.status && !sameStatus && !isValidStatusTransition(current.status, patch.status)) {
+      throw new Error(`Invalid kitchen status transition from ${current.status} to ${patch.status}.`);
+    }
+    const { printedCountIncrement, ...safePatch } = patch;
+    const printIncrement = Number(printedCountIncrement ?? 0);
     const lines = Array.isArray(patch.lines) ? patch.lines : undefined;
     const subtotal = lines ? lines.reduce((sum, line) => sum + Number(line.price ?? 0) * Number(line.quantity ?? 0), 0) : undefined;
+    const statusPatch = patch.status && patch.status !== current.status
+      ? {
+          [`${patch.status}At`]: FieldValue.serverTimestamp(),
+          statusHistory: FieldValue.arrayUnion({ status: patch.status, at: new Date().toISOString() }),
+        }
+      : {};
     const next = Object.fromEntries(Object.entries({
-      ...patch,
+      ...safePatch,
+      ...statusPatch,
       tenantId: undefined,
       restaurantId: undefined,
       id: undefined,
+      printedCount: printIncrement > 0 ? FieldValue.increment(printIncrement) : safePatch.printedCount,
+      lastPrintedAt: printIncrement > 0 ? FieldValue.serverTimestamp() : safePatch.lastPrintedAt,
       subtotal,
-      total: patch.total ?? subtotal,
+      total: safePatch.total ?? subtotal,
       updatedAt: FieldValue.serverTimestamp(),
     }).filter(([, value]) => typeof value !== "undefined"));
     await this.db.collection("kitchenOrders").doc(id).set(next, { merge: true });
@@ -66,7 +89,18 @@ export class KitchenRepository {
   private async assertTenant(scope: TenantScope, id: string) {
     const snapshot = await this.db.collection("kitchenOrders").doc(id).get();
     if (!snapshot.exists) throw new Error("Kitchen order not found.");
-    const order = snapshot.data() ?? {};
+    const order = snapshot.data() as Partial<KitchenOrderDoc>;
     if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen order is outside the active restaurant.");
+    return order;
   }
+}
+
+function isValidStatusTransition(current: KitchenOrderStatus, next: KitchenOrderStatus) {
+  if (current === next) return true;
+  if (next === "cancelled") return current !== "completed";
+  const currentIndex = statusFlow.indexOf(current);
+  const nextIndex = statusFlow.indexOf(next);
+  if (currentIndex < 0 || nextIndex < 0) return false;
+  if (current === "ready" && next === "completed") return true;
+  return nextIndex === currentIndex + 1;
 }
