@@ -33,6 +33,7 @@
     "firebase:legacy-menu:apply": "node scripts/remove-legacy-seeded-menu-items.mjs --apply",
     "firebase:validate:production-data": "node scripts/validate-production-data.mjs",
     "firebase:backfill-customers": "node --experimental-strip-types scripts/backfill-customers.ts",
+    "firebase:backfill-order-consistency": "node scripts/backfill-order-consistency.mjs",
     "firebase:deploy:functions": "npx firebase-tools deploy --only functions",
     "firebase:deploy:hosting": "npx firebase-tools deploy --only hosting",
     "firebase:deploy": "npx firebase-tools deploy",

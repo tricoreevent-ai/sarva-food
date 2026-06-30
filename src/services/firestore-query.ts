@@ -23,6 +23,8 @@ type SharedListener<T> = {
 };
 
 const listeners = new Map<string, SharedListener<unknown>>();
+const blockedListeners = new Map<string, number>();
+const LISTENER_BLOCK_MS = 60_000;
 
 export type PageResult<T> = {
   items: T[];
@@ -77,6 +79,8 @@ export function listenShared<T>(
   start: (emit: (value: T) => void) => Unsubscribe,
   callback: (value: T) => void,
 ) {
+  const blockedUntil = blockedListeners.get(key) ?? 0;
+  if (blockedUntil > Date.now()) return () => undefined;
   const existing = listeners.get(key) as SharedListener<T> | undefined;
   if (existing) {
     existing.subscribers.add(callback);
@@ -117,6 +121,11 @@ export function listenToQueryShared<T extends DocumentData>(
       onSnapshot(q, (snapshot) => {
         emit(snapshot.docs.map((entry) => entry.data()));
       }, (error) => {
+        if (error.code === "permission-denied") {
+          blockedListeners.set(key, Date.now() + LISTENER_BLOCK_MS);
+          releaseAllSharedListeners(key);
+          return;
+        }
         if (process.env.NODE_ENV !== "production") {
           console.warn("[Nammude] Firestore listener stopped.", error.message);
         }
@@ -124,4 +133,11 @@ export function listenToQueryShared<T extends DocumentData>(
       }),
     callback,
   );
+}
+
+function releaseAllSharedListeners(key: string) {
+  const entry = listeners.get(key);
+  if (!entry) return;
+  entry.unsubscribe();
+  listeners.delete(key);
 }

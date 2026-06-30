@@ -19,6 +19,7 @@ export const ownerReadRoles = new Set<UserRole>([
 export type TenantScope = {
   tenantId: string;
   branchIds?: string[];
+  uid?: string;
 };
 
 export function tenantScope(session: VerifiedSession, requested?: string | null): TenantScope {
@@ -27,7 +28,7 @@ export function tenantScope(session: VerifiedSession, requested?: string | null)
   if (allowed.size && !allowed.has(tenantId)) {
     throw new Error("This account is not linked to the requested restaurant.");
   }
-  return { tenantId, branchIds: session.branchIds };
+  return { tenantId, branchIds: session.branchIds, uid: session.uid };
 }
 
 export async function readTenantDocs(

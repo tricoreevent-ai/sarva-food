@@ -200,8 +200,8 @@ export const defaultCmsSettings: CmsSettings = {
         title: "Company",
         enabled: true,
         links: [
-          { id: "about", label: "About Us", href: "/about", enabled: true },
-          { id: "careers", label: "Careers", href: "/careers", enabled: true },
+          { id: "about", label: "About Us", href: "/about", enabled: false },
+          { id: "careers", label: "Careers", href: "/careers", enabled: false },
           { id: "contact", label: "Contact Us", href: "/help", enabled: true },
           { id: "press", label: "Press", href: "/press", enabled: false },
           { id: "blog", label: "Blog", href: "/blog", enabled: false },

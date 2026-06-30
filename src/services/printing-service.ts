@@ -1,5 +1,5 @@
 import { addDoc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, type Unsubscribe } from "firebase/firestore";
-import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
+import { getFirebaseAuth, getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
 import { refs, typedDoc } from "@/firebase/collections";
 import { shouldUseFirebase } from "@/lib/env";
 import { resolveTenantId, withTenantId } from "@/lib/tenant";
@@ -7,7 +7,7 @@ import { printerProfileSchema, printTemplateSchema } from "@/lib/schemas/printin
 import type { BillTemplateDoc, KotPrintQueueDoc, KotTemplateDoc, PaymentTransactionDoc, PrinterProfileDoc, PrintLogDoc, ReceiptDoc, ReceiptTemplateDoc } from "@/types/firebase";
 
 export function canUsePrintingFirestore() {
-  return shouldUseFirebase() && isFirebaseConfigured;
+  return shouldUseFirebase() && isFirebaseConfigured && typeof window !== "undefined" && Boolean(getFirebaseAuth().currentUser);
 }
 
 export function listenPrintLogs(restaurantId: string, branchId: string, onData: (logs: PrintLogDoc[]) => void, onError?: (error: Error) => void): Unsubscribe {

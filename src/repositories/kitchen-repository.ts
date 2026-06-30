@@ -31,12 +31,19 @@ export class KitchenRepository {
       orderType: input.orderType || "dine-in",
       source: input.source || "POS",
       status: input.status || "new",
+      foodStatus: input.foodStatus || input.status || "new",
       priority: input.priority || "normal",
       lines,
       subtotal,
       tax: Number(input.tax ?? 0),
       total: Number(input.total ?? subtotal),
       paymentStatus: input.paymentStatus || "pending",
+      statusHistory: input.statusHistory?.length ? input.statusHistory : [{ status: input.status || "new", at: new Date() }],
+      preparedBy: input.preparedBy ?? "",
+      servedBy: input.servedBy ?? "",
+      completedBy: input.completedBy ?? "",
+      printedCount: Number(input.printedCount ?? 0),
+      lastPrintedAt: input.lastPrintedAt ?? null,
       etaMinutes: Number(input.etaMinutes ?? 12),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -62,6 +69,7 @@ export class KitchenRepository {
     const statusPatch = patch.status && patch.status !== current.status
       ? {
           [`${patch.status}At`]: FieldValue.serverTimestamp(),
+          foodStatus: patch.status,
           statusHistory: FieldValue.arrayUnion({ status: patch.status, at: new Date().toISOString() }),
         }
       : {};

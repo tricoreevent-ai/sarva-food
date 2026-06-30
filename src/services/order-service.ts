@@ -10,6 +10,7 @@ import {
   where,
   writeBatch,
   increment,
+  arrayUnion,
   type DocumentSnapshot,
   type QueryConstraint,
   type Unsubscribe,
@@ -65,7 +66,14 @@ export async function createOrder(input: CreateOrderInput) {
     tenantId: resolveTenantId(input),
     branchId: input.branchId,
     status: "new",
+    foodStatus: "new",
     paymentStatus: "pending",
+    statusHistory: [{ status: "new", foodStatus: "new", paymentStatus: "pending", at: new Date() }],
+    preparedBy: "",
+    servedBy: "",
+    completedBy: "",
+    printedCount: 0,
+    lastPrintedAt: null,
     deliveryOtp: orderRef.id.slice(-4),
     fulfillmentType: input.fulfillmentType ?? "delivery",
     orderType: input.fulfillmentType ?? "delivery",
@@ -153,6 +161,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
   const db = getFirebaseDb();
   await updateDoc(typedDoc<OrderDoc>(db, "orders", orderId), {
     status,
+    statusHistory: arrayUnion({ status, at: new Date() }),
     ...updateMetadata(),
   });
 }

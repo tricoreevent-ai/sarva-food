@@ -22,11 +22,12 @@ export class OrderRepository {
   }
 
   async create(order: OrderDoc, address?: Record<string, unknown>) {
+    const normalizedOrder = withOrderConsistency(order);
     await this.db.runTransaction(async (transaction) => {
-      const customer = await this.customers.prepareOrderUpsert(transaction, order);
+      const customer = await this.customers.prepareOrderUpsert(transaction, normalizedOrder);
       const now = new Date();
-      transaction.set(this.db.collection("orders").doc(order.id), order);
-      transaction.set(this.db.collection("customerOrders").doc(order.id), order);
+      transaction.set(this.db.collection("orders").doc(normalizedOrder.id), normalizedOrder);
+      transaction.set(this.db.collection("customerOrders").doc(normalizedOrder.id), normalizedOrder);
       transaction.set(customer.customerRef, customer.customer, { merge: true });
       transaction.set(customer.loyalty.loyaltyRef, customer.loyalty.loyalty, { merge: true });
       transaction.set(customer.loyalty.transactionRef, customer.loyalty.transaction, { merge: true });
@@ -38,7 +39,7 @@ export class OrderRepository {
       }
       if (address) transaction.set(this.db.collection("customerAddresses").doc(String(address.id)), address, { merge: true });
     });
-    return order;
+    return normalizedOrder;
   }
 
   async resolveOrderLines(restaurantId: string, fulfillmentType: "delivery" | "parcel" | "dine-in", lines: OrderLineDoc[]) {
@@ -155,12 +156,57 @@ export class OrderRepository {
     if (!snapshot.exists) throw new Error("Order not found.");
     const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
     if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+    const now = new Date();
+    const actorPatch = status === "preparing"
+      ? { preparedBy: scope.uid ?? "" }
+      : status === "served"
+        ? { servedBy: scope.uid ?? "" }
+        : ["delivered", "completed"].includes(status)
+          ? { completedBy: scope.uid ?? "" }
+          : {};
+    const statusPatch = {
+      status,
+      foodStatus: orderStatusToFoodStatus(status),
+      statusHistory: FieldValue.arrayUnion({ status, foodStatus: orderStatusToFoodStatus(status), at: now, by: scope.uid }),
+      updatedAt: FieldValue.serverTimestamp(),
+      ...actorPatch,
+    };
     await Promise.all([
-      ref.set({ status, updatedAt: FieldValue.serverTimestamp() }, { merge: true }),
-      this.db.collection("customerOrders").doc(orderId).set({ status, updatedAt: FieldValue.serverTimestamp() }, { merge: true }),
+      ref.set(statusPatch, { merge: true }),
+      this.db.collection("customerOrders").doc(orderId).set(statusPatch, { merge: true }),
     ]);
     return { ...order, status };
   }
+}
+
+function withOrderConsistency(order: OrderDoc): OrderDoc {
+  const now = new Date();
+  const foodStatus = order.foodStatus ?? orderStatusToFoodStatus(order.status);
+  return {
+    ...order,
+    foodStatus,
+    paymentStatus: order.paymentStatus ?? "pending",
+    statusHistory: order.statusHistory?.length
+      ? order.statusHistory
+      : [{ status: order.status, foodStatus, paymentStatus: order.paymentStatus ?? "pending", at: order.createdAt ?? now, by: order.customerId }],
+    preparedBy: order.preparedBy ?? "",
+    servedBy: order.servedBy ?? "",
+    completedBy: order.completedBy ?? "",
+    printedCount: Number(order.printedCount ?? 0),
+    lastPrintedAt: order.lastPrintedAt ?? null,
+    createdAt: order.createdAt ?? now,
+    updatedAt: order.updatedAt ?? now,
+  };
+}
+
+function orderStatusToFoodStatus(status: OrderDoc["status"]) {
+  if (status === "accepted") return "accepted";
+  if (status === "preparing") return "preparing";
+  if (status === "ready" || status === "picked-up") return "ready";
+  if (status === "served" || status === "delivered") return "served";
+  if (status === "completed") return "completed";
+  if (status === "cancelled" || status === "rejected") return "cancelled";
+  return "new";
 }
 
 function money(value?: number) {

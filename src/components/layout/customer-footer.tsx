@@ -155,9 +155,11 @@ function FooterAccordion({ section }: { section: FooterSection }) {
 }
 
 function FooterNavLink({ link }: { link: FooterLink }) {
+  if (isDeadLocalHref(link.href)) return null;
   return (
     <Link
       href={link.href}
+      prefetch={false}
       target={link.openInNewTab || isExternalHref(link.href) ? "_blank" : undefined}
       rel={link.openInNewTab || isExternalHref(link.href) ? "noreferrer" : undefined}
       className="text-sm font-semibold text-muted-foreground hover:text-primary"
@@ -171,7 +173,7 @@ function footerSections(settings: CmsSettings) {
   const configured = settings.footer.sections?.length ? settings.footer.sections : defaultCmsSettings.footer.sections ?? [];
   return configured
     .filter((section) => section.enabled !== false)
-    .map((section) => ({ ...section, links: section.links.filter((link) => link.enabled !== false) }));
+    .map((section) => ({ ...section, links: section.links.filter((link) => link.enabled !== false && !isDeadLocalHref(link.href)) }));
 }
 
 function footerSocialLinks(settings: CmsSettings) {
@@ -183,6 +185,10 @@ function footerLegalLinks(sections: FooterSection[]) {
   const legal = sections.find((section) => section.id === "legal");
   const source = legal?.links.length ? legal.links : defaultCmsSettings.footer.sections?.find((section) => section.id === "legal")?.links ?? [];
   return source.filter((link) => ["privacy", "terms", "cookie"].includes(link.id ?? "") || ["Privacy Policy", "Terms & Conditions", "Cookie Policy"].includes(link.label));
+}
+
+function isDeadLocalHref(href?: string) {
+  return href === "/about" || href === "/careers";
 }
 
 function socialLabel(value: string) {

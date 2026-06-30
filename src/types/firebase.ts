@@ -331,6 +331,7 @@ export type OrderStatus =
   | "cancelled";
 
 export type OrderChannel = "web" | "instagram" | "whatsapp" | "pos" | "catering";
+export type PaymentStatus = "pending" | "authorized" | "paid" | "failed" | "refunded";
 
 export type OrderLineDoc = {
   menuItemId: string;
@@ -351,6 +352,7 @@ export type OrderDoc = TenantScopedDoc & {
   deliveryAddressLabel?: string;
   channel: OrderChannel;
   status: OrderStatus;
+  foodStatus?: KitchenOrderStatus;
   lines: OrderLineDoc[];
   offerCode?: string;
   subtotal: number;
@@ -358,7 +360,13 @@ export type OrderDoc = TenantScopedDoc & {
   tax: number;
   deliveryFee: number;
   total: number;
-  paymentStatus: "pending" | "authorized" | "paid" | "failed" | "refunded";
+  paymentStatus: PaymentStatus;
+  statusHistory?: Array<{ status?: OrderStatus; foodStatus?: KitchenOrderStatus; paymentStatus?: PaymentStatus; at: FirestoreDate; by?: string }>;
+  preparedBy?: string;
+  servedBy?: string;
+  completedBy?: string;
+  printedCount?: number;
+  lastPrintedAt?: FirestoreDate | null;
   deliveryOtp: string;
   orderType?: "dine-in" | "takeaway" | "parcel" | "delivery";
   tableNumber?: string;
@@ -401,6 +409,7 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   waiterId?: string;
   waiterName?: string;
   status: KitchenOrderStatus;
+  foodStatus?: KitchenOrderStatus;
   priority: "normal" | "rush";
   kitchenStation?: string;
   assignedStaffId?: string;
@@ -409,7 +418,10 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   subtotal: number;
   tax: number;
   total: number;
-  paymentStatus: "pending" | "authorized" | "paid" | "failed" | "refunded";
+  paymentStatus: PaymentStatus;
+  preparedBy?: string;
+  servedBy?: string;
+  completedBy?: string;
   etaMinutes: number;
   receiptId?: string;
   printedCount?: number;
