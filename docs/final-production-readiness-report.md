@@ -12,7 +12,9 @@
 | `/owner/settings` | 307 to owner login locally |
 | `/owner/orders` | 307 to owner login locally |
 | `/api/owner/communication` | 403 protected API locally |
+| `npm run lint -- src\components\owner\operational-view-switcher.tsx src\hooks\use-operational-view.ts` | Passed |
 
+- Operational view switching now has abortable request handling, duplicate session-fetch suppression, owner password confirmation, a blocking loading overlay, still-loading feedback, and Retry/Cancel recovery.
 - Owner communication settings, test history, contact attempts, maps opens, and not-reachable workflow now persist to Firestore.
 - Order communication events are mirrored into `orders` and `customerOrders` for tracking/history consistency.
 - Customer reorder now rejects unavailable historical items and refreshes prices from the current public menu.

@@ -2,6 +2,7 @@
 
 ## 2026-06-30
 
+- Hardened owner operational view switching with shared/cancellable session refresh, password-protected switch overlay, 3-second still-loading feedback, 10-second Retry/Cancel recovery, and deterministic route replacement.
 - Added Firestore-backed owner communication settings and history through `/api/owner/communication`.
 - Persisted owner order contact attempts, maps opens, test messages, and not-reachable events in `communicationHistory`.
 - Mirrored order communication timeline metadata into `orders` and `customerOrders`.
