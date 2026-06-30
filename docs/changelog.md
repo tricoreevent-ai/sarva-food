@@ -2,6 +2,7 @@
 
 ## 2026-06-30
 
+- Implemented the production QR table ordering baseline: signed table QR tokens, local QR generation via `qrcode`, table QR management actions, owner QR settings, public QR session validation, mobile table ordering, waiter service requests, and QR orders flowing into existing Orders/Kitchen/POS surfaces.
 - Hardened owner operational view switching with shared/cancellable session refresh, password-protected switch overlay, 3-second still-loading feedback, 10-second Retry/Cancel recovery, and deterministic route replacement.
 - Added Firestore-backed owner communication settings and history through `/api/owner/communication`.
 - Persisted owner order contact attempts, maps opens, test messages, and not-reachable events in `communicationHistory`.

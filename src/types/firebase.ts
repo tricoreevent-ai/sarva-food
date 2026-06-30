@@ -330,7 +330,7 @@ export type OrderStatus =
   | "completed"
   | "cancelled";
 
-export type OrderChannel = "web" | "instagram" | "whatsapp" | "pos" | "catering";
+export type OrderChannel = "web" | "instagram" | "whatsapp" | "pos" | "catering" | "qr";
 export type PaymentStatus = "pending" | "authorized" | "paid" | "failed" | "refunded";
 
 export type OrderLineDoc = {
@@ -351,6 +351,7 @@ export type OrderDoc = TenantScopedDoc & {
   deliveryPlaceId?: string;
   deliveryAddressLabel?: string;
   channel: OrderChannel;
+  orderSource?: "Web" | "Instagram" | "WhatsApp" | "POS" | "Catering" | "QR";
   status: OrderStatus;
   foodStatus?: KitchenOrderStatus;
   lines: OrderLineDoc[];
@@ -511,8 +512,30 @@ export type RestaurantTableDoc = TenantScopedDoc & {
   restaurantId: string;
   branchId: string;
   tableNumber: string;
+  name?: string;
   seats: number;
-  status: "vacant" | "occupied" | "preparing" | "ready" | "served" | "completed" | "billed";
+  floor?: string;
+  section?: string;
+  description?: string;
+  status: "vacant" | "occupied" | "preparing" | "ready" | "served" | "completed" | "billed" | "reserved" | "cleaning" | "inactive";
+  active?: boolean;
+  dineInEnabled?: boolean;
+  qrOrderingEnabled?: boolean;
+  qrToken?: string;
+  qrUrl?: string;
+  qrVersion?: number;
+  qrStatus?: "enabled" | "disabled" | "revoked";
+  qrLastGeneratedAt?: FirestoreDate;
+  qrUsageCount?: number;
+  currentSessionId?: string;
+  sessionStatus?: "none" | "active" | "expired" | "closed";
+  sessionCreatedAt?: FirestoreDate;
+  sessionExpiresAt?: FirestoreDate;
+  lastActivity?: FirestoreDate;
+  verifiedLocation?: boolean;
+  verifiedPhone?: boolean;
+  deviceId?: string;
+  sessionEvents?: Array<{ type: string; at: FirestoreDate; message?: string }>;
   activeKitchenOrderId?: string;
 };
 

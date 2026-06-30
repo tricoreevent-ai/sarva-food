@@ -22,6 +22,68 @@ The architecture is intentionally modular:
 - `functions/`: Firebase Cloud Functions backend code.
 - `docs/`: architecture, feature, Firebase, and optimization documentation.
 
+## Features & Capabilities Overview
+
+Nammude is a comprehensive restaurant commerce and operations platform with three primary user surfaces:
+
+### Customer Surface
+- **Restaurant Discovery**: search, filter, and browse restaurants by cuisine, location, ratings, delivery status.
+- **Menu Browsing**: explore restaurant menus with filtering, item detail pages, reviews, ratings.
+- **Ordering**: multi-channel support (dine-in, delivery, parcel), customization (modifiers/add-ons), quantity selection.
+- **Checkout**: saved addresses, offer code application, tax calculation (GST), payment options (UPI, card, COD).
+- **Order Tracking**: real-time order status, delivery tracking, estimated arrival, invoice access.
+- **Order History**: completed orders, reorder one-click, review and rating.
+- **Profile Management**: saved addresses, loyalty points, transaction history, notification settings.
+- **Social Commerce**: Instagram/WhatsApp deep linking, auto-apply offer codes, click-to-order flow.
+- **Loyalty & Rewards**: points earning, tier-based benefits, referral rewards framework.
+
+### Owner & Operator Surface
+- **Menu Management**: 6-step wizard for item creation, multi-channel pricing (dine-in/parcel/delivery), modifiers/add-ons, image management, bulk import/export.
+- **Order Management**: live queue, order lifecycle tracking, kitchen ticket (KOT) generation, print integration.
+- **Pricing Engine**: independent channel pricing, tax configuration (CGST/SGST/IGST), pricing rules, auto-pricing.
+- **Offers & Coupons**: create/manage promotions, coupon codes, validity, discount rules, featured offers.
+- **Kitchen Operations**: Kitchen Display System (KDS), order priority and timers, kanban board, fullscreen TV mode.
+- **Table Management**: table status tracking, QR ordering, waiter workflow, dine-in order flow.
+- **POS Billing**: touchscreen order entry, live bill calculation, payment methods (cash/card/UPI/mixed), split billing.
+- **Staff Management**: employee roles (owner, manager, cashier, waiter, chef, delivery), RBAC permissions, activity logging.
+- **Printer Management**: thermal printer support (58mm, 80mm), KOT/receipt routing, multiple printer profiles, auto-print.
+- **Digital Signage**: TV/monitor display, menu rotation, QR ordering, layout scaling.
+- **Social Marketing**: Instagram post creator, offer embedding, deep-link generation, admin approval workflow.
+- **Inventory**: stock tracking, low-stock alerts, supplier management, purchase orders, stock inward/outward.
+- **Accounting**: transaction ledger, daily sales journal, expense tracking, GST calculation, P&L framework.
+- **Settings**: restaurant profile, business address, operating hours, branding, delivery radius, communication settings.
+
+### Admin & Management Surface
+- **Restaurant Management**: onboarding workflow, approval queue, restaurant directory, business verification.
+- **Content Management**: homepage configuration, CMS branding, legal policies (Terms, Privacy, Refund, Delivery).
+- **Master Data**: food categories, cuisine types, featured menu items, pricing plans.
+- **Subscriptions**: plan management, billing, invoicing, payment tracking.
+- **Campaign Management**: platform promotions, social media moderation queue.
+- **Analytics**: KPIs, daily/weekly/monthly trends, order volume, revenue breakdown, custom reports.
+- **System Diagnostics**: Firebase status, collection sizes, index health, query performance, storage usage.
+- **User Management**: admin users, roles, permissions, activity audit logs.
+- **Support Management**: customer tickets, lead tracking, follow-up management.
+
+### Delivery & Logistics
+- **Delivery Orders**: assignment, acceptance/rejection, status workflow, real-time tracking (framework).
+- **Delivery Dashboard**: live order queue, assigned orders, pickup/delivery confirmation.
+- **Delivery Reports**: performance metrics, completion rate, earnings tracking.
+
+### Technical Capabilities
+- **Multi-Tenancy**: secure restaurant isolation, tenant-based access control, Firestore security rules.
+- **Multi-Branch**: branch-specific operations, centralized owner dashboard, branch-aware reporting.
+- **Authentication**: email/password, Google Sign-in, session-based with secure cookies, role-based access control (RBAC).
+- **Payments**: Razorpay integration (UPI, card, COD), payment verification, refund processing.
+- **Real-Time Updates**: Firestore listeners for orders, inventory, kitchen, loyalty.
+- **Offline Support**: service worker caching, offline queue, local data sync.
+- **PWA Features**: app install prompts, shortcuts, offline-first architecture, deep linking.
+- **Localization**: English, Hindi, Malayalam; framework ready for Tamil, Kannada, Arabic.
+- **Image Management**: Cloudinary integration, automatic transformation, responsive sizing, CDN delivery.
+- **Email & Notifications**: SMTP-based transactional emails, in-app notifications, browser push (framework).
+- **Mobile-First Design**: responsive layouts, touch-optimized controls, sticky mobile CTAs.
+
+For complete feature details, see `docs/EXISTING_FEATURES.md`.
+
 ## Repository Structure
 
 The repo is organized around a core frontend source tree in `src/`, documentation in `docs/`, and operational tooling at the root.
@@ -252,6 +314,71 @@ This repository already includes deep documentation in `docs/` for:
 
 Use `docs/developer-guide.md` and `docs/architecture-audit.md` as the canonical starting points for future enhancements.
 
+## Feature Documentation Index
+
+For comprehensive feature details, refer to the following documentation files:
+
+### User Surface Documentation
+- `docs/help-customer-module.md` - Customer ordering, discovery, profile, account management features.
+- `docs/help-owner-module.md` - Owner menu management, offers, staff, settings, and profile features.
+- `docs/help-pos-module.md` - POS billing, table management, invoice generation features.
+
+### Operational Features
+- `docs/restaurant-operations-system.md` - Table ordering, kitchen workflow, thermal printer integration, digital menu display, social approval workflow.
+- `docs/restaurant-business-suite.md` - Theme system, i18n, parcel flow, delivery, loyalty, inventory, supplier, accounting, QR ordering.
+- `docs/restaurant-enterprise-features.md` - Waiter flow, KDS, printer support, menu system, digital signage, offers, staff roles, reporting, accounting, inventory, multi-branch, offline strategy.
+
+### Social & Commerce
+- `docs/social-commerce.md` - Instagram deep linking, WhatsApp integration, metadata handling, conversion UX, analytics events.
+
+### Business & Operational Management
+- `docs/restaurant-billing-printing-system.md` - Receipt templates, GST setup, print modes (58mm, 80mm, A4), branding, settings.
+- `docs/restaurant-printing-system.md` - Bill composition, KOT format, print quality, settings.
+
+### Owner Manual & Guidance
+- `docs/owner-user-manual.md` - Menu management, order lifecycle, kitchen tickets, in-store table management, social commerce, image optimization, cost efficiency, troubleshooting.
+- `docs/project-tracker.md` - Enterprise phase tracker and offer consolidation details.
+
+### Complete Feature List
+- `docs/EXISTING_FEATURES.md` - Comprehensive reference of all existing features organized by module and capability.
+
+### Technical & Architecture
+- `docs/developer-guide.md` - Developer setup, code patterns, best practices.
+- `docs/architecture-audit.md` - Detailed audit of system architecture and design decisions.
+- `docs/frontend-flows.md` - User journey flows and state management patterns.
+- `docs/firestore-schema.md` - Complete database schema and collection structure.
+- `docs/firebase-setup.md` - Firebase configuration and initialization.
+- `docs/backend-architecture.md` - Backend services and API layer.
+
+### Deployment & Infrastructure
+- `docs/deployment.md` - Deployment procedures and environments.
+- `docs/hostinger-deployment.md` - Hostinger-specific deployment configuration.
+- `docs/pwa-strategy.md` - Progressive Web App implementation details.
+- `docs/firebase-setup.md` - Firebase project configuration.
+- `docs/firebase-production-integration.md` - Production Firebase integration checklist.
+
+### Performance & Optimization
+- `docs/performance-audit.md` - Performance analysis and optimization recommendations.
+- `docs/nextjs-optimization.md` - Next.js-specific optimizations and configurations.
+- `docs/firebase-cost-optimization.md` - Firebase cost reduction strategies.
+
+### Security & Compliance
+- `docs/security-rules.md` - Firestore security rules and access control.
+- `docs/firestore-rule-failures.md` - Rule failure diagnosis and fixes.
+
+### Troubleshooting & Diagnostics
+- `docs/firebase-troubleshooting.md` - Firebase common issues and solutions.
+- `docs/firebase-runtime-audit.md` - Runtime Firebase audit findings.
+- `docs/root-cause-analysis.md` - Analysis of root causes for reported issues.
+- `docs/reconciliation-report.md` - Data parity and reconciliation findings.
+
+### Release & Project Status
+- `docs/TASK_TRACKER.md` - Active and completed task tracking.
+- `docs/roadmap.md` - Product roadmap and feature priorities.
+- `docs/changelog.md` - Release notes and version history.
+- `docs/final-production-readiness-report.md` - Final production readiness validation.
+- `docs/FINAL_RELEASE_REPORT.md` - Final release with validation results.
+
 ## Recommended Reference Map
 
 - Route entrypoints: `src/app`
@@ -266,7 +393,10 @@ Use `docs/developer-guide.md` and `docs/architecture-audit.md` as the canonical 
 - Firebase backend: `functions/`
 - Static assets / PWA: `public/`
 - Dev tooling: `scripts/`
+- Complete feature list: `docs/EXISTING_FEATURES.md`
 
 ---
 
 Created as a project architecture reference for the `Nammude` repository.
+Last Updated: 2026-06-30
+For complete feature documentation, see `docs/EXISTING_FEATURES.md`.

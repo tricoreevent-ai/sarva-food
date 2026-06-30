@@ -1,0 +1,138 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { adminDb } from "@/firebase/admin";
+import { TableRepository } from "@/repositories/table-repository";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export async function GET(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get("token") ?? "";
+  const table = await new TableRepository().resolveQr(token);
+  if (!table) return NextResponse.json({ error: "This QR code is invalid, disabled, or expired." }, { status: 404 });
+  const [restaurant, settings] = await Promise.all([
+    adminDb().collection("restaurants").doc(table.restaurantId).get(),
+    adminDb().collection("restaurantSettings").doc(table.restaurantId).get(),
+  ]);
+  const restaurantData = restaurant.data() ?? {};
+  return NextResponse.json({
+    data: {
+      restaurant: {
+        id: table.restaurantId,
+        name: restaurantData.name ?? restaurantData.displayName ?? "Restaurant",
+        logo: restaurantData.logoPath ?? restaurantData.logo ?? "",
+        latitude: restaurantData.latitude,
+        longitude: restaurantData.longitude,
+        active: restaurantData.active !== false,
+      },
+      table: {
+        tableNumber: table.tableNumber,
+        name: table.name ?? table.tableNumber,
+        seats: table.seats,
+        floor: table.floor,
+        section: table.section,
+        qrOrderingEnabled: table.qrOrderingEnabled !== false,
+        currentSessionId: table.currentSessionId ?? "",
+        sessionStatus: table.sessionStatus ?? "none",
+        sessionExpiresAt: table.sessionExpiresAt,
+      },
+      settings: normalizeQrSettings(settings.data()),
+    },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => ({})) as {
+    token?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    deviceId?: string;
+    lat?: number;
+    lng?: number;
+    otpCode?: string;
+  };
+  if (!body.token || !body.customerName?.trim() || !body.customerPhone?.trim()) {
+    return NextResponse.json({ error: "Name and mobile number are required." }, { status: 400 });
+  }
+  const table = await new TableRepository().resolveQr(body.token);
+  if (!table) return NextResponse.json({ error: "This QR code is invalid, disabled, or expired." }, { status: 404 });
+  const [restaurant, settingsDoc] = await Promise.all([
+    adminDb().collection("restaurants").doc(table.restaurantId).get(),
+    adminDb().collection("restaurantSettings").doc(table.restaurantId).get(),
+  ]);
+  const settings = normalizeQrSettings(settingsDoc.data());
+  const restaurantData = restaurant.data() ?? {};
+  if (!settings.enabled) return NextResponse.json({ error: "QR ordering is disabled for this restaurant." }, { status: 403 });
+  if (tooManyRecentSessionAttempts(table.sessionEvents)) {
+    return NextResponse.json({ error: "Too many QR session attempts. Please ask the restaurant team to help." }, { status: 429 });
+  }
+  const currentExpiry = toMillis(table.sessionExpiresAt);
+  if (!settings.allowMultipleCustomers && table.currentSessionId && table.sessionStatus === "active" && currentExpiry > Date.now()) {
+    return NextResponse.json({ error: "This table already has an active session. Ask the waiter to join or start a separate order." }, { status: 409 });
+  }
+  if (restaurantData.active === false) return NextResponse.json({ error: "Restaurant is not accepting QR orders right now." }, { status: 409 });
+  const gpsOk = !settings.geofence || settings.gpsRadiusMeters <= 0 || hasValidGps(body, restaurantData, settings.gpsRadiusMeters);
+  if (!gpsOk) return NextResponse.json({ error: "You need to be near the restaurant table to start QR ordering." }, { status: 403 });
+  if (settings.otpRequired && !body.otpCode?.trim()) return NextResponse.json({ step: "otp", error: "OTP verification is required." }, { status: 428 });
+  const session = await new TableRepository().createSession(body.token, {
+    customerName: body.customerName.trim(),
+    customerPhone: body.customerPhone.trim(),
+    customerEmail: body.customerEmail?.trim(),
+    deviceId: body.deviceId || request.headers.get("user-agent") || "browser",
+    verifiedLocation: gpsOk,
+    verifiedPhone: !settings.otpRequired || Boolean(body.otpCode?.trim()),
+    sessionMinutes: settings.sessionTimeoutMinutes,
+  });
+  return NextResponse.json({ data: session });
+}
+
+function normalizeQrSettings(data?: FirebaseFirestore.DocumentData) {
+  const qr = typeof data?.qrOrdering === "object" && data.qrOrdering ? data.qrOrdering as Record<string, unknown> : {};
+  return {
+    enabled: qr.enabled !== false,
+    gpsRadiusMeters: Number(qr.gpsRadiusMeters ?? 50),
+    sessionTimeoutMinutes: Number(qr.sessionTimeoutMinutes ?? 45),
+    idleTimeoutMinutes: Number(qr.idleTimeoutMinutes ?? 10),
+    otpRequired: qr.otpRequired === true,
+    allowMultipleCustomers: qr.allowMultipleCustomers !== false,
+    allowParcel: qr.allowParcel !== false,
+    allowDineIn: qr.allowDineIn !== false,
+    geofence: qr.geofence !== false,
+  };
+}
+
+function hasValidGps(input: { lat?: number; lng?: number }, restaurant: FirebaseFirestore.DocumentData, radiusMeters: number) {
+  if (typeof input.lat !== "number" || typeof input.lng !== "number" || typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number") return false;
+  return haversineMeters({ lat: input.lat, lng: input.lng }, { lat: restaurant.latitude, lng: restaurant.longitude }) <= radiusMeters;
+}
+
+function haversineMeters(first: { lat: number; lng: number }, second: { lat: number; lng: number }) {
+  const radius = 6371000;
+  const dLat = degrees(second.lat - first.lat);
+  const dLng = degrees(second.lng - first.lng);
+  const lat1 = degrees(first.lat);
+  const lat2 = degrees(second.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function degrees(value: number) {
+  return value * Math.PI / 180;
+}
+
+function toMillis(value: unknown) {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") return Date.parse(value);
+  if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") return value.toDate().getTime();
+  return 0;
+}
+
+function tooManyRecentSessionAttempts(events: unknown) {
+  if (!Array.isArray(events)) return false;
+  const windowStart = Date.now() - 15 * 60_000;
+  return events.filter((event) => {
+    if (!event || typeof event !== "object") return false;
+    const row = event as { type?: string; at?: string };
+    return ["session_created", "session_joined"].includes(row.type ?? "") && Date.parse(row.at ?? "") >= windowStart;
+  }).length >= 12;
+}

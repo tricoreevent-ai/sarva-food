@@ -38,8 +38,16 @@ export async function DELETE(request: NextRequest) {
 async function upsert(request: NextRequest) {
   const access = await requireOwnerFeature(request, "tables", request.method === "POST" ? "create" : "update");
   if (access.error) return access.error;
-  const body = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({})) as { action?: "rotate-qr" | "enable-qr" | "disable-qr"; id?: string; table?: string; restaurantId?: string };
   const scope = tenantScope(access.session, body.restaurantId);
-  const data = await new TableRepository().upsert(scope, body);
+  const repository = new TableRepository();
+  const key = body.id || body.table || "";
+  const data = body.action === "rotate-qr"
+    ? await repository.rotateQr(scope, key)
+    : body.action === "enable-qr"
+      ? await repository.setQrStatus(scope, key, true)
+      : body.action === "disable-qr"
+        ? await repository.setQrStatus(scope, key, false)
+        : await repository.upsert(scope, body);
   return NextResponse.json({ data: tableDocToPosTable(data), raw: data });
 }

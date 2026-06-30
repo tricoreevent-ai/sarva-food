@@ -11,7 +11,7 @@ export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
     totals: { subtotal: Number(order.subtotal ?? 0), discount: Number(order.discount ?? 0), deliveryFee: Number(order.deliveryFee ?? 0), tax: Number(order.tax ?? 0), total: Number(order.total ?? 0) },
     offerCode: order.offerCode,
     payment: "upi",
-    channel: order.channel === "instagram" ? "Instagram" : order.channel === "whatsapp" ? "WhatsApp" : order.channel === "pos" ? "POS" : order.channel === "catering" ? "Catering" : "Web",
+    channel: order.channel === "instagram" ? "Instagram" : order.channel === "whatsapp" ? "WhatsApp" : order.channel === "pos" ? "POS" : order.channel === "catering" ? "Catering" : order.channel === "qr" ? "QR" : "Web",
     status: order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
     createdAt: parseFirestoreDateIso(order.createdAt) ?? new Date().toISOString(),
     deliveryOtp: order.deliveryOtp,
@@ -138,12 +138,27 @@ export function staffDocToStaffMember(user: Record<string, unknown>): StaffMembe
 export function tableDocToPosTable(table: Record<string, unknown>): PosTable {
   const number = str(table.table || table.tableNumber || table.name) || "T01";
   return {
+    id: str(table.id),
     table: number,
+    name: str(table.name),
     seats: String(num(table.seats || table.capacity, 4)),
     status: posTableStatus(str(table.status)),
     amount: String(num(table.amount)),
     floor: str(table.floor || table.section),
+    section: str(table.section),
+    description: str(table.description),
     note: str(table.note),
+    active: table.active !== false,
+    dineInEnabled: table.dineInEnabled !== false,
+    qrOrderingEnabled: table.qrOrderingEnabled !== false && Boolean(table.qrToken || table.qrUrl),
+    qrToken: str(table.qrToken),
+    qrUrl: str(table.qrUrl),
+    qrVersion: num(table.qrVersion, 1),
+    qrStatus: qrStatus(str(table.qrStatus)),
+    qrLastGeneratedAt: parseFirestoreDateIso(table.qrLastGeneratedAt),
+    qrUsageCount: num(table.qrUsageCount),
+    currentSessionId: str(table.currentSessionId),
+    sessionStatus: sessionStatus(str(table.sessionStatus)),
     lastCleanedAt: parseFirestoreDateIso(table.lastCleanedAt),
   };
 }
@@ -192,9 +207,23 @@ function staffRole(value: string): StaffMember["role"] {
 
 function posTableStatus(value: string): PosTable["status"] {
   if (["Dining", "Bill requested", "Reserved", "Cleaning", "Inactive"].includes(value)) return value as PosTable["status"];
+  if (value === "reserved") return "Reserved";
+  if (value === "cleaning") return "Cleaning";
+  if (value === "inactive") return "Inactive";
+  if (value === "vacant") return "Open";
   if (["occupied", "preparing", "ready", "served"].includes(value)) return "Dining";
   if (value === "billed" || value === "completed") return "Bill requested";
   return "Open";
+}
+
+function qrStatus(value: string): PosTable["qrStatus"] {
+  if (value === "disabled" || value === "revoked") return value;
+  return "enabled";
+}
+
+function sessionStatus(value: string): PosTable["sessionStatus"] {
+  if (value === "active" || value === "expired" || value === "closed") return value;
+  return "none";
 }
 
 function first(value: unknown) {

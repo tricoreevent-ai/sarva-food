@@ -545,7 +545,7 @@ export type PaymentBreakdown = {
   reference?: string;
 };
 
-export type OrderChannel = "Web" | "Instagram" | "WhatsApp" | "POS" | "Catering";
+export type OrderChannel = "Web" | "Instagram" | "WhatsApp" | "POS" | "Catering" | "QR";
 
 export type OrderStatus =
   | "new"
@@ -729,12 +729,27 @@ export type CateringQuote = {
 };
 
 export type PosTable = {
+  id?: string;
   table: string;
+  name?: string;
   seats: string;
   status: "Open" | "Dining" | "Bill requested" | "Reserved" | "Cleaning" | "Inactive";
   amount: string;
   floor?: string;
+  section?: string;
+  description?: string;
   note?: string;
+  active?: boolean;
+  dineInEnabled?: boolean;
+  qrOrderingEnabled?: boolean;
+  qrToken?: string;
+  qrUrl?: string;
+  qrVersion?: number;
+  qrStatus?: "enabled" | "disabled" | "revoked";
+  qrLastGeneratedAt?: string;
+  qrUsageCount?: number;
+  currentSessionId?: string;
+  sessionStatus?: "none" | "active" | "expired" | "closed";
   lastCleanedAt?: string;
 };
 

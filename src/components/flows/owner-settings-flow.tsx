@@ -23,7 +23,7 @@ import { operationalSoundOptions, playOperationalSound, type OperationalSound } 
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
-type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "pricing" | "notifications" | "communication" | "hours" | "taxes" | "social" | "loyalty" | "sync";
+type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "qr" | "pricing" | "notifications" | "communication" | "hours" | "taxes" | "social" | "loyalty" | "sync";
 type SoundPrefs = Record<SoundTarget, {
   sound: OperationalSound;
   volume: number;
@@ -43,6 +43,24 @@ type CommunicationHistoryItem = {
   id: string;
   message: string;
   createdAt: string;
+};
+type QrOrderingSettings = {
+  enabled: boolean;
+  gpsRadiusMeters: number;
+  sessionTimeoutMinutes: number;
+  idleTimeoutMinutes: number;
+  otpRequired: boolean;
+  wifiValidation: boolean;
+  wifiSsid: string;
+  allowMultipleCustomers: boolean;
+  allowParcel: boolean;
+  allowDineIn: boolean;
+  guestCheckout: boolean;
+  geofence: boolean;
+  tips: boolean;
+  feedback: boolean;
+  qrLogo: string;
+  rotation: "manual" | "daily" | "weekly";
 };
 
 type ProfileDraft = {
@@ -113,6 +131,7 @@ const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: "delivery", label: "Delivery" },
   { value: "payments", label: "Payments" },
   { value: "ordering", label: "Ordering" },
+  { value: "qr", label: "QR Ordering" },
   { value: "pricing", label: "Pricing Rules" },
   { value: "notifications", label: "Notifications" },
   { value: "communication", label: "Communication" },
@@ -631,6 +650,10 @@ export function OwnerSettingsFlow() {
           </DashboardCard>
         </TabsContent>
 
+        <TabsContent value="qr">
+          <QrOrderingSettingsPanel />
+        </TabsContent>
+
         <TabsContent value="pricing">
           <DashboardCard title="Pricing Rules">
             <div className="grid gap-4">
@@ -1101,6 +1124,106 @@ function CommunicationTile({ icon: Icon, title, enabled, onToggle, onTest }: { i
         Test {title}
       </Button>
     </div>
+  );
+}
+
+const defaultQrSettings: QrOrderingSettings = {
+  enabled: true,
+  gpsRadiusMeters: 50,
+  sessionTimeoutMinutes: 45,
+  idleTimeoutMinutes: 10,
+  otpRequired: false,
+  wifiValidation: false,
+  wifiSsid: "",
+  allowMultipleCustomers: true,
+  allowParcel: true,
+  allowDineIn: true,
+  guestCheckout: true,
+  geofence: true,
+  tips: false,
+  feedback: true,
+  qrLogo: "",
+  rotation: "manual",
+};
+
+function QrOrderingSettingsPanel() {
+  const [settings, setSettings] = useState<QrOrderingSettings>(defaultQrSettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/qr-settings", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: Partial<QrOrderingSettings> }) => {
+        if (active) setSettings({ ...defaultQrSettings, ...payload.data });
+      })
+      .catch(() => toast.error("QR ordering settings could not be loaded."))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/owner/qr-settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings }),
+      });
+      const payload = await response.json().catch(() => ({})) as { data?: QrOrderingSettings; error?: string };
+      if (!response.ok) throw new Error(payload.error || "QR settings could not be saved.");
+      setSettings(payload.data ?? settings);
+      toast.success("QR ordering settings saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "QR settings could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <DashboardCard title="QR Ordering" action={<Button onClick={() => void save()} disabled={loading || saving}><Save className="size-4" />{saving ? "Saving" : "Save QR settings"}</Button>}>
+      <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <ToggleRow label="Enable QR ordering" checked={settings.enabled} onChange={(enabled) => setSettings((current) => ({ ...current, enabled }))} />
+          <ToggleRow label="OTP required" checked={settings.otpRequired} onChange={(otpRequired) => setSettings((current) => ({ ...current, otpRequired }))} />
+          <ToggleRow label="WiFi validation" checked={settings.wifiValidation} onChange={(wifiValidation) => setSettings((current) => ({ ...current, wifiValidation }))} />
+          <ToggleRow label="Allow multiple customers" checked={settings.allowMultipleCustomers} onChange={(allowMultipleCustomers) => setSettings((current) => ({ ...current, allowMultipleCustomers }))} />
+          <ToggleRow label="Allow dine-in" checked={settings.allowDineIn} onChange={(allowDineIn) => setSettings((current) => ({ ...current, allowDineIn }))} />
+          <ToggleRow label="Allow parcel" checked={settings.allowParcel} onChange={(allowParcel) => setSettings((current) => ({ ...current, allowParcel }))} />
+          <ToggleRow label="Guest checkout" checked={settings.guestCheckout} onChange={(guestCheckout) => setSettings((current) => ({ ...current, guestCheckout }))} />
+          <ToggleRow label="Geofence" checked={settings.geofence} onChange={(geofence) => setSettings((current) => ({ ...current, geofence }))} />
+          <ToggleRow label="Tips" checked={settings.tips} onChange={(tips) => setSettings((current) => ({ ...current, tips }))} />
+          <ToggleRow label="Feedback" checked={settings.feedback} onChange={(feedback) => setSettings((current) => ({ ...current, feedback }))} />
+          <NumberRow label="GPS radius meters" value={settings.gpsRadiusMeters} onChange={(gpsRadiusMeters) => setSettings((current) => ({ ...current, gpsRadiusMeters }))} />
+          <NumberRow label="Session timeout min" value={settings.sessionTimeoutMinutes} onChange={(sessionTimeoutMinutes) => setSettings((current) => ({ ...current, sessionTimeoutMinutes }))} />
+          <NumberRow label="Idle timeout min" value={settings.idleTimeoutMinutes} onChange={(idleTimeoutMinutes) => setSettings((current) => ({ ...current, idleTimeoutMinutes }))} />
+          <ProfileField label="WiFi SSID" value={settings.wifiSsid} onChange={(wifiSsid) => setSettings((current) => ({ ...current, wifiSsid }))} />
+          <ProfileField label="QR logo URL" value={settings.qrLogo} onChange={(qrLogo) => setSettings((current) => ({ ...current, qrLogo }))} />
+          <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
+            QR rotation
+            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.rotation} onChange={(event) => setSettings((current) => ({ ...current, rotation: event.target.value as QrOrderingSettings["rotation"] }))}>
+              <option value="manual">Manual</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </label>
+        </div>
+        <aside className="rounded-2xl border border-input bg-card p-4">
+          <h3 className="font-black text-foreground">Security Layers</h3>
+          <div className="mt-3 grid gap-2 text-sm font-semibold text-muted-foreground">
+            <p>Signed restaurant-specific QR token.</p>
+            <p>{settings.sessionTimeoutMinutes} minute sliding session.</p>
+            <p>{settings.geofence ? `${settings.gpsRadiusMeters}m GPS geofence.` : "GPS geofence disabled."}</p>
+            <p>{settings.otpRequired ? "OTP required before ordering." : "OTP optional."}</p>
+            <p>QR rotation: {settings.rotation}.</p>
+          </div>
+        </aside>
+      </div>
+    </DashboardCard>
   );
 }
 
