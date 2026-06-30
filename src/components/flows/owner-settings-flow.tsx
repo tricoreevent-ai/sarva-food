@@ -31,6 +31,19 @@ type SoundPrefs = Record<SoundTarget, {
   repeatUntilAcknowledged: boolean;
   muted: boolean;
 }>;
+type CommunicationSettings = {
+  sms: boolean;
+  whatsapp: boolean;
+  smtp: boolean;
+  priority: "whatsapp" | "sms" | "smtp";
+  routing: "owner-and-customer" | "owner-only" | "customer-only";
+  testTarget: string;
+};
+type CommunicationHistoryItem = {
+  id: string;
+  message: string;
+  createdAt: string;
+};
 
 type ProfileDraft = {
   ownerName: string;
@@ -81,6 +94,15 @@ const defaultSoundPrefs: SoundPrefs = {
   onlineOrder: { sound: "loud-alarm", volume: 85, repeatCount: 3, repeatUntilAcknowledged: true, muted: false },
   waiterOrder: { sound: "pos-alert", volume: 70, repeatCount: 2, repeatUntilAcknowledged: false, muted: false },
   kitchenReady: { sound: "kitchen-alert", volume: 80, repeatCount: 2, repeatUntilAcknowledged: false, muted: false },
+};
+
+const defaultCommunicationSettings: CommunicationSettings = {
+  sms: false,
+  whatsapp: true,
+  smtp: true,
+  priority: "whatsapp",
+  routing: "owner-and-customer",
+  testTarget: "",
 };
 
 const soundStorageKey = "sarva-owner-sound-settings:v1";
@@ -961,24 +983,73 @@ function NumberRow({ label, value, onChange }: { label: string; value: number; o
 }
 
 function CommunicationSettingsPanel() {
-  const [settings, setSettings] = useState({
-    sms: false,
-    whatsapp: true,
-    smtp: true,
-    priority: "whatsapp",
-    routing: "owner-and-customer",
-    testTarget: "",
-  });
-  const [history, setHistory] = useState<string[]>([]);
+  const [settings, setSettings] = useState<CommunicationSettings>(defaultCommunicationSettings);
+  const [history, setHistory] = useState<CommunicationHistoryItem[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  function test(channel: "sms" | "whatsapp" | "smtp") {
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/communication", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { settings?: Partial<CommunicationSettings>; history?: CommunicationHistoryItem[] }) => {
+        if (!active) return;
+        setSettings({ ...defaultCommunicationSettings, ...payload.settings });
+        setHistory(payload.history ?? []);
+      })
+      .catch(() => toast.error("Communication settings could not be loaded."))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/owner/communication", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings }),
+      });
+      const payload = await response.json().catch(() => ({})) as { settings?: Partial<CommunicationSettings>; history?: CommunicationHistoryItem[]; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Communication settings could not be saved.");
+      setSettings({ ...defaultCommunicationSettings, ...payload.settings });
+      setHistory(payload.history ?? []);
+      toast.success("Communication settings saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Communication settings could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function test(channel: "sms" | "whatsapp" | "smtp") {
     const label = channel === "sms" ? "SMS" : channel === "smtp" ? "SMTP email" : "WhatsApp";
-    setHistory((current) => [`${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} ${label} test queued for ${settings.testTarget || "default recipient"}`, ...current].slice(0, 8));
-    toast.success(`${label} test queued.`);
+    try {
+      const response = await fetch("/api/owner/communication", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "test",
+          channel,
+          target: settings.testTarget,
+          message: `${label} test queued for ${settings.testTarget || "default recipient"}.`,
+        }),
+      });
+      const payload = await response.json().catch(() => ({})) as { data?: CommunicationHistoryItem; error?: string };
+      if (!response.ok) throw new Error(payload.error || `${label} test could not be queued.`);
+      if (payload.data) setHistory((current) => [payload.data as CommunicationHistoryItem, ...current].slice(0, 8));
+      toast.success(`${label} test queued.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `${label} test could not be queued.`);
+    }
   }
 
   return (
-    <DashboardCard title="Communication Settings" action={<Button onClick={() => toast.success("Communication settings saved.")}><Save className="size-4" />Save routing</Button>}>
+    <DashboardCard title="Communication Settings" action={<Button onClick={() => void save()} disabled={saving || loading}><Save className="size-4" />{saving ? "Saving" : "Save routing"}</Button>}>
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <CommunicationTile icon={Smartphone} title="SMS" enabled={settings.sms} onToggle={(sms) => setSettings((current) => ({ ...current, sms }))} onTest={() => test("sms")} />
@@ -986,7 +1057,7 @@ function CommunicationSettingsPanel() {
           <CommunicationTile icon={Mail} title="SMTP Email" enabled={settings.smtp} onToggle={(smtp) => setSettings((current) => ({ ...current, smtp }))} onTest={() => test("smtp")} />
           <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
             Priority channel
-            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.priority} onChange={(event) => setSettings((current) => ({ ...current, priority: event.target.value }))}>
+            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.priority} onChange={(event) => setSettings((current) => ({ ...current, priority: event.target.value as CommunicationSettings["priority"] }))}>
               <option value="whatsapp">WhatsApp first</option>
               <option value="sms">SMS first</option>
               <option value="smtp">Email first</option>
@@ -994,7 +1065,7 @@ function CommunicationSettingsPanel() {
           </label>
           <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
             Notification routing
-            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.routing} onChange={(event) => setSettings((current) => ({ ...current, routing: event.target.value }))}>
+            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.routing} onChange={(event) => setSettings((current) => ({ ...current, routing: event.target.value as CommunicationSettings["routing"] }))}>
               <option value="owner-and-customer">Owner and customer</option>
               <option value="owner-only">Owner only</option>
               <option value="customer-only">Customer only</option>
@@ -1005,12 +1076,17 @@ function CommunicationSettingsPanel() {
         <div className="rounded-2xl border border-input bg-card p-4">
           <h3 className="font-black">Communication history</h3>
           <div className="mt-3 grid gap-2 text-sm font-semibold text-muted-foreground">
-            {history.length ? history.map((item) => <p key={item}>{item}</p>) : <p>No test messages sent this session.</p>}
+            {loading ? <p>Loading communication history...</p> : history.length ? history.map((item) => <p key={item.id}>{formatCommunicationTime(item.createdAt)} {item.message}</p>) : <p>No test messages recorded for this restaurant.</p>}
           </div>
         </div>
       </div>
     </DashboardCard>
   );
+}
+
+function formatCommunicationTime(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : value;
 }
 
 function CommunicationTile({ icon: Icon, title, enabled, onToggle, onTest }: { icon: LucideIcon; title: string; enabled: boolean; onToggle: (value: boolean) => void; onTest: () => void }) {

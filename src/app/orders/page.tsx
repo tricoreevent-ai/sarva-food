@@ -94,7 +94,11 @@ function OrderHistoryCard({ order, restaurant }: { order: CustomerOrderDoc; rest
 
   async function reorder(mode: "merge" | "replace") {
     const menu = await fetchCurrentMenu(order.restaurantId);
-    const lines = buildReorderLines(order, menu);
+    if (!menu.loaded) {
+      toast.error("Current menu could not be checked. Try again.");
+      return;
+    }
+    const { lines, unavailableCount, priceChangedCount } = buildReorderLines(order, menu.items);
     if (!lines.length) {
       toast.error("None of the previous items are available right now.");
       return;
@@ -105,6 +109,8 @@ function OrderHistoryCard({ order, restaurant }: { order: CustomerOrderDoc; rest
       return;
     }
     replaceCart(mode === "merge" ? mergeLines(currentCart, lines) : lines);
+    if (unavailableCount) toast.error(`${unavailableCount} previous ${unavailableCount === 1 ? "item is" : "items are"} unavailable right now.`);
+    if (priceChangedCount) toast(`${priceChangedCount} ${priceChangedCount === 1 ? "price was" : "prices were"} refreshed from the current menu.`);
     toast.success(lines.length === order.lines.length ? "Order added to cart." : "Available items added to cart.");
     setReorderOpen(false);
   }
@@ -241,33 +247,29 @@ function ReorderDialog({ onClose, onMerge, onReplace }: { onClose: () => void; o
 }
 
 async function fetchCurrentMenu(restaurantId: string) {
-  const response = await fetch(`/api/public/menu?restaurantId=${encodeURIComponent(restaurantId)}`, { cache: "no-store" });
-  const payload = await response.json().catch(() => ({})) as { data?: MenuItem[] };
-  return payload.data ?? [];
+  try {
+    const response = await fetch(`/api/public/menu?restaurantId=${encodeURIComponent(restaurantId)}`, { cache: "no-store" });
+    const payload = await response.json().catch(() => ({})) as { data?: MenuItem[] };
+    return { loaded: response.ok, items: response.ok ? payload.data ?? [] : [] };
+  } catch {
+    return { loaded: false, items: [] };
+  }
 }
 
-function buildReorderLines(order: CustomerOrderDoc, menu: MenuItem[]): CartLine[] {
+function buildReorderLines(order: CustomerOrderDoc, menu: MenuItem[]) {
   const menuById = new Map(menu.map((item) => [item.id, item]));
-  return order.lines.flatMap((line) => {
+  let unavailableCount = 0;
+  let priceChangedCount = 0;
+  const lines = order.lines.flatMap((line) => {
     const current = menuById.get(line.menuItemId);
-    if (current?.soldOut) return [];
-    const item = current ?? fallbackMenuItem(order.restaurantId, line);
-    return [{ ...item, price: current?.price ?? line.price, quantity: line.quantity }];
+    if (!current || current.soldOut) {
+      unavailableCount += 1;
+      return [];
+    }
+    if (current.price !== line.price) priceChangedCount += 1;
+    return [{ ...current, price: current.price, quantity: line.quantity }];
   });
-}
-
-function fallbackMenuItem(restaurantSlug: string, line: CustomerOrderDoc["lines"][number]): MenuItem {
-  return {
-    id: line.menuItemId,
-    restaurantSlug,
-    name: line.name,
-    category: "Previous order",
-    description: "Previously ordered item. Price and availability will be confirmed at checkout.",
-    price: line.price,
-    image: IMAGE_FALLBACKS.food,
-    isVeg: false,
-    prepTime: "25 min",
-  };
+  return { lines, unavailableCount, priceChangedCount };
 }
 
 function mergeLines(current: CartLine[], incoming: CartLine[]) {

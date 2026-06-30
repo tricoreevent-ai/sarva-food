@@ -1,5 +1,23 @@
 # Final Production Readiness Report
 
+## 2026-06-30 Release Pass
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed |
+| `git diff --check` | Passed |
+| `/orders` | 200 locally |
+| `/owner/settings` | 307 to owner login locally |
+| `/owner/orders` | 307 to owner login locally |
+| `/api/owner/communication` | 403 protected API locally |
+
+- Owner communication settings, test history, contact attempts, maps opens, and not-reachable workflow now persist to Firestore.
+- Order communication events are mirrored into `orders` and `customerOrders` for tracking/history consistency.
+- Customer reorder now rejects unavailable historical items and refreshes prices from the current public menu.
+- Remaining work is manual/external: Hostinger environment/configuration, cache clear/redeploy, SMTP confirmation, seeded-data cleanup if needed, and owner password-protected view-switch verification.
+
 ## Verification Results
 
 PowerShell blocked direct `npm run ...` execution because `npm.ps1` is disabled by local execution policy. The same checks were run successfully through `cmd /c`.

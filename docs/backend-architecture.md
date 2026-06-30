@@ -50,6 +50,7 @@ Services are intentionally thin. They own Firebase calls, not UI state.
 
 - `auth-service.ts`: Google, email, phone auth.
 - `order-service.ts`: create orders, status updates, realtime tracking, history.
+- `communication-repository.ts`: owner communication settings, message test history, contact attempts, and order communication timelines.
 - `menu-service.ts`: CRUD menu items, availability, image upload.
 - `delivery-service.ts`: assignment, status, history.
 - `social-post-service.ts`: image upload, template/post metadata.

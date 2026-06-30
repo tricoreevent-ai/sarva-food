@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-30
+
+- Added Firestore-backed owner communication settings and history through `/api/owner/communication`.
+- Persisted owner order contact attempts, maps opens, test messages, and not-reachable events in `communicationHistory`.
+- Mirrored order communication timeline metadata into `orders` and `customerOrders`.
+- Tightened customer reorder to use current public menu availability and refreshed prices only.
+- Verified `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`, and focused route checks for `/orders`, `/owner/settings`, `/owner/orders`, and `/api/owner/communication`.
+
 ## 2026-06-26
 
 - Released final enterprise stabilization to `https://violet-squid-380447.hostingersite.com`.

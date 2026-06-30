@@ -1,8 +1,16 @@
 import { CalendarClock, Check, Eye, Mail, MapPin, MessageCircle, Phone, Star, X, type LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/owner/status-badge";
 import { formatCurrency } from "@/lib/utils";
+
+type CommunicationEvent = {
+  id: string;
+  channel: "call" | "whatsapp" | "sms" | "smtp" | "maps" | "system";
+  action: "contact" | "not-reachable" | "test";
+  message: string;
+  createdAt: string;
+};
 
 export type OpsOrder = {
   id: string;
@@ -41,11 +49,49 @@ export function OrderCard({
   onComplete: () => void;
 }) {
   const [contactOpen, setContactOpen] = useState(false);
-  const [timeline, setTimeline] = useState<string[]>([]);
+  const [timeline, setTimeline] = useState<CommunicationEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
   const isNew = order.status === "new";
   const isPreparing = order.status === "accepted" || order.status === "preparing";
   const isReady = order.status === "ready";
   const isDone = ["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+
+  useEffect(() => {
+    if (!contactOpen) return;
+    let active = true;
+    void fetch(`/api/owner/communication?orderId=${encodeURIComponent(order.id)}`, { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { history?: CommunicationEvent[] }) => {
+        if (active) setTimeline(payload.history ?? []);
+      })
+      .catch(() => {
+        if (active) setTimeline([]);
+      })
+      .finally(() => {
+        if (active) setTimelineLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [contactOpen, order.id]);
+
+  async function logContact(channel: CommunicationEvent["channel"], action: CommunicationEvent["action"] = "contact") {
+    const target = channel === "smtp" ? order.email : channel === "maps" ? order.address : order.phone;
+    const response = await fetch("/api/owner/communication", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action,
+        channel,
+        orderId: order.id,
+        target,
+        customerName: order.customer,
+        customerPhone: order.phone,
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as { data?: CommunicationEvent };
+    if (payload.data) setTimeline((current) => [payload.data as CommunicationEvent, ...current.filter((item) => item.id !== payload.data?.id)]);
+  }
 
   return (
     <article className="grid gap-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_220px] md:items-center">
@@ -120,7 +166,10 @@ export function OrderCard({
           <Eye className="size-4" />
           View
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setContactOpen(true)}>
+        <Button size="sm" variant="outline" onClick={() => {
+          setTimelineLoading(true);
+          setContactOpen(true);
+        }}>
           <Phone className="size-4" />
           Contact
         </Button>
@@ -141,12 +190,12 @@ export function OrderCard({
               <Button type="button" size="icon-sm" variant="ghost" onClick={() => setContactOpen(false)}><X className="size-4" /></Button>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <ContactButton href={`tel:${order.phone}`} icon={Phone} label="Call" disabled={!order.phone} />
-              <ContactButton href={`https://wa.me/${order.phone.replace(/\D/g, "")}`} icon={MessageCircle} label="WhatsApp" disabled={!order.phone} />
-              <ContactButton href={`sms:${order.phone}`} icon={MessageCircle} label="SMS" disabled={!order.phone} />
-              <ContactButton href={`mailto:${order.email ?? ""}?subject=Order ${encodeURIComponent(order.displayId ?? order.id)}`} icon={Mail} label="Email" disabled={!order.email} />
-              <ContactButton href={order.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}` : ""} icon={MapPin} label="Maps" disabled={!order.address} />
-              <Button type="button" variant="outline" className="justify-start" onClick={() => setTimeline((current) => [`${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} Customer not reachable`, ...current])}>
+              <ContactButton href={`tel:${order.phone}`} icon={Phone} label="Call" disabled={!order.phone} onOpen={() => void logContact("call")} />
+              <ContactButton href={`https://wa.me/${order.phone.replace(/\D/g, "")}`} icon={MessageCircle} label="WhatsApp" disabled={!order.phone} onOpen={() => void logContact("whatsapp")} />
+              <ContactButton href={`sms:${order.phone}`} icon={MessageCircle} label="SMS" disabled={!order.phone} onOpen={() => void logContact("sms")} />
+              <ContactButton href={`mailto:${order.email ?? ""}?subject=Order ${encodeURIComponent(order.displayId ?? order.id)}`} icon={Mail} label="Email" disabled={!order.email} onOpen={() => void logContact("smtp")} />
+              <ContactButton href={order.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}` : ""} icon={MapPin} label="Maps" disabled={!order.address} onOpen={() => void logContact("maps")} />
+              <Button type="button" variant="outline" className="justify-start" onClick={() => void logContact("system", "not-reachable")}>
                 <X className="size-4" />
                 Not reachable
               </Button>
@@ -154,7 +203,7 @@ export function OrderCard({
             <div className="mt-4 rounded-lg border p-3">
               <p className="text-sm font-black">Communication timeline</p>
               <div className="mt-2 grid gap-2 text-sm font-semibold text-slate-600">
-                {timeline.length ? timeline.map((item) => <p key={item}>{item}</p>) : <p>No contact attempts recorded this session.</p>}
+                {timelineLoading ? <p>Loading contact attempts...</p> : timeline.length ? timeline.map((item) => <p key={item.id}>{formatEventTime(item.createdAt)} {item.message}</p>) : <p>No contact attempts recorded for this order.</p>}
               </div>
             </div>
           </div>
@@ -164,10 +213,15 @@ export function OrderCard({
   );
 }
 
-function ContactButton({ href, icon: Icon, label, disabled }: { href: string; icon: LucideIcon; label: string; disabled?: boolean }) {
+function ContactButton({ href, icon: Icon, label, disabled, onOpen }: { href: string; icon: LucideIcon; label: string; disabled?: boolean; onOpen?: () => void }) {
   return (
     <Button asChild={!disabled} type="button" variant="outline" className="justify-start" disabled={disabled}>
-      {disabled ? <span><Icon className="size-4" />{label}</span> : <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}><Icon className="size-4" />{label}</a>}
+      {disabled ? <span><Icon className="size-4" />{label}</span> : <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined} onClick={onOpen}><Icon className="size-4" />{label}</a>}
     </Button>
   );
+}
+
+function formatEventTime(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : value;
 }
