@@ -32,6 +32,7 @@ import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
+import { normalizePhone } from "@/services/restaurant-ops-service";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";
@@ -393,6 +394,11 @@ function EmptyOrders({ title = "No orders in this view" }: { title?: string }) {
 }
 
 function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrder[] {
+  const countByPhone = new Map<string, number>();
+  for (const order of orders) {
+    const phone = normalizePhone(order.customer.phone);
+    if (phone) countByPhone.set(phone, (countByPhone.get(phone) ?? 0) + 1);
+  }
   const customerOrders = orders.map((order, index) => ({
     id: order.id,
     displayId: readableOrderId({
@@ -408,6 +414,10 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrde
     source: sourceLabel(order.channel),
     customer: order.customer.name,
     phone: order.customer.phone,
+    email: (order.customer as { email?: string }).email,
+    address: order.customer.address,
+    previousOrderCount: countByPhone.get(normalizePhone(order.customer.phone)) ?? 0,
+    customerRating: (order.customer as { rating?: number }).rating,
     type: order.fulfillmentType ?? "delivery",
     tableNumber: (order as { tableNumber?: string }).tableNumber,
     status: order.status,
@@ -426,6 +436,8 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrde
     source: order.source === "Delivery" ? "POS Delivery" : order.source === "Parcel" ? "POS Parcel" : "POS",
     customer: order.customerName ?? order.guestName ?? order.tableNumber,
     phone: order.customerPhone ?? "",
+    address: order.deliveryAddress,
+    previousOrderCount: 0,
     type: order.orderType ?? "dine-in",
     tableNumber: order.orderType === "dine-in" ? order.tableNumber : undefined,
     status: order.status === "served" ? "ready" : order.status,

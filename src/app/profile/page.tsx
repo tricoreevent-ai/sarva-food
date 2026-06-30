@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import toast from "react-hot-toast";
 import { updateEmail, updatePassword, updateProfile, type User } from "firebase/auth";
 import {
   Bell,
@@ -191,13 +192,17 @@ export default function ProfilePage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ resource: "addresses", id, data: payload }),
       });
-      if (!response.ok) throw new Error("Address save failed.");
-      customer.retry();
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Address save failed.");
+      saveSelectedDeliveryLocation(payload);
+      await customer.retry();
       setAddressDraft(emptyAddressDraft);
       setEditingAddressId(null);
-      setAddressMessage(editingAddressId ? "Address updated." : "Address added.");
-    } catch {
-      setAddressMessage("Could not save address to Firebase. Please try again.");
+      const message = editingAddressId ? "Address updated." : "Address added.";
+      setAddressMessage(message);
+      toast.success(message);
+    } catch (error) {
+      setAddressMessage(error instanceof Error ? error.message : "Could not save address to Firebase. Please try again.");
     } finally {
       setSavingAddress(false);
     }
@@ -1266,6 +1271,25 @@ function buildFullAddress(draft: AddressDraft) {
     draft.address.trim(),
     draft.landmark.trim() ? `Near ${draft.landmark.trim()}` : "",
   ].filter(Boolean).join(", ");
+}
+
+function saveSelectedDeliveryLocation(address: {
+  label: string;
+  fullAddress?: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
+  placeId?: string;
+}) {
+  if (typeof window === "undefined" || typeof address.latitude !== "number" || typeof address.longitude !== "number") return;
+  window.localStorage.setItem("sarva-commerce-location", JSON.stringify({
+    label: address.label,
+    address: address.fullAddress || address.address,
+    latitude: address.latitude,
+    longitude: address.longitude,
+    placeId: address.placeId,
+    source: "manual",
+  }));
 }
 
 function createCustomerProfileFallback(user: User): CustomerProfileDoc {

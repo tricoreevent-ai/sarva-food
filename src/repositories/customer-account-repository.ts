@@ -59,6 +59,12 @@ export class CustomerAccountRepository {
     const existing = await ref.get();
     if (resource === "profile" && id !== customerId) throw new Error("Customer profile id is invalid.");
     if (resource !== "profile" && existing.exists && existing.data()?.customerId !== customerId) throw new Error("Customer record not found.");
+    if (resource === "addresses") {
+      const incomingCustomerId = String(data.customerId ?? customerId);
+      if (incomingCustomerId !== customerId) throw new Error("Address customer id is invalid.");
+      const duplicate = await this.findDuplicateAddress(customerId, id, data);
+      if (duplicate) throw new Error("This delivery address is already saved.");
+    }
     await ref.set(clean({
       ...data,
       id,
@@ -76,6 +82,22 @@ export class CustomerAccountRepository {
       }), { merge: true });
     }
     return dataWithId<Record<string, unknown>>(id, (await ref.get()).data() ?? {});
+  }
+
+  private async findDuplicateAddress(customerId: string, id: string, data: Record<string, unknown>) {
+    const label = normalized(data.label);
+    const fullAddress = normalized(data.fullAddress ?? data.address);
+    const placeId = normalized(data.placeId);
+    if (!fullAddress && !placeId) return false;
+    const snapshot = await this.db.collection(resources.addresses).where("customerId", "==", customerId).limit(100).get();
+    return snapshot.docs.some((doc) => {
+      if (doc.id === id) return false;
+      const current = doc.data();
+      return (
+        (placeId && normalized(current.placeId) === placeId) ||
+        (label && fullAddress && normalized(current.label) === label && normalized(current.fullAddress ?? current.address) === fullAddress)
+      );
+    });
   }
 
   async delete(customerId: string, resource: Exclude<CustomerResource, "profile">, id: string) {
@@ -113,4 +135,8 @@ export class CustomerAccountRepository {
 
 function clean(input: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+function normalized(value: unknown) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }

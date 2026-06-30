@@ -1,4 +1,5 @@
-import { CalendarClock, Check, Eye, Phone, X } from "lucide-react";
+import { CalendarClock, Check, Eye, Mail, MapPin, MessageCircle, Phone, Star, X, type LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/owner/status-badge";
 import { formatCurrency } from "@/lib/utils";
@@ -11,6 +12,10 @@ export type OpsOrder = {
   source: string;
   customer: string;
   phone: string;
+  email?: string;
+  address?: string;
+  previousOrderCount?: number;
+  customerRating?: number;
   type: string;
   tableNumber?: string;
   status: string;
@@ -35,6 +40,8 @@ export function OrderCard({
   onReady: () => void;
   onComplete: () => void;
 }) {
+  const [contactOpen, setContactOpen] = useState(false);
+  const [timeline, setTimeline] = useState<string[]>([]);
   const isNew = order.status === "new";
   const isPreparing = order.status === "accepted" || order.status === "preparing";
   const isReady = order.status === "ready";
@@ -57,6 +64,9 @@ export function OrderCard({
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
           <span className="font-black text-neutral-950">{order.customer}</span>
+          {(order.previousOrderCount ?? 0) >= 5 ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-black text-amber-700">VIP</span> : null}
+          {order.previousOrderCount ? <span className="text-xs font-bold text-slate-500">{order.previousOrderCount} previous orders</span> : null}
+          {order.customerRating ? <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600"><Star className="size-3 fill-current" />{order.customerRating}</span> : null}
           {order.phone ? (
             <span className="inline-flex items-center gap-1 text-slate-500">
               <Phone className="size-3.5" />
@@ -64,6 +74,7 @@ export function OrderCard({
             </span>
           ) : null}
         </div>
+        {order.address ? <p className="mt-2 text-xs font-semibold text-slate-500">{order.address}</p> : null}
         {order.scheduledLabel ? (
           <p className="mt-2 inline-flex items-center gap-1 rounded-xl bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
             <CalendarClock className="size-3.5" />
@@ -109,12 +120,54 @@ export function OrderCard({
           <Eye className="size-4" />
           View
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setContactOpen(true)}>
+          <Phone className="size-4" />
+          Contact
+        </Button>
         {!isDone && order.source.toLowerCase().includes("delivery") ? (
           <Button size="sm" variant="outline">
             Track
           </Button>
         ) : null}
       </div>
+      {contactOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-black text-neutral-950">Contact {order.customer}</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{order.displayId ?? order.id}</p>
+              </div>
+              <Button type="button" size="icon-sm" variant="ghost" onClick={() => setContactOpen(false)}><X className="size-4" /></Button>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <ContactButton href={`tel:${order.phone}`} icon={Phone} label="Call" disabled={!order.phone} />
+              <ContactButton href={`https://wa.me/${order.phone.replace(/\D/g, "")}`} icon={MessageCircle} label="WhatsApp" disabled={!order.phone} />
+              <ContactButton href={`sms:${order.phone}`} icon={MessageCircle} label="SMS" disabled={!order.phone} />
+              <ContactButton href={`mailto:${order.email ?? ""}?subject=Order ${encodeURIComponent(order.displayId ?? order.id)}`} icon={Mail} label="Email" disabled={!order.email} />
+              <ContactButton href={order.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}` : ""} icon={MapPin} label="Maps" disabled={!order.address} />
+              <Button type="button" variant="outline" className="justify-start" onClick={() => setTimeline((current) => [`${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} Customer not reachable`, ...current])}>
+                <X className="size-4" />
+                Not reachable
+              </Button>
+            </div>
+            <div className="mt-4 rounded-lg border p-3">
+              <p className="text-sm font-black">Communication timeline</p>
+              <div className="mt-2 grid gap-2 text-sm font-semibold text-slate-600">
+                {timeline.length ? timeline.map((item) => <p key={item}>{item}</p>) : <p>No contact attempts recorded this session.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </article>
+  );
+}
+
+function ContactButton({ href, icon: Icon, label, disabled }: { href: string; icon: LucideIcon; label: string; disabled?: boolean }) {
+  return (
+    <Button asChild={!disabled} type="button" variant="outline" className="justify-start" disabled={disabled}>
+      {disabled ? <span><Icon className="size-4" />{label}</span> : <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}><Icon className="size-4" />{label}</a>}
+    </Button>
   );
 }

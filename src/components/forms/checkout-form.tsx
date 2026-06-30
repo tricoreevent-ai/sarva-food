@@ -52,6 +52,7 @@ type CreateOrderRequest = {
   acceptedTermsVersion: string;
   acceptedTermsAt: string;
 };
+const checkoutPrefsKey = "nammude.checkout.preferences:v1";
 
 export function CheckoutForm({
   fastMode = false,
@@ -93,7 +94,19 @@ export function CheckoutForm({
   const fulfillmentType = useWatch({ control, name: "fulfillmentType" });
   const scheduleMode = useWatch({ control, name: "scheduleMode" });
   const scheduledFor = useWatch({ control, name: "scheduledFor" });
+  const payment = useWatch({ control, name: "payment" });
   const scheduledOrderValue = scheduledFor ? scheduledOrderFromIso(cartRestaurantSlug, scheduledFor) : null;
+
+  useEffect(() => {
+    const saved = readCheckoutPrefs();
+    if (saved.fulfillmentType) setValue("fulfillmentType", saved.fulfillmentType);
+    if (saved.scheduleMode) setValue("scheduleMode", saved.scheduleMode);
+    if (saved.payment) setValue("payment", saved.payment);
+  }, [setValue]);
+
+  useEffect(() => {
+    saveCheckoutPrefs({ fulfillmentType, scheduleMode, payment });
+  }, [fulfillmentType, payment, scheduleMode]);
 
   useEffect(() => {
     if (initialOfferCode) {
@@ -157,7 +170,7 @@ export function CheckoutForm({
           </div>
         ) : null}
         <form
-          className="grid gap-4"
+          className="grid gap-3 sm:gap-4"
           onSubmit={handleSubmit(async (values) => {
             if (!items.length) return;
             setSubmitting(true);
@@ -253,7 +266,7 @@ export function CheckoutForm({
           </div>
           <fieldset className="grid gap-2">
             <legend className="text-sm font-semibold">Fulfillment</legend>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid rounded-xl border bg-muted/40 p-1 sm:grid-cols-3">
               {[
                 { value: "delivery", label: "Delivery", icon: Bike },
                 { value: "parcel", label: "Parcel", icon: PackageCheck },
@@ -261,7 +274,7 @@ export function CheckoutForm({
               ].map((option) => {
                 const Icon = option.icon;
                 return (
-                  <label key={option.value} className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-sm font-bold shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10">
+                  <label key={option.value} className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold has-[:checked]:bg-white has-[:checked]:text-primary has-[:checked]:shadow-sm">
                     <input type="radio" value={option.value} className="sr-only" {...register("fulfillmentType")} />
                     <Icon className="size-4 text-primary" aria-hidden="true" />
                     {option.label}
@@ -283,7 +296,7 @@ export function CheckoutForm({
 
           <fieldset className="grid gap-2">
             <legend className="text-sm font-semibold">Order timing</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid rounded-xl border bg-muted/40 p-1 sm:grid-cols-2">
               {[
                 { value: "now", label: "Order now", icon: Zap },
                 { value: "scheduled", label: "Schedule", icon: CalendarClock },
@@ -292,7 +305,7 @@ export function CheckoutForm({
                 return (
                   <label
                     key={option.value}
-                    className="flex min-h-14 cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-sm font-bold shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10"
+                    className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold has-[:checked]:bg-white has-[:checked]:text-primary has-[:checked]:shadow-sm"
                     onClick={() => {
                       if (option.value === "scheduled") {
                         setScheduleDialogOpen(true);
@@ -336,7 +349,7 @@ export function CheckoutForm({
 
           <fieldset className="grid gap-2">
             <legend className="text-sm font-semibold">Payment</legend>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid rounded-xl border bg-muted/40 p-1 sm:grid-cols-3">
               {[
                 { value: "upi", label: "UPI", icon: CreditCard },
                 { value: "card", label: "Razorpay", icon: Smartphone },
@@ -346,7 +359,7 @@ export function CheckoutForm({
                 return (
                   <label
                     key={option.value}
-                    className="flex min-h-16 cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-sm font-bold shadow-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10"
+                    className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold has-[:checked]:bg-white has-[:checked]:text-primary has-[:checked]:shadow-sm"
                   >
                     <input
                       type="radio"
@@ -389,7 +402,7 @@ export function CheckoutForm({
               {submitError}
             </p>
           ) : null}
-          <div className="fixed inset-x-4 bottom-24 z-30 md:hidden">
+          <div className="fixed inset-x-4 bottom-4 z-30 pb-[env(safe-area-inset-bottom)] md:hidden">
             <Button type="submit" size="lg" disabled={submitting || !items.length} className="w-full shadow-xl">
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <Bike className="size-4" />}
               {submitting ? "Creating order" : "Pay and place order"}
@@ -455,6 +468,20 @@ function saveScheduledOrderDraft(value: ScheduledOrderSelection) {
 
 function clearScheduledOrderDraft() {
   window.localStorage.removeItem(SCHEDULE_STORAGE_KEY);
+}
+
+function readCheckoutPrefs() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(checkoutPrefsKey) ?? "{}") as Partial<Pick<CheckoutFormValues, "fulfillmentType" | "scheduleMode" | "payment">>;
+  } catch {
+    return {};
+  }
+}
+
+function saveCheckoutPrefs(value: Pick<CheckoutFormValues, "fulfillmentType" | "scheduleMode" | "payment">) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(checkoutPrefsKey, JSON.stringify(value));
 }
 
 function readSavedDeliveryLocation() {

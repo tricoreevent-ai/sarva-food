@@ -22,6 +22,7 @@ type ReviewRequestBody = {
   rating?: number;
   comment?: string;
   imageUrls?: string[];
+  anonymous?: boolean;
 };
 
 type ReviewPatchBody = {
@@ -122,6 +123,10 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const reviewId = safeDocId(`${session.uid}-${tenantId}-${menuItemId || "restaurant"}-${orderId}`);
+    const existing = await adminDb().collection("customerReviews").doc(reviewId).get();
+    if (existing.exists && Date.now() - dateMillis(existing.data()?.createdAt) > 24 * 60 * 60 * 1000) {
+      return NextResponse.json({ ok: false, error: "Reviews can be edited for 24 hours after posting." }, { status: 409 });
+    }
     const doc: ReviewDoc = {
       id: reviewId,
       tenantId,
@@ -131,10 +136,10 @@ export async function POST(request: NextRequest) {
       menuItemName: body.menuItemName?.trim() || purchasedItemName(order, menuItemId),
       orderId,
       customerId: session.uid,
-      customerName: order.customerName || "Verified customer",
+      customerName: body.anonymous ? "Anonymous verified customer" : order.customerName || "Verified customer",
       rating: Math.round(rating),
       comment,
-      imageUrls: Array.isArray(body.imageUrls) ? body.imageUrls.filter((url) => typeof url === "string").slice(0, 4) : [],
+      imageUrls: Array.isArray(body.imageUrls) ? body.imageUrls.filter((url) => typeof url === "string" && url.trim()).slice(0, 5) : [],
       verifiedOrder: true,
       status: "published",
       reportCount: 0,

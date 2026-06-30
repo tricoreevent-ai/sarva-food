@@ -14,25 +14,38 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await customerSession(request);
-  if (session instanceof NextResponse) return session;
-  const body = await request.json().catch(() => ({})) as { resource?: CustomerResource; id?: string; data?: Record<string, unknown> };
-  const id = body.resource === "profile" ? session.uid : body.id;
-  if (!body.resource || !resources.has(body.resource) || !id) return NextResponse.json({ error: "Valid customer resource and id are required." }, { status: 400 });
-  return NextResponse.json({ data: await new CustomerAccountRepository().set(session.uid, body.resource, id, body.data ?? {}) });
+  try {
+    const session = await customerSession(request);
+    if (session instanceof NextResponse) return session;
+    const body = await request.json().catch(() => ({})) as { resource?: CustomerResource; id?: string; data?: Record<string, unknown> };
+    const id = body.resource === "profile" ? session.uid : body.id;
+    if (!body.resource || !resources.has(body.resource) || !id) return NextResponse.json({ error: "Valid customer resource and id are required." }, { status: 400 });
+    return NextResponse.json({ data: await new CustomerAccountRepository().set(session.uid, body.resource, id, body.data ?? {}) });
+  } catch (error) {
+    return NextResponse.json({ error: friendlyError(error) }, { status: 400 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await customerSession(request);
-  if (session instanceof NextResponse) return session;
-  const resource = request.nextUrl.searchParams.get("resource") as CustomerResource | null;
-  const id = request.nextUrl.searchParams.get("id");
-  if (!resource || resource === "profile" || !resources.has(resource) || !id) return NextResponse.json({ error: "Valid customer resource and id are required." }, { status: 400 });
-  return NextResponse.json({ data: await new CustomerAccountRepository().delete(session.uid, resource, id) });
+  try {
+    const session = await customerSession(request);
+    if (session instanceof NextResponse) return session;
+    const resource = request.nextUrl.searchParams.get("resource") as CustomerResource | null;
+    const id = request.nextUrl.searchParams.get("id");
+    if (!resource || resource === "profile" || !resources.has(resource) || !id) return NextResponse.json({ error: "Valid customer resource and id are required." }, { status: 400 });
+    return NextResponse.json({ data: await new CustomerAccountRepository().delete(session.uid, resource, id) });
+  } catch (error) {
+    return NextResponse.json({ error: friendlyError(error) }, { status: 400 });
+  }
 }
 
 async function customerSession(request: NextRequest) {
   const session = await getSessionFromRequest(request, "customer");
   if (!session || session.role !== "customer") return NextResponse.json({ error: "Customer access is required." }, { status: 403 });
   return session;
+}
+
+function friendlyError(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  return "Customer account update failed. Please try again.";
 }

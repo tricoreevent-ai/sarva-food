@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, Mail, MessageCircle, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Smartphone, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -23,7 +23,7 @@ import { operationalSoundOptions, playOperationalSound, type OperationalSound } 
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
-type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "pricing" | "notifications" | "hours" | "taxes" | "social" | "loyalty" | "sync";
+type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "pricing" | "notifications" | "communication" | "hours" | "taxes" | "social" | "loyalty" | "sync";
 type SoundPrefs = Record<SoundTarget, {
   sound: OperationalSound;
   volume: number;
@@ -93,6 +93,7 @@ const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: "ordering", label: "Ordering" },
   { value: "pricing", label: "Pricing Rules" },
   { value: "notifications", label: "Notifications" },
+  { value: "communication", label: "Communication" },
   { value: "hours", label: "Operating Hours" },
   { value: "taxes", label: "Taxes & Charges" },
   { value: "social", label: "Social & Marketing" },
@@ -576,6 +577,10 @@ export function OwnerSettingsFlow() {
           </DashboardCard>
         </TabsContent>
 
+        <TabsContent value="communication">
+          <CommunicationSettingsPanel />
+        </TabsContent>
+
         <TabsContent value="appearance">
           <DashboardCard title="Appearance">
             <div className="grid gap-4">
@@ -952,6 +957,74 @@ function NumberRow({ label, value, onChange }: { label: string; value: number; o
       {label}
       <input className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" type="number" min={0} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} />
     </label>
+  );
+}
+
+function CommunicationSettingsPanel() {
+  const [settings, setSettings] = useState({
+    sms: false,
+    whatsapp: true,
+    smtp: true,
+    priority: "whatsapp",
+    routing: "owner-and-customer",
+    testTarget: "",
+  });
+  const [history, setHistory] = useState<string[]>([]);
+
+  function test(channel: "sms" | "whatsapp" | "smtp") {
+    const label = channel === "sms" ? "SMS" : channel === "smtp" ? "SMTP email" : "WhatsApp";
+    setHistory((current) => [`${new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} ${label} test queued for ${settings.testTarget || "default recipient"}`, ...current].slice(0, 8));
+    toast.success(`${label} test queued.`);
+  }
+
+  return (
+    <DashboardCard title="Communication Settings" action={<Button onClick={() => toast.success("Communication settings saved.")}><Save className="size-4" />Save routing</Button>}>
+      <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <CommunicationTile icon={Smartphone} title="SMS" enabled={settings.sms} onToggle={(sms) => setSettings((current) => ({ ...current, sms }))} onTest={() => test("sms")} />
+          <CommunicationTile icon={MessageCircle} title="WhatsApp" enabled={settings.whatsapp} onToggle={(whatsapp) => setSettings((current) => ({ ...current, whatsapp }))} onTest={() => test("whatsapp")} />
+          <CommunicationTile icon={Mail} title="SMTP Email" enabled={settings.smtp} onToggle={(smtp) => setSettings((current) => ({ ...current, smtp }))} onTest={() => test("smtp")} />
+          <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
+            Priority channel
+            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.priority} onChange={(event) => setSettings((current) => ({ ...current, priority: event.target.value }))}>
+              <option value="whatsapp">WhatsApp first</option>
+              <option value="sms">SMS first</option>
+              <option value="smtp">Email first</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
+            Notification routing
+            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={settings.routing} onChange={(event) => setSettings((current) => ({ ...current, routing: event.target.value }))}>
+              <option value="owner-and-customer">Owner and customer</option>
+              <option value="owner-only">Owner only</option>
+              <option value="customer-only">Customer only</option>
+            </select>
+          </label>
+          <ProfileField label="Test phone/email" value={settings.testTarget} onChange={(testTarget) => setSettings((current) => ({ ...current, testTarget }))} placeholder="number or email" />
+        </div>
+        <div className="rounded-2xl border border-input bg-card p-4">
+          <h3 className="font-black">Communication history</h3>
+          <div className="mt-3 grid gap-2 text-sm font-semibold text-muted-foreground">
+            {history.length ? history.map((item) => <p key={item}>{item}</p>) : <p>No test messages sent this session.</p>}
+          </div>
+        </div>
+      </div>
+    </DashboardCard>
+  );
+}
+
+function CommunicationTile({ icon: Icon, title, enabled, onToggle, onTest }: { icon: LucideIcon; title: string; enabled: boolean; onToggle: (value: boolean) => void; onTest: () => void }) {
+  return (
+    <div className="rounded-2xl border border-input bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="grid size-10 place-items-center rounded-xl bg-orange-50 text-orange-600"><Icon className="size-5" /></span>
+        <ToggleRow label={title} checked={enabled} onChange={onToggle} />
+      </div>
+      <Button type="button" className="mt-4 w-full" variant="outline" onClick={onTest} disabled={!enabled}>
+        <Play className="size-4" />
+        Test {title}
+      </Button>
+    </div>
   );
 }
 

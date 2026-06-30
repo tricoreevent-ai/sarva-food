@@ -1,6 +1,6 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-26
+Last updated: 2026-06-30
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
@@ -14,6 +14,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Production blocker and customer-owner improvement batch completed on 2026-06-30: fixed POS/printer/schedule client hydration surfaces, disabled dead default `/about` and `/careers` footer links, throttled repeated Firestore permission-denied listener retries, added complete order consistency fields and safe `firebase:backfill-order-consistency`, applied production merge-only backfill for 58 existing order documents with a final 0/58 dry-run result, repaired customer address save errors/refresh/selection, redesigned Recent Orders with reorder/review/help/invoice actions, added review constraints for one completed-order review with 24-hour edits, compacted mobile checkout controls, added owner order contact workflow, and added Owner Communication Settings.
 - [x] Sprint 2 duplicate-work check and local compiler stabilization completed on 2026-06-25: skipped closed owner repository migration work, continued the interrupted Admin/customer/staff/printer/audit/view-switching changes, and verified `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Final enterprise production release validated on Hostinger on 2026-06-26 at `https://violet-squid-380447.hostingersite.com` with release SHA `35017398773ba04efbdc3ab37d250cfa547c0675`.
 - [x] Production deployment, branch alignment, release-info verification, Firestore validation, API validation, browser validation, build validation, permission validation, printer validation, audit validation, and view-switching validation completed.
