@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Grid2X2, Loader2, MapPin, Printer, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Eye, FileDown, Grid2X2, Loader2, MapPin, MessageCircle, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
@@ -16,9 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicCategories } from "@/hooks/use-public-data";
 import { useAppStore } from "@/lib/app-store";
-import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate } from "@/lib/print-engine";
+import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate, renderReceiptLines, type BillContext } from "@/lib/print-engine";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
-import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PosBill, PosTable, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
+import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PaperWidth, PosBill, PosTable, PrintLog, PrintTemplate, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { normalizePhone } from "@/services/restaurant-ops-service";
@@ -32,6 +32,9 @@ type HeldPosOrder = {
   createdAt: string;
   bill: PosBill;
 };
+
+type BillCopy = "Customer Copy" | "Cashier Copy" | "Kitchen Copy" | "Duplicate Copy";
+const billCopyOptions: BillCopy[] = ["Customer Copy", "Cashier Copy", "Kitchen Copy", "Duplicate Copy"];
 
 type PosReadModel = {
   menuItems: MenuItem[];
@@ -61,6 +64,9 @@ export function PosBillingFlow() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [compactGrid, setCompactGrid] = useState(false);
   const [showKot, setShowKot] = useState(false);
+  const [printCopies, setPrintCopies] = useState<BillCopy[]>(["Customer Copy"]);
+  const [billPreviewOpen, setBillPreviewOpen] = useState(false);
+  const [previewPaper, setPreviewPaper] = useState<PaperWidth>("80mm");
   const [ticketCreatedAt, setTicketCreatedAt] = useState<Date | null>(null);
   const [heldOrders, setHeldOrders] = useState<HeldPosOrder[]>([]);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
@@ -254,6 +260,10 @@ export function PosBillingFlow() {
     createdAt: ticketCreatedAt ?? new Date(),
   });
   const kotContext = buildKotContext(billContext);
+  const billTemplate = printerSettings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate;
+  const kotTemplate = printerSettings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate;
+  const selectedBillTemplate = { ...billTemplate, paperWidth: previewPaper };
+  const billingPrinter = printerSettings.profiles?.find((profile) => profile.type === "billing") ?? printerSettings.profiles?.[0];
   const totals = calculateBillTotals(billContext);
   const activeKitchenOrder = bill.linkedKitchenOrderId ? tableOrders.find((order) => order.id === bill.linkedKitchenOrderId) : undefined;
   const activeKotCount = tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length;
@@ -502,14 +512,56 @@ export function PosBillingFlow() {
     toast.success(`Resumed order for ${order.label}.`);
   }
 
-  function printTicket(target: "bill" | "kot") {
+  async function logPrint(target: "bill" | "kot", duplicate = false) {
+    const referenceId = target === "bill" ? bill.invoiceNumber || billContext.invoiceNumber : bill.linkedKitchenOrderId || kotContext.kotNumber;
+    const status: PrintLog["status"] = duplicate ? "reprint" : billingPrinter?.status === "offline" ? "queued" : "printed";
+    await fetch("/api/owner/printers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ log: { type: target, status, user: authUser.name, branchId: branch.id, printerProfileId: billingPrinter?.id ?? "browser-billing", referenceId } }),
+    }).catch((error) => console.error("[pos] print log failed", { target, referenceId, error }));
+  }
+
+  function printTicket(target: "bill" | "kot", copies: BillCopy[] = target === "bill" ? ["Customer Copy"] : ["Kitchen Copy"], duplicate = false) {
+    if (!bill.lines.length) {
+      toast.error("Add at least one item before printing.");
+      return;
+    }
     setTicketCreatedAt(new Date());
     setShowKot(target === "kot");
+    setPrintCopies(copies);
+    void logPrint(target, duplicate);
     window.document.body.classList.add("print-ticket-mode");
     window.setTimeout(() => {
       window.print();
       window.document.body.classList.remove("print-ticket-mode");
     }, 80);
+  }
+
+  function downloadBillDocument(copies: BillCopy[]) {
+    if (!bill.lines.length) return toast.error("Add at least one item before downloading the bill.");
+    const content = copies.map((copy) => renderReceiptLines(withBillCopy(billContext, copy), selectedBillTemplate).join("\n")).join("\n\n\n");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${billContext.invoiceNumber}</title><style>body{font-family:monospace;white-space:pre;padding:24px;color:#111}@media print{@page{margin:4mm}body{padding:0}}</style></head><body>${escapeHtml(content)}</body></html>`;
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${billContext.invoiceNumber}-bill.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("PDF-ready bill downloaded. Open it and print as PDF when needed.");
+  }
+
+  function shareBillWhatsApp() {
+    const phone = normalizePhone(bill.customerPhone ?? "");
+    if (!phone) return toast.error("Add a customer mobile number before sending the bill.");
+    const text = [
+      `Bill ${billContext.invoiceNumber}`,
+      `${billContext.restaurantName}`,
+      `Total: ${formatCurrency(totals.total)}`,
+      bill.billDeliveryLink ? `Link: ${bill.billDeliveryLink}` : "",
+    ].filter(Boolean).join("\n");
+    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    toast.success("WhatsApp bill message opened.");
   }
 
   function renderWizardMain() {
@@ -618,7 +670,7 @@ export function PosBillingFlow() {
           ) : null}
 
           {wizardStep === 4 ? <ProcessingOrderStep state={processingState} /> : null}
-          {wizardStep === 5 ? <OrderSuccessStep order={completedOrder} onNewOrder={startNewOrder} onViewActive={() => setPanel("active")} onPrint={() => printTicket("bill")} /> : null}
+          {wizardStep === 5 ? <OrderSuccessStep order={completedOrder} onNewOrder={startNewOrder} onViewActive={() => setPanel("active")} onPrint={() => setBillPreviewOpen(true)} /> : null}
         </motion.div>
       </AnimatePresence>
     );
@@ -678,7 +730,7 @@ export function PosBillingFlow() {
             onSave={saveOrder}
             onNewOrder={startNewOrder}
             onViewActiveOrders={() => setPanel("active")}
-            onPrintBill={() => printTicket("bill")}
+            onPrintBill={() => setBillPreviewOpen(true)}
             onPayment={setPosPayment}
             onDiscount={(amount) => {
               setPosBill({ ...bill, discount: amount, paid: false });
@@ -708,19 +760,33 @@ export function PosBillingFlow() {
               <ChefHat className="size-4" />
               View Kitchen Operations
             </Button>
-            <Button variant="outline" onClick={() => printTicket("bill")} disabled={!bill.lines.length}>
-              <Printer className="size-4" />
-              Print
+            <Button variant="outline" onClick={() => setBillPreviewOpen(true)} disabled={!bill.lines.length}>
+              <Eye className="size-4" />
+              Preview Bill
             </Button>
           </div>
         </footer>
         <div className="hidden print-ticket-active">
           {showKot ? (
-            <KotTicket context={kotContext} template={printerSettings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate} />
+            <KotTicket context={kotContext} template={kotTemplate} />
           ) : (
-            <RestaurantBill context={billContext} template={printerSettings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate} />
+            <div className="space-y-6">
+              {printCopies.map((copy) => <RestaurantBill key={copy} context={withBillCopy(billContext, copy)} template={selectedBillTemplate} />)}
+            </div>
           )}
         </div>
+        {billPreviewOpen ? (
+          <BillPreviewDialog
+            context={billContext}
+            template={billTemplate}
+            paper={previewPaper}
+            onPaper={setPreviewPaper}
+            onClose={() => setBillPreviewOpen(false)}
+            onPrint={(copies, duplicate) => printTicket("bill", copies, duplicate)}
+            onDownload={downloadBillDocument}
+            onWhatsApp={shareBillWhatsApp}
+          />
+        ) : null}
         {activeKitchenOrder ? <span className="sr-only">Active kitchen ticket {activeKitchenOrder.id}</span> : null}
       </div>
     </div>
@@ -1092,10 +1158,102 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+function BillPreviewDialog({
+  context,
+  template,
+  paper,
+  onPaper,
+  onClose,
+  onPrint,
+  onDownload,
+  onWhatsApp,
+}: {
+  context: BillContext;
+  template: PrintTemplate;
+  paper: PaperWidth;
+  onPaper: (paper: PaperWidth) => void;
+  onClose: () => void;
+  onPrint: (copies: BillCopy[], duplicate: boolean) => void;
+  onDownload: (copies: BillCopy[]) => void;
+  onWhatsApp: () => void;
+}) {
+  const [copies, setCopies] = useState<BillCopy[]>(["Customer Copy"]);
+  const previewTemplate = { ...template, paperWidth: paper };
+  const selectedCopies = copies.length ? copies : (["Customer Copy"] as BillCopy[]);
+  const duplicate = selectedCopies.includes("Duplicate Copy");
+
+  function toggle(copy: BillCopy) {
+    setCopies((current) => current.includes(copy) ? current.filter((item) => item !== copy) : [...current, copy]);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
+      <section className="grid max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl lg:grid-cols-[360px_1fr]">
+        <aside className="space-y-4 border-b border-slate-200 p-5 lg:border-b-0 lg:border-r">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">Bill preview</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-500">Choose copies, paper size, then print or download.</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}><X className="size-4" /></Button>
+          </div>
+          <div className="grid gap-2">
+            <p className="text-xs font-black uppercase text-slate-500">Paper</p>
+            <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold" value={paper} onChange={(event) => onPaper(event.target.value as PaperWidth)}>
+              {(["58mm", "80mm", "100mm", "A4"] as PaperWidth[]).map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </div>
+          <div className="grid gap-2">
+            <p className="text-xs font-black uppercase text-slate-500">Copies</p>
+            {billCopyOptions.map((copy) => (
+              <label key={copy} className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 px-3 text-sm font-bold">
+                <input type="checkbox" checked={copies.includes(copy)} onChange={() => toggle(copy)} />
+                {copy}
+              </label>
+            ))}
+          </div>
+          <div className="grid gap-2">
+            <Button className="h-11 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onPrint(selectedCopies, duplicate)}>
+              <Printer className="size-4" />
+              {duplicate ? "Reprint Bill" : "Print Bill"}
+            </Button>
+            <Button variant="outline" className="h-11" onClick={() => onDownload(selectedCopies)}>
+              <FileDown className="size-4" />
+              Download PDF-ready Bill
+            </Button>
+            <Button variant="outline" className="h-11" onClick={onWhatsApp}>
+              <MessageCircle className="size-4" />
+              WhatsApp Bill
+            </Button>
+          </div>
+        </aside>
+        <div className="max-h-[92vh] overflow-auto bg-slate-100 p-5">
+          <div className="space-y-5">
+            {selectedCopies.map((copy) => (
+              <div key={copy}>
+                <div className="mb-2 flex items-center gap-2 text-sm font-black text-slate-700"><ReceiptText className="size-4" />{copy}</div>
+                <RestaurantBill context={withBillCopy(context, copy)} template={previewTemplate} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function readablePosOrderType(type: PosBill["orderType"]) {
   if (type === "dine-in") return "Dine-in";
   if (type === "takeaway") return "Quick Bill";
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function withBillCopy(context: BillContext, copy: BillCopy): BillContext {
+  return { ...context, copyLabel: copy, duplicate: copy === "Duplicate Copy" };
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
 function wait(ms: number) {

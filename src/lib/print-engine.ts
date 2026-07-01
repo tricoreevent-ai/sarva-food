@@ -20,6 +20,8 @@ export type BillContext = {
   tenderedAmount: number;
   taxSettings: TaxSettings;
   createdAt: Date;
+  copyLabel?: "Customer Copy" | "Cashier Copy" | "Kitchen Copy" | "Duplicate Copy";
+  duplicate?: boolean;
 };
 
 export type KotContext = {
@@ -92,6 +94,8 @@ export function buildBillContext(input: {
     tenderedAmount,
     taxSettings: input.taxSettings,
     createdAt: input.createdAt ?? new Date(0),
+    copyLabel: input.bill.duplicatePrint ? "Duplicate Copy" : undefined,
+    duplicate: input.bill.duplicatePrint,
   };
 }
 
@@ -131,6 +135,8 @@ export function renderReceiptLines(context: BillContext, template: PrintTemplate
   lines.push(separator(width, "="));
   lines.push(center(template.mode === "compact" ? "CASH RECEIPT" : "RETAIL INVOICE", width));
   lines.push(separator(width, "-"));
+  if (context.copyLabel) lines.push(center(context.copyLabel.toUpperCase(), width));
+  if (context.duplicate) lines.push(center("DUPLICATE BILL", width));
   lines.push(pair("Bill No", context.invoiceNumber, width));
   lines.push(pair("Order No", context.orderNumber, width));
   lines.push(pair("Date", date, width));
