@@ -35,6 +35,7 @@ import type {
   ModifierGroupDoc,
   OfferDoc,
   OrderDoc,
+  PhoneVerificationSessionDoc,
   PrinterProfileDoc,
   PrintLogDoc,
   ReceiptDoc,
@@ -58,6 +59,7 @@ export const COLLECTIONS = {
   tenantUsers: "tenantUsers",
   branchUsers: "branchUsers",
   userSessions: "userSessions",
+  phoneVerificationSessions: "phoneVerificationSessions",
   auditLogs: "auditLogs",
   restaurants: "restaurants",
   appCategories: "appCategories",
@@ -163,6 +165,8 @@ export function typedDoc<T extends { id: string }>(db: Firestore, path: string, 
 
 export const refs = {
   users: (db: Firestore) => typedCollection<UserDoc>(db, COLLECTIONS.users),
+  phoneVerificationSessions: (db: Firestore) =>
+    typedCollection<PhoneVerificationSessionDoc>(db, COLLECTIONS.phoneVerificationSessions),
   tenants: (db: Firestore) => typedCollection<TenantDoc>(db, COLLECTIONS.tenants),
   restaurants: (db: Firestore) =>
     typedCollection<RestaurantDoc>(db, COLLECTIONS.restaurants),

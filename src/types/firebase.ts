@@ -441,6 +441,19 @@ export type CustomerProfileDoc = BaseDoc & {
   active: boolean;
 };
 
+export type PhoneVerificationSessionDoc = BaseDoc & {
+  uid: string;
+  phone: string;
+  normalizedPhone: string;
+  context: "customer-login" | "customer-registration" | "qr-ordering" | "customer-profile" | "waiter-login" | "delivery-login";
+  deviceId?: string;
+  verificationTokenHash: string;
+  expiresAt: FirestoreDate;
+  verifiedAt: FirestoreDate;
+  usedAt?: FirestoreDate | null;
+  active: boolean;
+};
+
 export type CustomerAddressDoc = BaseDoc & {
   customerId: string;
   tenantId?: string;

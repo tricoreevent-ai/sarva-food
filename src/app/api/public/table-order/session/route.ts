@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { normalizeIndiaPhone } from "@/lib/phone-verification";
+import { PhoneVerificationError, PhoneVerificationRepository } from "@/repositories/phone-verification-repository";
 import { TableRepository } from "@/repositories/table-repository";
 
 export const dynamic = "force-dynamic";
@@ -50,11 +52,13 @@ export async function POST(request: NextRequest) {
     deviceId?: string;
     lat?: number;
     lng?: number;
-    otpCode?: string;
+    phoneVerificationToken?: string;
   };
   if (!body.token || !body.customerName?.trim() || !body.customerPhone?.trim()) {
     return NextResponse.json({ error: "Name and mobile number are required." }, { status: 400 });
   }
+  const customerPhone = normalizeIndiaPhone(body.customerPhone);
+  if (!customerPhone) return NextResponse.json({ error: "Enter a valid mobile number." }, { status: 400 });
   const table = await new TableRepository().resolveQr(body.token);
   if (!table) return NextResponse.json({ error: "This QR code is invalid, disabled, or expired." }, { status: 404 });
   const [restaurant, settingsDoc] = await Promise.all([
@@ -78,15 +82,28 @@ export async function POST(request: NextRequest) {
   if (restaurantData.active === false) return NextResponse.json({ error: "Restaurant is not accepting QR orders right now." }, { status: 409 });
   const gpsOk = !settings.geofence || settings.gpsRadiusMeters <= 0 || hasValidGps(body, restaurantData, settings.gpsRadiusMeters);
   if (!gpsOk) return NextResponse.json({ error: "You need to be near the restaurant table to start QR ordering." }, { status: 403 });
-  if (settings.otpRequired && !body.otpCode?.trim()) return NextResponse.json({ step: "otp", error: "OTP verification is required." }, { status: 428 });
+  if (settings.otpRequired) {
+    try {
+      await new PhoneVerificationRepository().verify({
+        token: body.phoneVerificationToken ?? "",
+        phone: customerPhone,
+        context: "qr-ordering",
+        deviceId,
+        consume: true,
+      });
+    } catch (error) {
+      const status = error instanceof PhoneVerificationError ? error.status : 428;
+      return NextResponse.json({ step: "otp", error: "Mobile verification is required." }, { status });
+    }
+  }
   const session = await new TableRepository().createSession(body.token, {
     customerName: body.customerName.trim(),
-    customerPhone: body.customerPhone.trim(),
+    customerPhone,
     customerEmail: body.customerEmail?.trim(),
     guestCount: Math.max(1, Math.min(20, Number(body.guestCount ?? 1) || 1)),
     deviceId,
     verifiedLocation: gpsOk,
-    verifiedPhone: !settings.otpRequired || Boolean(body.otpCode?.trim()),
+    verifiedPhone: !settings.otpRequired || Boolean(body.phoneVerificationToken),
     sessionMinutes: settings.sessionTimeoutMinutes,
     idleMinutes: settings.idleTimeoutMinutes,
   });

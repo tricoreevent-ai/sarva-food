@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import { Bell, CheckCircle2, Loader2, Minus, Plus, ReceiptText, Search, ShoppingBag, Star, UserRound } from "lucide-react";
+import { OtpDialog, VerificationBadge } from "@/components/auth/otp-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { normalizeIndiaPhone } from "@/lib/phone-verification";
 import type { MenuItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { menuDocToUi } from "@/services/public-data-service";
@@ -36,7 +38,9 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const [cart, setCart] = useState<CartLine[]>(() => readSavedCart(storageKey));
   const [sessionId, setSessionId] = useState("");
   const [sessionExpiresAt, setSessionExpiresAt] = useState("");
-  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", otpCode: "", guestCount: "1" });
+  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", guestCount: "1" });
+  const [phoneVerificationToken, setPhoneVerificationToken] = useState("");
+  const [otpOpen, setOtpOpen] = useState(false);
   const [mode, setMode] = useState<"dine-in" | "parcel">("dine-in");
   const [query, setQuery] = useState("");
   const [vegOnly, setVegOnly] = useState(false);
@@ -46,6 +50,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [qrDeviceId] = useState(() => typeof window === "undefined" ? "" : deviceId());
   const subtotal = cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const visibleMenu = useMemo(() => menu.filter((item) => (
     (!query || item.name.toLowerCase().includes(query.toLowerCase()) || item.category.toLowerCase().includes(query.toLowerCase())) &&
@@ -117,8 +122,12 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
       toast.error("Name and mobile number are required.");
       return;
     }
+    if (data?.settings.otpRequired && !phoneVerificationToken) {
+      setOtpOpen(true);
+      return;
+    }
     const geo = await currentLocation().catch(() => null);
-    const id = deviceId();
+    const id = qrDeviceId || deviceId();
     const response = await fetch("/api/public/table-order/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -127,7 +136,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         customerName: customer.name,
         customerPhone: customer.phone,
         customerEmail: customer.email,
-        otpCode: customer.otpCode,
+        phoneVerificationToken,
         guestCount: Number(customer.guestCount || 1),
         deviceId: id,
         lat: geo?.lat,
@@ -142,6 +151,11 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     setSessionId(payload.data?.sessionId ?? "");
     setSessionExpiresAt(payload.data?.expiresAt ?? "");
     toast.success("Table session started.");
+  }
+
+  function updatePhone(phone: string) {
+    if (normalizeIndiaPhone(phone) !== normalizeIndiaPhone(customer.phone)) setPhoneVerificationToken("");
+    setCustomer({ ...customer, phone });
   }
 
   function add(item: MenuItem) {
@@ -166,7 +180,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         body: JSON.stringify({
           token,
           sessionId,
-          deviceId: deviceId(),
+          deviceId: qrDeviceId || deviceId(),
           customerName: customer.name,
           customerPhone: customer.phone,
           fulfillmentType: mode,
@@ -194,7 +208,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     const response = await fetch("/api/public/table-order/request", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, sessionId, deviceId: deviceId(), type, message: type.replace("-", " ") }),
+      body: JSON.stringify({ token, sessionId, deviceId: qrDeviceId || deviceId(), type, message: type.replace("-", " ") }),
     });
     if (response.ok) {
       if (type === "bill") setBillRequested(true);
@@ -251,10 +265,15 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
             <h2 className="flex items-center gap-2 text-lg font-black"><UserRound className="size-5" />Start table session</h2>
             <div className="mt-3 grid gap-3">
               <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} placeholder="Customer name" />
-              <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.phone} onChange={(event) => setCustomer({ ...customer, phone: event.target.value })} placeholder="Mobile number" />
+              <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.phone} onChange={(event) => updatePhone(event.target.value)} placeholder="Mobile number" />
               <input className="h-12 rounded-xl border px-3 font-semibold" type="number" min="1" max="20" value={customer.guestCount} onChange={(event) => setCustomer({ ...customer, guestCount: event.target.value })} placeholder="Guests" />
               <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.email} onChange={(event) => setCustomer({ ...customer, email: event.target.value })} placeholder="Email optional" />
-              {data.settings.otpRequired ? <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.otpCode} onChange={(event) => setCustomer({ ...customer, otpCode: event.target.value })} placeholder="OTP" /> : null}
+              {data.settings.otpRequired ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2">
+                  <VerificationBadge verified={Boolean(phoneVerificationToken)} />
+                  <Button type="button" variant="outline" onClick={() => setOtpOpen(true)}>{phoneVerificationToken ? "Verify again" : "Verify mobile"}</Button>
+                </div>
+              ) : null}
               <Button className="h-12 bg-orange-600 hover:bg-orange-700" onClick={() => void startSession()}>Continue</Button>
             </div>
           </section>
@@ -312,6 +331,14 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
           </Button>
         </div>
       </footer>
+      <OtpDialog
+        open={otpOpen}
+        phone={customer.phone}
+        context="qr-ordering"
+        deviceId={qrDeviceId}
+        onOpenChange={setOtpOpen}
+        onVerified={setPhoneVerificationToken}
+      />
     </QrShell>
   );
 }
