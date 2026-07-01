@@ -2,6 +2,7 @@
 
 ## 2026-07-01
 
+- Completed QR session lifecycle actions with refresh, resume, extend, end, update customer details, update guest count, device replacement, reload recovery, expiry recovery, persisted session metadata, and timeline audit events on the existing table session record.
 - Added a reusable Firebase phone verification baseline with invisible reCAPTCHA, resend cooldown state, server-side hashed verification tokens, Firestore verification session persistence, verified phone flags, reusable OTP dialog/badge components, and QR table session enforcement for OTP-required starts.
 - Fixed owner menu image parity by normalizing owner menu API reads/writes through `imagePath`/`imagePaths`, preserving primary image plus ordered gallery data, and adding Set Primary/Delete Primary/Reorder Images controls in the existing menu wizard.
 - Fixed QR table ordering session start by sending the customer fields expected by the public session API, mapping QR menu data through the same customer menu mapper, and applying dine-in/parcel pricing before cart/order submission.

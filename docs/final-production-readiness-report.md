@@ -1,5 +1,18 @@
 # Final Production Readiness Report
 
+## 2026-07-01 QR Session Lifecycle Completion
+
+| Check | Result |
+| --- | --- |
+| targeted `npm run lint -- src/repositories/table-repository.ts src/app/api/public/table-order/session/route.ts src/components/flows/table-qr-ordering-flow.tsx` | Passed |
+| `npm run typecheck` | Passed |
+| `git diff --check` | Passed |
+
+- QR table sessions now support refresh, resume, extend, end, customer detail updates, guest-count updates, and device replacement through the existing public session API.
+- Customer QR flow persists session metadata, resumes after reload, recovers eligible device changes, and clears expired sessions.
+- Expiry and idle-time recovery now write `session_expired` audit events into the existing table timeline instead of silently flipping status.
+- Session lifecycle uses the existing `restaurantTables` document and `sessionEvents` history, avoiding duplicate session records.
+
 ## 2026-07-01 Owner Menu Image and QR Session Stabilization
 
 | Check | Result |

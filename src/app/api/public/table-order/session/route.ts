@@ -9,7 +9,12 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token") ?? "";
-  const table = await new TableRepository().resolveQr(token);
+  const sessionId = request.nextUrl.searchParams.get("sessionId") ?? "";
+  const deviceId = request.nextUrl.searchParams.get("deviceId") ?? "";
+  const repository = new TableRepository();
+  const state = sessionId ? await repository.publicSessionState(token, sessionId, deviceId).catch((error) => error) : null;
+  if (state instanceof Error) return NextResponse.json({ error: state.message }, { status: 404 });
+  const table = state?.table ?? await repository.resolveQr(token);
   if (!table) return NextResponse.json({ error: "This QR code is invalid, disabled, or expired." }, { status: 404 });
   const [restaurant, settings] = await Promise.all([
     adminDb().collection("restaurants").doc(table.restaurantId).get(),
@@ -38,6 +43,15 @@ export async function GET(request: NextRequest) {
         sessionExpiresAt: table.sessionExpiresAt,
       },
       settings: normalizeQrSettings(settings.data()),
+      session: state ? {
+        sessionId: state.sessionId ?? "",
+        status: state.reason ?? table.sessionStatus ?? "none",
+        expiresAt: state.expiresAt ?? table.sessionExpiresAt,
+        lastActivity: state.lastActivity ?? table.lastActivity,
+        recoverable: state.recoverable,
+        events: state.events ?? [],
+        requests: state.requests ?? [],
+      } : null,
     },
   });
 }
@@ -108,6 +122,44 @@ export async function POST(request: NextRequest) {
     idleMinutes: settings.idleTimeoutMinutes,
   });
   return NextResponse.json({ data: session });
+}
+
+export async function PATCH(request: NextRequest) {
+  const body = await request.json().catch(() => ({})) as {
+    action?: "refresh" | "resume" | "extend" | "end" | "update-customer" | "replace-device";
+    token?: string;
+    sessionId?: string;
+    deviceId?: string;
+    newDeviceId?: string;
+    customerName?: string;
+    customerEmail?: string;
+    guestCount?: number;
+    minutes?: number;
+  };
+  if (!body.token || !body.sessionId || !body.action) {
+    return NextResponse.json({ error: "Valid session action is required." }, { status: 400 });
+  }
+  const deviceId = body.deviceId || request.headers.get("user-agent") || "browser";
+  const repository = new TableRepository();
+  const result = await (body.action === "refresh"
+    ? repository.refreshSession(body.token, body.sessionId, deviceId)
+    : body.action === "resume"
+      ? repository.resumeSession(body.token, body.sessionId, deviceId)
+      : body.action === "extend"
+        ? repository.extendPublicSession(body.token, body.sessionId, deviceId, Number(body.minutes ?? 15))
+        : body.action === "end"
+          ? repository.endPublicSession(body.token, body.sessionId, deviceId)
+          : body.action === "replace-device"
+            ? repository.updateSession(body.token, body.sessionId, deviceId, { deviceId: body.newDeviceId || deviceId })
+            : repository.updateSession(body.token, body.sessionId, deviceId, {
+                customerName: body.customerName,
+                customerEmail: body.customerEmail,
+                guestCount: Number(body.guestCount),
+              })).catch((error) => error);
+  if (result instanceof Error) {
+    return NextResponse.json({ error: result.message }, { status: 409 });
+  }
+  return NextResponse.json({ data: result });
 }
 
 function normalizeQrSettings(data?: FirebaseFirestore.DocumentData) {

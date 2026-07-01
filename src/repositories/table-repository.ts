@@ -53,6 +53,13 @@ type ServiceRequestInput = {
   message?: string;
 };
 
+type SessionUpdateInput = {
+  customerName?: string;
+  customerEmail?: string;
+  guestCount?: number;
+  deviceId?: string;
+};
+
 export class TableRepository {
   private readonly db = adminDb();
 
@@ -204,11 +211,11 @@ export class TableRepository {
     if (table.deviceId && table.deviceId !== deviceId) throw new Error("This dining session belongs to another device. Please scan the table QR again.");
     const now = new Date();
     if (dateMs(table.sessionExpiresAt) <= now.getTime()) {
-      await this.db.collection("restaurantTables").doc(table.id).set({ sessionStatus: "expired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await this.markSessionExpired(table, "Dining session has expired.", deviceId);
       throw new Error("Dining session has expired.");
     }
     if (dateMs(table.lastActivity) + Number(table.sessionIdleTimeoutMinutes ?? 10) * 60_000 <= now.getTime()) {
-      await this.db.collection("restaurantTables").doc(table.id).set({ sessionStatus: "expired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await this.markSessionExpired(table, "Dining session was idle for too long.", deviceId);
       throw new Error("Dining session was idle for too long. Please scan the table QR again.");
     }
     const orderPatch = event?.orderId ? {
@@ -224,6 +231,96 @@ export class TableRepository {
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return table;
+  }
+
+  async publicSessionState(token: string, sessionId?: string, deviceId?: string) {
+    const table = await this.resolveQr(token);
+    if (!table) throw new Error("Invalid or disabled QR code.");
+    const now = Date.now();
+    const activeSession = table.currentSessionId && (!sessionId || table.currentSessionId === sessionId);
+    const sameDevice = !deviceId || !table.deviceId || table.deviceId === deviceId;
+    const expiresAt = dateMs(table.sessionExpiresAt);
+    const idleExpiresAt = dateMs(table.lastActivity) + Number(table.sessionIdleTimeoutMinutes ?? 10) * 60_000;
+    if (activeSession && table.sessionStatus === "active" && (expiresAt <= now || idleExpiresAt <= now)) {
+      await this.markSessionExpired(table, expiresAt <= now ? "Dining session has expired." : "Dining session was idle for too long.", deviceId);
+      return { table: await this.resolveQr(token), recoverable: true, reason: "expired" };
+    }
+    return {
+      table,
+      sessionId: sameDevice && table.sessionStatus === "active" ? table.currentSessionId ?? "" : "",
+      expiresAt: table.sessionExpiresAt,
+      lastActivity: table.lastActivity,
+      events: Array.isArray(table.sessionEvents) ? table.sessionEvents : [],
+      requests: Array.isArray(table.serviceRequests) ? table.serviceRequests : [],
+      recoverable: activeSession && !sameDevice,
+      reason: !sameDevice ? "device_mismatch" : table.sessionStatus ?? "none",
+    };
+  }
+
+  async refreshSession(token: string, sessionId: string, deviceId: string) {
+    const table = await this.touchSession(token, sessionId, deviceId, { type: "session_refreshed", message: "Session refreshed" });
+    return { table: dataWithId<Record<string, unknown>>(table.id, (await this.db.collection("restaurantTables").doc(table.id).get()).data() ?? {}) };
+  }
+
+  async resumeSession(token: string, sessionId: string, deviceId: string) {
+    const table = await this.touchSession(token, sessionId, deviceId, { type: "session_resumed", message: "Customer resumed session" });
+    const next = dataWithId<Record<string, unknown>>(table.id, (await this.db.collection("restaurantTables").doc(table.id).get()).data() ?? {});
+    return { table: next, sessionId: String(next.currentSessionId ?? ""), expiresAt: next.sessionExpiresAt };
+  }
+
+  async updateSession(token: string, sessionId: string, deviceId: string, input: SessionUpdateInput) {
+    const table = input.deviceId?.trim()
+      ? await this.assertRecoverableSession(token, sessionId)
+      : await this.touchSession(token, sessionId, deviceId, { type: "session_updated", message: "Customer details updated" });
+    const now = new Date();
+    const patch = {
+      ...(input.customerName?.trim() ? { sessionCustomerName: input.customerName.trim() } : {}),
+      ...(typeof input.customerEmail === "string" ? { sessionCustomerEmail: input.customerEmail.trim() } : {}),
+      ...(Number.isFinite(input.guestCount) ? { sessionGuestCount: Math.max(1, Math.min(20, Number(input.guestCount))) } : {}),
+      ...(input.deviceId?.trim() ? { deviceId: input.deviceId.trim() } : {}),
+      lastActivity: now,
+      sessionEvents: FieldValue.arrayUnion({
+        type: input.deviceId ? "device_replaced" : "session_customer_updated",
+        at: now.toISOString(),
+        deviceId: input.deviceId || deviceId,
+        message: input.deviceId ? "Session device replaced" : "Customer session details updated",
+      }),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    await this.db.collection("restaurantTables").doc(table.id).set(patch, { merge: true });
+    return { table: dataWithId<Record<string, unknown>>(table.id, (await this.db.collection("restaurantTables").doc(table.id).get()).data() ?? {}) };
+  }
+
+  async extendPublicSession(token: string, sessionId: string, deviceId: string, minutes = 15) {
+    const table = await this.touchSession(token, sessionId, deviceId, { type: "session_extend_requested", message: `Customer extended session by ${minutes} minutes` });
+    const now = new Date();
+    const base = Math.max(dateMs(table.sessionExpiresAt), now.getTime());
+    const expiresAt = new Date(base + Math.max(1, Math.min(60, minutes)) * 60_000);
+    await this.db.collection("restaurantTables").doc(table.id).set({
+      sessionExpiresAt: expiresAt,
+      lastActivity: now,
+      sessionEvents: FieldValue.arrayUnion({ type: "session_extended", at: now.toISOString(), deviceId, message: `Extended by ${minutes} minutes` }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { table: dataWithId<Record<string, unknown>>(table.id, (await this.db.collection("restaurantTables").doc(table.id).get()).data() ?? {}), expiresAt: expiresAt.toISOString() };
+  }
+
+  async endPublicSession(token: string, sessionId: string, deviceId: string) {
+    const table = await this.touchSession(token, sessionId, deviceId, { type: "session_close_requested", message: "Customer ended session" });
+    const now = new Date();
+    await this.db.collection("restaurantTables").doc(table.id).set({
+      sessionStatus: "closed",
+      status: "vacant",
+      currentSessionId: "",
+      currentOrderId: "",
+      activeKitchenOrderId: "",
+      currentOrderTotal: 0,
+      billRequestedAt: null,
+      lastActivity: now,
+      sessionEvents: FieldValue.arrayUnion({ type: "session_closed", at: now.toISOString(), deviceId, message: "Session ended by customer" }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { table: dataWithId<Record<string, unknown>>(table.id, (await this.db.collection("restaurantTables").doc(table.id).get()).data() ?? {}) };
   }
 
   async serviceRequest(token: string, sessionId: string, deviceId: string, input: ServiceRequestInput) {
@@ -364,6 +461,31 @@ export class TableRepository {
     const row = rows.find((table) => table.id === idOrTable || table.table === idOrTable || table.tableNumber === idOrTable);
     if (!row?.id) throw new Error("Table not found.");
     return row;
+  }
+
+  private async markSessionExpired(table: RestaurantTableDoc, message: string, deviceId?: string) {
+    await this.db.collection("restaurantTables").doc(table.id).set({
+      sessionStatus: "expired",
+      lastActivity: new Date(),
+      sessionEvents: FieldValue.arrayUnion({
+        type: "session_expired",
+        at: new Date().toISOString(),
+        deviceId,
+        message,
+      }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  private async assertRecoverableSession(token: string, sessionId: string) {
+    const table = await this.resolveQr(token);
+    if (!table || table.currentSessionId !== sessionId || table.sessionStatus !== "active") throw new Error("Dining session is not active.");
+    const now = Date.now();
+    if (dateMs(table.sessionExpiresAt) <= now || dateMs(table.lastActivity) + Number(table.sessionIdleTimeoutMinutes ?? 10) * 60_000 <= now) {
+      await this.markSessionExpired(table, "Dining session has expired.");
+      throw new Error("Dining session has expired.");
+    }
+    return table;
   }
 }
 

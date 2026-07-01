@@ -35,6 +35,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const [data, setData] = useState<SessionData | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const storageKey = `nammude-qr-cart:${token.slice(0, 24)}`;
+  const sessionStorageKey = `${storageKey}:session`;
   const [cart, setCart] = useState<CartLine[]>(() => readSavedCart(storageKey));
   const [sessionId, setSessionId] = useState("");
   const [sessionExpiresAt, setSessionExpiresAt] = useState("");
@@ -50,7 +51,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
-  const [qrDeviceId] = useState(() => typeof window === "undefined" ? "" : deviceId());
+  const [qrDeviceId, setQrDeviceId] = useState("");
   const subtotal = cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const visibleMenu = useMemo(() => menu.filter((item) => (
     (!query || item.name.toLowerCase().includes(query.toLowerCase()) || item.category.toLowerCase().includes(query.toLowerCase())) &&
@@ -63,17 +64,56 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     setSessionId("");
     setSessionExpiresAt("");
     setIdleWarning(false);
+    clearSavedSession(sessionStorageKey);
     toast.error("Table session expired. Please scan or continue from the QR welcome screen.");
+  }, [sessionStorageKey]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setQrDeviceId(deviceId()), 0);
+    return () => window.clearTimeout(id);
   }, []);
+
+  const recoverDeviceSession = useCallback(async (activeSessionId: string, nextDeviceId: string) => {
+    const response = await fetch("/api/public/table-order/session", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, action: "replace-device", sessionId: activeSessionId, deviceId: nextDeviceId, newDeviceId: nextDeviceId }),
+    });
+    const payload = await response.json().catch(() => ({})) as { data?: { table?: { sessionExpiresAt?: string } }; error?: string };
+    if (!response.ok) {
+      clearSavedSession(sessionStorageKey);
+      toast.error(payload.error || "Session recovery failed.");
+      return;
+    }
+    const nextExpiresAt = String(payload.data?.table?.sessionExpiresAt ?? "");
+    setSessionId(activeSessionId);
+    setSessionExpiresAt(nextExpiresAt);
+    saveSession(sessionStorageKey, activeSessionId, nextExpiresAt);
+    toast.success("Session recovered.");
+  }, [sessionStorageKey, token]);
 
   useEffect(() => {
     let active = true;
-    void fetch(`/api/public/table-order/session?token=${encodeURIComponent(token)}`, { cache: "no-store" })
+    const saved = qrDeviceId ? readSavedSession(sessionStorageKey) : null;
+    const params = new URLSearchParams({ token });
+    if (saved?.sessionId) {
+      params.set("sessionId", saved.sessionId);
+      params.set("deviceId", qrDeviceId);
+    }
+    void fetch(`/api/public/table-order/session?${params.toString()}`, { cache: "no-store" })
       .then((response) => response.json())
-      .then(async (payload: { data?: SessionData; error?: string }) => {
+      .then(async (payload: { data?: SessionData & { session?: { sessionId?: string; expiresAt?: string; recoverable?: boolean; status?: string } }; error?: string }) => {
         if (!active) return;
         if (!payload.data) throw new Error(payload.error || "QR ordering is not available.");
         setData(payload.data);
+        if (saved?.sessionId && payload.data.session?.sessionId) {
+          setSessionId(payload.data.session.sessionId);
+          setSessionExpiresAt(String(payload.data.session.expiresAt ?? saved.expiresAt ?? ""));
+        } else if (saved?.sessionId && payload.data.session?.recoverable && payload.data.session.status === "device_mismatch") {
+          void recoverDeviceSession(saved.sessionId, qrDeviceId);
+        } else if (saved?.sessionId && payload.data.session?.status === "expired") {
+          clearSavedSession(sessionStorageKey);
+        }
         if (!payload.data.settings.allowDineIn && payload.data.settings.allowParcel) setMode("parcel");
         const menuResponse = await fetch(`/api/public/menu?restaurantId=${encodeURIComponent(payload.data.restaurant.id)}`, { cache: "no-store" });
         const menuPayload = await menuResponse.json().catch(() => ({})) as { data?: MenuDoc[] };
@@ -84,7 +124,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [token]);
+  }, [qrDeviceId, recoverDeviceSession, sessionStorageKey, token]);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(cart));
@@ -150,7 +190,46 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     }
     setSessionId(payload.data?.sessionId ?? "");
     setSessionExpiresAt(payload.data?.expiresAt ?? "");
+    saveSession(sessionStorageKey, payload.data?.sessionId ?? "", payload.data?.expiresAt ?? "");
     toast.success("Table session started.");
+  }
+
+  async function sessionAction(action: "refresh" | "resume" | "extend" | "end" | "update-customer" | "replace-device", extra: Record<string, unknown> = {}) {
+    const activeSessionId = String(extra.sessionId ?? sessionId);
+    if (!activeSessionId) return;
+    const response = await fetch("/api/public/table-order/session", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        token,
+        action,
+        sessionId: activeSessionId,
+        deviceId: qrDeviceId || deviceId(),
+        customerName: customer.name,
+        customerEmail: customer.email,
+        guestCount: Number(customer.guestCount || 1),
+        minutes: 15,
+        ...extra,
+      }),
+    });
+    const payload = await response.json().catch(() => ({})) as { data?: { sessionId?: string; expiresAt?: string; table?: { sessionExpiresAt?: string } }; error?: string };
+    if (!response.ok) {
+      toast.error(payload.error || "Session action failed.");
+      return;
+    }
+    if (action === "end") {
+      setSessionId("");
+      setSessionExpiresAt("");
+      clearSavedSession(sessionStorageKey);
+      toast.success("Session ended.");
+      return;
+    }
+    const nextSessionId = payload.data?.sessionId ?? activeSessionId;
+    const nextExpiresAt = String(payload.data?.expiresAt ?? payload.data?.table?.sessionExpiresAt ?? sessionExpiresAt);
+    setSessionId(nextSessionId);
+    setSessionExpiresAt(nextExpiresAt);
+    saveSession(sessionStorageKey, nextSessionId, nextExpiresAt);
+    toast.success(action === "extend" ? "Session extended." : action === "update-customer" ? "Session updated." : "Session refreshed.");
   }
 
   function updatePhone(phone: string) {
@@ -247,6 +326,14 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
             <Badge variant="muted">{data.table.seats} seats</Badge>
             <Badge variant={sessionId ? "success" : "warning"}>{sessionId ? "Session active" : "Start to order"}</Badge>
           </div>
+          {sessionId ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" onClick={() => void sessionAction("refresh")}>Refresh</Button>
+              <Button type="button" variant="outline" onClick={() => void sessionAction("extend")}>Extend</Button>
+              <Button type="button" variant="outline" onClick={() => void sessionAction("update-customer")}>Update details</Button>
+              <Button type="button" variant="outline" onClick={() => void sessionAction("end")}>End session</Button>
+            </div>
+          ) : null}
         </section>
         {lastOrderId ? (
           <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-950">
@@ -375,6 +462,24 @@ function readSavedCart(key: string) {
   } catch {
     return [];
   }
+}
+
+function readSavedSession(key: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(key) ?? "null") as { sessionId?: string; expiresAt?: string } | null;
+    return saved?.sessionId ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(key: string, sessionId: string, expiresAt?: string) {
+  if (typeof window !== "undefined" && sessionId) window.localStorage.setItem(key, JSON.stringify({ sessionId, expiresAt }));
+}
+
+function clearSavedSession(key: string) {
+  if (typeof window !== "undefined") window.localStorage.removeItem(key);
 }
 
 function isQrItemVisible(item: MenuItem, mode: "dine-in" | "parcel") {
