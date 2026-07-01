@@ -34,6 +34,10 @@ export function OperationalViewSwitcher() {
     };
   }, [saving]);
 
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
+
   if (loading || !session) return null;
   if (session.role !== "owner") {
     return <span className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 md:inline-flex">{operationalViewLabel(session.viewMode)}</span>;

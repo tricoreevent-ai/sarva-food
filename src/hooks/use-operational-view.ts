@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { OperationalView } from "@/lib/operational-access";
 import type { UserRole } from "@/types/firebase";
 
@@ -44,15 +44,22 @@ async function fetchSession(force = false) {
 export function useOperationalView(enabled = true) {
   const [session, setSession] = useState<OperationalSession | null>(cachedSession);
   const [loading, setLoading] = useState(enabled && !cachedSession);
+  const mounted = useRef(true);
 
   const refresh = useCallback(async (force = false) => {
     if (!enabled) return null;
     setLoading(true);
     const next = await fetchSession(force);
+    if (!mounted.current) return next;
     setSession(next);
     setLoading(false);
     return next;
   }, [enabled]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!enabled) return undefined;

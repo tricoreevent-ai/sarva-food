@@ -1,6 +1,6 @@
 # Nammude Task Tracker
 
-Last updated: 2026-06-30
+Last updated: 2026-07-01
 
 This file is the project-visible source of truth for implementation progress. Update it whenever a task is started, completed, deferred, or blocked.
 
@@ -14,6 +14,7 @@ This file is the project-visible source of truth for implementation progress. Up
 
 ## Completed
 
+- [x] Production QR/table/search stabilization completed on 2026-07-01: fixed Save & Generate QR failure paths with explicit saving state, server-side duplicate table validation, request-derived production QR URLs, signed QR expiry metadata, post-generation QR validation, QR preview details, Safari-safe copy fallback, Open Link action, bulk QR print/download, duplicate table action, clear delete-blocked reasons for active orders/sessions while allowing deletion of the last table, absolute QR session timeout plus idle timeout enforcement, device-bound QR session order/request validation, POS/table fetch abort cleanup, operational-view unmount cleanup, and hardened owner/admin global search inputs against auth autofill. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
 - [x] Production QR table ordering module baseline completed on 2026-06-30: upgraded Table Management with Add/Edit dialog fields, Save & Generate QR, signed `/order/{token}` QR URLs, QR preview/download PNG/download SVG/print/copy/regenerate/enable-disable actions, QR status/session/usage metadata, owner QR Ordering Settings, public QR session validation with GPS/OTP/multiple-customer controls, mobile QR ordering flow, service requests, and QR order creation through existing Order and Kitchen repositories. Verification passed with `npm run typecheck`, targeted `npm run lint -- ...`, `npm run build`, and `git diff --check`.
 - [x] Operational view switch hardening completed on 2026-06-30: deduplicated owner view-mode session fetches, added abortable request handling, added guarded password-switch overlay with blurred background, disabled clicks, 3-second "Still loading" state, 10-second Retry/Cancel recovery, and deterministic post-switch routing for Kitchen/POS/Owner workspaces. Targeted verification passed with `npm run lint -- src\components\owner\operational-view-switcher.tsx src\hooks\use-operational-view.ts` and `git diff --check`.
 - [x] Firestore-backed owner communication completion verified on 2026-06-30: added `/api/owner/communication`, persisted Owner Communication Settings, stored test-message history in `communicationHistory`, saved order contact attempts/not-reachable events to Firestore, mirrored communication timeline fields into `orders` and `customerOrders`, and tightened customer reorder so unavailable historical items cannot be re-added from stale order data. Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`, and focused local route checks for `/orders`, `/owner/settings`, `/owner/orders`, and `/api/owner/communication`.

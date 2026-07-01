@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
 import { Bell, CheckCircle2, Loader2, Minus, Plus, Search, ShoppingBag, UserRound } from "lucide-react";
@@ -23,6 +23,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const storageKey = `nammude-qr-cart:${token.slice(0, 24)}`;
   const [cart, setCart] = useState<CartLine[]>(() => readSavedCart(storageKey));
   const [sessionId, setSessionId] = useState("");
+  const [sessionExpiresAt, setSessionExpiresAt] = useState("");
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "", otpCode: "" });
   const [mode, setMode] = useState<"dine-in" | "parcel">("dine-in");
   const [query, setQuery] = useState("");
@@ -37,6 +38,13 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     (!vegOnly || item.isVeg !== false) &&
     !item.soldOut
   )), [menu, query, vegOnly]);
+
+  const expireSession = useCallback(() => {
+    setSessionId("");
+    setSessionExpiresAt("");
+    setIdleWarning(false);
+    toast.error("Table session expired. Please scan or continue from the QR welcome screen.");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -81,23 +89,32 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     };
   }, [data, sessionId]);
 
+  useEffect(() => {
+    if (!sessionId || !sessionExpiresAt) return undefined;
+    const delay = Date.parse(sessionExpiresAt) - Date.now();
+    const timer = window.setTimeout(expireSession, Math.max(0, delay));
+    return () => window.clearTimeout(timer);
+  }, [expireSession, sessionExpiresAt, sessionId]);
+
   async function startSession() {
     if (!customer.name.trim() || !customer.phone.trim()) {
       toast.error("Name and mobile number are required.");
       return;
     }
     const geo = await currentLocation().catch(() => null);
+    const id = deviceId();
     const response = await fetch("/api/public/table-order/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, ...customer, deviceId: deviceId(), lat: geo?.lat, lng: geo?.lng }),
+      body: JSON.stringify({ token, ...customer, deviceId: id, lat: geo?.lat, lng: geo?.lng }),
     });
-    const payload = await response.json().catch(() => ({})) as { data?: { sessionId: string }; error?: string; step?: string };
+    const payload = await response.json().catch(() => ({})) as { data?: { sessionId: string; expiresAt?: string }; error?: string; step?: string };
     if (!response.ok) {
       toast.error(payload.error || "Session could not be started.");
       return;
     }
     setSessionId(payload.data?.sessionId ?? "");
+    setSessionExpiresAt(payload.data?.expiresAt ?? "");
     toast.success("Table session started.");
   }
 
@@ -122,6 +139,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         body: JSON.stringify({
           token,
           sessionId,
+          deviceId: deviceId(),
           customerName: customer.name,
           customerPhone: customer.phone,
           fulfillmentType: mode,
@@ -136,7 +154,9 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
       window.localStorage.removeItem(storageKey);
       toast.success("Order sent to kitchen.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Order could not be placed.");
+      const message = error instanceof Error ? error.message : "Order could not be placed.";
+      if (message.toLowerCase().includes("session")) expireSession();
+      else toast.error(message);
     } finally {
       setPlacing(false);
     }
@@ -147,9 +167,14 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     const response = await fetch("/api/public/table-order/request", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, sessionId, type, message: type.replace("-", " ") }),
+      body: JSON.stringify({ token, sessionId, deviceId: deviceId(), type, message: type.replace("-", " ") }),
     });
-    toast[response.ok ? "success" : "error"](response.ok ? "Request sent." : "Request could not be sent.");
+    if (response.ok) toast.success("Request sent.");
+    else {
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if ((payload.error ?? "").toLowerCase().includes("session")) expireSession();
+      else toast.error(payload.error || "Request could not be sent.");
+    }
   }
 
   if (loading) return <QrShell><div className="grid min-h-[70vh] place-items-center"><Loader2 className="size-8 animate-spin text-orange-600" /></div></QrShell>;

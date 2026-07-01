@@ -156,9 +156,12 @@ export function tableDocToPosTable(table: Record<string, unknown>): PosTable {
     qrVersion: num(table.qrVersion, 1),
     qrStatus: qrStatus(str(table.qrStatus)),
     qrLastGeneratedAt: parseFirestoreDateIso(table.qrLastGeneratedAt),
+    qrExpiresAt: parseFirestoreDateIso(table.qrExpiresAt),
     qrUsageCount: num(table.qrUsageCount),
     currentSessionId: str(table.currentSessionId),
     sessionStatus: sessionStatus(str(table.sessionStatus)),
+    sessionTimeoutMinutes: finite(table.sessionTimeoutMinutes),
+    sessionIdleTimeoutMinutes: finite(table.sessionIdleTimeoutMinutes),
     lastCleanedAt: parseFirestoreDateIso(table.lastCleanedAt),
   };
 }

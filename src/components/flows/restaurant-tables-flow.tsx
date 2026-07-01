@@ -6,12 +6,13 @@ import type { ElementType } from "react";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { Ban, Brush, CalendarCheck, CheckCircle2, CircleX, Copy, Download, Edit3, Grid2X2, LayoutGrid, List, Plus, Printer, QrCode, RefreshCcw, Search, Settings2, Table2, Trash2, Users } from "lucide-react";
+import { Ban, Brush, CalendarCheck, CheckCircle2, CircleX, Copy, Download, Edit3, ExternalLink, Grid2X2, LayoutGrid, List, Plus, Printer, QrCode, RefreshCcw, Search, Settings2, Table2, Trash2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { PosTable, TableOrder } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useAppStore } from "@/lib/app-store";
 
 type DisplayStatus = "Available" | "Occupied" | "Reserved" | "Cleaning" | "Inactive";
 type TableDraft = {
@@ -36,6 +37,9 @@ const statusTone: Record<DisplayStatus, string> = {
 };
 
 export function RestaurantTablesFlow() {
+  const authUser = useAppStore((state) => state.authUser);
+  const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
+  const restaurants = useAppStore((state) => state.restaurants);
   const [configuredTables, setConfiguredTables] = useState<PosTable[]>([]);
   const [orders, setOrders] = useState<TableOrder[]>([]);
   const [selectedTableId, setSelectedTable] = useState("");
@@ -45,18 +49,20 @@ export function RestaurantTablesFlow() {
   const [showInactive, setShowInactive] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [draft, setDraft] = useState<TableDraft | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     void Promise.all([
-      fetch("/api/owner/tables", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
-      fetch("/api/owner/kitchen", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+      fetch("/api/owner/tables", { cache: "no-store", signal: controller.signal }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
+      fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
     ]).then(([tables, kitchen]) => {
-      if (!active) return;
       setConfiguredTables(tables.data ?? []);
       setOrders(kitchen.data ?? []);
+    }).catch((error) => {
+      if ((error as Error).name !== "AbortError") toast.error("Table data could not be loaded.");
     });
-    return () => { active = false; };
+    return () => controller.abort();
   }, []);
 
   const tableRows = useMemo(() => {
@@ -64,8 +70,14 @@ export function RestaurantTablesFlow() {
   }, [configuredTables]);
 
   const selectedTable = tableRows.find((table) => table.table === selectedTableId) ?? tableRows[0];
+  const restaurantName = ownerBusinessProfile?.hotelName || restaurants.find((restaurant) => restaurant.slug === authUser.restaurantSlug || restaurant.id === authUser.restaurantSlug)?.name || "Restaurant";
   const selectedActiveOrder = selectedTable ? findActiveOrder(orders, selectedTable.table) : undefined;
   const selectedStatus = selectedTable ? getDisplayStatus(selectedTable, selectedActiveOrder) : "Available";
+  const deleteBlockedReason = selectedActiveOrder
+    ? "This table has an active kitchen order. Complete or move the order before deleting it."
+    : selectedTable?.currentSessionId && selectedTable.sessionStatus === "active"
+      ? "This table has an active QR session. End or let the session expire before deleting it."
+      : "";
   const filteredTables = tableRows.filter((table) => {
     const activeOrder = findActiveOrder(orders, table.table);
     const display = getDisplayStatus(table, activeOrder);
@@ -77,6 +89,7 @@ export function RestaurantTablesFlow() {
       && (showInactive || display !== "Inactive");
   });
   const grouped = groupByFloor(filteredTables);
+  const qrReadyTables = filteredTables.filter((table) => table.qrUrl && table.qrOrderingEnabled !== false);
   const stats = {
     total: tableRows.length,
     available: tableRows.filter((table) => getDisplayStatus(table, findActiveOrder(orders, table.table)) === "Available").length,
@@ -122,9 +135,24 @@ export function RestaurantTablesFlow() {
     });
   }
 
+  function duplicateTable(table: PosTable) {
+    const next = nextTable();
+    setDraft({
+      name: `${table.name || table.table} copy`,
+      table: next,
+      seats: table.seats,
+      floor: table.floor ?? inferFloor(next),
+      section: table.section ?? table.floor ?? inferFloor(next),
+      description: table.description ?? table.note ?? "",
+      active: table.active !== false,
+      dineInEnabled: table.dineInEnabled !== false,
+      qrOrderingEnabled: table.qrOrderingEnabled !== false,
+    });
+  }
+
   function updateSelected(patch: Partial<PosTable>) {
     if (!selectedTable) return;
-    void saveTable({ ...selectedTable, ...patch });
+    void saveTable({ ...selectedTable, ...patch }).catch((error) => toast.error(error instanceof Error ? error.message : "Table could not be updated."));
   }
 
   async function saveTable(table: PosTable) {
@@ -133,14 +161,15 @@ export function RestaurantTablesFlow() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(table),
     });
-    const payload = await response.json() as { data?: PosTable };
+    const payload = await response.json().catch(() => ({})) as { data?: PosTable; error?: string };
+    if (!response.ok || !payload.data) throw new Error(payload.error || "Table could not be saved.");
     const next = payload.data ?? table;
     setConfiguredTables((current) => current.some((item) => item.table === next.table) ? current.map((item) => item.table === next.table ? next : item) : [...current, next]);
     return next;
   }
 
   async function saveDraft(generateQr = false) {
-    if (!draft) return;
+    if (!draft || savingDraft) return;
     const seats = Number(draft.seats);
     if (!draft.table.trim() || !draft.name.trim() || !Number.isFinite(seats) || seats < 1 || !draft.floor.trim()) {
       toast.error("Table name, display number, capacity, and floor are required.");
@@ -151,31 +180,44 @@ export function RestaurantTablesFlow() {
       toast.error("Display number must be unique.");
       return;
     }
-    const next = await saveTable({
-      id: draft.id,
-      name: draft.name.trim(),
-      table: draft.table.trim().toUpperCase(),
-      seats: String(seats),
-      status: draft.active ? "Open" : "Inactive",
-      amount: "0",
-      floor: draft.floor.trim(),
-      section: draft.section.trim(),
-      description: draft.description.trim(),
-      note: draft.description.trim(),
-      active: draft.active,
-      dineInEnabled: draft.dineInEnabled,
-      qrOrderingEnabled: draft.qrOrderingEnabled,
-      generateQr,
-      lastCleanedAt: new Date().toISOString(),
-    } as PosTable & { generateQr?: boolean });
-    setSelectedTable(next.table);
-    setDraft(null);
-    toast.success(generateQr ? "Table saved and QR generated." : "Table saved.");
+    try {
+      setSavingDraft(true);
+      const next = await saveTable({
+        id: draft.id,
+        name: draft.name.trim(),
+        table: draft.table.trim().toUpperCase(),
+        seats: String(seats),
+        status: draft.active ? "Open" : "Inactive",
+        amount: "0",
+        floor: draft.floor.trim(),
+        section: draft.section.trim(),
+        description: draft.description.trim(),
+        note: draft.description.trim(),
+        active: draft.active,
+        dineInEnabled: draft.dineInEnabled,
+        qrOrderingEnabled: generateQr ? true : draft.qrOrderingEnabled,
+        generateQr,
+        lastCleanedAt: new Date().toISOString(),
+      } as PosTable & { generateQr?: boolean });
+      if (generateQr) await validateGeneratedQr(next);
+      setSelectedTable(next.table);
+      setDraft(null);
+      toast.success(generateQr ? "Table saved and QR generated." : "Table saved.");
+    } catch (error) {
+      console.error("[tables] save table failed", { table: draft.table, generateQr, error });
+      toast.error(error instanceof Error ? error.message : "Table could not be saved.");
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   async function deleteTable(table: string) {
     const response = await fetch(`/api/owner/tables?table=${encodeURIComponent(table)}`, { method: "DELETE" });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      toast.error(payload.error || "Table could not be deleted.");
+      return;
+    }
     setConfiguredTables((current) => current.filter((item) => item.table !== table));
     setSelectedTable((current) => current === table ? "" : current);
   }
@@ -193,6 +235,29 @@ export function RestaurantTablesFlow() {
     }
     setConfiguredTables((current) => current.map((item) => item.table === table.table ? payload.data as PosTable : item));
     toast.success(action === "rotate-qr" ? "QR regenerated." : action === "enable-qr" ? "QR enabled." : "QR disabled.");
+  }
+
+  async function bulkDownloadQr() {
+    if (!qrReadyTables.length) return toast.error("No enabled table QR codes in the current view.");
+    const items = await Promise.all(qrReadyTables.map(async (table) => ({
+      table,
+      png: await QRCode.toDataURL(table.qrUrl ?? "", { width: 360, margin: 1 }),
+    })));
+    items.forEach(({ table, png }, index) => window.setTimeout(() => downloadHref(`${safeTableName(table.table)}-qr.png`, png), index * 120));
+    toast.success(`Downloading ${items.length} QR codes.`);
+  }
+
+  async function bulkPrintQr() {
+    if (!qrReadyTables.length) return toast.error("No enabled table QR codes in the current view.");
+    const items = await Promise.all(qrReadyTables.map(async (table) => ({
+      table,
+      png: await QRCode.toDataURL(table.qrUrl ?? "", { width: 280, margin: 1 }),
+    })));
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return toast.error("Allow popups to print bulk QR codes.");
+    win.document.write(`<title>Table QR codes</title><style>body{font-family:Arial,sans-serif;padding:24px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.card{break-inside:avoid;text-align:center;border:1px solid #ddd;border-radius:12px;padding:14px}img{width:180px;height:180px}strong{display:block;margin-top:8px;font-size:18px}@media print{button{display:none}.grid{grid-template-columns:repeat(3,1fr)}}</style><button onclick="window.print()">Print</button><div class="grid">${items.map(({ table, png }) => `<div class="card"><img src="${png}" alt="${table.table} QR"><strong>${table.table}</strong><span>${table.name || "Table ordering"}</span></div>`).join("")}</div>`);
+    win.document.close();
+    win.focus();
   }
 
   async function changeTableTicketStatus(orderId: string, nextStatus: TableOrder["status"]) {
@@ -248,6 +313,8 @@ export function RestaurantTablesFlow() {
               <Button size="sm" variant={view === "list" ? "default" : "ghost"} onClick={() => setView("list")}><List className="size-4" /> List</Button>
             </div>
             <Button variant="outline" size="icon" title="Table filters"><Settings2 className="size-4" /></Button>
+            <Button variant="outline" disabled={!qrReadyTables.length} onClick={() => void bulkPrintQr()}><Printer className="size-4" />Bulk Print QR</Button>
+            <Button variant="outline" disabled={!qrReadyTables.length} onClick={() => void bulkDownloadQr()}><Download className="size-4" />Bulk Download QR</Button>
           </CardContent>
         </Card>
 
@@ -303,6 +370,7 @@ export function RestaurantTablesFlow() {
                   </div>
                   <div className="flex gap-2">
                     <Button size="icon" variant="outline" title="Edit table" onClick={() => editTable(selectedTable)}><Edit3 className="size-4" /></Button>
+                    <Button size="icon" variant="outline" title="Duplicate table" onClick={() => duplicateTable(selectedTable)}><Copy className="size-4" /></Button>
                     <Button size="icon" variant="outline" title="Close selected table"><CircleX className="size-4" /></Button>
                   </div>
                 </div>
@@ -318,7 +386,7 @@ export function RestaurantTablesFlow() {
                   <Detail label="Last Cleaned" value={selectedTable.lastCleanedAt ? new Date(selectedTable.lastCleanedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not recorded"} />
                   <Detail label="Notes" value={selectedTable.note ?? "No notes"} />
                 </div>
-                <QrManagementPanel table={selectedTable} onAction={tableAction} />
+                <QrManagementPanel table={selectedTable} restaurantName={restaurantName} onAction={tableAction} />
                 <div className="grid gap-2">
                   <Button asChild className="h-12 bg-orange-600 text-white hover:bg-orange-700">
                     <Link href="/owner/pos">Seat Customer</Link>
@@ -326,13 +394,15 @@ export function RestaurantTablesFlow() {
                   <Button variant="outline" onClick={() => updateSelected({ status: "Reserved" })}><CalendarCheck className="size-4" /> Mark as Reserved</Button>
                   <Button variant="outline" onClick={() => updateSelected({ status: "Cleaning", lastCleanedAt: new Date().toISOString() })}><Brush className="size-4" /> Mark as Cleaning</Button>
                   <Button variant="outline" onClick={() => updateSelected({ status: "Inactive" })}><Ban className="size-4" /> Mark as Inactive</Button>
+                  <Button variant="outline" onClick={() => duplicateTable(selectedTable)}><Copy className="size-4" /> Duplicate Table</Button>
                   {selectedActiveOrder ? (
                     <Button variant="outline" onClick={() => void changeTableTicketStatus(selectedActiveOrder.id, selectedActiveOrder.status === "ready" ? "served" : "ready")}>
                       <CheckCircle2 className="size-4" />
                       Mark {selectedActiveOrder.status === "ready" ? "served" : "ready"}
                     </Button>
                   ) : null}
-                  <Button variant="outline" className="border-red-200 text-red-600" disabled={Boolean(selectedActiveOrder)} onClick={() => { void deleteTable(selectedTable.table); setSelectedTable(""); }}>
+                  {deleteBlockedReason ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">{deleteBlockedReason}</p> : null}
+                  <Button variant="outline" className="border-red-200 text-red-600" disabled={Boolean(deleteBlockedReason)} title={deleteBlockedReason || "Delete table"} onClick={() => { void deleteTable(selectedTable.table); setSelectedTable(""); }}>
                     <Trash2 className="size-4" />
                     Delete Table
                   </Button>
@@ -353,7 +423,7 @@ export function RestaurantTablesFlow() {
           </CardContent>
         </Card>
       </aside>
-      {draft ? <TableDialog draft={draft} onChange={setDraft} onClose={() => setDraft(null)} onSave={() => void saveDraft()} onSaveQr={() => void saveDraft(true)} /> : null}
+      {draft ? <TableDialog draft={draft} saving={savingDraft} onChange={setDraft} onClose={() => setDraft(null)} onSave={() => void saveDraft()} onSaveQr={() => void saveDraft(true)} /> : null}
     </div>
   );
 }
@@ -389,7 +459,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TableDialog({ draft, onChange, onClose, onSave, onSaveQr }: { draft: TableDraft; onChange: (draft: TableDraft) => void; onClose: () => void; onSave: () => void; onSaveQr: () => void }) {
+function TableDialog({ draft, saving, onChange, onClose, onSave, onSaveQr }: { draft: TableDraft; saving: boolean; onChange: (draft: TableDraft) => void; onClose: () => void; onSave: () => void; onSaveQr: () => void }) {
   const update = <K extends keyof TableDraft>(key: K, value: TableDraft[K]) => onChange({ ...draft, [key]: value });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
@@ -399,7 +469,7 @@ function TableDialog({ draft, onChange, onClose, onSave, onSaveQr }: { draft: Ta
             <h2 className="text-xl font-black text-slate-950">{draft.id ? "Edit table" : "Add table"}</h2>
             <p className="mt-1 text-sm font-semibold text-slate-500">QR tokens are signed, rotatable, and do not expose table IDs.</p>
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose}><CircleX className="size-4" /></Button>
+          <Button type="button" variant="ghost" size="icon" disabled={saving} onClick={onClose}><CircleX className="size-4" /></Button>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Field label="Table Name" value={draft.name} onChange={(value) => update("name", value)} />
@@ -413,19 +483,21 @@ function TableDialog({ draft, onChange, onClose, onSave, onSaveQr }: { draft: Ta
           <Toggle label="QR Ordering Enabled" checked={draft.qrOrderingEnabled} onChange={(value) => update("qrOrderingEnabled", value)} />
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" variant="outline" onClick={onSave}>Save</Button>
-          <Button type="button" className="bg-orange-600 text-white hover:bg-orange-700" onClick={onSaveQr}><QrCode className="size-4" />Save & Generate QR</Button>
+          <Button type="button" variant="outline" disabled={saving} onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="outline" disabled={saving} onClick={onSave}>{saving ? "Saving..." : "Save"}</Button>
+          <Button type="button" className="bg-orange-600 text-white hover:bg-orange-700" disabled={saving} onClick={onSaveQr}><QrCode className="size-4" />{saving ? "Generating..." : "Save & Generate QR"}</Button>
         </div>
       </section>
     </div>
   );
 }
 
-function QrManagementPanel({ table, onAction }: { table: PosTable; onAction: (table: PosTable, action: "rotate-qr" | "enable-qr" | "disable-qr") => void }) {
+function QrManagementPanel({ table, restaurantName, onAction }: { table: PosTable; restaurantName: string; onAction: (table: PosTable, action: "rotate-qr" | "enable-qr" | "disable-qr") => void }) {
   const [png, setPng] = useState("");
   const [svg, setSvg] = useState("");
+  const [validation, setValidation] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const url = table.qrUrl ?? "";
+  const qrValidation = url ? validation : "idle";
 
   useEffect(() => {
     let active = true;
@@ -440,6 +512,19 @@ function QrManagementPanel({ table, onAction }: { table: PosTable; onAction: (ta
     });
     return () => { active = false; };
   }, [url]);
+
+  useEffect(() => {
+    let active = true;
+    if (!url) return undefined;
+    window.setTimeout(() => { if (active) setValidation("checking"); }, 0);
+    void validateGeneratedQr(table)
+      .then(() => { if (active) setValidation("valid"); })
+      .catch((error) => {
+        console.error("[tables] QR validation failed", { table: table.table, url, error });
+        if (active) setValidation("invalid");
+      });
+    return () => { active = false; };
+  }, [table, url]);
 
   function download(name: string, href: string) {
     const link = document.createElement("a");
@@ -466,13 +551,23 @@ function QrManagementPanel({ table, onAction }: { table: PosTable; onAction: (ta
     <div className="rounded-2xl border border-slate-200 p-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-black text-slate-950">QR Ordering</h3>
-        <Badge variant={table.qrOrderingEnabled ? "success" : "muted"}>{table.qrOrderingEnabled ? "Enabled" : "Disabled"}</Badge>
+        <div className="flex gap-2">
+          <Badge variant={qrValidation === "invalid" ? "destructive" : qrValidation === "valid" ? "success" : "muted"}>{qrValidation === "checking" ? "Checking" : qrValidation === "valid" ? "Verified" : qrValidation === "invalid" ? "Invalid" : "Not checked"}</Badge>
+          <Badge variant={table.qrOrderingEnabled ? "success" : "muted"}>{table.qrOrderingEnabled ? "Enabled" : "Disabled"}</Badge>
+        </div>
       </div>
       <div className="mt-3 grid place-items-center rounded-xl bg-slate-50 p-3">
         {png ? <Image src={png} alt={`${table.table} QR`} width={160} height={160} unoptimized /> : <p className="text-sm font-semibold text-slate-500">Generate QR to preview.</p>}
       </div>
+      <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-600">
+        <Detail label="Restaurant" value={restaurantName} />
+        <Detail label="Table" value={table.table} />
+        <Detail label="Expiry" value={table.qrExpiresAt ? new Date(table.qrExpiresAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "No expiry recorded"} />
+        <p className="break-all rounded-lg border border-slate-200 bg-white p-2 text-[11px] text-slate-700">{url || "Generate QR to create a signed URL."}</p>
+      </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" disabled={!url} onClick={() => navigator.clipboard.writeText(url).then(() => toast.success("QR URL copied."))}><Copy className="size-4" />Copy URL</Button>
+        <Button type="button" variant="outline" disabled={!url} onClick={() => void copyText(url).then(() => toast.success("QR Link Copied")).catch(() => toast.error("QR link could not be copied."))}><Copy className="size-4" />Copy URL</Button>
+        <Button type="button" variant="outline" disabled={!url} onClick={() => window.open(url, "_blank", "noopener,noreferrer")}><ExternalLink className="size-4" />Open Link</Button>
         <Button type="button" variant="outline" disabled={!png} onClick={() => download(`${table.table}-qr.png`, png)}><Download className="size-4" />PNG</Button>
         <Button type="button" variant="outline" disabled={!svg} onClick={downloadSvg}><Download className="size-4" />SVG</Button>
         <Button type="button" variant="outline" disabled={!png} onClick={printQr}><Printer className="size-4" />Print</Button>
@@ -531,4 +626,45 @@ function groupByFloor(tables: PosTable[]) {
 
 function totalFor(order: TableOrder) {
   return order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
+}
+
+function downloadHref(name: string, href: string) {
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = name;
+  link.click();
+}
+
+function safeTableName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "table";
+}
+
+async function validateGeneratedQr(table: PosTable) {
+  if (!table.qrUrl) throw new Error("QR URL was not generated.");
+  const parsed = new URL(table.qrUrl, window.location.origin);
+  if (parsed.origin !== window.location.origin) throw new Error(`QR URL points to ${parsed.origin}, not this deployment.`);
+  const token = parsed.pathname.split("/").filter(Boolean).at(-1);
+  if (!token) throw new Error("QR URL does not include a signed token.");
+  const response = await fetch(`/api/public/table-order/session?token=${encodeURIComponent(token)}`, { cache: "no-store" });
+  const payload = await response.json().catch(() => ({})) as { data?: { table?: { tableNumber?: string } }; error?: string };
+  if (!response.ok) throw new Error(payload.error || "QR link could not be reached.");
+  if (payload.data?.table?.tableNumber !== table.table) throw new Error("QR link resolves to a different table.");
+  return true;
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const input = document.createElement("textarea");
+  input.value = value;
+  input.setAttribute("readonly", "true");
+  input.style.position = "fixed";
+  input.style.left = "-9999px";
+  document.body.appendChild(input);
+  input.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(input);
+  if (!ok) throw new Error("Copy failed.");
 }

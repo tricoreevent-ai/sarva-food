@@ -747,9 +747,12 @@ export type PosTable = {
   qrVersion?: number;
   qrStatus?: "enabled" | "disabled" | "revoked";
   qrLastGeneratedAt?: string;
+  qrExpiresAt?: string;
   qrUsageCount?: number;
   currentSessionId?: string;
   sessionStatus?: "none" | "active" | "expired" | "closed";
+  sessionTimeoutMinutes?: number;
+  sessionIdleTimeoutMinutes?: number;
   lastCleanedAt?: string;
 };
 

@@ -23,6 +23,7 @@ type TableInput = {
   qrOrderingEnabled?: boolean;
   generateQr?: boolean;
   rotateQr?: boolean;
+  origin?: string;
   lastCleanedAt?: string;
 };
 
@@ -34,6 +35,13 @@ type SessionInput = {
   verifiedLocation: boolean;
   verifiedPhone: boolean;
   sessionMinutes?: number;
+  idleMinutes?: number;
+};
+
+type SessionEvent = {
+  type: string;
+  message?: string;
+  deviceId?: string;
 };
 
 export class TableRepository {
@@ -50,14 +58,21 @@ export class TableRepository {
     const tableNumber = String(input.tableNumber || input.table || "").trim().toUpperCase();
     if (!tableNumber) throw new Error("Table number is required.");
     const id = input.id || `${scope.tenantId}-${tableNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+    const duplicate = (await this.list(scope)).find((table) => {
+      const rowNumber = String(table.tableNumber ?? table.table ?? "").trim().toUpperCase();
+      return rowNumber === tableNumber && table.id !== id;
+    });
+    if (duplicate) throw new Error("Another table already uses this display number.");
     const ref = this.db.collection("restaurantTables").doc(id);
     const existing = await ref.get();
     const current = existing.data() as Record<string, unknown> | undefined;
     const qrVersion = Number(input.rotateQr ? Number(current?.qrVersion ?? 0) + 1 : current?.qrVersion ?? 1);
-    const shouldGenerateQr = input.generateQr || input.rotateQr || !current?.qrToken;
+    const shouldGenerateQr = input.generateQr || input.rotateQr || (input.qrOrderingEnabled !== false && !current?.qrToken);
     const qrToken = shouldGenerateQr
       ? createTableQrToken({ restaurantId: scope.tenantId, tableId: id, tableNumber, version: qrVersion })
       : String(current?.qrToken ?? "");
+    const qrPayload = verifyTableQrToken(qrToken);
+    const qrExpiresAt = qrPayload?.expiresAt ? new Date(qrPayload.expiresAt) : current?.qrExpiresAt ?? null;
     const now = new Date();
     await ref.set({
       id,
@@ -79,9 +94,10 @@ export class TableRepository {
       qrOrderingEnabled: input.qrOrderingEnabled ?? Boolean(qrToken),
       qrStatus: input.qrOrderingEnabled === false ? "disabled" : "enabled",
       qrToken,
-      qrUrl: qrToken ? tableQrUrl(qrToken) : "",
+      qrUrl: qrToken ? tableQrUrl(qrToken, input.origin) : "",
       qrVersion,
       qrLastGeneratedAt: shouldGenerateQr ? now : current?.qrLastGeneratedAt ?? null,
+      qrExpiresAt,
       qrUsageCount: Number(current?.qrUsageCount ?? 0),
       currentSessionId: current?.currentSessionId ?? "",
       sessionStatus: current?.sessionStatus ?? "none",
@@ -89,6 +105,7 @@ export class TableRepository {
       updatedAt: FieldValue.serverTimestamp(),
       createdAt: current?.createdAt ?? FieldValue.serverTimestamp(),
     }, { merge: true });
+    if (shouldGenerateQr && !await this.resolveQr(qrToken)) throw new Error("QR code was saved but failed validation. Please regenerate it.");
     return dataWithId<Record<string, unknown>>(id, (await ref.get()).data() ?? {});
   }
 
@@ -102,7 +119,7 @@ export class TableRepository {
     return dataWithId<Record<string, unknown>>(String(row.id), (await this.db.collection("restaurantTables").doc(String(row.id)).get()).data() ?? {});
   }
 
-  async rotateQr(scope: TenantScope, idOrTable: string) {
+  async rotateQr(scope: TenantScope, idOrTable: string, origin?: string) {
     const row = await this.find(scope, idOrTable);
     return this.upsert(scope, {
       ...row,
@@ -110,6 +127,7 @@ export class TableRepository {
       tableNumber: String(row.tableNumber ?? row.table),
       rotateQr: true,
       qrOrderingEnabled: true,
+      origin,
     });
   }
 
@@ -127,7 +145,8 @@ export class TableRepository {
       table.qrStatus === "disabled" ||
       table.qrStatus === "revoked" ||
       table.qrOrderingEnabled === false ||
-      table.active === false
+      table.active === false ||
+      (payload.expiresAt ? Date.parse(payload.expiresAt) <= Date.now() : false)
     ) return null;
     return table;
   }
@@ -138,13 +157,15 @@ export class TableRepository {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + (input.sessionMinutes ?? 45) * 60_000);
     const currentExpiry = dateMs(table.sessionExpiresAt);
-    const existingActive = table.currentSessionId && table.sessionStatus === "active" && currentExpiry > now.getTime();
+    const existingActive = table.currentSessionId && table.sessionStatus === "active" && currentExpiry > now.getTime() && table.deviceId === input.deviceId;
     const sessionId = existingActive ? table.currentSessionId as string : `${table.id}-${crypto.randomUUID()}`;
     const patch = {
       currentSessionId: sessionId,
       sessionStatus: "active",
       sessionCreatedAt: existingActive ? table.sessionCreatedAt ?? now : now,
       sessionExpiresAt: expiresAt,
+      sessionTimeoutMinutes: input.sessionMinutes ?? 45,
+      sessionIdleTimeoutMinutes: input.idleMinutes ?? 10,
       lastActivity: now,
       verifiedLocation: input.verifiedLocation,
       verifiedPhone: input.verifiedPhone,
@@ -162,18 +183,22 @@ export class TableRepository {
     return { table: await this.resolveQr(token), sessionId, expiresAt: expiresAt.toISOString(), existingActive };
   }
 
-  async touchSession(token: string, sessionId: string, event?: { type: string; message?: string }) {
+  async touchSession(token: string, sessionId: string, deviceId: string, event?: SessionEvent) {
     const table = await this.resolveQr(token);
     if (!table || table.currentSessionId !== sessionId || table.sessionStatus !== "active") throw new Error("Dining session is not active.");
+    if (table.deviceId && table.deviceId !== deviceId) throw new Error("This dining session belongs to another device. Please scan the table QR again.");
     const now = new Date();
     if (dateMs(table.sessionExpiresAt) <= now.getTime()) {
       await this.db.collection("restaurantTables").doc(table.id).set({ sessionStatus: "expired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       throw new Error("Dining session has expired.");
     }
+    if (dateMs(table.lastActivity) + Number(table.sessionIdleTimeoutMinutes ?? 10) * 60_000 <= now.getTime()) {
+      await this.db.collection("restaurantTables").doc(table.id).set({ sessionStatus: "expired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      throw new Error("Dining session was idle for too long. Please scan the table QR again.");
+    }
     await this.db.collection("restaurantTables").doc(table.id).set({
       lastActivity: now,
-      sessionExpiresAt: new Date(now.getTime() + 45 * 60_000),
-      ...(event ? { sessionEvents: FieldValue.arrayUnion({ ...event, at: now.toISOString() }) } : {}),
+      ...(event ? { sessionEvents: FieldValue.arrayUnion({ ...event, deviceId, at: now.toISOString() }) } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return table;
@@ -181,6 +206,14 @@ export class TableRepository {
 
   async delete(scope: TenantScope, idOrTable: string) {
     const row = await this.find(scope, idOrTable);
+    if (row.currentSessionId && row.sessionStatus === "active" && dateMs(row.sessionExpiresAt) > Date.now()) {
+      throw new Error("This table has an active QR session. End or let the session expire before deleting it.");
+    }
+    const activeOrders = (await readTenantDocs(this.db, "kitchenOrders", scope, ["tenantId", "restaurantId"], 500))
+      .map((doc) => doc.data())
+      .filter((order) => String(order.tableNumber ?? "") === String(row.tableNumber ?? row.table ?? ""))
+      .filter((order) => !["completed", "billed", "cancelled"].includes(String(order.status ?? "")));
+    if (activeOrders.length) throw new Error("This table has active kitchen orders. Complete or move those orders before deleting it.");
     await this.db.collection("restaurantTables").doc(String(row.id)).delete();
     return { id: row.id };
   }

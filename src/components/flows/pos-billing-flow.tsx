@@ -113,11 +113,10 @@ export function PosBillingFlow() {
     window.localStorage.setItem(heldOrdersKey, JSON.stringify(heldOrders));
   }, [heldOrders]);
   useEffect(() => {
-    let active = true;
-    void fetch("/api/owner/pos", { cache: "no-store" })
+    const controller = new AbortController();
+    void fetch("/api/owner/pos", { cache: "no-store", signal: controller.signal })
       .then((response) => response.json())
       .then((payload: { data?: { menu?: MenuItem[]; orders?: DemoOrder[]; tables?: PosTable[]; customers?: LoyaltyCustomer[]; kitchen?: TableOrder[]; staff?: StaffMember[] } }) => {
-        if (!active) return;
         setReadModel((current) => ({
           ...current,
           menuItems: payload.data?.menu ?? [],
@@ -127,8 +126,11 @@ export function PosBillingFlow() {
           tableOrders: payload.data?.kitchen ?? [],
           staffMembers: payload.data?.staff ?? [],
         }));
+      })
+      .catch((error) => {
+        if ((error as Error).name !== "AbortError") toast.error("POS data could not be loaded.");
       });
-    return () => { active = false; };
+    return () => controller.abort();
   }, []);
   useEffect(() => {
     if (panel !== "new" || wizardStep <= 1 || wizardStep >= 4) return;

@@ -526,16 +526,19 @@ export type RestaurantTableDoc = TenantScopedDoc & {
   qrVersion?: number;
   qrStatus?: "enabled" | "disabled" | "revoked";
   qrLastGeneratedAt?: FirestoreDate;
+  qrExpiresAt?: FirestoreDate;
   qrUsageCount?: number;
   currentSessionId?: string;
   sessionStatus?: "none" | "active" | "expired" | "closed";
   sessionCreatedAt?: FirestoreDate;
   sessionExpiresAt?: FirestoreDate;
+  sessionTimeoutMinutes?: number;
+  sessionIdleTimeoutMinutes?: number;
   lastActivity?: FirestoreDate;
   verifiedLocation?: boolean;
   verifiedPhone?: boolean;
   deviceId?: string;
-  sessionEvents?: Array<{ type: string; at: FirestoreDate; message?: string }>;
+  sessionEvents?: Array<{ type: string; at: FirestoreDate; message?: string; deviceId?: string }>;
   activeKitchenOrderId?: string;
 };
 

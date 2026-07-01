@@ -1,5 +1,20 @@
 # Final Production Readiness Report
 
+## 2026-07-01 QR/Table/Search Stabilization
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| targeted `npm run lint -- ...` for QR/table/search/view/POS files | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed |
+| `git diff --check` | Passed |
+
+- QR generation now derives URLs from the current request host/proxy headers so Hostinger QR codes use the deployed domain instead of localhost.
+- Table QR Save & Generate now validates table data, saves through the owner API, verifies the signed QR through the public session endpoint, and shows friendly errors without silent failure.
+- QR sessions now enforce absolute configured session timeout, idle timeout, and device-bound order/request validation.
+- Owner/admin global search inputs are isolated from browser autofill and signed-in identity state.
+
 ## 2026-06-30 Release Pass
 
 | Check | Result |

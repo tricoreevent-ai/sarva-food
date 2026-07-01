@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({})) as {
     token?: string;
     sessionId?: string;
+    deviceId?: string;
     customerName?: string;
     customerPhone?: string;
     fulfillmentType?: "dine-in" | "parcel";
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Session, customer, and order items are required." }, { status: 400 });
   }
   const tableRepo = new TableRepository();
-  const table = await tableRepo.touchSession(body.token, body.sessionId, { type: "order_reviewed", message: "QR order submitted" }).catch((error) => error);
+  const table = await tableRepo.touchSession(body.token, body.sessionId, body.deviceId || request.headers.get("user-agent") || "browser", { type: "order_reviewed", message: "QR order submitted" }).catch((error) => error);
   if (table instanceof Error) return NextResponse.json({ error: table.message }, { status: 409 });
   const fulfillmentType = body.fulfillmentType === "parcel" ? "parcel" : "dine-in";
   const orderRepo = new OrderRepository();
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
     etaMinutes: restaurant.scheduling?.minPrepMinutes ?? 12,
   });
   await new AuditRepository().record({ tenantId: table.tenantId, restaurantId: table.restaurantId, branchId: table.branchId, userId: order.customerId, role: "customer", action: "qr_order_create", module: "orders", entityId: order.id, after: { tableNumber: table.tableNumber, total: order.total } });
-  await tableRepo.touchSession(body.token, body.sessionId, { type: "order_created", message: `Order ${order.id} created` });
+  await tableRepo.touchSession(body.token, body.sessionId, body.deviceId || request.headers.get("user-agent") || "browser", { type: "order_created", message: `Order ${order.id} created` });
   return NextResponse.json({ ok: true, orderId: order.id, status: order.status }, { status: 201 });
 }
 

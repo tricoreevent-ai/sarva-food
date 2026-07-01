@@ -62,9 +62,13 @@ export async function POST(request: NextRequest) {
   ]);
   const settings = normalizeQrSettings(settingsDoc.data());
   const restaurantData = restaurant.data() ?? {};
+  const deviceId = body.deviceId || request.headers.get("user-agent") || "browser";
   if (!settings.enabled) return NextResponse.json({ error: "QR ordering is disabled for this restaurant." }, { status: 403 });
   if (tooManyRecentSessionAttempts(table.sessionEvents)) {
     return NextResponse.json({ error: "Too many QR session attempts. Please ask the restaurant team to help." }, { status: 429 });
+  }
+  if (table.currentSessionId && table.sessionStatus === "active" && table.deviceId && table.deviceId !== deviceId && toMillis(table.sessionExpiresAt) > Date.now()) {
+    return NextResponse.json({ error: "This table session is already active on another device. Please ask the waiter to restart it." }, { status: 409 });
   }
   const currentExpiry = toMillis(table.sessionExpiresAt);
   if (!settings.allowMultipleCustomers && table.currentSessionId && table.sessionStatus === "active" && currentExpiry > Date.now()) {
@@ -78,10 +82,11 @@ export async function POST(request: NextRequest) {
     customerName: body.customerName.trim(),
     customerPhone: body.customerPhone.trim(),
     customerEmail: body.customerEmail?.trim(),
-    deviceId: body.deviceId || request.headers.get("user-agent") || "browser",
+    deviceId,
     verifiedLocation: gpsOk,
     verifiedPhone: !settings.otpRequired || Boolean(body.otpCode?.trim()),
     sessionMinutes: settings.sessionTimeoutMinutes,
+    idleMinutes: settings.idleTimeoutMinutes,
   });
   return NextResponse.json({ data: session });
 }
