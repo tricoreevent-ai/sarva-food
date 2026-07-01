@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     customerName?: string;
     customerPhone?: string;
     customerEmail?: string;
+    guestCount?: number;
     deviceId?: string;
     lat?: number;
     lng?: number;
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
     customerName: body.customerName.trim(),
     customerPhone: body.customerPhone.trim(),
     customerEmail: body.customerEmail?.trim(),
+    guestCount: Math.max(1, Math.min(20, Number(body.guestCount ?? 1) || 1)),
     deviceId,
     verifiedLocation: gpsOk,
     verifiedPhone: !settings.otpRequired || Boolean(body.otpCode?.trim()),

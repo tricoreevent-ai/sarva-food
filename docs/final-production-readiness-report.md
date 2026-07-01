@@ -1,5 +1,19 @@
 # Final Production Readiness Report
 
+## 2026-07-01 Enterprise QR Session Workflow
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed |
+| `git diff --check` | Passed |
+
+- QR customer flow now includes welcome context, guest count registration, menu/cart/order, full waiter request set, request bill state, tracking link, and lightweight feedback.
+- Owner tables now expose live session/customer/mobile/guest/device/order/bill/request/timeline details plus refresh, extend, transfer, and end actions.
+- Active table transfer moves the session metadata and active kitchen tickets from the source table to the target table.
+- KDS surfaces open table service requests, and the owner dashboard shows QR session analytics from the existing analytics payload.
+
 ## 2026-07-01 QR/Table/Search Stabilization
 
 | Check | Result |

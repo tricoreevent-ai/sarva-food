@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { cn } from "@/lib/utils";
-import type { PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
+import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 
 type KitchenColumnId = "new" | "accepted" | "preparing" | "ready" | "completed";
 type PaymentState = "unpaid" | "partial" | "paid" | "refunded";
@@ -51,6 +51,7 @@ export function KitchenDisplayFlow() {
   const [fullscreen, setFullscreen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [orders, setOrders] = useState<TableOrder[]>([]);
+  const [tables, setTables] = useState<PosTable[]>([]);
   const [connectionState, setConnectionState] = useState<"realtime" | "fallback" | "error" | "loading">("loading");
   const [selectedPrinterId, setSelectedPrinterId] = useState("browser-kitchen");
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
@@ -66,6 +67,7 @@ export function KitchenDisplayFlow() {
   );
   const selectedPrinter = kitchenPrinters.find((profile) => profile.id === selectedPrinterId) ?? kitchenPrinters[0];
   const visibleOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort(sortKitchenOrders), [orders]);
+  const activeRequests = useMemo(() => tables.flatMap((table) => (table.serviceRequests ?? []).filter((request) => request.status === "open").map((request) => ({ ...request, table: table.table }))).slice(-8).reverse(), [tables]);
   const historyOrders = useMemo(() => orders.filter((order) => isCompleted(order.status) && !isToday(order.createdAt)), [orders]);
   const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders), [now, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
 
@@ -76,11 +78,14 @@ export function KitchenDisplayFlow() {
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/owner/kitchen", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((payload: { data?: TableOrder[] }) => {
+    void Promise.all([
+      fetch("/api/owner/kitchen", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+      fetch("/api/owner/tables", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
+    ])
+      .then(([payload, tablePayload]) => {
         if (!active) return;
         setOrders(payload.data ?? []);
+        setTables(tablePayload.data ?? []);
         setConnectionState("fallback");
       })
       .catch(() => {
@@ -220,6 +225,20 @@ export function KitchenDisplayFlow() {
           </select>
         </label>
       </section>
+
+      {activeRequests.length ? (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
+          <div className="mb-2 flex items-center gap-2 text-sm font-black text-amber-950"><BellRing className="size-4" />Open waiter requests</div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {activeRequests.map((request) => (
+              <div key={`${request.table}-${request.id}-${request.at}`} className="min-w-44 rounded-lg bg-white p-3 text-xs font-bold text-slate-700 shadow-sm">
+                <p className="text-slate-950">{request.table} · {request.type.replace(/-/g, " ")}</p>
+                <p className="mt-1 text-slate-500">{request.message || request.type}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="overflow-x-auto pb-2">
         <div className="grid min-w-[1280px] grid-cols-5 gap-4">

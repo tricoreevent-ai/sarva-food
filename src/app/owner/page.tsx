@@ -16,6 +16,7 @@ import {
   MessageCircle,
   PackageCheck,
   Printer,
+  QrCode,
   ReceiptText,
   Settings2,
   Table2,
@@ -265,10 +266,11 @@ export default function OwnerDashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         <KpiCard title="Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Repository revenue for this restaurant." />
         <KpiCard title="Orders" value={metrics.activeOrdersCount} delta={`${metrics.ordersToday} total`} icon={ReceiptText} tone="orange" spark={metrics.orderSpark} tooltip="Canonical order count from analytics." />
         <KpiCard title="Kitchen Operations" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
+        <KpiCard title="QR Sessions" value={metrics.qr.active} delta={`${metrics.qr.billRequests} bills · ${metrics.qr.serviceRequests} requests`} icon={QrCode} tone={metrics.qr.billRequests ? "orange" : "blue"} spark={metrics.qr.spark} tooltip="Live table QR sessions, bill requests, and waiter requests." />
         <KpiCard title="Staff" value={metrics.staff.total} delta={`${metrics.staff.waitersActive} waiters`} icon={Users} tone="green" spark={metrics.staff.spark} tooltip="Repository staff count for this restaurant." />
         <KpiCard title="Menu" value={metrics.menuCount} delta={`${metrics.loyaltyCount} loyalty`} icon={Utensils} tone="purple" spark={metrics.avgSpark} tooltip="Repository menu count." />
         <KpiCard title="Customers" value={metrics.newCustomers} delta={`${metrics.loyaltyCount} loyalty`} icon={UserRound} tone="amber" spark={metrics.customerSpark} tooltip="Customer and loyalty records available to this restaurant." />
@@ -925,6 +927,9 @@ function buildDashboardMetrics({
   const serving = new Set(tableOrders.filter((order) => !isTerminal(order.status) && order.waiterId).map((order) => order.waiterId)).size;
   const syncFailed = offlineQueue.filter((item) => item.status === "failed" || item.status === "conflict").length;
   const syncPending = offlineQueue.filter((item) => item.status === "queued" || item.status === "retrying").length;
+  const activeQrTables = posTables.filter((table) => table.currentSessionId && table.sessionStatus === "active");
+  const billRequests = activeQrTables.filter((table) => table.billRequestedAt).length;
+  const serviceRequests = activeQrTables.reduce((count, table) => count + (table.serviceRequests ?? []).filter((request) => request.status === "open").length, 0);
   const printerLabel = printerSettings.connectionStatus === "connected" ? "Connected" : printerSettings.connectionStatus === "browser-preview" ? "Browser preview" : "Offline";
   const printerTone = printerSettings.connectionStatus === "offline" ? "red" : "green";
   const typeCounts = buildTypeCounts(combined);
@@ -968,6 +973,13 @@ function buildDashboardMetrics({
       cashiersActive: staffMembers.filter((member) => member.role === "cashier" && member.status === "active").length,
       kitchenActive: staffMembers.filter((member) => ["chef", "kitchen-manager"].includes(member.role) && member.status === "active").length,
       spark: week.map(() => waitersActive),
+    },
+    qr: {
+      active: activeQrTables.length,
+      billRequests,
+      serviceRequests,
+      scans: posTables.reduce((count, table) => count + Number(table.qrUsageCount ?? 0), 0),
+      spark: week.map(() => activeQrTables.length),
     },
     sync: { failed: syncFailed, pending: syncPending },
     printerLabel,

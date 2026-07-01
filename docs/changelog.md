@@ -2,6 +2,7 @@
 
 ## 2026-07-01
 
+- Completed the enterprise QR customer/session workflow: QR welcome and registration, guest count, menu/cart/order, bill request, feedback, full waiter request set, active session read model, table timeline, bill/request state, owner extend/end/transfer actions, KDS request visibility, and owner dashboard QR analytics.
 - Stabilized production QR table management: Save & Generate QR now has explicit saving/error states, server-side duplicate table validation, current-deployment QR URL generation, signed QR expiry metadata, post-generation validation, expanded QR preview details, copy fallback, Open Link, bulk QR print/download, duplicate table, and clear delete-blocked reasons for active orders or QR sessions.
 - Hardened QR sessions with device-bound order/request validation, absolute configured session timeout, idle timeout enforcement, and QR link validation against the public session endpoint.
 - Hardened owner/admin global search inputs against browser/auth autofill so operational view switching cannot inject the signed-in identity into search.

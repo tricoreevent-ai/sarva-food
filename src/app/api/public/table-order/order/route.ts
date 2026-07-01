@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     etaMinutes: restaurant.scheduling?.minPrepMinutes ?? 12,
   });
   await new AuditRepository().record({ tenantId: table.tenantId, restaurantId: table.restaurantId, branchId: table.branchId, userId: order.customerId, role: "customer", action: "qr_order_create", module: "orders", entityId: order.id, after: { tableNumber: table.tableNumber, total: order.total } });
-  await tableRepo.touchSession(body.token, body.sessionId, body.deviceId || request.headers.get("user-agent") || "browser", { type: "order_created", message: `Order ${order.id} created` });
+  await tableRepo.touchSession(body.token, body.sessionId, body.deviceId || request.headers.get("user-agent") || "browser", { type: "order_created", message: `Order ${order.id} created`, orderId: order.id, total: order.total });
   return NextResponse.json({ ok: true, orderId: order.id, status: order.status }, { status: 201 });
 }
 

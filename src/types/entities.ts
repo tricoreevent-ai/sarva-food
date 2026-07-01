@@ -751,8 +751,21 @@ export type PosTable = {
   qrUsageCount?: number;
   currentSessionId?: string;
   sessionStatus?: "none" | "active" | "expired" | "closed";
+  sessionCustomerName?: string;
+  sessionCustomerPhone?: string;
+  sessionCustomerEmail?: string;
+  sessionGuestCount?: number;
+  sessionCreatedAt?: string;
+  sessionExpiresAt?: string;
   sessionTimeoutMinutes?: number;
   sessionIdleTimeoutMinutes?: number;
+  lastActivity?: string;
+  deviceId?: string;
+  currentOrderId?: string;
+  currentOrderTotal?: number;
+  billRequestedAt?: string;
+  serviceRequests?: Array<{ id: string; type: string; status: "open" | "cancelled" | "done"; message?: string; at: string }>;
+  sessionEvents?: Array<{ type: string; at: string; message?: string; deviceId?: string; orderId?: string; total?: number; targetTable?: string }>;
   lastCleanedAt?: string;
 };
 

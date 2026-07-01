@@ -31,6 +31,7 @@ type SessionInput = {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
+  guestCount?: number;
   deviceId: string;
   verifiedLocation: boolean;
   verifiedPhone: boolean;
@@ -42,6 +43,14 @@ type SessionEvent = {
   type: string;
   message?: string;
   deviceId?: string;
+  orderId?: string;
+  total?: number;
+  targetTable?: string;
+};
+
+type ServiceRequestInput = {
+  type: string;
+  message?: string;
 };
 
 export class TableRepository {
@@ -162,6 +171,11 @@ export class TableRepository {
     const patch = {
       currentSessionId: sessionId,
       sessionStatus: "active",
+      status: "occupied",
+      sessionCustomerName: input.customerName,
+      sessionCustomerPhone: input.customerPhone,
+      sessionCustomerEmail: input.customerEmail ?? "",
+      sessionGuestCount: Number(input.guestCount ?? 1),
       sessionCreatedAt: existingActive ? table.sessionCreatedAt ?? now : now,
       sessionExpiresAt: expiresAt,
       sessionTimeoutMinutes: input.sessionMinutes ?? 45,
@@ -174,6 +188,7 @@ export class TableRepository {
       sessionEvents: FieldValue.arrayUnion({
         type: existingActive ? "session_joined" : "session_created",
         at: now.toISOString(),
+        deviceId: input.deviceId,
         message: `${input.customerName} joined ${table.tableNumber}`,
       }),
       qrLastScannedAt: now,
@@ -196,12 +211,138 @@ export class TableRepository {
       await this.db.collection("restaurantTables").doc(table.id).set({ sessionStatus: "expired", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       throw new Error("Dining session was idle for too long. Please scan the table QR again.");
     }
+    const orderPatch = event?.orderId ? {
+      currentOrderId: event.orderId,
+      activeKitchenOrderId: event.orderId,
+      currentOrderTotal: Number(event.total ?? table.currentOrderTotal ?? 0),
+      status: "occupied",
+    } : {};
     await this.db.collection("restaurantTables").doc(table.id).set({
       lastActivity: now,
+      ...orderPatch,
       ...(event ? { sessionEvents: FieldValue.arrayUnion({ ...event, deviceId, at: now.toISOString() }) } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return table;
+  }
+
+  async serviceRequest(token: string, sessionId: string, deviceId: string, input: ServiceRequestInput) {
+    const table = await this.touchSession(token, sessionId, deviceId, { type: `service_${input.type}`, message: input.message ?? input.type });
+    const now = new Date();
+    const request = {
+      id: `REQ-${now.getTime().toString(36).toUpperCase()}`,
+      type: input.type,
+      status: input.type === "cancel-request" ? "cancelled" : "open",
+      message: input.message ?? input.type,
+      at: now.toISOString(),
+    };
+    const patch = {
+      lastActivity: now,
+      serviceRequests: FieldValue.arrayUnion(request),
+      sessionEvents: FieldValue.arrayUnion({
+        type: input.type === "bill" ? "bill_requested" : input.type === "cancel-request" ? "service_cancelled" : "service_requested",
+        message: input.message ?? input.type,
+        deviceId,
+        at: now.toISOString(),
+      }),
+      ...(input.type === "bill" ? { status: "billed", billRequestedAt: now } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    await this.db.collection("restaurantTables").doc(table.id).set(patch, { merge: true });
+    return { table: dataWithId<Record<string, unknown>>(table.id, (await this.db.collection("restaurantTables").doc(table.id).get()).data() ?? {}), request };
+  }
+
+  async extendSession(scope: TenantScope, idOrTable: string, minutes = 15) {
+    const row = await this.find(scope, idOrTable);
+    if (!row.currentSessionId || row.sessionStatus !== "active") throw new Error("No active QR session found for this table.");
+    const now = new Date();
+    const base = Math.max(dateMs(row.sessionExpiresAt), now.getTime());
+    const expiresAt = new Date(base + Math.max(1, minutes) * 60_000);
+    await this.db.collection("restaurantTables").doc(String(row.id)).set({
+      sessionExpiresAt: expiresAt,
+      lastActivity: now,
+      sessionEvents: FieldValue.arrayUnion({ type: "session_extended", at: now.toISOString(), message: `Extended by ${minutes} minutes` }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return dataWithId<Record<string, unknown>>(String(row.id), (await this.db.collection("restaurantTables").doc(String(row.id)).get()).data() ?? {});
+  }
+
+  async endSession(scope: TenantScope, idOrTable: string) {
+    const row = await this.find(scope, idOrTable);
+    const now = new Date();
+    await this.db.collection("restaurantTables").doc(String(row.id)).set({
+      sessionStatus: "closed",
+      status: "vacant",
+      currentSessionId: "",
+      currentOrderId: "",
+      activeKitchenOrderId: "",
+      billRequestedAt: null,
+      lastActivity: now,
+      sessionEvents: FieldValue.arrayUnion({ type: "session_closed", at: now.toISOString(), message: "Session ended by owner" }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return dataWithId<Record<string, unknown>>(String(row.id), (await this.db.collection("restaurantTables").doc(String(row.id)).get()).data() ?? {});
+  }
+
+  async transferSession(scope: TenantScope, fromIdOrTable: string, toIdOrTable: string) {
+    const source = await this.find(scope, fromIdOrTable);
+    const target = await this.find(scope, toIdOrTable);
+    if (source.id === target.id) throw new Error("Choose a different target table.");
+    if (!source.currentSessionId || source.sessionStatus !== "active") throw new Error("Source table has no active QR session.");
+    if (target.currentSessionId && target.sessionStatus === "active" && dateMs(target.sessionExpiresAt) > Date.now()) throw new Error("Target table already has an active QR session.");
+    const now = new Date();
+    const sourceTable = String(source.tableNumber ?? source.table ?? "");
+    const targetTable = String(target.tableNumber ?? target.table ?? "");
+    const sessionPatch = {
+      currentSessionId: source.currentSessionId,
+      sessionStatus: "active",
+      status: "occupied",
+      sessionCustomerName: source.sessionCustomerName ?? "",
+      sessionCustomerPhone: source.sessionCustomerPhone ?? "",
+      sessionCustomerEmail: source.sessionCustomerEmail ?? "",
+      sessionGuestCount: Number(source.sessionGuestCount ?? 1),
+      sessionCreatedAt: source.sessionCreatedAt ?? now,
+      sessionExpiresAt: source.sessionExpiresAt ?? new Date(now.getTime() + 45 * 60_000),
+      sessionTimeoutMinutes: source.sessionTimeoutMinutes ?? 45,
+      sessionIdleTimeoutMinutes: source.sessionIdleTimeoutMinutes ?? 10,
+      lastActivity: now,
+      verifiedLocation: source.verifiedLocation ?? false,
+      verifiedPhone: source.verifiedPhone ?? false,
+      deviceId: source.deviceId ?? "",
+      currentOrderId: source.currentOrderId ?? source.activeKitchenOrderId ?? "",
+      activeKitchenOrderId: source.activeKitchenOrderId ?? source.currentOrderId ?? "",
+      currentOrderTotal: Number(source.currentOrderTotal ?? 0),
+      billRequestedAt: source.billRequestedAt ?? null,
+      serviceRequests: Array.isArray(source.serviceRequests) ? source.serviceRequests : [],
+      sessionEvents: [
+        ...(Array.isArray(source.sessionEvents) ? source.sessionEvents : []),
+        { type: "session_transferred_in", at: now.toISOString(), message: `${sourceTable} transferred to ${targetTable}`, targetTable },
+      ],
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    const batch = this.db.batch();
+    batch.set(this.db.collection("restaurantTables").doc(String(target.id)), sessionPatch, { merge: true });
+    batch.set(this.db.collection("restaurantTables").doc(String(source.id)), {
+      sessionStatus: "closed",
+      status: "vacant",
+      currentSessionId: "",
+      currentOrderId: "",
+      activeKitchenOrderId: "",
+      currentOrderTotal: 0,
+      billRequestedAt: null,
+      lastActivity: now,
+      sessionEvents: FieldValue.arrayUnion({ type: "session_transferred_out", at: now.toISOString(), message: `${sourceTable} transferred to ${targetTable}`, targetTable }),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const activeOrders = (await readTenantDocs(this.db, "kitchenOrders", scope, ["tenantId", "restaurantId"], 500))
+      .filter((doc) => String(doc.data().tableNumber ?? "") === sourceTable)
+      .filter((doc) => !["completed", "billed", "cancelled"].includes(String(doc.data().status ?? "")));
+    activeOrders.forEach((doc) => batch.set(doc.ref, { tableNumber: targetTable, updatedAt: FieldValue.serverTimestamp() }, { merge: true }));
+    await batch.commit();
+    return {
+      source: dataWithId<Record<string, unknown>>(String(source.id), (await this.db.collection("restaurantTables").doc(String(source.id)).get()).data() ?? {}),
+      target: dataWithId<Record<string, unknown>>(String(target.id), (await this.db.collection("restaurantTables").doc(String(target.id)).get()).data() ?? {}),
+    };
   }
 
   async delete(scope: TenantScope, idOrTable: string) {

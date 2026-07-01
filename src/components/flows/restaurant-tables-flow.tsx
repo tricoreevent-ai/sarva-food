@@ -3,10 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ElementType } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { Ban, Brush, CalendarCheck, CheckCircle2, CircleX, Copy, Download, Edit3, ExternalLink, Grid2X2, LayoutGrid, List, Plus, Printer, QrCode, RefreshCcw, Search, Settings2, Table2, Trash2, Users } from "lucide-react";
+import { ArrowRightLeft, Ban, Brush, CalendarCheck, CheckCircle2, CircleX, Clock3, Copy, Download, Edit3, ExternalLink, Grid2X2, History, LayoutGrid, List, Plus, Printer, QrCode, ReceiptText, RefreshCcw, Search, Settings2, Smartphone, Table2, TimerReset, Trash2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,19 +51,23 @@ export function RestaurantTablesFlow() {
   const [draft, setDraft] = useState<TableDraft | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void Promise.all([
-      fetch("/api/owner/tables", { cache: "no-store", signal: controller.signal }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
-      fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+  const loadTables = useCallback(async (signal?: AbortSignal) => {
+    await Promise.all([
+      fetch("/api/owner/tables", { cache: "no-store", signal }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
+      fetch("/api/owner/kitchen", { cache: "no-store", signal }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
     ]).then(([tables, kitchen]) => {
       setConfiguredTables(tables.data ?? []);
       setOrders(kitchen.data ?? []);
     }).catch((error) => {
       if ((error as Error).name !== "AbortError") toast.error("Table data could not be loaded.");
     });
-    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadTables(controller.signal);
+    return () => controller.abort();
+  }, [loadTables]);
 
   const tableRows = useMemo(() => {
     return configuredTables.slice().sort((first, second) => first.table.localeCompare(second.table, undefined, { numeric: true }));
@@ -90,6 +94,7 @@ export function RestaurantTablesFlow() {
   });
   const grouped = groupByFloor(filteredTables);
   const qrReadyTables = filteredTables.filter((table) => table.qrUrl && table.qrOrderingEnabled !== false);
+  const activeSessions = tableRows.filter(isLiveSession);
   const stats = {
     total: tableRows.length,
     available: tableRows.filter((table) => getDisplayStatus(table, findActiveOrder(orders, table.table)) === "Available").length,
@@ -237,6 +242,23 @@ export function RestaurantTablesFlow() {
     toast.success(action === "rotate-qr" ? "QR regenerated." : action === "enable-qr" ? "QR enabled." : "QR disabled.");
   }
 
+  async function sessionAction(table: PosTable, action: "extend-session" | "end-session" | "transfer-session") {
+    const targetTable = action === "transfer-session" ? window.prompt("Transfer active QR session to table")?.trim().toUpperCase() : "";
+    if (action === "transfer-session" && !targetTable) return;
+    const response = await fetch("/api/owner/tables", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: table.id, table: table.table, action, targetTable, minutes: 15 }),
+    });
+    const payload = await response.json().catch(() => ({})) as { data?: PosTable; error?: string };
+    if (!response.ok) {
+      toast.error(payload.error || "Session action failed.");
+      return;
+    }
+    await loadTables();
+    toast.success(action === "extend-session" ? "Session extended." : action === "transfer-session" ? "Session transferred." : "Session ended.");
+  }
+
   async function bulkDownloadQr() {
     if (!qrReadyTables.length) return toast.error("No enabled table QR codes in the current view.");
     const items = await Promise.all(qrReadyTables.map(async (table) => ({
@@ -291,6 +313,45 @@ export function RestaurantTablesFlow() {
           <Metric icon={CalendarCheck} label="Reserved" value={stats.reserved} hint="Reserved for guests" tone="violet" />
           <Metric icon={Brush} label="Under Cleaning" value={stats.cleaning} hint="Being cleaned" tone="amber" />
         </div>
+
+        {activeSessions.length ? (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-slate-950">Active table sessions</h2>
+                  <p className="text-xs font-semibold text-slate-500">Live QR customers, requests, orders, and expiry at a glance.</p>
+                </div>
+                <Button variant="outline" onClick={() => void loadTables()}><RefreshCcw className="size-4" />Refresh</Button>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {activeSessions.map((table) => (
+                  <article key={table.id ?? table.table} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase text-emerald-700">{table.table} · {table.qrStatus ?? "enabled"}</p>
+                        <h3 className="mt-1 text-lg font-black text-slate-950">{table.sessionCustomerName || "Walk-in customer"}</h3>
+                        <p className="text-xs font-semibold text-slate-500">{table.sessionCustomerPhone || "No phone"} · {table.sessionGuestCount ?? 1} guests</p>
+                      </div>
+                      <Badge variant={table.billRequestedAt ? "warning" : "success"}>{table.billRequestedAt ? "Waiting for Bill" : "Active"}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
+                      <span><Clock3 className="mr-1 inline size-3" />Started {relativeTime(table.sessionCreatedAt)}</span>
+                      <span><TimerReset className="mr-1 inline size-3" />Left {remainingTime(table.sessionExpiresAt)}</span>
+                      <span><ReceiptText className="mr-1 inline size-3" />{table.currentOrderId || "No order yet"}</span>
+                      <span><Smartphone className="mr-1 inline size-3" />{shortDevice(table.deviceId)}</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void sessionAction(table, "extend-session")}>Extend</Button>
+                      <Button size="sm" variant="outline" onClick={() => void sessionAction(table, "transfer-session")}><ArrowRightLeft className="size-4" />Transfer</Button>
+                      <Button size="sm" variant="outline" onClick={() => void sessionAction(table, "end-session")}>End</Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
@@ -380,12 +441,23 @@ export function RestaurantTablesFlow() {
                   <Detail label="Capacity" value={`${selectedTable.seats} Seater`} />
                   <Detail label="Status" value={selectedStatus} />
                   <Detail label="Current Order" value={selectedActiveOrder ? formatCurrency(selectedActiveOrder.total ?? totalFor(selectedActiveOrder)) : "No active order"} />
+                  <Detail label="Customer" value={selectedTable.sessionCustomerName || "No active customer"} />
+                  <Detail label="Mobile" value={selectedTable.sessionCustomerPhone || "Not captured"} />
+                  <Detail label="Guests" value={String(selectedTable.sessionGuestCount ?? 0)} />
+                  <Detail label="Elapsed" value={elapsedTime(selectedTable.sessionCreatedAt)} />
+                  <Detail label="Remaining" value={remainingTime(selectedTable.sessionExpiresAt)} />
+                  <Detail label="Current Bill" value={formatCurrency(selectedTable.currentOrderTotal ?? selectedActiveOrder?.total ?? 0)} />
+                  <Detail label="Device" value={shortDevice(selectedTable.deviceId)} />
+                  <Detail label="Last Activity" value={formatDateTime(selectedTable.lastActivity)} />
                   <Detail label="QR Status" value={selectedTable.qrOrderingEnabled ? selectedTable.qrStatus ?? "enabled" : "disabled"} />
                   <Detail label="Usage Count" value={String(selectedTable.qrUsageCount ?? 0)} />
                   <Detail label="Current Session" value={selectedTable.currentSessionId ? selectedTable.sessionStatus ?? "active" : "None"} />
+                  <Detail label="Bill Status" value={selectedTable.billRequestedAt ? "Waiting for Bill" : "Not requested"} />
                   <Detail label="Last Cleaned" value={selectedTable.lastCleanedAt ? new Date(selectedTable.lastCleanedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not recorded"} />
                   <Detail label="Notes" value={selectedTable.note ?? "No notes"} />
                 </div>
+                <SessionRequests table={selectedTable} />
+                <SessionTimeline table={selectedTable} />
                 <QrManagementPanel table={selectedTable} restaurantName={restaurantName} onAction={tableAction} />
                 <div className="grid gap-2">
                   <Button asChild className="h-12 bg-orange-600 text-white hover:bg-orange-700">
@@ -395,6 +467,14 @@ export function RestaurantTablesFlow() {
                   <Button variant="outline" onClick={() => updateSelected({ status: "Cleaning", lastCleanedAt: new Date().toISOString() })}><Brush className="size-4" /> Mark as Cleaning</Button>
                   <Button variant="outline" onClick={() => updateSelected({ status: "Inactive" })}><Ban className="size-4" /> Mark as Inactive</Button>
                   <Button variant="outline" onClick={() => duplicateTable(selectedTable)}><Copy className="size-4" /> Duplicate Table</Button>
+                  {isLiveSession(selectedTable) ? (
+                    <>
+                      <Button variant="outline" onClick={() => void loadTables()}><RefreshCcw className="size-4" /> Refresh Session</Button>
+                      <Button variant="outline" onClick={() => void sessionAction(selectedTable, "extend-session")}><TimerReset className="size-4" /> Extend Session</Button>
+                      <Button variant="outline" onClick={() => void sessionAction(selectedTable, "transfer-session")}><ArrowRightLeft className="size-4" /> Transfer Session</Button>
+                      <Button variant="outline" onClick={() => void sessionAction(selectedTable, "end-session")}><CircleX className="size-4" /> End Session</Button>
+                    </>
+                  ) : null}
                   {selectedActiveOrder ? (
                     <Button variant="outline" onClick={() => void changeTableTicketStatus(selectedActiveOrder.id, selectedActiveOrder.status === "ready" ? "served" : "ready")}>
                       <CheckCircle2 className="size-4" />
@@ -455,6 +535,48 @@ function Detail({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-0">
       <span className="font-semibold text-slate-500">{label}</span>
       <span className="text-right font-black text-slate-800">{value}</span>
+    </div>
+  );
+}
+
+function SessionRequests({ table }: { table: PosTable }) {
+  const requests = (table.serviceRequests ?? []).slice(-5).reverse();
+  return (
+    <div className="rounded-2xl border border-slate-200 p-3">
+      <h3 className="flex items-center gap-2 font-black text-slate-950"><ReceiptText className="size-4" />Service Requests</h3>
+      <div className="mt-3 space-y-2">
+        {requests.length ? requests.map((request) => (
+          <div key={`${request.id}-${request.at}`} className="rounded-xl bg-slate-50 p-3 text-xs font-bold text-slate-600">
+            <div className="flex items-center justify-between gap-2">
+              <span className="capitalize text-slate-950">{request.type.replace(/-/g, " ")}</span>
+              <Badge variant={request.status === "open" ? "warning" : "muted"}>{request.status}</Badge>
+            </div>
+            <p className="mt-1">{request.message || request.type}</p>
+            <p className="mt-1 text-slate-400">{formatDateTime(request.at)}</p>
+          </div>
+        )) : <p className="rounded-xl border border-dashed p-3 text-xs font-semibold text-slate-500">No waiter requests yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+function SessionTimeline({ table }: { table: PosTable }) {
+  const events = (table.sessionEvents ?? []).slice(-8).reverse();
+  return (
+    <div className="rounded-2xl border border-slate-200 p-3">
+      <h3 className="flex items-center gap-2 font-black text-slate-950"><History className="size-4" />Table Timeline</h3>
+      <div className="mt-3 space-y-2">
+        {events.length ? events.map((event, index) => (
+          <div key={`${event.type}-${event.at}-${index}`} className="grid grid-cols-[8px_1fr] gap-3 text-xs font-bold">
+            <span className="mt-1 size-2 rounded-full bg-orange-500" />
+            <div>
+              <p className="capitalize text-slate-950">{event.type.replace(/_/g, " ")}</p>
+              <p className="text-slate-500">{event.message || event.orderId || event.targetTable || "Session activity"}</p>
+              <p className="text-slate-400">{formatDateTime(event.at)}</p>
+            </div>
+          </div>
+        )) : <p className="rounded-xl border border-dashed p-3 text-xs font-semibold text-slate-500">No session timeline yet.</p>}
+      </div>
     </div>
   );
 }
@@ -603,6 +725,7 @@ function findActiveOrder(orders: TableOrder[], table: string) {
 
 function getDisplayStatus(table: PosTable, activeOrder?: TableOrder): DisplayStatus {
   if (activeOrder) return "Occupied";
+  if (isLiveSession(table)) return "Occupied";
   if (table.status === "Reserved") return "Reserved";
   if (table.status === "Cleaning") return "Cleaning";
   if (table.status === "Inactive") return "Inactive";
@@ -626,6 +749,40 @@ function groupByFloor(tables: PosTable[]) {
 
 function totalFor(order: TableOrder) {
   return order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
+}
+
+function isLiveSession(table: PosTable) {
+  return Boolean(table.currentSessionId && table.sessionStatus === "active" && (!table.sessionExpiresAt || Date.parse(table.sessionExpiresAt) > Date.now()));
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "Not recorded";
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not recorded";
+}
+
+function relativeTime(value?: string) {
+  if (!value) return "now";
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(value)) / 60_000));
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+}
+
+function elapsedTime(value?: string) {
+  if (!value) return "0m";
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(value)) / 60_000));
+  return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+function remainingTime(value?: string) {
+  if (!value) return "No expiry";
+  const mins = Math.max(0, Math.round((Date.parse(value) - Date.now()) / 60_000));
+  return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+function shortDevice(value?: string) {
+  return value ? value.slice(0, 12) : "Unknown";
 }
 
 function downloadHref(name: string, href: string) {

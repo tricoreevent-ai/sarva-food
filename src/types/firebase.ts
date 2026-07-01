@@ -530,6 +530,10 @@ export type RestaurantTableDoc = TenantScopedDoc & {
   qrUsageCount?: number;
   currentSessionId?: string;
   sessionStatus?: "none" | "active" | "expired" | "closed";
+  sessionCustomerName?: string;
+  sessionCustomerPhone?: string;
+  sessionCustomerEmail?: string;
+  sessionGuestCount?: number;
   sessionCreatedAt?: FirestoreDate;
   sessionExpiresAt?: FirestoreDate;
   sessionTimeoutMinutes?: number;
@@ -538,7 +542,11 @@ export type RestaurantTableDoc = TenantScopedDoc & {
   verifiedLocation?: boolean;
   verifiedPhone?: boolean;
   deviceId?: string;
-  sessionEvents?: Array<{ type: string; at: FirestoreDate; message?: string; deviceId?: string }>;
+  currentOrderId?: string;
+  currentOrderTotal?: number;
+  billRequestedAt?: FirestoreDate;
+  serviceRequests?: Array<{ id: string; type: string; status: "open" | "cancelled" | "done"; message?: string; at: FirestoreDate }>;
+  sessionEvents?: Array<{ type: string; at: FirestoreDate; message?: string; deviceId?: string; orderId?: string; total?: number; targetTable?: string }>;
   activeKitchenOrderId?: string;
 };
 

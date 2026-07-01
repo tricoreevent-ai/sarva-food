@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
-import { Bell, CheckCircle2, Loader2, Minus, Plus, Search, ShoppingBag, UserRound } from "lucide-react";
+import { Bell, CheckCircle2, Loader2, Minus, Plus, ReceiptText, Search, ShoppingBag, Star, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { MenuItem } from "@/lib/types";
@@ -17,6 +17,16 @@ type SessionData = {
 
 type CartLine = MenuItem & { quantity: number };
 
+const serviceActions = [
+  { type: "call-waiter", label: "Call waiter" },
+  { type: "water", label: "Water" },
+  { type: "tissue", label: "Tissue" },
+  { type: "bill", label: "Request bill" },
+  { type: "assistance", label: "Assistance" },
+  { type: "extra-plate", label: "Extra plate" },
+  { type: "cancel-request", label: "Cancel request" },
+];
+
 export function TableQrOrderingFlow({ token }: { token: string }) {
   const [data, setData] = useState<SessionData | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
@@ -24,12 +34,14 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const [cart, setCart] = useState<CartLine[]>(() => readSavedCart(storageKey));
   const [sessionId, setSessionId] = useState("");
   const [sessionExpiresAt, setSessionExpiresAt] = useState("");
-  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", otpCode: "" });
+  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", otpCode: "", guestCount: "1" });
   const [mode, setMode] = useState<"dine-in" | "parcel">("dine-in");
   const [query, setQuery] = useState("");
   const [vegOnly, setVegOnly] = useState(false);
   const [idleWarning, setIdleWarning] = useState(false);
   const [lastOrderId, setLastOrderId] = useState("");
+  const [billRequested, setBillRequested] = useState(false);
+  const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const subtotal = cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
@@ -106,7 +118,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     const response = await fetch("/api/public/table-order/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, ...customer, deviceId: id, lat: geo?.lat, lng: geo?.lng }),
+      body: JSON.stringify({ token, ...customer, guestCount: Number(customer.guestCount || 1), deviceId: id, lat: geo?.lat, lng: geo?.lng }),
     });
     const payload = await response.json().catch(() => ({})) as { data?: { sessionId: string; expiresAt?: string }; error?: string; step?: string };
     if (!response.ok) {
@@ -169,7 +181,10 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token, sessionId, deviceId: deviceId(), type, message: type.replace("-", " ") }),
     });
-    if (response.ok) toast.success("Request sent.");
+    if (response.ok) {
+      if (type === "bill") setBillRequested(true);
+      toast.success(type === "bill" ? "Bill requested." : "Request sent.");
+    }
     else {
       const payload = await response.json().catch(() => ({})) as { error?: string };
       if ((payload.error ?? "").toLowerCase().includes("session")) expireSession();
@@ -194,17 +209,35 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
 
       <main className="space-y-4 px-4 py-4 pb-32">
         {idleWarning ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">Session idle. Add an item or send a request to keep table ordering active.</div> : null}
+        <section className="rounded-3xl border border-orange-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-black uppercase text-orange-600">Welcome to {data.restaurant.name}</p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">{data.table.name}</h2>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Browse the menu, place orders to the kitchen, call the waiter, or request your bill from this phone.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge>{data.table.tableNumber}</Badge>
+            <Badge variant="muted">{data.table.seats} seats</Badge>
+            <Badge variant={sessionId ? "success" : "warning"}>{sessionId ? "Session active" : "Start to order"}</Badge>
+          </div>
+        </section>
         {lastOrderId ? (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-950">
-            Order {lastOrderId} reached the kitchen. <a className="underline" href={`/order/${lastOrderId}`}>Track status</a>
+          <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-950">
+            <p>Order {lastOrderId} reached the kitchen. <a className="underline" href={`/order/${lastOrderId}`}>Track status</a></p>
+            <div className="flex items-center gap-2">
+              <span>Feedback</span>
+              {[1, 2, 3, 4, 5].map((item) => (
+                <button key={item} type="button" className={item <= rating ? "text-orange-500" : "text-slate-300"} onClick={() => setRating(item)}><Star className="size-5 fill-current" /></button>
+              ))}
+            </div>
           </section>
         ) : null}
+        {billRequested ? <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-950"><ReceiptText className="mr-2 inline size-5" />Bill requested. A waiter will review the table bill shortly.</section> : null}
         {!sessionId ? (
           <section className="rounded-2xl border bg-white p-4 shadow-sm">
             <h2 className="flex items-center gap-2 text-lg font-black"><UserRound className="size-5" />Start table session</h2>
             <div className="mt-3 grid gap-3">
               <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} placeholder="Customer name" />
               <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.phone} onChange={(event) => setCustomer({ ...customer, phone: event.target.value })} placeholder="Mobile number" />
+              <input className="h-12 rounded-xl border px-3 font-semibold" type="number" min="1" max="20" value={customer.guestCount} onChange={(event) => setCustomer({ ...customer, guestCount: event.target.value })} placeholder="Guests" />
               <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.email} onChange={(event) => setCustomer({ ...customer, email: event.target.value })} placeholder="Email optional" />
               {data.settings.otpRequired ? <input className="h-12 rounded-xl border px-3 font-semibold" value={customer.otpCode} onChange={(event) => setCustomer({ ...customer, otpCode: event.target.value })} placeholder="OTP" /> : null}
               <Button className="h-12 bg-orange-600 hover:bg-orange-700" onClick={() => void startSession()}>Continue</Button>
@@ -214,8 +247,8 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
 
         <section className="rounded-2xl border bg-white p-3 shadow-sm">
           <div className="flex gap-2">
-            <Button type="button" variant={mode === "dine-in" ? "default" : "outline"} disabled={!data.settings.allowDineIn} onClick={() => setMode("dine-in")}>Dine In</Button>
-            <Button type="button" variant={mode === "parcel" ? "default" : "outline"} disabled={!data.settings.allowParcel} onClick={() => setMode("parcel")}>Parcel</Button>
+            <Button type="button" className="h-12 flex-1" variant={mode === "dine-in" ? "default" : "outline"} disabled={!data.settings.allowDineIn} onClick={() => setMode("dine-in")}>Dine In</Button>
+            <Button type="button" className="h-12 flex-1" variant={mode === "parcel" ? "default" : "outline"} disabled={!data.settings.allowParcel} onClick={() => setMode("parcel")}>Parcel</Button>
           </div>
           <label className="relative mt-3 block">
             <Search className="absolute left-3 top-3.5 size-4 text-slate-400" />
@@ -236,14 +269,14 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
                 <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{item.description}</p>
                 <p className="mt-2 font-black">{formatCurrency(item.price)}</p>
               </div>
-              <Button type="button" size="sm" onClick={() => add(item)}><Plus className="size-4" />Add</Button>
+              <Button type="button" className="h-12 min-w-20" onClick={() => add(item)}><Plus className="size-4" />Add</Button>
             </article>
           ))}
         </section>
 
         <section className="grid grid-cols-2 gap-2">
-          {["call-waiter", "water", "bill", "cleaning", "extra-plate"].map((item) => (
-            <Button key={item} type="button" variant="outline" onClick={() => void request(item)}><Bell className="size-4" />{item.replace("-", " ")}</Button>
+          {serviceActions.map((item) => (
+            <Button key={item.type} type="button" className="h-14 justify-start text-left capitalize" variant="outline" onClick={() => void request(item.type)}><Bell className="size-4" />{item.label}</Button>
           ))}
         </section>
       </main>

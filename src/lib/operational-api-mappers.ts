@@ -160,8 +160,27 @@ export function tableDocToPosTable(table: Record<string, unknown>): PosTable {
     qrUsageCount: num(table.qrUsageCount),
     currentSessionId: str(table.currentSessionId),
     sessionStatus: sessionStatus(str(table.sessionStatus)),
+    sessionCustomerName: str(table.sessionCustomerName),
+    sessionCustomerPhone: str(table.sessionCustomerPhone),
+    sessionCustomerEmail: str(table.sessionCustomerEmail),
+    sessionGuestCount: finite(table.sessionGuestCount),
+    sessionCreatedAt: parseFirestoreDateIso(table.sessionCreatedAt),
+    sessionExpiresAt: parseFirestoreDateIso(table.sessionExpiresAt),
     sessionTimeoutMinutes: finite(table.sessionTimeoutMinutes),
     sessionIdleTimeoutMinutes: finite(table.sessionIdleTimeoutMinutes),
+    lastActivity: parseFirestoreDateIso(table.lastActivity),
+    deviceId: str(table.deviceId),
+    currentOrderId: str(table.currentOrderId || table.activeKitchenOrderId),
+    currentOrderTotal: finite(table.currentOrderTotal),
+    billRequestedAt: parseFirestoreDateIso(table.billRequestedAt),
+    serviceRequests: Array.isArray(table.serviceRequests) ? table.serviceRequests.map((request) => {
+      const item = request as Record<string, unknown>;
+      return { id: str(item.id), type: str(item.type), status: serviceStatus(str(item.status)), message: str(item.message), at: parseFirestoreDateIso(item.at) ?? "" };
+    }) : [],
+    sessionEvents: Array.isArray(table.sessionEvents) ? table.sessionEvents.map((event) => {
+      const item = event as Record<string, unknown>;
+      return { type: str(item.type), at: parseFirestoreDateIso(item.at) ?? str(item.at), message: str(item.message), deviceId: str(item.deviceId), orderId: str(item.orderId), total: finite(item.total), targetTable: str(item.targetTable) };
+    }) : [],
     lastCleanedAt: parseFirestoreDateIso(table.lastCleanedAt),
   };
 }
@@ -227,6 +246,10 @@ function qrStatus(value: string): PosTable["qrStatus"] {
 function sessionStatus(value: string): PosTable["sessionStatus"] {
   if (value === "active" || value === "expired" || value === "closed") return value;
   return "none";
+}
+
+function serviceStatus(value: string): "open" | "cancelled" | "done" {
+  return value === "cancelled" || value === "done" ? value : "open";
 }
 
 function first(value: unknown) {
