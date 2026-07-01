@@ -1,4 +1,5 @@
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
+import { normalizeMenuImageUrls } from "@/lib/menu-images";
 import type { DemoOrder, LoyaltyCustomer, MenuItem, PosTable, StaffMember, TableOrder } from "@/lib/types";
 import type { KitchenOrderDoc, OrderDoc } from "@/types/firebase";
 
@@ -57,7 +58,8 @@ export function kitchenDocToTableOrder(order: KitchenOrderDoc | Record<string, u
 
 export function menuDocToMenuItem(item: Record<string, unknown>): MenuItem {
   const category = str(item.category || item.categoryName || item.categoryId) || "Menu";
-  const image = str(item.image || item.imagePath || first(item.imagePaths));
+  const images = normalizeMenuImageUrls(item);
+  const image = images[0] ?? "";
   return {
     id: str(item.id),
     restaurantSlug: str(item.restaurantId || item.tenantId),
@@ -75,7 +77,9 @@ export function menuDocToMenuItem(item: Record<string, unknown>): MenuItem {
     taxRate: item.taxRate === 18 ? 18 : 5,
     packingCharge: finite(item.packingCharge),
     image,
-    images: [image, ...(Array.isArray(item.imagePaths) ? item.imagePaths.filter((value): value is string => typeof value === "string") : [])].filter(Boolean),
+    imagePath: image,
+    images,
+    imagePaths: images,
     isVeg: item.isVeg !== false && item.foodType !== "nonveg",
     foodType: foodType(str(item.foodType)),
     isPopular: Boolean(item.isPopular ?? item.featuredEnabled),

@@ -2,6 +2,9 @@
 
 ## 2026-07-01
 
+- Fixed owner menu image parity by normalizing owner menu API reads/writes through `imagePath`/`imagePaths`, preserving primary image plus ordered gallery data, and adding Set Primary/Delete Primary/Reorder Images controls in the existing menu wizard.
+- Fixed QR table ordering session start by sending the customer fields expected by the public session API, mapping QR menu data through the same customer menu mapper, and applying dine-in/parcel pricing before cart/order submission.
+- Shortened success notifications to 12 seconds in the existing top-right stacked toaster while leaving error behavior unchanged.
 - Fixed the owner/admin global search autofill regression with a reusable credential-isolated search input, autofill decoys, non-credential field metadata, and explicit operational view switch password metadata.
 - Completed enterprise bill printing stabilization in the existing POS/printing flow: bill preview, customer/cashier/kitchen/duplicate copies, duplicate bill labeling, 58mm/80mm/100mm/A4 paper selection, print/reprint logs through owner printer API, PDF-ready download, and WhatsApp bill handoff.
 - Completed the enterprise QR customer/session workflow: QR welcome and registration, guest count, menu/cart/order, bill request, feedback, full waiter request set, active session read model, table timeline, bill/request state, owner extend/end/transfer actions, KDS request visibility, and owner dashboard QR analytics.

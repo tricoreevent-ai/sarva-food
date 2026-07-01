@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { normalizeMenuImageFields } from "@/lib/menu-images";
+import { menuDocToMenuItem } from "@/lib/operational-api-mappers";
 import { MenuRepository } from "@/repositories/menu-repository";
 import { tenantScope } from "@/repositories/shared";
 import type { MenuDoc, UserRole } from "@/types/firebase";
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     .map((item) => ({ ...item, tenantId: restaurantId, restaurantId }))
     .sort((first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0) || first.name.localeCompare(second.name));
 
-  return NextResponse.json({ data: Array.from(new Map(docs.map((item) => [item.id, item])).values()) });
+  return NextResponse.json({ data: Array.from(new Map(docs.map((item) => [item.id, menuDocToMenuItem(item)])).values()) });
 }
 
 export async function POST(request: NextRequest) {
@@ -59,8 +61,8 @@ async function upsert(request: NextRequest) {
   const body = await request.json().catch(() => ({})) as { item?: Record<string, unknown>; restaurantId?: string };
   if (!body.item?.name) return NextResponse.json({ error: "Menu item name is required." }, { status: 400 });
   const scope = tenantScope(session, body.restaurantId);
-  const data = await new MenuRepository().upsert(scope, { ...body.item, ownerId: session.uid });
-  return NextResponse.json({ data });
+  const data = await new MenuRepository().upsert(scope, normalizeMenuImageFields({ ...body.item, ownerId: session.uid }));
+  return NextResponse.json({ data: menuDocToMenuItem(data) });
 }
 
 function canAccessRestaurant(

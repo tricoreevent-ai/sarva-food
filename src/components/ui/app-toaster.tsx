@@ -16,6 +16,7 @@ export function AppToaster() {
         duration: 30000,
         className: "rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-950 shadow-xl",
         success: {
+          duration: 12000,
           className: "rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-xl",
           iconTheme: { primary: "#059669", secondary: "#ecfdf5" },
         },

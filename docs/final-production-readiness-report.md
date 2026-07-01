@@ -1,5 +1,19 @@
 # Final Production Readiness Report
 
+## 2026-07-01 Owner Menu Image and QR Session Stabilization
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| targeted `npm run lint -- ...` for owner menu, QR ordering, toaster, menu image mapper/type files | Passed |
+| `git diff --check` | Passed |
+
+- Owner menu now receives normalized menu items from `/api/owner/menu` instead of raw Firestore docs, so `imagePath` and `imagePaths` are interpreted the same way as customer menu data.
+- Owner menu saves persist the primary image as `imagePath` and the ordered gallery as `imagePaths`; deleting the primary promotes the next gallery image.
+- The existing menu wizard now supports Set Primary, Delete Primary, and Reorder Images without changing the menu architecture.
+- QR ordering now starts sessions with `customerName` and `customerPhone`, maps public menu docs through the customer menu mapper, and prices cart lines by dine-in or parcel mode.
+- Success notifications use the existing non-blocking top-right toaster with a 12-second success duration.
+
 ## 2026-07-01 Global Search Autofill Regression
 
 | Check | Result |

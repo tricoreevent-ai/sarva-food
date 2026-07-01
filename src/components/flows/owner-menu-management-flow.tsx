@@ -492,8 +492,9 @@ export function OwnerMenuManagementFlow() {
       recipeLinks: item.recipeLinks ?? [],
       menuVisibility: item.menuVisibility ?? buildChannelVisibility(item.dineInPrice, item.parcelPrice, item.deliveryPrice),
     });
-    setImagePreview(item.image);
-    setImageGallery(uniqueImageUrls([item.image, ...(item.images ?? [])]));
+    const itemImages = uniqueImageUrls([item.imagePath, ...(item.imagePaths ?? []), item.image, ...(item.images ?? [])]);
+    setImagePreview(itemImages[0] ?? fallbackImage);
+    setImageGallery(itemImages);
     setCuisineQuery("");
   }
 
@@ -523,6 +524,17 @@ export function OwnerMenuManagementFlow() {
     const next = imageGallery.filter((item) => item !== url);
     setImageGallery(next);
     if (imagePreview === url) setImagePreview(next[0] ?? fallbackImage);
+  }
+
+  function moveMenuImage(url: string, direction: -1 | 1) {
+    setImageGallery((current) => {
+      const index = current.indexOf(url);
+      const swapIndex = index + direction;
+      if (index < 0 || swapIndex < 0 || swapIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+      return next;
+    });
   }
 
   async function handleSubmit(values: MenuFormValues) {
@@ -569,8 +581,10 @@ export function OwnerMenuManagementFlow() {
       addOns,
       modifierGroups,
       recipeLinks,
-      image: imagePreview,
+      image: galleryImages[0] ?? "",
       images: galleryImages,
+      imagePath: galleryImages[0] ?? "",
+      imagePaths: galleryImages,
       dineInPrice: dineInPrice ?? 0,
       parcelPrice: parcelPrice ?? 0,
       deliveryPrice: deliveryPrice ?? 0,
@@ -1048,7 +1062,7 @@ export function OwnerMenuManagementFlow() {
                             <div className="grid gap-2">
                               <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Item images</p>
                               <div className="grid grid-cols-3 gap-2">
-                                {imageGallery.map((url) => (
+                                {imageGallery.map((url, index) => (
                                   <div
                                     key={url}
                                     className={`relative aspect-square overflow-hidden rounded-md bg-muted shadow-sm transition hover:-translate-y-0.5 ${url === imagePreview ? "ring-2 ring-primary" : ""}`}
@@ -1057,11 +1071,12 @@ export function OwnerMenuManagementFlow() {
                                       type="button"
                                       className="absolute inset-0"
                                       onClick={() => setImagePreview(url)}
-                                      aria-label="Use image as cover"
-                                      title="Use as cover image"
+                                      aria-label="Set primary image"
+                                      title="Set primary image"
                                     >
                                       <SafeImage src={url} alt="Menu item gallery image" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="80px" className="object-cover" />
                                     </button>
+                                    {url === imagePreview ? <span className="absolute left-1 top-1 z-10 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black text-primary-foreground">Primary</span> : null}
                                     <button
                                       type="button"
                                       className="absolute right-1 top-1 z-10 grid size-6 place-items-center rounded-full bg-white/90 text-red-600 shadow"
@@ -1071,6 +1086,28 @@ export function OwnerMenuManagementFlow() {
                                     >
                                       <X className="size-3" />
                                     </button>
+                                    <div className="absolute bottom-1 right-1 z-10 flex gap-1">
+                                      <button
+                                        type="button"
+                                        className="grid size-6 place-items-center rounded-full bg-white/90 text-foreground shadow disabled:opacity-40"
+                                        onClick={() => moveMenuImage(url, -1)}
+                                        disabled={index === 0}
+                                        aria-label="Move image earlier"
+                                        title="Move earlier"
+                                      >
+                                        <ChevronLeft className="size-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="grid size-6 place-items-center rounded-full bg-white/90 text-foreground shadow disabled:opacity-40"
+                                        onClick={() => moveMenuImage(url, 1)}
+                                        disabled={index === imageGallery.length - 1}
+                                        aria-label="Move image later"
+                                        title="Move later"
+                                      >
+                                        <ChevronRight className="size-3" />
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -2580,10 +2617,10 @@ function hasCustomImage(value?: string) {
   return Boolean(value && value !== fallbackImage && value !== IMAGE_FALLBACKS.food && value.trim().length > 8);
 }
 
-function uniqueImageUrls(values: string[]) {
+function uniqueImageUrls(values: Array<string | undefined>) {
   const seen = new Set<string>();
   return values
-    .map((value) => value.trim())
+    .map((value) => value?.trim() ?? "")
     .filter(hasCustomImage)
     .filter((value) => {
       if (seen.has(value)) return false;

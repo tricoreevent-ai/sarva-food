@@ -207,6 +207,8 @@ export type MenuItem = {
   packingCharge?: number;
   image: string;
   images?: string[];
+  imagePath?: string;
+  imagePaths?: string[];
   isVeg: boolean;
   foodType?: "veg" | "nonveg" | "egg" | "vegan" | "jain";
   isPopular?: boolean;

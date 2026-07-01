@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { MenuItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import { menuDocToUi } from "@/services/public-data-service";
+import type { MenuDoc } from "@/types/firebase";
 
 type SessionData = {
   restaurant: { id: string; name: string; logo?: string; latitude?: number; longitude?: number; active: boolean };
@@ -48,8 +50,9 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   const visibleMenu = useMemo(() => menu.filter((item) => (
     (!query || item.name.toLowerCase().includes(query.toLowerCase()) || item.category.toLowerCase().includes(query.toLowerCase())) &&
     (!vegOnly || item.isVeg !== false) &&
-    !item.soldOut
-  )), [menu, query, vegOnly]);
+    !item.soldOut &&
+    isQrItemVisible(item, mode)
+  )), [menu, mode, query, vegOnly]);
 
   const expireSession = useCallback(() => {
     setSessionId("");
@@ -66,9 +69,10 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         if (!active) return;
         if (!payload.data) throw new Error(payload.error || "QR ordering is not available.");
         setData(payload.data);
+        if (!payload.data.settings.allowDineIn && payload.data.settings.allowParcel) setMode("parcel");
         const menuResponse = await fetch(`/api/public/menu?restaurantId=${encodeURIComponent(payload.data.restaurant.id)}`, { cache: "no-store" });
-        const menuPayload = await menuResponse.json().catch(() => ({})) as { data?: MenuItem[] };
-        if (active) setMenu(menuPayload.data ?? []);
+        const menuPayload = await menuResponse.json().catch(() => ({})) as { data?: MenuDoc[] };
+        if (active) setMenu((menuPayload.data ?? []).map((item) => menuDocToUi(item.id, item)));
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "QR ordering is not available."))
       .finally(() => {
@@ -118,7 +122,17 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     const response = await fetch("/api/public/table-order/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, ...customer, guestCount: Number(customer.guestCount || 1), deviceId: id, lat: geo?.lat, lng: geo?.lng }),
+      body: JSON.stringify({
+        token,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email,
+        otpCode: customer.otpCode,
+        guestCount: Number(customer.guestCount || 1),
+        deviceId: id,
+        lat: geo?.lat,
+        lng: geo?.lng,
+      }),
     });
     const payload = await response.json().catch(() => ({})) as { data?: { sessionId: string; expiresAt?: string }; error?: string; step?: string };
     if (!response.ok) {
@@ -131,9 +145,10 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
   }
 
   function add(item: MenuItem) {
+    const priced = { ...item, price: menuPrice(item, mode) };
     setCart((current) => {
       const existing = current.find((line) => line.id === item.id);
-      return existing ? current.map((line) => line.id === item.id ? { ...line, quantity: line.quantity + 1 } : line) : [...current, { ...item, quantity: 1 }];
+      return existing ? current.map((line) => line.id === item.id ? { ...line, quantity: line.quantity + 1 } : line) : [...current, { ...priced, quantity: 1 }];
     });
   }
 
@@ -267,7 +282,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
                 <p className="text-xs font-black text-orange-600">{item.category}</p>
                 <h3 className="mt-1 font-black text-slate-950">{item.name}</h3>
                 <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{item.description}</p>
-                <p className="mt-2 font-black">{formatCurrency(item.price)}</p>
+                <p className="mt-2 font-black">{formatCurrency(menuPrice(item, mode))}</p>
               </div>
               <Button type="button" className="h-12 min-w-20" onClick={() => add(item)}><Plus className="size-4" />Add</Button>
             </article>
@@ -333,4 +348,13 @@ function readSavedCart(key: string) {
   } catch {
     return [];
   }
+}
+
+function isQrItemVisible(item: MenuItem, mode: "dine-in" | "parcel") {
+  if (item.menuVisibility?.[mode] === false) return false;
+  return menuPrice(item, mode) > 0;
+}
+
+function menuPrice(item: MenuItem, mode: "dine-in" | "parcel") {
+  return mode === "dine-in" ? item.dineInPrice || item.price : item.parcelPrice || item.price;
 }
