@@ -2,6 +2,7 @@
 
 ## 2026-07-01
 
+- Fixed the owner/admin global search autofill regression with a reusable credential-isolated search input, autofill decoys, non-credential field metadata, and explicit operational view switch password metadata.
 - Completed enterprise bill printing stabilization in the existing POS/printing flow: bill preview, customer/cashier/kitchen/duplicate copies, duplicate bill labeling, 58mm/80mm/100mm/A4 paper selection, print/reprint logs through owner printer API, PDF-ready download, and WhatsApp bill handoff.
 - Completed the enterprise QR customer/session workflow: QR welcome and registration, guest count, menu/cart/order, bill request, feedback, full waiter request set, active session read model, table timeline, bill/request state, owner extend/end/transfer actions, KDS request visibility, and owner dashboard QR analytics.
 - Stabilized production QR table management: Save & Generate QR now has explicit saving/error states, server-side duplicate table validation, current-deployment QR URL generation, signed QR expiry metadata, post-generation validation, expanded QR preview details, copy fallback, Open Link, bulk QR print/download, duplicate table, and clear delete-blocked reasons for active orders or QR sessions.

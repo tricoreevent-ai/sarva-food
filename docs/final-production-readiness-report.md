@@ -1,5 +1,18 @@
 # Final Production Readiness Report
 
+## 2026-07-01 Global Search Autofill Regression
+
+| Check | Result |
+| --- | --- |
+| Targeted lint on search, topbar, and view switch files | Passed |
+| Autofill metadata source checks | Passed |
+| `git diff --check` | Passed |
+
+- Owner and Admin global search now use a reusable credential-isolated `SearchInput`.
+- Search fields no longer derive blocked values from authenticated profile/session identity.
+- Search inputs use decoy credential fields plus non-credential metadata to prevent browser autofill from treating search as a username field.
+- Operational view switch password input now has explicit password metadata and local decoys so saved credentials pair with the password prompt instead of the topbar search.
+
 ## 2026-07-01 Enterprise Bill Printing Stabilization
 
 | Check | Result |

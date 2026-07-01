@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -40,6 +40,7 @@ import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { OperationalViewSwitcher } from "@/components/owner/operational-view-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppStore } from "@/lib/app-store";
@@ -268,13 +269,13 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
           <div className="hidden min-w-0 flex-1 items-center lg:flex">
             <div className="relative min-w-72 flex-1 max-w-xl">
               <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              <HardenedSearchInput
+              <SearchInput
                 value={query}
                 onChange={setQuery}
                 className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-20 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 placeholder="Search orders, customers, menu items..."
                 ariaLabel="Global search"
-                blockedValues={[authUser.id, authUser.name, ownerName]}
+                scope="owner-global"
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-slate-100 px-2 py-1 text-xs font-black text-slate-500">Ctrl / K</span>
               <SearchResultsPanel results={searchResults} query={debouncedQuery} onNavigate={() => setQuery("")} />
@@ -370,14 +371,14 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
           <div className="fixed inset-0 z-50 bg-white p-4 lg:hidden">
             <div className="flex items-center gap-2">
               <Search className="size-5 text-slate-400" />
-              <HardenedSearchInput
+              <SearchInput
                 autoFocus
                 value={query}
                 onChange={setQuery}
                 className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
                 placeholder="Search orders, customers, menu items..."
                 ariaLabel="Global mobile search"
-                blockedValues={[authUser.id, authUser.name, ownerName]}
+                scope="owner-mobile"
               />
               <Button variant="ghost" size="icon" onClick={() => setMobileSearchOpen(false)} aria-label="Close search">
                 <X className="size-5" />
@@ -429,71 +430,6 @@ function HeaderIconButton({
         <Icon className="size-4" />
       </button>
     </HeaderIconTooltip>
-  );
-}
-
-function HardenedSearchInput({
-  value,
-  onChange,
-  placeholder,
-  ariaLabel,
-  className,
-  autoFocus,
-  blockedValues = [],
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  ariaLabel: string;
-  className: string;
-  autoFocus?: boolean;
-  blockedValues?: Array<string | undefined>;
-}) {
-  const armed = useRef(Boolean(autoFocus));
-  const [locked, setLocked] = useState(!autoFocus);
-  const blocked = useMemo(
-    () => new Set(blockedValues.map((item) => item?.trim().toLowerCase()).filter(Boolean) as string[]),
-    [blockedValues],
-  );
-  const arm = (event: { currentTarget: HTMLInputElement }) => {
-    armed.current = true;
-    setLocked(false);
-    event.currentTarget.readOnly = false;
-  };
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.value;
-    const normalized = next.trim().toLowerCase();
-    if ((!armed.current || !value) && blocked.has(normalized)) {
-      event.currentTarget.value = value;
-      return;
-    }
-    onChange(next);
-  };
-
-  return (
-    <input
-      type="search"
-      name={`nammude-global-search-${ariaLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-      autoComplete="off"
-      autoCorrect="off"
-      autoCapitalize="none"
-      spellCheck={false}
-      enterKeyHint="search"
-      inputMode="search"
-      data-lpignore="true"
-      data-1p-ignore="true"
-      data-form-type="other"
-      readOnly={locked}
-      autoFocus={autoFocus}
-      value={value}
-      onPointerDown={arm}
-      onKeyDown={arm}
-      onFocus={arm}
-      onChange={handleChange}
-      className={className}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-    />
   );
 }
 
@@ -759,13 +695,13 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
 
         <div className="relative hidden min-w-72 flex-1 max-w-xl lg:block">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-indigo-200" />
-          <HardenedSearchInput
+          <SearchInput
             value={query}
             onChange={setQuery}
             className="h-10 w-full rounded-xl border border-white/10 bg-white/8 pl-11 pr-4 text-sm font-semibold text-white outline-none transition placeholder:text-indigo-200/70 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20"
             placeholder="Search restaurants, owners, approvals..."
             ariaLabel="Admin search"
-            blockedValues={[authUser.id, authUser.name, ownerName]}
+            scope="admin-global"
           />
           {debouncedQuery.length >= 2 ? (
             <div className="absolute left-0 right-0 top-14 z-50 overflow-hidden rounded-2xl border border-white/10 bg-[#11162e] shadow-2xl">
@@ -871,14 +807,14 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
         <div className="fixed inset-0 z-50 bg-[#080b1a] p-4 text-white lg:hidden">
           <div className="flex items-center gap-2">
             <Search className="size-5 text-indigo-200" />
-            <HardenedSearchInput
+            <SearchInput
               autoFocus
               value={query}
               onChange={setQuery}
               className="h-12 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/8 px-4 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20"
               placeholder="Search admin records..."
               ariaLabel="Admin mobile search"
-              blockedValues={[authUser.id, authUser.name, ownerName]}
+              scope="admin-mobile"
             />
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setMobileSearchOpen(false)} aria-label="Close search">
               <X className="size-5" />

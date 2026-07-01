@@ -91,8 +91,21 @@ export function OperationalViewSwitcher() {
             {operationalViews.map((view) => <option key={view} value={view}>{operationalViewLabel(view)}</option>)}
           </select>
           <div className="relative">
+            <span className="pointer-events-none absolute size-0 overflow-hidden opacity-0" aria-hidden="true">
+              <input tabIndex={-1} type="text" name="owner-view-switch-username" autoComplete="username" />
+              <input tabIndex={-1} type="password" name="owner-view-switch-password-decoy" autoComplete="current-password" />
+            </span>
             <LockKeyhole className="pointer-events-none absolute left-3 top-3.5 size-4 text-slate-400" />
-            <Input type="password" className="pl-10" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Owner password" />
+            <Input
+              id="owner-view-switch-password"
+              name="ownerViewSwitchPassword"
+              type="password"
+              autoComplete="current-password"
+              className="pl-10"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Owner password"
+            />
           </div>
           <div className="flex gap-2">
             <Button className="flex-1" disabled={saving || !password} onClick={() => void switchView()}>{saving ? "Switching..." : "Switch"}</Button>
