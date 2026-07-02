@@ -234,6 +234,11 @@ export type MenuItem = {
   recipeLinks?: InventoryRecipeLink[];
   menuVisibility?: Record<"dine-in" | "parcel" | "delivery", boolean>;
   scheduleIds?: string[];
+  templateId?: string;
+  templateVersion?: number;
+  masterTemplateId?: string;
+  masterTemplateVersion?: number;
+  templateUpdateIgnoredVersion?: number;
 };
 
 export type MenuCategory = {

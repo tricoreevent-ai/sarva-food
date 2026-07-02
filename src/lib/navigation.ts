@@ -67,6 +67,7 @@ export const adminNav: NavItem[] = [
   { label: "Restaurant Leads", href: "/admin/leads", icon: ClipboardList },
   { label: "Support Inbox", href: "/admin/support", icon: Inbox },
   { label: "Food Categories", href: "/admin/categories", icon: Utensils },
+  { label: "Menu Library", href: "/admin/menu-library", icon: LayoutTemplate },
   { label: "Featured Menu Items", href: "/admin/featured-menu-items", icon: Star },
   { label: "Cuisine Types", href: "/admin/cuisines", icon: Soup },
   { label: "Owner Reviews", href: "/admin/reviews", icon: ClipboardCheck },

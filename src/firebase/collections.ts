@@ -30,6 +30,7 @@ import type {
   KotTemplateDoc,
   MenuCategoryDoc,
   MenuDoc,
+  MasterMenuTemplateDoc,
   MenuScheduleDoc,
   MenuVariantDoc,
   ModifierGroupDoc,
@@ -70,6 +71,7 @@ export const COLLECTIONS = {
   menus: "menus",
   menuCategories: "menuCategories",
   menuItems: "menuItems",
+  masterMenuTemplates: "masterMenuTemplates",
   deliveryMenus: "deliveryMenus",
   dineInMenus: "dineInMenus",
   parcelMenus: "parcelMenus",
@@ -177,6 +179,8 @@ export const refs = {
   branches: (db: Firestore) => typedCollection<BranchDoc>(db, COLLECTIONS.branches),
   menus: (db: Firestore) => typedCollection<MenuDoc>(db, COLLECTIONS.menus),
   menuItems: (db: Firestore) => typedCollection<MenuDoc>(db, COLLECTIONS.menuItems),
+  masterMenuTemplates: (db: Firestore) =>
+    typedCollection<MasterMenuTemplateDoc>(db, COLLECTIONS.masterMenuTemplates),
   menuCategories: (db: Firestore) =>
     typedCollection<MenuCategoryDoc>(db, COLLECTIONS.menuCategories),
   cuisines: (db: Firestore) => typedCollection<CuisineDoc>(db, COLLECTIONS.cuisines),

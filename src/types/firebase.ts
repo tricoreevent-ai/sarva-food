@@ -441,6 +441,47 @@ export type CustomerProfileDoc = BaseDoc & {
   active: boolean;
 };
 
+export type MasterMenuTemplateDoc = BaseDoc & {
+  templateName: string;
+  displayName: string;
+  categoryId: string;
+  subcategoryId?: string;
+  cuisineIds: string[];
+  foodType: "veg" | "nonveg" | "egg" | string;
+  description: string;
+  shortDescription?: string;
+  ingredients?: string[];
+  nutrition?: Record<string, unknown>;
+  allergens?: string[];
+  searchKeywords?: string[];
+  badges?: string[];
+  tags?: string[];
+  prepTime?: number;
+  cookTime?: number;
+  portionSizes?: Array<Record<string, unknown>>;
+  modifiers?: Array<Record<string, unknown>>;
+  modifierGroups?: Array<Record<string, unknown>>;
+  addonGroups?: Array<Record<string, unknown>>;
+  images?: string[];
+  primaryImage?: string;
+  thumbnail?: string;
+  displayOrder?: number;
+  recommendedPrice?: number;
+  packingCharge?: number;
+  gst?: number;
+  channelDefaults?: Record<string, unknown>;
+  availability?: Record<string, unknown>;
+  rating?: number;
+  difficulty?: string;
+  servingSize?: string;
+  recipeMetadata?: Record<string, unknown>;
+  version: number;
+  active: boolean;
+  archived?: boolean;
+  usageCount?: number;
+  lastUsedAt?: FirestoreDate;
+};
+
 export type PhoneVerificationSessionDoc = BaseDoc & {
   uid: string;
   phone: string;

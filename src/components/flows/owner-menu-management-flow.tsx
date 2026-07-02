@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Star, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
@@ -44,6 +44,25 @@ type ItemWizardStepId = "basic" | "description" | "customization" | "info" | "vi
 type ItemFilterChannel = "all" | MenuChannel;
 type ItemFilterOption = "all" | string;
 type ItemQuickFilter = "all" | "active" | "sold-out" | "veg" | "nonveg" | "delivery" | "parcel" | "dine-in";
+type TemplatePickerTab = "master" | "restaurant" | "favorites" | "recent" | "popular";
+
+type TemplatePickerRow = {
+  id: string;
+  displayName?: string;
+  categoryId?: string;
+  cuisineIds?: string[];
+  foodType?: MenuFoodType;
+  prepTime?: string | number;
+  recommendedPrice?: number;
+  primaryImage?: string;
+  thumbnail?: string;
+  badges?: string[];
+  tags?: string[];
+  version?: number;
+  usageCount?: number;
+  favoriteCount?: number;
+  description?: string;
+};
 
 const itemListPageSize = 10;
 
@@ -181,6 +200,15 @@ export function OwnerMenuManagementFlow() {
   const [imagePreview, setImagePreview] = useState(fallbackImage);
   const [imageGallery, setImageGallery] = useState<string[]>([]);
   const [itemEditorOpen, setItemEditorOpen] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templatePickerTab, setTemplatePickerTab] = useState<TemplatePickerTab>("master");
+  const [templatePickerQuery, setTemplatePickerQuery] = useState("");
+  const [templatePickerSearch, setTemplatePickerSearch] = useState("");
+  const [templatePickerRows, setTemplatePickerRows] = useState<TemplatePickerRow[]>([]);
+  const [templatePickerLoading, setTemplatePickerLoading] = useState(false);
+  const [templatePreview, setTemplatePreview] = useState<TemplatePickerRow | null>(null);
+  const [importedTemplateMeta, setImportedTemplateMeta] = useState<{ id: string; version: number } | null>(null);
+  const [templateUpdate, setTemplateUpdate] = useState<TemplatePickerRow | null>(null);
   const [activeItemStep, setActiveItemStep] = useState<ItemWizardStepId>("basic");
   const [activeChannel, setActiveChannel] = useState<MenuChannel>("delivery");
   const [itemSearch, setItemSearch] = useState("");
@@ -256,6 +284,56 @@ export function OwnerMenuManagementFlow() {
     const timer = window.setTimeout(() => setDebouncedItemSearch(itemSearch), 250);
     return () => window.clearTimeout(timer);
   }, [itemSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTemplatePickerSearch(templatePickerQuery), 300);
+    return () => window.clearTimeout(timer);
+  }, [templatePickerQuery]);
+
+  useEffect(() => {
+    if (!templatePickerOpen) return;
+    const controller = new AbortController();
+    void (async () => {
+      setTemplatePickerLoading(true);
+      try {
+        const params = new URLSearchParams({
+          q: templatePickerSearch,
+          tab: templatePickerTab,
+          restaurantId,
+          limit: "24",
+        });
+        const response = await fetch(`/api/owner/master-menu-templates?${params}`, { cache: "no-store", signal: controller.signal });
+        const payload = (await response.json()) as { data?: TemplatePickerRow[]; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Could not load templates.");
+        setTemplatePickerRows(payload.data ?? []);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) toast.error(error instanceof Error ? error.message : "Could not load templates.");
+      } finally {
+        if (!controller.signal.aborted) setTemplatePickerLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [restaurantId, templatePickerOpen, templatePickerTab, templatePickerSearch]);
+
+  useEffect(() => {
+    if (!editing) return;
+    const templateId = String((editing as MenuItem & { templateId?: string; masterTemplateId?: string }).templateId || (editing as MenuItem & { templateId?: string; masterTemplateId?: string }).masterTemplateId || "");
+    const templateVersion = Number((editing as MenuItem & { templateVersion?: number; masterTemplateVersion?: number }).templateVersion || (editing as MenuItem & { templateVersion?: number; masterTemplateVersion?: number }).masterTemplateVersion || 0);
+    if (!templateId || !templateVersion) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const params = new URLSearchParams({ q: templateId, restaurantId, limit: "10" });
+        const response = await fetch(`/api/owner/master-menu-templates?${params}`, { cache: "no-store", signal: controller.signal });
+        const payload = (await response.json()) as { data?: TemplatePickerRow[] };
+        const match = payload.data?.find((item) => item.id === templateId);
+        setTemplateUpdate(match && Number(match.version ?? 1) > templateVersion ? match : null);
+      } catch {
+        if (!controller.signal.aborted) setTemplateUpdate(null);
+      }
+    })();
+    return () => controller.abort();
+  }, [editing, restaurantId]);
 
   const filteredMenuItems = useMemo(() => {
     const normalizedSearch = debouncedItemSearch.trim().toLowerCase();
@@ -395,6 +473,88 @@ export function OwnerMenuManagementFlow() {
     setItemSort("name");
   }
 
+  async function importTemplate(template: TemplatePickerRow) {
+    try {
+      const response = await fetch("/api/owner/master-menu-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "import", templateId: template.id, restaurantId, mode: "wizard" }),
+      });
+      const payload = (await response.json()) as { data?: Partial<MenuFormValues> & { imagePath?: string; imagePaths?: string[]; templateId?: string; templateVersion?: number; masterTemplateId?: string; masterTemplateVersion?: number }; error?: string };
+      if (!response.ok || !payload.data) throw new Error(payload.error || "Template import failed.");
+      const draft = payload.data;
+      form.reset({
+        ...createEmptyMenuDraft(),
+        name: String(draft.name || ""),
+        category: String(draft.category || draft.categoryId || ""),
+        categoryId: String(draft.categoryId || ""),
+        cuisineIds: Array.isArray(draft.cuisineIds) ? draft.cuisineIds : [],
+        description: String(draft.description || ""),
+        longDescription: String(draft.longDescription || ""),
+        price: Number(draft.price || draft.deliveryPrice || draft.dineInPrice || 0),
+        prepTime: String(draft.prepTime || "20 min"),
+        dineInPrice: Number(draft.dineInPrice || draft.price || 0) || undefined,
+        parcelPrice: Number(draft.parcelPrice || draft.price || 0) || undefined,
+        deliveryPrice: Number(draft.deliveryPrice || draft.price || 0) || undefined,
+        packingCharge: Number(draft.packingCharge || 0) || undefined,
+        foodType: normalizeFoodType(String(draft.foodType || "veg")),
+        spiceLevel: "medium",
+        tags: listToText(draft.tags),
+        badges: listToText(draft.badges),
+        searchKeywords: listToText(draft.searchKeywords),
+        allergens: listToText(draft.allergens),
+        modifiers: listToText(draft.modifiers),
+        addOns: listToText(draft.addOns),
+        modifierGroups: Array.isArray(draft.modifierGroups) ? draft.modifierGroups : [],
+        recipeLinks: [],
+        translations: {},
+        menuVisibility: buildChannelVisibility(Number(draft.dineInPrice || draft.price || 0), Number(draft.parcelPrice || draft.price || 0), Number(draft.deliveryPrice || draft.price || 0)),
+      });
+      const images = uniqueImageUrls([draft.imagePath, ...(Array.isArray(draft.imagePaths) ? draft.imagePaths : [])]);
+      setImagePreview(images[0] ?? fallbackImage);
+      setImageGallery(images);
+      setImportedTemplateMeta({ id: String(draft.templateId || draft.masterTemplateId || template.id), version: Number(draft.templateVersion || draft.masterTemplateVersion || template.version || 1) });
+      setTemplatePickerOpen(false);
+      setTemplatePreview(null);
+      setActiveItemStep("basic");
+      toast.success("Template imported into the menu wizard.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Template import failed.");
+    }
+  }
+
+  async function saveCurrentItemAsPrivateTemplate() {
+    const values = form.getValues();
+    if (!values.name.trim()) return toast.error("Enter item name before saving as template.");
+    const response = await fetch("/api/owner/master-menu-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "save-private",
+        restaurantId,
+        template: {
+          displayName: values.name,
+          categoryId: values.categoryId || values.category,
+          cuisineIds: values.cuisineIds,
+          foodType: values.foodType,
+          description: values.longDescription || values.description,
+          shortDescription: values.description,
+          tags: splitList(values.tags),
+          badges: splitList(values.badges),
+          searchKeywords: splitList(values.searchKeywords),
+          allergens: splitList(values.allergens),
+          recommendedPrice: values.price,
+          prepTime: Number.parseInt(String(values.prepTime), 10) || 20,
+          primaryImage: imagePreview === fallbackImage ? "" : imagePreview,
+          images: imageGallery,
+        },
+      }),
+    });
+    const payload = (await response.json()) as { error?: string };
+    if (!response.ok) return toast.error(payload.error || "Could not save template.");
+    toast.success("Saved as a restaurant template.");
+  }
+
   function toggleItemSelection(itemId: string, selected: boolean) {
     setSelectedItemIds((current) => selected ? unique([...current, itemId]) : current.filter((id) => id !== itemId));
   }
@@ -446,6 +606,8 @@ export function OwnerMenuManagementFlow() {
     form.reset(createEmptyMenuDraft());
     setImagePreview(fallbackImage);
     setImageGallery([]);
+    setImportedTemplateMeta(null);
+    setTemplateUpdate(null);
     setCuisineQuery("");
     setActiveItemStep("basic");
     setItemEditorOpen(true);
@@ -456,6 +618,8 @@ export function OwnerMenuManagementFlow() {
     form.reset(createEmptyMenuDraft());
     setImagePreview(fallbackImage);
     setImageGallery([]);
+    setImportedTemplateMeta(null);
+    setTemplateUpdate(null);
     setCuisineQuery("");
     setActiveItemStep("basic");
     setItemEditorOpen(false);
@@ -465,6 +629,7 @@ export function OwnerMenuManagementFlow() {
     setEditing(item);
     setActiveItemStep("basic");
     setItemEditorOpen(true);
+    setTemplateUpdate(null);
     form.reset({
       name: item.name,
       category: item.category,
@@ -495,6 +660,10 @@ export function OwnerMenuManagementFlow() {
     const itemImages = uniqueImageUrls([item.imagePath, ...(item.imagePaths ?? []), item.image, ...(item.images ?? [])]);
     setImagePreview(itemImages[0] ?? fallbackImage);
     setImageGallery(itemImages);
+    setImportedTemplateMeta({
+      id: String((item as MenuItem & { templateId?: string; masterTemplateId?: string }).templateId || (item as MenuItem & { templateId?: string; masterTemplateId?: string }).masterTemplateId || ""),
+      version: Number((item as MenuItem & { templateVersion?: number; masterTemplateVersion?: number }).templateVersion || (item as MenuItem & { templateVersion?: number; masterTemplateVersion?: number }).masterTemplateVersion || 0),
+    });
     setCuisineQuery("");
   }
 
@@ -598,6 +767,12 @@ export function OwnerMenuManagementFlow() {
       dietaryLabels: values.foodType === "jain" ? ["jain"] : values.foodType === "vegan" ? ["vegan"] : [],
       allergenLabels: splitList(values.allergens),
       menuVisibility: channelVisibility,
+      ...(importedTemplateMeta?.id ? {
+        templateId: importedTemplateMeta.id,
+        templateVersion: importedTemplateMeta.version,
+        masterTemplateId: importedTemplateMeta.id,
+        masterTemplateVersion: importedTemplateMeta.version,
+      } : {}),
       soldOut: recipeLinks.some((link) => {
         const stock = inventoryItems.find((entry) => entry.id === link.inventoryItemId);
         return stock ? stock.currentStock < link.quantity : false;
@@ -621,6 +796,7 @@ export function OwnerMenuManagementFlow() {
     });
     form.reset(createEmptyMenuDraft());
     setImagePreview(fallbackImage);
+    setImportedTemplateMeta(null);
     setActiveItemStep("basic");
     setItemEditorOpen(false);
   }
@@ -966,12 +1142,44 @@ export function OwnerMenuManagementFlow() {
                 <X className="size-4" />
                 Back to list
               </Button>
+              <Button type="button" variant="outline" onClick={saveCurrentItemAsPrivateTemplate}>
+                <Star className="size-4" />
+                Save Template
+              </Button>
               <Button type="button" variant="outline" onClick={() => setActiveItemStep("review")}>
                 <Eye className="size-4" />
                 Preview item
               </Button>
             </div>
           </div>
+
+          {!editing ? (
+            <div className="grid gap-3 border-b bg-primary/5 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+              <div>
+                <p className="text-xs font-black uppercase text-primary">Choose Creation Method</p>
+                <p className="text-sm font-semibold text-muted-foreground">Create empty or import a reusable master/restaurant template.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => { form.reset(createEmptyMenuDraft()); setImportedTemplateMeta(null); setImagePreview(fallbackImage); setImageGallery([]); }}>
+                <Plus className="size-4" />
+                Create Empty
+              </Button>
+              <Button type="button" onClick={() => setTemplatePickerOpen(true)}>
+                <FileSpreadsheet className="size-4" />
+                Use Master Template
+              </Button>
+            </div>
+          ) : null}
+
+          {templateUpdate ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 sm:px-6">
+              <span>Template Update Available: {templateUpdate.displayName} v{templateUpdate.version}</span>
+              <span className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => setTemplatePreview(templateUpdate)}>Compare</Button>
+                <Button type="button" size="sm" onClick={() => void importTemplate(templateUpdate)}>Update</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setTemplateUpdate(null)}>Ignore</Button>
+              </span>
+            </div>
+          ) : null}
 
           <form className="grid lg:grid-cols-[290px_minmax(0,1fr)]" onSubmit={form.handleSubmit(handleSubmit, handleInvalidSubmit)}>
             <aside className="hidden border-r bg-muted/20 p-4 lg:block">
@@ -1900,6 +2108,79 @@ export function OwnerMenuManagementFlow() {
           ].map(([label, value]) => <div key={label} className="flex items-center justify-between rounded-md border p-3 text-sm font-bold"><span>{label}</span><Badge variant="muted">{value}</Badge></div>)}</CardContent></Card>
         </EngineGrid>
       </TabsContent>
+      {templatePickerOpen ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-background p-4 sm:p-6">
+          <div className="mx-auto flex max-w-7xl flex-col gap-5">
+            <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase text-primary">Use Master Template</p>
+                <h2 className="text-2xl font-black">Choose a menu template</h2>
+              </div>
+              <Button type="button" variant="outline" onClick={() => { setTemplatePickerOpen(false); setTemplatePreview(null); }}>
+                <X className="size-4" />
+                Close
+              </Button>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+              <label className="relative">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={templatePickerQuery} onChange={(event) => setTemplatePickerQuery(event.target.value)} placeholder="Search templates by name, cuisine, category, tag" className="pl-9" />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(["master", "restaurant", "favorites", "recent", "popular"] as TemplatePickerTab[]).map((tab) => (
+                  <Button key={tab} type="button" size="sm" variant={templatePickerTab === tab ? "default" : "outline"} onClick={() => setTemplatePickerTab(tab)}>
+                    {humanizeFilterLabel(tab)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {templatePickerLoading ? (
+                [0, 1, 2, 3].map((item) => <div key={item} className="h-72 animate-pulse rounded-md bg-muted" />)
+              ) : templatePickerRows.length ? templatePickerRows.map((template) => (
+                <Card key={template.id} className="overflow-hidden">
+                  <div className="relative aspect-[4/3] bg-muted">
+                    <SafeImage src={template.primaryImage || template.thumbnail || IMAGE_FALLBACKS.food} alt={template.displayName || "Menu template"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="320px" className="object-cover" />
+                  </div>
+                  <CardContent className="grid gap-3 p-4">
+                    <div>
+                      <h3 className="line-clamp-1 font-black">{template.displayName}</h3>
+                      <p className="text-xs font-semibold text-muted-foreground">{template.categoryId} · {template.cuisineIds?.join(", ")} · {template.foodType}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-muted-foreground">
+                      <span>Prep {String(template.prepTime ?? "-")}</span>
+                      <span>{formatCurrency(Number(template.recommendedPrice ?? 0))}</span>
+                      <span>Used {template.usageCount ?? 0}</span>
+                      <span>Fav {template.favoriteCount ?? 0}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {[...(template.badges ?? []), ...(template.tags ?? [])].slice(0, 4).map((badge) => <Badge key={badge} variant="secondary">{badge}</Badge>)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button type="button" variant="outline" onClick={() => setTemplatePreview(template)}>Preview</Button>
+                      <Button type="button" onClick={() => void importTemplate(template)}>Import</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )) : (
+                <div className="col-span-full rounded-md border border-dashed p-8 text-center font-semibold text-muted-foreground">No templates found.</div>
+              )}
+            </div>
+            {templatePreview ? (
+              <div className="rounded-md border bg-card p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase text-primary">Preview</p>
+                    <h3 className="text-xl font-black">{templatePreview.displayName}</h3>
+                    <p className="text-sm text-muted-foreground">{templatePreview.description}</p>
+                  </div>
+                  <Button type="button" onClick={() => void importTemplate(templatePreview)}>Import Template</Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </Tabs>
   );
 }
@@ -1913,6 +2194,14 @@ function parsePricedList(value?: string) {
       const [name, price] = entry.split(":");
       return { name: name.trim(), price: Number(price) || 0 };
     });
+}
+
+function listToText(value: unknown) {
+  if (!Array.isArray(value)) return typeof value === "string" ? value : "";
+  return value.map((item) => {
+    if (item && typeof item === "object" && "name" in item) return `${String((item as { name?: unknown }).name ?? "")}:${Number((item as { price?: unknown }).price ?? 0)}`;
+    return String(item ?? "");
+  }).filter(Boolean).join(", ");
 }
 
 function splitList(value?: string) {
@@ -2004,6 +2293,7 @@ function normalizeFoodType(value: string): MenuFoodType {
   if (normalized === "jain") return "jain";
   return "veg";
 }
+
 
 function normalizeSpiceLevel(value: string): MenuFormValues["spiceLevel"] {
   const normalized = value.trim().toLowerCase();

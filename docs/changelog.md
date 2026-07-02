@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-02
+
+- Completed Enterprise Menu Master Library backend through the existing repository/API pattern: CRUD, search, pagination, filters, JSON/CSV import/export, Kerala seed data, duplicate/archive/restore/enable/disable, version history, usage counters, favorites, recent imports, private restaurant templates, and audit fields.
+- Added Admin -> Master Data -> Menu Library with dashboard stats, searchable paginated table, preview drawer, bulk actions, import/export controls, version history, and audit history.
+- Upgraded the existing owner menu wizard with Create Empty / Use Master Template, fullscreen template picker tabs, template preview/import, private template save, and restaurant item `templateId` / `templateVersion` persistence.
+- Verified `npm run typecheck`, targeted `npm run lint -- ...` for changed Menu Library files, and `git diff --check`; full build was skipped because no build-related files changed.
+
 ## 2026-07-01
 
 - Completed QR session lifecycle actions with refresh, resume, extend, end, update customer details, update guest count, device replacement, reload recovery, expiry recovery, persisted session metadata, and timeline audit events on the existing table session record.
