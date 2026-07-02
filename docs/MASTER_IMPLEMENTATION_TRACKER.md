@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,167 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Enterprise Menu Master Library |
+| Current Sprint | Release stabilization and tracker consolidation |
 | Release Version | `0.1.0` |
-| Latest Git Commit | `d4011b4f933f1c4cdc96707dc5ac7a5832367d53` |
+| Latest Git Commit | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Build Date | 2026-07-01 |
-| Verification Status | Passed for Enterprise Menu Master Library |
-| Scope | Admin master menu templates, owner menu wizard template import, JSON/CSV import/export, versioning, and audit metadata |
+| Build Date | 2026-07-02 |
+| Verification Status | Passed for tracker consolidation audit |
+| Scope | Single source of truth, release stabilization backlog, unfinished marker audit, and enterprise gap dashboard |
+
+## Enterprise Project Dashboard
+
+This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived as a compatibility pointer and must not receive new task history.
+
+| Field | Status |
+| --- | --- |
+| Overall Completion | 96% code-ready; remaining work is mostly manual deployment, provider validation, and future roadmap integrations. |
+| Current Commit SHA | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
+| Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
+| Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
+| Validation Status | Local code validation passed for latest feature commits; hosted redeploy validation remains manual. |
+| Last Updated | 2026-07-02 |
+| Next Sprint | Release stabilization: Hostinger env/cache/redeploy, manual browser/device smoke, provider readiness checks. |
+| Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
+| Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
+
+### Phase Completion
+
+| Phase | Completion | Status | Remaining Work |
+| --- | --- | --- | --- |
+| Architecture and repository migration | 100% | Completed | Maintain repository-first rules. |
+| Customer module stabilization | 96% | Code-ready | Manual mobile/browser/provider smoke. |
+| Owner operations | 98% | Code-ready | Manual view-switch and hosted session smoke. |
+| Kitchen Operations Center | 98% | Code-ready | Manual tablet/TV, SSE, sound, and printer smoke. |
+| POS and printing | 98% | Code-ready | Manual device/printer and cashier permission smoke. |
+| QR ordering and phone verification | 97% | Code-ready | Manual device, OTP, table-session smoke. |
+| Enterprise Menu Master Library | 94% | Code-ready | Manual Admin library and owner template import smoke after redeploy. |
+| Admin/CMS/platform operations | 94% | Code-ready | Provider/env and admin workflow smoke. |
+| Production deployment | 75% | Manual pending | Hostinger env, cache clear, redeploy, hosted route validation. |
+| Provider integrations | 55% | Gated | Razorpay, WhatsApp Cloud API, SMS, Meta, push, GPS remain provider-gated. |
+
+### Module Completion
+
+| Module | Completion | Status | Owner | Notes |
+| --- | --- | --- | --- | --- |
+| Customer | 96% | Stabilized | Codex + Manual | Manual browser/device and provider validation remains. |
+| Restaurant public pages | 96% | Stabilized | Codex + Manual | Public cache and profile completeness guards implemented. |
+| Owner | 98% | Stabilized | Codex + Manual | View-switch password verification remains manual. |
+| Kitchen | 98% | Stabilized | Manual | Real printer, TV, SSE, and sound checks remain. |
+| POS | 98% | Stabilized | Manual | Hardware printer/device and permission smoke remains. |
+| Admin | 94% | Stabilized | Manual | Provider/env-backed workflows need hosted smoke. |
+| Staff | 90% | Implemented | Manual | Live staff permission matrix smoke remains. |
+| Waiter/Table | 96% | Stabilized | Manual | QR/table device smoke remains. |
+| Delivery | 70% | Framework | Future | Live GPS and partner dispatch are future roadmap. |
+| Accounting | 85% | Implemented | Codex + Manual | Advanced reconciliation/refund process remains. |
+| Inventory | 80% | Implemented | Future | Recipe/BOM auto-deduction remains future roadmap. |
+| Offers/Marketing | 94% | Implemented | Manual | WhatsApp/Meta provider hardening remains gated. |
+| CRM | 90% | Implemented | Manual | Live CRM/customer workflow smoke remains. |
+| Notifications | 70% | Partial | Manual + Future | Email paths exist; SMS/push/WhatsApp provider adapters gated. |
+| Analytics | 75% | Implemented/Partial | Future | Aggregate analytics strategy remains future work. |
+| QR Ordering | 97% | Stabilized | Manual | Device/OTP/table lifecycle smoke remains. |
+| Printing | 96% | Stabilized | Manual | Real paper/printer checks remain. |
+| Phone Verification | 95% | Implemented | Manual | Firebase phone provider/device validation remains. |
+| Master Menu Library | 94% | Implemented | Manual | Admin/owner import smoke remains. |
+
+### Release Status
+
+| Category | Status | Priority | Owner | Estimated Remaining Work |
+| --- | --- | --- | --- | --- |
+| In Progress | Release stabilization and manual production validation. | P0 | Manual + Codex for confirmed bugs | 2-4 days |
+| Blocked | Hostinger env/cache access, SMTP/provider credentials, Firebase Console/rules access. | P0 | Manual | Access-dependent |
+| Completed | QR, Kitchen, POS, Printing, Phone Verification, Owner Communication, Enterprise Menu Library, repository migration, documentation consolidation. | Done | Codex | None unless bugs found |
+| Pending Features | Provider integrations, GPS, BOM, aggregate analytics, health dashboard, focused e2e suite. | P2-P3 | Manual + Codex | Future roadmap only |
+
+### Architecture / Data / API Status
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Architecture Status | Stable | No rebuilds approved; reuse existing modules and repositories. |
+| Database Status | Stable with manual rule/index review pending | `masterMenuTemplates` and `phoneVerificationSessions` are now registered; rules/index deployment remains manual. |
+| API Status | Stable | Public/customer/owner/admin API families are established; do not add duplicate routes. |
+| Repository Status | Stable | Repository-first pattern is required for server Firestore work. |
+| Security Status | Code-ready with manual checks | Auth separation, QR validation, and tenant guards are implemented; provider/env/rules validation remains manual. |
+| Performance Status | Stable | Main risk is future large-flow bundle/code split work; no duplicate listener issue confirmed by current audit. |
+| Testing Status | Local commands pass; focused e2e missing | Manual browser/device smoke and future e2e suite remain. |
+| Deployment Status | Last validated SHA is older than current commit | Hostinger must be redeployed and `/api/release-info` verified. |
+| Browser Validation Status | Manual pending | Customer, owner, admin, POS, Kitchen, QR, printer, and view-switch browser checks remain. |
+| Documentation Status | Consolidated | This file is the single source of truth; `TASK_TRACKER.md` is archived. |
+
+### Consolidated Completed History
+
+History from `docs/TASK_TRACKER.md` has been consolidated here. High-signal completed milestones retained for future planning:
+
+| Date | Completed Work |
+| --- | --- |
+| 2026-07-02 | Enterprise Menu Master Library; Kitchen Operations Center stabilization; tracker consolidation. |
+| 2026-07-01 | QR session lifecycle, phone verification, menu image management, POS stabilization, bill printing, QR/table/search stabilization. |
+| 2026-06-30 | QR table ordering baseline, operational view switch hardening, owner communication, customer reorder/contact workflows. |
+| 2026-06-26 | Final enterprise production release baseline validated on Hostinger at SHA `35017398773ba04efbdc3ab37d250cfa547c0675`. |
+| 2026-06-25 | Owner/admin/customer repository migration and production validation. |
+| 2026-06-22 | Owner critical gap batch, pricing rules, Kitchen Operations Center redesign, owner labels, tracker/roadmap/changelog. |
+| 2026-06-10 to 2026-06-15 | Theme system, public cache consistency, schedule later redesign, owner menu/API stability, service worker no-store guards. |
+| 2026-06-01 to 2026-06-09 | Customer restaurant/menu stabilization, legal/CMS fixes, Firebase Admin key hardening, hosted Cafe diagnostics, mobile restaurant redesign. |
+| 2026-05-31 | Auth session separation, baseline owner/customer/admin guardrails, public outage alert framework. |
+
+### Unfinished Implementation Audit
+
+Marker search performed on 2026-07-02 using `rg` for TODO/FIXME/HACK/TEMP/MOCK/STUB/PLACEHOLDER/NOT IMPLEMENTED/COMING SOON/DEMO/HARDCODED/console.log/fake/sample/dummy/legacy/deprecated/unused with build/dependency folders excluded. Many hits are intentional labels, UI placeholders, compatibility type names, or scripts. Actionable findings are:
+
+| Severity | Finding | Evidence | Owner | Next Action |
+| --- | --- | --- | --- | --- |
+| Critical | Production deployment still points to older Hostinger SHA. | Metadata shows Hostinger `35017398773ba04efbdc3ab37d250cfa547c0675`, current Git `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6`. | Manual | Complete Hostinger env/cache/redeploy and verify `/api/release-info`. |
+| Critical | Production env/provider access remains unverified. | MAN-002, MAN-003, MAN-004, MAN-006, MAN-007, MAN-008. | Manual | Validate Hostinger env, SMTP, Firebase domains, rules/indexes. |
+| High | Cloud Functions remain placeholder-level for order confirmation, OTP hash comparison, and payment gateway secret calls. | `functions/src/index.ts` placeholder comments. | Manual + Codex | Keep disabled/gated until Cloud Functions provider review is requested. |
+| High | Payment provider implementation remains partial/gated. | `src/services/payment-service.ts` placeholder; PAY-001/PAY-002. | Manual + Codex | Validate Razorpay order/verify/webhook before live launch. |
+| High | Help page has a disabled “Coming soon” support action. | `src/app/help/page.tsx`. | Codex if requested | Replace only if confirmed as release-blocking UX bug. |
+| Medium | Third-party delivery integration dialog appears configuration-only. | `src/components/orders/integration-dialog.tsx`. | Future | Treat as provider roadmap unless restaurant delivery aggregator launch is requested. |
+| Medium | Compatibility names still include `DemoOrder`/`MockUser` and legacy mappers. | `src/types/entities.ts`, `src/lib/operational-api-mappers.ts`, owner/admin/POS compatibility paths. | Codex | Do not rename during release; plan only as future compatibility cleanup. |
+| Medium | Production seed scripts retain demo/sample data paths behind flags. | `scripts/seed-firebase-production.mjs`, `SEED_SAMPLE_MENU_ITEMS`. | Manual | Keep sample flags off in production; dry-run cleanup if stale data appears. |
+| Low | Dev scripts use `console.log` heavily. | `scripts/*.mjs`, HTTPS/dev utilities. | None | Acceptable for CLI scripts; not a user-facing runtime issue. |
+| Low | Documentation still contains historical mock/placeholder language. | Older architecture docs. | Codex | Treat this master tracker as planning authority; update old docs only when touched. |
+
+### Enterprise Gap Analysis
+
+| Module | Missing / Pending Work | Priority | Owner |
+| --- | --- | --- | --- |
+| Customer | Manual mobile/tablet/desktop smoke; Google authorized-domain verification; SMTP/password reset provider smoke. | P1 | Manual |
+| Restaurant/Public | Hosted cache/redeploy validation; stale demo/test-owner production data cleanup only if found. | P0 | Manual |
+| Owner | Password-protected operational view switch browser verification. | P0 | Manual |
+| Kitchen | Tablet/TV/SSE/sound/real KOT printer validation. | P1 | Manual |
+| POS | Real 58mm/80mm/A4 printer output, cashier tablet ergonomics, permission smoke. | P1 | Manual |
+| Admin | Hostinger/Admin CMS env and alert recipient validation; temporary password workflow provider email smoke. | P1 | Manual |
+| Staff | Live role/permission matrix smoke across owner/kitchen/POS. | P2 | Manual + Codex if bug found |
+| Waiter/Table | QR lifecycle smoke on real devices; session timeout/device replacement validation. | P1 | Manual |
+| Delivery | Live partner GPS tracking is not implemented. | P3 | Future |
+| Accounting | Refund/settlement process documentation and payment reconciliation review. | P2 | Manual + Codex |
+| Inventory | Recipe/BOM auto-deduction remains future work. | P3 | Future |
+| Offers/CRM | WhatsApp/Meta provider hardening and template policy remain gated. | P2 | Manual + Codex |
+| Notifications | SMS, push, and WhatsApp Cloud API production adapters remain future/provider-gated. | P2-P3 | Manual + Codex |
+| Analytics | Aggregate analytics collection/query strategy remains future work. | P2 | Codex |
+| QR Ordering | Manual device and OTP provider smoke remains. | P1 | Manual |
+| Printing | Hardware/paper/printer profile smoke remains. | P1 | Manual |
+| Phone Verification | Firebase phone auth provider/device smoke remains. | P1 | Manual |
+| Master Menu Library | Admin Menu Library and owner template import browser smoke remains after redeploy. | P1 | Manual |
+
+### Next Enterprise Implementation Queue
+
+Only unfinished work is listed. Do not start any item unless the user explicitly requests it or testing confirms it as a release blocker.
+
+| Priority | ID | Work | Type | Owner | Estimate |
+| --- | --- | --- | --- | --- | --- |
+| P0 | MAN-002 | Validate Hostinger production env values. | Manual | Manual | 2-4 hours |
+| P0 | MAN-006 | Clear cache, redeploy current Git SHA, verify hosted release info/routes. | Manual | Manual | 1-2 hours |
+| P0 | MAN-001 | Browser-verify password-protected operational view switch. | Manual | Manual | 30 minutes |
+| P0 | MAN-004 | Confirm SMTP sends for OTP, credentials, order/outage mail. | Manual | Manual | 1-2 hours |
+| P1 | MAN-008 / SEC-001 | Review and deploy Firestore rules/indexes. | Manual + Codex | Manual + Codex | 0.5-1 day |
+| P1 | RELEASE-SMOKE-001 | Manual customer/owner/admin/POS/Kitchen/QR/printer browser smoke after redeploy. | Manual | Manual | 0.5-1 day |
+| P1 | PAY-001 | Razorpay sandbox/live order/verify/webhook validation. | Provider | Manual + Codex | 0.5 day |
+| P2 | WA-001 / WA-002 | WhatsApp Cloud API provider hardening and template fallback policy. | Provider | Manual + Codex | 0.5-1 day |
+| P2 | TEST-001 | Focused e2e smoke suite design. | Codex | Codex | 0.5 day |
+| P2 | REPORT-001 | Aggregate analytics design. | Codex | Codex | 0.5-1 day |
+| P3 | SMS/PUSH/META/DEL/INV | SMS, push, Meta, GPS delivery, inventory BOM. | Future roadmap | Manual + Codex | Later |
 
 ## 1. Executive Summary
 
@@ -1071,4 +1224,56 @@ POS verification:
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed |
 | `npm run build` | Passed with `SARVA_ALLOW_BUILD_WITH_DEV=1` because a local Next dev server was active; existing protobuf dynamic dependency warning remains. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+## Kitchen Operations Center Stabilization Audit - 2026-07-02
+
+| Field | Result |
+| --- | --- |
+| Kitchen Readiness | 98% code-ready for day-to-day kitchen operations; remaining risk is manual tablet/TV, browser audio, realtime, and physical printer validation. |
+| Audit Scope | Kitchen order bootstrap, realtime SSE, status lifecycle, cancelled/served mapping, card actions, bulk actions, KOT print/reprint/preview, sound alerts, timers, filters, fullscreen, accessibility, friendly error handling, and cleanup patterns. |
+| Kitchen Bugs Found | 12 confirmed Kitchen stability issues. |
+| Kitchen Bugs Fixed | 12 fixed in this pass. |
+| Remaining Kitchen Bugs | No confirmed local Kitchen blocker remains after code/static audit; physical KOT printer behavior, TV/tablet ergonomics, production SSE behavior, and browser audio policy still need manual smoke testing. |
+| Remaining Risks | Real 58mm/80mm/A4 KOT output, long-running TV mode, hosted owner session permissions, and live order handoff from POS/QR need staging or production validation. |
+| Manual Tasks | Verify `/owner/kitchen` on tablet/desktop/TV, test realtime updates from POS/QR/order desk, print/reprint/preview KOT on real printers, test browser sound mute/unmute, and validate bulk cancel/complete against staging data. |
+| Next Sprint | Manual Kitchen/POS integrated smoke, then complete Hostinger env/cache deployment tasks before starting any new roadmap feature. |
+
+Kitchen bugs fixed:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| KITCHEN-FIX-001 | API Errors | Kitchen list/create/update routes now return friendly generic errors and log sanitized diagnostics only. |
+| KITCHEN-FIX-002 | Realtime SSE | Kitchen stream snapshot failures now emit safe client messages instead of raw Firestore errors. |
+| KITCHEN-FIX-003 | Status Mapping | Cancelled Kitchen tickets stay cancelled instead of being displayed as completed; served is now a distinct step before completion. |
+| KITCHEN-FIX-004 | Bootstrap Loading | Kitchen and table bootstrap fetches now use abort guards, response validation, friendly failure toast, and sanitized console diagnostics. |
+| KITCHEN-FIX-005 | Status Rollback | Failed status updates now roll back the affected card and show safe toast feedback. |
+| KITCHEN-FIX-006 | Shared Actions | Kitchen cards now share status, cancel, preview, print, and reprint helpers instead of duplicating local action logic. |
+| KITCHEN-FIX-007 | Cancel Confirmation | Ticket cancel now requires an accessible confirmation dialog with Escape close and focus return. |
+| KITCHEN-FIX-008 | Bulk Actions | Bulk Ready, Serve Ready, Complete Served, and Bulk Cancel are wired with rollback on partial failure and confirmation for destructive actions. |
+| KITCHEN-FIX-009 | KOT Printing | Print, reprint, and preview reuse the existing KOT window path, avoid duplicate auto-print generation, and hide print-log internals from users. |
+| KITCHEN-FIX-010 | Sound Alerts | New-order sound alerts play once per new ticket, skip initial bootstrap spam, and respect mute/settings state. |
+| KITCHEN-FIX-011 | Timers | Kitchen timers now guard invalid dates, avoid negative elapsed values, and keep the single interval cleanup pattern. |
+| KITCHEN-FIX-012 | Filters and TV Mode | Status, priority, table, source, station, and search filters now work with empty states; fullscreen supports Escape and wider TV board columns. |
+
+Kitchen workflow coverage:
+
+| Workflow | Result |
+| --- | --- |
+| Order Intake | Existing owner Kitchen API and SSE paths are reused; no new API or collection was added. |
+| Status Lifecycle | New, accepted, preparing, ready, served, completed, billed, and cancelled states render explicitly. |
+| Bulk Operations | Non-destructive ready/serve actions run directly; complete/cancel require confirmation. |
+| KOT | Existing print/reprint/logging flow is preserved with safe preview and error handling. |
+| Sound | Alerts are one-time per new order after initial load and respect the mute toggle. |
+| Filters | Search, status, priority, table, source, station, QR/POS/parcel/delivery source filtering, and empty states are covered. |
+| Accessibility | Card actions have labels; confirmation dialog has modal semantics, Escape close, and focus return. |
+| Performance | Bootstrap abort, EventSource cleanup, singleton timer cleanup, and no duplicate realtime listeners were preserved. |
+
+Kitchen verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Initial run was blocked by the active Next dev-server guard; passed with `SARVA_ALLOW_BUILD_WITH_DEV=1`. Existing protobuf dynamic dependency warning remains. |
 | `git diff --check` | Passed with Git line-ending normalization warnings only. |
