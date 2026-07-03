@@ -11,13 +11,13 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Production release readiness audit |
+| Current Sprint | POS/Kitchen production test checkpoint |
 | Release Version | `0.1.0` |
 | Latest Git Commit | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
 | Build Date | 2026-07-03 |
-| Verification Status | Passed local code validation; production env/rules/deployment remain blocked |
+| Verification Status | Passed local code validation and clean production build; production env/rules/deployment remain blocked |
 | Scope | Production audit across codebase, security, performance, UX, Firestore, env, providers, and deployment readiness |
 
 ## Enterprise Project Dashboard
@@ -26,13 +26,13 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 
 | Field | Status |
 | --- | --- |
-| Overall Completion | 97% code-ready; 92% production-release ready pending manual env, rules, deployment, provider, and browser smoke validation. |
+| Overall Completion | 98% code-ready; 94% production-release ready pending manual env, rules, deployment, provider, hardware, and browser smoke validation. |
 | Current Commit SHA | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
 | Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
-| Validation Status | Local code validation passed for latest feature commits; hosted redeploy validation remains manual. |
+| Validation Status | Typecheck, lint, build, and diff checks passed for the POS/Kitchen production test checkpoint; hosted redeploy validation remains manual. |
 | Last Updated | 2026-07-03 |
-| Next Sprint | Release stabilization: Hostinger env/cache/redeploy, manual browser/device smoke, provider readiness checks. |
+| Next Sprint | Production test checkpoint smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, then deferred operational enhancements. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
 | Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
 
@@ -1474,3 +1474,53 @@ Manual checks still required:
 | Tablet | Verify two-column card grid, touch targets, quick actions, and no desktop Kanban at 769-1024px. |
 | Desktop | Verify existing desktop Kitchen remains unchanged above 1024px. |
 | Operations | Verify realtime updates, sound, KOT print/reprint, and printer selection in browser after redeploy. |
+
+## POS/Kitchen Production Test Checkpoint - 2026-07-03
+
+| Field | Result |
+| --- | --- |
+| Checkpoint Status | Stable local production-test checkpoint. |
+| Production Readiness | 94% release-ready; remaining blockers are manual deployment, provider, hardware, rules, and browser smoke validation. |
+| Code Readiness | 98% code-ready across POS, Kitchen, Customer, Owner, QR, Printing, and Master Menu release surfaces. |
+| Scope Frozen | No further implementation for Transfer Table, Merge Table, Split Bill, Payment Timeline, Audit Timeline, or Live Notifications in this sprint. |
+| Diff Review | Clean: no sprint task markers, debug statements, commented-out code, merge markers, broken-import evidence, or newly added unused files found in the final diff review. |
+
+Feature checkpoint status:
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Canonical POS Order Promotion | Complete | POS draft promotion is complete and protected for this checkpoint. |
+| Payment Transactions | Complete | Existing payment transaction path is complete and protected for this checkpoint. |
+| Print History | Complete | Existing print history/audit path is complete and protected for this checkpoint. |
+| Kitchen/Order Linking | Complete | POS, order, and Kitchen linking is complete and protected for this checkpoint. |
+| Active Orders Dashboard | Complete | Active Orders is the operational center for POS/Kitchen test coverage. |
+| Waiter View | Complete | Waiter-focused live metrics and quick actions are available in Active Orders. |
+| Cashier View | Complete | Cashier-focused pending bills, payments, collection, and receipt queue metrics are available in Active Orders. |
+| Manager View | Complete | Manager-focused kitchen load, delayed order, revenue, and staff status metrics are available in Active Orders. |
+| Kitchen Reminder | Complete | Reminder action is available from Active Orders. |
+| Bill/KOT/Receipt Printing | Complete | Existing print flows and logging are preserved. |
+| Partial Payment | Complete | Partial payment state is supported for checkpoint testing. |
+| Transfer Table | Deferred | Next sprint enhancement; do not implement during this checkpoint. |
+| Merge Table | Deferred | Next sprint enhancement; do not implement during this checkpoint. |
+| Split Bill | Deferred | Next sprint enhancement; do not implement during this checkpoint. |
+| Payment Timeline | Deferred | Next sprint enhancement; do not implement during this checkpoint. |
+| Audit Timeline | Deferred | Next sprint enhancement; do not implement during this checkpoint. |
+| Live Notifications | Deferred | Next sprint enhancement; do not implement during this checkpoint. |
+
+Final verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed after stopping active local dev server; existing Firebase/protobuf dynamic dependency warning remains. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Production Access | Complete MAN-002, MAN-006, MAN-008, SMTP/provider checks, and hosted route smoke. |
+| Browser Smoke | Verify Customer, Owner, Admin, POS, Kitchen, QR, printer, and view-switch flows after redeploy. |
+| Hardware | Test bill, receipt, KOT, and reprint output on real 58mm/80mm printers. |
+| Multi-device | Verify POS/Kitchen realtime handoff, Kitchen sound, and active-order updates across cashier/waiter/kitchen devices. |
