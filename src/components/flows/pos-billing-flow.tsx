@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Eye, FileDown, Grid2X2, Loader2, MapPin, MessageCircle, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
@@ -47,6 +47,18 @@ type PosReadModel = {
   staffMembers: StaffMember[];
 };
 
+type PosPayload = {
+  data?: {
+    menu?: MenuItem[];
+    orders?: DemoOrder[];
+    tables?: PosTable[];
+    customers?: LoyaltyCustomer[];
+    kitchen?: TableOrder[];
+    staff?: StaffMember[];
+    draft?: PosBill | null;
+  };
+};
+
 export function PosBillingFlow() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof posTabs)[number]>("menu");
@@ -69,6 +81,9 @@ export function PosBillingFlow() {
   const [previewPaper, setPreviewPaper] = useState<PaperWidth>("80mm");
   const [ticketCreatedAt, setTicketCreatedAt] = useState<Date | null>(null);
   const [heldOrders, setHeldOrders] = useState<HeldPosOrder[]>([]);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [resumeTarget, setResumeTarget] = useState<HeldPosOrder | null>(null);
+  const [heldDeleteTarget, setHeldDeleteTarget] = useState<HeldPosOrder | null>(null);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
     menuCategories: [],
@@ -86,16 +101,9 @@ export function PosBillingFlow() {
   const taxSettings = useAppStore((state) => state.taxSettings);
   const printerSettings = useAppStore((state) => state.printerSettings);
   const bill = useAppStore((state) => state.posBill);
+  const draftWrite = useRef(Promise.resolve());
   const { categories: masterCategories } = usePublicCategories();
-  const addPosItem = useAppStore((state) => state.addPosItem);
-  const addPosProduct = useAppStore((state) => state.addPosProduct);
-  const updatePosQuantity = useAppStore((state) => state.updatePosQuantity);
-  const removePosItem = useAppStore((state) => state.removePosItem);
   const setPosBill = useAppStore((state) => state.setPosBill);
-  const setPosTable = useAppStore((state) => state.setPosTable);
-  const setPosOrderType = useAppStore((state) => state.setPosOrderType);
-  const setPosCustomer = useAppStore((state) => state.setPosCustomer);
-  const setPosPayment = useAppStore((state) => state.setPosPayment);
   const resetPosBill = useAppStore((state) => state.resetPosBill);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
   const branch = useMemo(
@@ -121,8 +129,8 @@ export function PosBillingFlow() {
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/api/owner/pos", { cache: "no-store", signal: controller.signal })
-      .then((response) => response.json())
-      .then((payload: { data?: { menu?: MenuItem[]; orders?: DemoOrder[]; tables?: PosTable[]; customers?: LoyaltyCustomer[]; kitchen?: TableOrder[]; staff?: StaffMember[] } }) => {
+      .then((response) => readPosPayload<PosPayload>(response, "POS data could not be loaded."))
+      .then((payload) => {
         setReadModel((current) => ({
           ...current,
           menuItems: payload.data?.menu ?? [],
@@ -132,12 +140,17 @@ export function PosBillingFlow() {
           tableOrders: payload.data?.kitchen ?? [],
           staffMembers: payload.data?.staff ?? [],
         }));
+        if (payload.data?.draft?.lines?.length) setPosBill(payload.data.draft);
+        else resetPosBill();
       })
       .catch((error) => {
-        if ((error as Error).name !== "AbortError") toast.error("POS data could not be loaded.");
+        if ((error as Error).name !== "AbortError") {
+          console.error("[pos] bootstrap failed", { reason: error instanceof Error ? error.name : typeof error });
+          toast.error("POS data could not be loaded.");
+        }
       });
     return () => controller.abort();
-  }, []);
+  }, [resetPosBill, setPosBill]);
   useEffect(() => {
     if (panel !== "new" || wizardStep <= 1 || wizardStep >= 4) return;
     window.history.pushState({ sarvaPosWizardStep: wizardStep }, "");
@@ -266,25 +279,70 @@ export function PosBillingFlow() {
   const billingPrinter = printerSettings.profiles?.find((profile) => profile.type === "billing") ?? printerSettings.profiles?.[0];
   const totals = calculateBillTotals(billContext);
   const activeKitchenOrder = bill.linkedKitchenOrderId ? tableOrders.find((order) => order.id === bill.linkedKitchenOrderId) : undefined;
-  const activeKotCount = tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length;
-  const activeOrderCount = orders.length;
-  const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status)).length;
+  const activeCustomerOrders = orders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status));
+  const activeKitchenOrders = tableOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
+  const activeKotCount = activeKitchenOrders.filter((order) => ["new", "accepted", "preparing", "ready"].includes(order.status)).length;
+  const activeOrderCount = activeCustomerOrders.length + activeKitchenOrders.length;
+  const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status) && isToday(order.createdAt)).length;
 
-  function handleAdd(item: PosProduct) {
-    if (item.source === "menu") {
-      addPosItem(item.raw as MenuItem);
-    } else {
-      addPosProduct(item.raw as InventoryItem);
+  const persistDraft = useCallback(async (nextBill: PosBill, extra: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }> = {}) => {
+    const body = {
+      bill: nextBill,
+      deliveryAddress: extra.deliveryAddress ?? deliveryAddress,
+      landmark: extra.landmark ?? landmark,
+      orderNote: extra.orderNote ?? orderNote,
+    };
+    const write = draftWrite.current.then(async () => {
+      const response = nextBill.lines.length
+        ? await fetch("/api/owner/pos", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+        : await fetch("/api/owner/pos", { method: "DELETE" });
+      await readPosPayload(response, "POS draft could not be saved.");
+    });
+    draftWrite.current = write.catch(() => undefined);
+    await write;
+    setPosBill(nextBill);
+  }, [deliveryAddress, landmark, orderNote, setPosBill]);
+
+  async function commitDraft(nextBill: PosBill, extra?: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }>) {
+    try {
+      await persistDraft(nextBill, extra);
+    } catch (error) {
+      console.error("[pos] draft save failed", { reason: error instanceof Error ? error.name : typeof error });
+      toast.error("POS draft could not be saved.");
     }
   }
 
+  function handleAdd(item: PosProduct) {
+    void commitDraft(addItemToBill(bill, item));
+  }
+
   function handleQuantity(item: PosProduct, quantity: number) {
-    if (item.source === "product") {
-      const stock = (item.raw as InventoryItem).currentStock;
-      updatePosQuantity(item.id, Math.min(quantity, stock));
-      return;
-    }
-    updatePosQuantity(item.id, quantity);
+    const nextQuantity = item.source === "product" ? Math.min(quantity, (item.raw as InventoryItem).currentStock) : quantity;
+    void commitDraft(updateBillQuantity(bill, item.id, nextQuantity));
+  }
+
+  function handleBillQuantity(itemId: string, quantity: number) {
+    void commitDraft(updateBillQuantity(bill, itemId, quantity));
+  }
+
+  function handleRemoveItem(itemId: string) {
+    void commitDraft(updateBillQuantity(bill, itemId, 0));
+  }
+
+  function handleOrderType(value: PosBill["orderType"]) {
+    void commitDraft({ ...bill, orderType: value, table: value === "dine-in" ? bill.table : "DIRECT", paid: false });
+  }
+
+  function handleTable(value: string) {
+    void commitDraft({ ...bill, table: value, paid: false });
+  }
+
+  function handleCustomer(customer: { id?: string; name?: string; phone?: string }) {
+    void commitDraft({ ...bill, customerId: customer.id ?? bill.customerId, customerName: customer.name ?? "", customerPhone: customer.phone ?? "", paid: false });
+  }
+
+  function handlePayment(value: PosBill["payment"]) {
+    void commitDraft({ ...bill, payment: value, paid: false });
   }
 
   async function searchCustomerByPhone() {
@@ -292,7 +350,7 @@ export function PosBillingFlow() {
     if (!normalized) return;
     const localCustomer = loyaltyCustomers.find((customer) => normalizePhone(customer.phone) === normalized);
     if (localCustomer) {
-      setPosCustomer({ id: localCustomer.id, name: localCustomer.name, phone: localCustomer.phone });
+      handleCustomer({ id: localCustomer.id, name: localCustomer.name, phone: localCustomer.phone });
       toast.success(`${localCustomer.name} selected.`);
       return;
     }
@@ -326,21 +384,22 @@ export function PosBillingFlow() {
       total: totals.total,
     };
     if (bill.linkedKitchenOrderId) {
+      const lines = incrementalLines(bill.lines, activeKitchenOrder?.lines ?? []);
+      if (!lines.length) {
+        toast.success("Kitchen already has the latest items.");
+        return activeKitchenOrder;
+      }
       const response = await fetch("/api/owner/kitchen", {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...kitchenPayload, id: bill.linkedKitchenOrderId, status: activeKitchenOrder?.status ?? "new" }),
+        body: JSON.stringify({ ...kitchenPayload, lines, parentKitchenOrderId: bill.linkedKitchenOrderId, status: "new", priority: "rush" }),
       });
-      const result = await response.json() as { data?: TableOrder };
-      const next = result.data ?? {
-        ...kitchenPayload,
-        id: bill.linkedKitchenOrderId,
-        status: activeKitchenOrder?.status ?? "new",
-        createdAt: activeKitchenOrder?.createdAt ?? new Date().toISOString(),
-      } satisfies TableOrder;
-      setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((order) => order.id === next.id ? next : order) }));
+      const result = await readPosPayload<{ data?: TableOrder }>(response, "Incremental KOT could not be created.");
+      if (!result.data) throw new Error("Incremental KOT could not be created.");
+      const next = result.data;
+      setReadModel((current) => ({ ...current, tableOrders: [next, ...current.tableOrders] }));
       setShowKot(true);
-      toast.success("Kitchen ticket updated with the latest items.");
+      toast.success("Incremental KOT sent with only the new items.");
       return next;
     }
     const response = await fetch("/api/owner/kitchen", {
@@ -348,8 +407,9 @@ export function PosBillingFlow() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(kitchenPayload),
     });
-    const result = await response.json() as { data?: TableOrder };
-    const order = result.data ?? { ...kitchenPayload, id: `kot-${Date.now()}`, status: "new", createdAt: new Date().toISOString() } satisfies TableOrder;
+    const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen ticket could not be created.");
+    if (!result.data) throw new Error("Kitchen ticket could not be created.");
+    const order = result.data;
     setReadModel((current) => ({ ...current, tableOrders: [order, ...current.tableOrders] }));
     setPosBill({ ...bill, linkedKitchenOrderId: order.id, applyGst, waiveParcelCharge });
     setShowKot(true);
@@ -357,7 +417,7 @@ export function PosBillingFlow() {
     return order;
   }
 
-  async function checkout() {
+  async function checkout(kitchenOrderId?: string, orderId?: string) {
     if (bill.orderType === "dine-in" && (!bill.table || bill.table === "DIRECT")) {
       toast.error("Select a table before checkout.");
       return false;
@@ -370,19 +430,28 @@ export function PosBillingFlow() {
     const billLink = `${window.location.origin}/bill/${invoiceNumber}`;
     setPosBill({
       ...bill,
+      linkedKitchenOrderId: kitchenOrderId ?? bill.linkedKitchenOrderId,
       paid: true,
       tenderedAmount: bill.tenderedAmount && bill.tenderedAmount > 0 ? bill.tenderedAmount : totals.total,
       invoiceNumber,
       billDeliveryLink: billLink,
       billDeliveryQr: billLink,
     });
-    if (bill.linkedKitchenOrderId) {
+    const linkedKitchenOrderId = kitchenOrderId ?? bill.linkedKitchenOrderId;
+    if (orderId) {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "payment", orderId, kitchenOrderId: linkedKitchenOrderId, amount: totals.total, method: bill.payment === "cod" ? "credit" : bill.payment }),
+      });
+      await readPosPayload(response, "Payment could not be recorded.");
+    } else if (linkedKitchenOrderId) {
       const response = await fetch("/api/owner/kitchen", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: bill.linkedKitchenOrderId, status: "completed" }),
+        body: JSON.stringify({ id: linkedKitchenOrderId, paymentStatus: "paid" }),
       });
-      const result = await response.json() as { data?: TableOrder };
+      const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen payment status could not be updated.");
       if (result.data) setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((order) => order.id === result.data!.id ? result.data! : order) }));
     }
     toast.success("Payment captured and bill is ready.");
@@ -410,6 +479,7 @@ export function PosBillingFlow() {
   }
 
   async function processOrder(capturePayment = false) {
+    if (processingState !== "idle") return;
     if (!bill.lines.length) {
       toast.error("Add at least one item before placing the order.");
       setWizardStep(1);
@@ -426,39 +496,56 @@ export function PosBillingFlow() {
       return;
     }
 
-    setWizardStep(4);
-    setProcessingState("saving");
-    await wait(420);
-    setProcessingState("kitchen");
-    const kitchenOrder = await sendKot();
-    if (!kitchenOrder) {
-      setProcessingState("idle");
-      setWizardStep(3);
-      return;
-    }
-    if (capturePayment) {
-      const paid = await checkout();
-      if (!paid) {
+    try {
+      setWizardStep(4);
+      setProcessingState("saving");
+      await wait(420);
+      setProcessingState("kitchen");
+      const kitchenOrder = await sendKot();
+      if (!kitchenOrder) {
         setProcessingState("idle");
         setWizardStep(3);
         return;
       }
+      const orderResponse = await fetch("/api/owner/pos", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kitchenOrderId: kitchenOrder.id }),
+      });
+      const placed = await readPosPayload<{ data?: DemoOrder; raw?: { id?: string; invoiceNumber?: string } }>(orderResponse, "POS order could not be finalized.");
+      if (placed.data) setReadModel((current) => ({ ...current, orders: [placed.data!, ...current.orders] }));
+      const placedOrderId = placed.raw?.id ?? placed.data?.id;
+      if (placedOrderId) setPosBill({ ...bill, invoiceNumber: placed.raw?.invoiceNumber ?? placedOrderId, linkedKitchenOrderId: kitchenOrder.id });
+      if (capturePayment) {
+        const paid = await checkout(kitchenOrder.id, placedOrderId);
+        if (!paid) {
+          setProcessingState("idle");
+          setWizardStep(3);
+          return;
+        }
+      }
+      await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
+      setProcessingState("syncing");
+      await wait(420);
+      setProcessingState("done");
+      setCompletedOrder({
+        orderId: placed.data ? readableOrderId({ id: placed.data.id, channel: placed.data.channel, orderType: placed.data.fulfillmentType, createdAt: placed.data.createdAt, sequence: orders.length + 1 }) : readableTableOrderId(kitchenOrder, tableOrders.length + 1),
+        kotId: readableTableOrderId(kitchenOrder, tableOrders.length + 1),
+        total: totals.total,
+        table: bill.orderType === "dine-in" ? bill.table : undefined,
+        customer: bill.customerName,
+        payment: bill.payment,
+        orderType: bill.orderType,
+      });
+      await wait(220);
+      setWizardStep(5);
+      toast.success("Order placed. Kitchen Operations has been updated.");
+    } catch (error) {
+      console.error("[pos] order processing failed", { reason: error instanceof Error ? error.name : typeof error });
+      toast.error("Order could not be completed. Please retry.");
+      setProcessingState("idle");
+      setWizardStep(3);
     }
-    setProcessingState("syncing");
-    await wait(420);
-    setProcessingState("done");
-    setCompletedOrder({
-      orderId: readableTableOrderId(kitchenOrder, tableOrders.length + 1),
-      kotId: readableTableOrderId(kitchenOrder, tableOrders.length + 1),
-      total: totals.total,
-      table: bill.orderType === "dine-in" ? bill.table : undefined,
-      customer: bill.customerName,
-      payment: bill.payment,
-      orderType: bill.orderType,
-    });
-    await wait(220);
-    setWizardStep(5);
-    toast.success("Order placed. Kitchen Operations has been updated.");
   }
 
   function startNewOrder() {
@@ -472,7 +559,22 @@ export function PosBillingFlow() {
     setPanel("new");
   }
 
-  function holdOrder() {
+  function requestNewOrder() {
+    if (bill.lines.length && wizardStep !== 5) {
+      setClearConfirmOpen(true);
+      return;
+    }
+    startNewOrder();
+  }
+
+  async function clearCurrentOrder() {
+    await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
+    startNewOrder();
+    setClearConfirmOpen(false);
+    toast.success("Current POS order cleared.");
+  }
+
+  async function holdOrder() {
     if (!bill.lines.length) {
       toast.error("Add items before holding an order.");
       return;
@@ -482,6 +584,7 @@ export function PosBillingFlow() {
       { id: `hold-${Date.now()}`, label, createdAt: new Date().toISOString(), bill },
       ...current,
     ]);
+    await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
     resetPosBill();
     setWizardStep(1);
     setPanel("held");
@@ -505,11 +608,27 @@ export function PosBillingFlow() {
   }
 
   function resumeHeldOrder(order: HeldPosOrder) {
+    if (bill.lines.length) {
+      setResumeTarget(order);
+      return;
+    }
+    void restoreHeldOrder(order);
+  }
+
+  async function restoreHeldOrder(order: HeldPosOrder) {
+    await persistDraft(order.bill);
     setPosBill(order.bill);
     setHeldOrders((current) => current.filter((item) => item.id !== order.id));
+    setResumeTarget(null);
     setPanel("new");
     setWizardStep(1);
     toast.success(`Resumed order for ${order.label}.`);
+  }
+
+  function removeHeldOrder(order: HeldPosOrder) {
+    setHeldOrders((current) => current.filter((item) => item.id !== order.id));
+    setHeldDeleteTarget(null);
+    toast.success(`Removed held order for ${order.label}.`);
   }
 
   async function logPrint(target: "bill" | "kot", duplicate = false) {
@@ -519,7 +638,7 @@ export function PosBillingFlow() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ log: { type: target, status, user: authUser.name, branchId: branch.id, printerProfileId: billingPrinter?.id ?? "browser-billing", referenceId } }),
-    }).catch((error) => console.error("[pos] print log failed", { target, referenceId, error }));
+    }).catch((error) => console.error("[pos] print log failed", { target, referenceId, reason: error instanceof Error ? error.name : typeof error }));
   }
 
   function printTicket(target: "bill" | "kot", copies: BillCopy[] = target === "bill" ? ["Customer Copy"] : ["Kitchen Copy"], duplicate = false) {
@@ -547,7 +666,7 @@ export function PosBillingFlow() {
     link.href = url;
     link.download = `${billContext.invoiceNumber}-bill.html`;
     link.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 500);
     toast.success("PDF-ready bill downloaded. Open it and print as PDF when needed.");
   }
 
@@ -562,6 +681,95 @@ export function PosBillingFlow() {
     ].filter(Boolean).join("\n");
     window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     toast.success("WhatsApp bill message opened.");
+  }
+
+  function openKitchenOrder(order: TableOrder) {
+    setPosBill(tableOrderToBill(order, bill));
+    setPanel("new");
+    setWizardStep(3);
+  }
+
+  async function collectActivePayment(order: TableOrder, split = false) {
+    const canonical = orders.find((item) => item.kitchenOrderId === order.id);
+    if (!canonical) {
+      toast.error("Open and save this order before collecting payment.");
+      return;
+    }
+    const amountText = window.prompt(split ? "Split payment amount" : "Payment amount", String(order.total ?? 0));
+    if (!amountText) return;
+    const amount = Number(amountText);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid payment amount.");
+      return;
+    }
+    const methodText = window.prompt("Payment method: cash, upi, card, credit", "cash")?.trim().toLowerCase();
+    if (!methodText || !["cash", "upi", "card", "credit"].includes(methodText)) {
+      toast.error("Choose cash, upi, card, or credit.");
+      return;
+    }
+    const response = await fetch("/api/owner/orders", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "payment", orderId: canonical.id, kitchenOrderId: order.id, amount, method: methodText }),
+    });
+    const result = await readPosPayload<{ paymentStatus?: "pending" | "partial" | "paid" }>(response, "Payment could not be recorded.");
+    const paymentStatus = result.paymentStatus ?? (amount + 0.01 < Number(order.total ?? 0) ? "partial" : "paid");
+    setReadModel((current) => ({
+      ...current,
+      tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, paymentStatus } : item),
+      orders: current.orders.map((item) => item.id === canonical.id ? { ...item, splitPayment: paymentStatus === "partial" || item.splitPayment } : item),
+    }));
+    toast.success(paymentStatus === "partial" ? "Partial payment recorded." : "Payment recorded.");
+  }
+
+  async function recordActivePrint(order: TableOrder, type: "bill" | "kot") {
+    const canonical = orders.find((item) => item.kitchenOrderId === order.id);
+    if (canonical) {
+      await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "print", orderId: canonical.id, type }),
+      }).catch(() => undefined);
+    }
+    openKitchenOrder(order);
+    if (type === "bill") setBillPreviewOpen(true);
+    else window.setTimeout(() => printTicket("kot", ["Kitchen Copy"], Boolean(order.printedCount)), 0);
+  }
+
+  async function moveActiveTable(order: TableOrder, mode: "transfer" | "merge") {
+    const target = window.prompt(mode === "merge" ? "Merge with table" : "Transfer to table", "");
+    if (!target?.trim()) return;
+    const tableNumber = mode === "merge" ? `${order.tableNumber}+${target.trim()}` : target.trim();
+    const response = await fetch("/api/owner/kitchen", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: order.id, tableNumber }),
+    });
+    const result = await readPosPayload<{ data?: TableOrder }>(response, "Table update could not be saved.");
+    if (result.data) setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? result.data! : item) }));
+    toast.success(mode === "merge" ? "Tables merged for this order." : "Order transferred.");
+  }
+
+  async function remindKitchen(order: TableOrder) {
+    const response = await fetch("/api/owner/kitchen", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: order.id, priority: "rush", reminderAt: new Date().toISOString(), reminderBy: authUser.name || authUser.id }),
+    });
+    const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen reminder could not be sent.");
+    setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, ...(result.data ?? {}), priority: "rush" } : item) }));
+    toast.success("Kitchen reminder sent.");
+  }
+
+  async function updateActiveOrderStatus(order: TableOrder, status: TableOrder["status"]) {
+    const response = await fetch("/api/owner/kitchen", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: order.id, status }),
+    });
+    const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
+    setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? result.data ?? { ...item, status } : item) }));
+    toast.success(status === "cancelled" ? "Order cancelled." : "Order completed.");
   }
 
   function renderWizardMain() {
@@ -642,14 +850,14 @@ export function PosBillingFlow() {
               deliveryAddress={deliveryAddress}
               landmark={landmark}
               orderNote={orderNote}
-              onOrderType={setPosOrderType}
-              onTable={setPosTable}
-              onCustomer={setPosCustomer}
+              onOrderType={handleOrderType}
+              onTable={handleTable}
+              onCustomer={handleCustomer}
               onLookup={() => void searchCustomerByPhone()}
-              onWaiter={(waiterName) => setPosBill({ ...bill, waiterName, paid: false })}
-              onAddress={setDeliveryAddress}
-              onLandmark={setLandmark}
-              onNote={setOrderNote}
+              onWaiter={(waiterName) => void commitDraft({ ...bill, waiterName, paid: false })}
+              onAddress={(value) => { setDeliveryAddress(value); void commitDraft(bill, { deliveryAddress: value }); }}
+              onLandmark={(value) => { setLandmark(value); void commitDraft(bill, { landmark: value }); }}
+              onNote={(value) => { setOrderNote(value); void commitDraft(bill, { orderNote: value }); }}
               onBack={() => setWizardStep(1)}
               onNext={goToReview}
             />
@@ -662,8 +870,8 @@ export function PosBillingFlow() {
               deliveryAddress={deliveryAddress}
               landmark={landmark}
               orderNote={orderNote}
-              onQuantity={updatePosQuantity}
-              onRemove={removePosItem}
+              onQuantity={handleBillQuantity}
+              onRemove={handleRemoveItem}
               onBack={() => setWizardStep(2)}
               onProcess={() => void processOrder(false)}
             />
@@ -684,7 +892,7 @@ export function PosBillingFlow() {
         kotTickets={activeKotCount}
         heldOrders={heldOrders.length}
         pastOrders={pastOrderCount}
-        onNewOrder={startNewOrder}
+        onNewOrder={requestNewOrder}
         onActiveOrders={() => setPanel("active")}
         onHeldOrders={() => setPanel("held")}
         onPastOrders={() => setPanel("past")}
@@ -693,17 +901,30 @@ export function PosBillingFlow() {
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="grid min-h-0 flex-1 gap-4 p-3 md:p-4 xl:grid-cols-[minmax(0,1fr)_430px]">
           {panel === "held" ? (
-            <HeldOrdersPanel orders={heldOrders} onResume={resumeHeldOrder} onDelete={(id) => setHeldOrders((current) => current.filter((item) => item.id !== id))} />
+            <HeldOrdersPanel orders={heldOrders} onResume={resumeHeldOrder} onDelete={setHeldDeleteTarget} />
           ) : panel === "active" ? (
             <ActiveOrdersPanel
               orders={orders}
-              onOpenNew={startNewOrder}
+              kitchenOrders={tableOrders}
+              tables={tables}
+              staff={staffMembers}
+              onOpenNew={requestNewOrder}
+              onOpen={openKitchenOrder}
+              onPrintBill={(order) => void recordActivePrint(order, "bill")}
+              onPrintKot={(order) => void recordActivePrint(order, "kot")}
+              onCollectPayment={(order) => void collectActivePayment(order)}
+              onSplitBill={(order) => void collectActivePayment(order, true)}
+              onTransfer={(order) => void moveActiveTable(order, "transfer")}
+              onMerge={(order) => void moveActiveTable(order, "merge")}
+              onReminder={(order) => void remindKitchen(order)}
+              onComplete={(order) => void updateActiveOrderStatus(order, "completed")}
+              onCancel={(order) => void updateActiveOrderStatus(order, "cancelled")}
             />
           ) : panel === "past" ? (
             <PastOrdersPanel orders={orders} />
           ) : panel === "customers" ? (
             <CustomersPanel customers={loyaltyCustomers} onSelect={(customer) => {
-              setPosCustomer({ id: customer.id, name: customer.name, phone: customer.phone });
+              handleCustomer({ id: customer.id, name: customer.name, phone: customer.phone });
               setPanel("new");
               setWizardStep(2);
               toast.success(`${customer.name} selected.`);
@@ -719,31 +940,31 @@ export function PosBillingFlow() {
             bill={bill}
             totals={totals}
             onStep={setWizardStep}
-            onOrderType={(value) => setPosOrderType(value)}
-            onQuantity={updatePosQuantity}
-            onRemove={removePosItem}
+            onOrderType={handleOrderType}
+            onQuantity={handleBillQuantity}
+            onRemove={handleRemoveItem}
             onNextDetails={goToDetails}
             onNextReview={goToReview}
             onProcessOrder={(capturePayment) => void processOrder(capturePayment)}
-            onClear={resetPosBill}
+            onClear={() => setClearConfirmOpen(true)}
             onHold={holdOrder}
             onSave={saveOrder}
-            onNewOrder={startNewOrder}
+            onNewOrder={requestNewOrder}
             onViewActiveOrders={() => setPanel("active")}
             onPrintBill={() => setBillPreviewOpen(true)}
-            onPayment={setPosPayment}
+            onPayment={handlePayment}
             onDiscount={(amount) => {
-              setPosBill({ ...bill, discount: amount, paid: false });
+              void commitDraft({ ...bill, discount: amount, paid: false });
               toast.success(amount > 0 ? `Discount applied: ${formatCurrency(amount)}` : "Discount removed.");
             }}
             applyGst={applyGst}
             onApplyGst={(value) => {
-              setPosBill({ ...bill, applyGst: value, paid: false });
+              void commitDraft({ ...bill, applyGst: value, paid: false });
               toast.success(value ? "GST enabled for this bill." : "GST removed for this bill.");
             }}
             waiveParcelCharge={waiveParcelCharge}
             onWaiveParcelCharge={(value) => {
-              setPosBill({ ...bill, waiveParcelCharge: value, paid: false });
+              void commitDraft({ ...bill, waiveParcelCharge: value, paid: false });
               toast.success(value ? "Parcel charge waived for this bill." : "Parcel charge applied.");
             }}
           /> : null}
@@ -785,6 +1006,33 @@ export function PosBillingFlow() {
             onPrint={(copies, duplicate) => printTicket("bill", copies, duplicate)}
             onDownload={downloadBillDocument}
             onWhatsApp={shareBillWhatsApp}
+          />
+        ) : null}
+        {clearConfirmOpen ? (
+          <PosConfirmDialog
+            title="Clear current POS order?"
+            description="This removes the current cart, customer details, discounts, and billing draft."
+            confirmLabel="Clear order"
+            onCancel={() => setClearConfirmOpen(false)}
+            onConfirm={clearCurrentOrder}
+          />
+        ) : null}
+        {resumeTarget ? (
+          <PosConfirmDialog
+            title="Replace current order?"
+            description={`Resuming ${resumeTarget.label} will replace the items currently in the POS cart.`}
+            confirmLabel="Resume held order"
+            onCancel={() => setResumeTarget(null)}
+            onConfirm={() => void restoreHeldOrder(resumeTarget)}
+          />
+        ) : null}
+        {heldDeleteTarget ? (
+          <PosConfirmDialog
+            title="Remove held order?"
+            description={`This removes the held order for ${heldDeleteTarget.label}.`}
+            confirmLabel="Remove"
+            onCancel={() => setHeldDeleteTarget(null)}
+            onConfirm={() => removeHeldOrder(heldDeleteTarget)}
           />
         ) : null}
         {activeKitchenOrder ? <span className="sr-only">Active kitchen ticket {activeKitchenOrder.id}</span> : null}
@@ -1182,20 +1430,28 @@ function BillPreviewDialog({
   const selectedCopies = copies.length ? copies : (["Customer Copy"] as BillCopy[]);
   const duplicate = selectedCopies.includes("Duplicate Copy");
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   function toggle(copy: BillCopy) {
     setCopies((current) => current.includes(copy) ? current.filter((item) => item !== copy) : [...current, copy]);
   }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
-      <section className="grid max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl lg:grid-cols-[360px_1fr]">
+      <section role="dialog" aria-modal="true" aria-labelledby="pos-bill-preview-title" className="grid max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl lg:grid-cols-[360px_1fr]">
         <aside className="space-y-4 border-b border-slate-200 p-5 lg:border-b-0 lg:border-r">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-black text-slate-950">Bill preview</h2>
+              <h2 id="pos-bill-preview-title" className="text-xl font-black text-slate-950">Bill preview</h2>
               <p className="mt-1 text-sm font-semibold text-slate-500">Choose copies, paper size, then print or download.</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}><X className="size-4" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Close bill preview" onClick={onClose}><X className="size-4" /></Button>
           </div>
           <div className="grid gap-2">
             <p className="text-xs font-black uppercase text-slate-500">Paper</p>
@@ -1242,10 +1498,58 @@ function BillPreviewDialog({
   );
 }
 
+function PosConfirmDialog({
+  title,
+  description,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/45 p-4">
+      <section role="dialog" aria-modal="true" aria-labelledby="pos-confirm-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+        <h2 id="pos-confirm-title" className="text-lg font-black text-slate-950">{title}</h2>
+        <p className="mt-2 text-sm font-semibold text-slate-600">{description}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <Button variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button className="bg-red-600 text-white hover:bg-red-700" onClick={onConfirm}>{confirmLabel}</Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function readablePosOrderType(type: PosBill["orderType"]) {
   if (type === "dine-in") return "Dine-in";
   if (type === "takeaway") return "Quick Bill";
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function paymentLabel(value?: TableOrder["paymentStatus"]) {
+  if (value === "paid") return "Paid";
+  if (value === "partial") return "Partially paid";
+  if (value === "refunded") return "Refunded";
+  return "Unpaid";
+}
+
+function isDelayedTableOrder(order: TableOrder) {
+  const eta = Number(order.etaMinutes ?? 12);
+  const created = Date.parse(order.createdAt);
+  return Number.isFinite(created) && Date.now() - created > eta * 60_000;
 }
 
 function withBillCopy(context: BillContext, copy: BillCopy): BillContext {
@@ -1260,6 +1564,65 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+async function readPosPayload<T>(response: Response, fallback: string) {
+  const payload = await response.json().catch(() => ({})) as T;
+  if (!response.ok) throw new Error(fallback);
+  return payload;
+}
+
+function addItemToBill(bill: PosBill, item: PosProduct): PosBill {
+  const existing = bill.lines.find((line) => line.itemId === item.id);
+  const quantity = existing ? existing.quantity + 1 : 1;
+  const nextLine = item.source === "menu"
+    ? { itemId: item.id, name: item.name, price: item.price, quantity }
+    : {
+        itemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: Math.min(quantity, (item.raw as InventoryItem).currentStock),
+        lineType: "inventory" as const,
+        gstRate: (item.raw as InventoryItem).gstApplicable ? (item.raw as InventoryItem).gstRate : undefined,
+        hsnCode: (item.raw as InventoryItem).gstApplicable ? (item.raw as InventoryItem).hsnCode : undefined,
+      };
+  const lines = existing ? bill.lines.map((line) => line.itemId === item.id ? { ...line, ...nextLine } : line) : [...bill.lines, nextLine];
+  return { ...bill, lines, paid: false };
+}
+
+function updateBillQuantity(bill: PosBill, itemId: string, quantity: number): PosBill {
+  const lines = quantity <= 0
+    ? bill.lines.filter((line) => line.itemId !== itemId)
+    : bill.lines.map((line) => line.itemId === itemId ? { ...line, quantity } : line);
+  return { ...bill, lines, paid: false };
+}
+
+function tableOrderToBill(order: TableOrder, current: PosBill): PosBill {
+  return {
+    ...current,
+    table: order.tableNumber || "DIRECT",
+    orderType: order.orderType ?? "dine-in",
+    lines: order.lines,
+    paid: order.paymentStatus === "paid",
+    customerName: order.customerName || order.guestName,
+    customerPhone: order.customerPhone,
+    linkedKitchenOrderId: order.id,
+    waiterName: order.waiterName,
+  };
+}
+
+function incrementalLines(next: PosBill["lines"], current: TableOrder["lines"]) {
+  const currentQuantities = new Map(current.map((line) => [line.itemId, line.quantity]));
+  return next
+    .map((line) => ({ ...line, quantity: line.quantity - (currentQuantities.get(line.itemId) ?? 0) }))
+    .filter((line) => line.quantity > 0);
+}
+
+function isToday(value?: string) {
+  if (!value) return false;
+  const date = new Date(value);
+  const now = new Date();
+  return date.toDateString() === now.toDateString();
+}
+
 function HeldOrdersPanel({
   orders,
   onResume,
@@ -1267,7 +1630,7 @@ function HeldOrdersPanel({
 }: {
   orders: HeldPosOrder[];
   onResume: (order: HeldPosOrder) => void;
-  onDelete: (id: string) => void;
+  onDelete: (order: HeldPosOrder) => void;
 }) {
   return (
     <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1298,7 +1661,7 @@ function HeldOrdersPanel({
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => onResume(order)}>Resume</Button>
-                <Button size="sm" variant="outline" onClick={() => onDelete(order.id)}>Remove</Button>
+                <Button size="sm" variant="outline" onClick={() => onDelete(order)}>Remove</Button>
               </div>
             </article>
           );
@@ -1314,25 +1677,160 @@ function HeldOrdersPanel({
 
 function ActiveOrdersPanel({
   orders,
+  kitchenOrders,
+  tables,
+  staff,
   onOpenNew,
+  onOpen,
+  onPrintBill,
+  onPrintKot,
+  onCollectPayment,
+  onSplitBill,
+  onTransfer,
+  onMerge,
+  onReminder,
+  onComplete,
+  onCancel,
 }: {
   orders: DemoOrder[];
+  kitchenOrders: TableOrder[];
+  tables: PosTable[];
+  staff: StaffMember[];
   onOpenNew: () => void;
+  onOpen: (order: TableOrder) => void;
+  onPrintBill: (order: TableOrder) => void;
+  onPrintKot: (order: TableOrder) => void;
+  onCollectPayment: (order: TableOrder) => void;
+  onSplitBill: (order: TableOrder) => void;
+  onTransfer: (order: TableOrder) => void;
+  onMerge: (order: TableOrder) => void;
+  onReminder: (order: TableOrder) => void;
+  onComplete: (order: TableOrder) => void;
+  onCancel: (order: TableOrder) => void;
 }) {
+  const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">("operations");
   const activeCustomerOrders = orders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status));
+  const activeKitchenOrders = kitchenOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
+  const readyOrders = activeKitchenOrders.filter((order) => order.status === "ready");
+  const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
+  const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
+  const delayedOrders = activeKitchenOrders.filter(isDelayedTableOrder);
+  const occupiedTables = tables.filter((table) => ["occupied", "reserved"].includes(String(table.status)));
+  const activeStaff = staff.filter((member) => member.status === "active");
+  const revenue = orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + Number(order.totals.total ?? 0), 0);
+  const kitchenLoad = activeKitchenOrders.reduce<Record<string, number>>((acc, order) => {
+    acc[order.status] = (acc[order.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const views = [
+    ["operations", "Operations"],
+    ["waiter", "Waiter"],
+    ["cashier", "Cashier"],
+    ["manager", "Manager"],
+  ] as const;
 
   return (
     <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-black text-slate-950">Active Orders</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Canonical website, POS, parcel, and delivery orders.</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Live waiter, POS, QR, parcel, and delivery operations.</p>
         </div>
         <Button onClick={onOpenNew}>New Order</Button>
       </div>
-      <div className="mt-5 grid gap-3">
-        {activeCustomerOrders.length ? (
+      <div className="mt-4 flex flex-wrap gap-2">
+        {views.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            className={cn("h-10 rounded-xl border px-4 text-sm font-black", view === key ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600")}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        {view === "operations" ? (
           <>
+            <OperationalMetric label="Active orders" value={String(activeKitchenOrders.length + activeCustomerOrders.length)} />
+            <OperationalMetric label="Ready orders" value={String(readyOrders.length)} />
+            <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
+            <OperationalMetric label="Kitchen load" value={String(activeKitchenOrders.length)} />
+          </>
+        ) : null}
+        {view === "waiter" ? (
+          <>
+            <OperationalMetric label="Assigned tables" value={String(occupiedTables.length)} />
+            <OperationalMetric label="Ready orders" value={String(readyOrders.length)} />
+            <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
+            <OperationalMetric label="Requests" value={String(activeKitchenOrders.filter((order) => order.priority === "rush").length)} />
+          </>
+        ) : null}
+        {view === "cashier" ? (
+          <>
+            <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
+            <OperationalMetric label="Pending payments" value={String(pendingPayments.length)} />
+            <OperationalMetric label="Today's collection" value={formatCurrency(revenue)} />
+            <OperationalMetric label="Receipt queue" value={String(activeKitchenOrders.filter((order) => order.paymentStatus === "paid").length)} />
+          </>
+        ) : null}
+        {view === "manager" ? (
+          <>
+            <OperationalMetric label="Kitchen load" value={String(activeKitchenOrders.length)} />
+            <OperationalMetric label="Delayed orders" value={String(delayedOrders.length)} />
+            <OperationalMetric label="Revenue" value={formatCurrency(revenue)} />
+            <OperationalMetric label="Staff active" value={String(activeStaff.length)} />
+          </>
+        ) : null}
+      </div>
+      {view === "manager" ? (
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          {Object.entries(kitchenLoad).map(([status, count]) => <OperationalMetric key={status} label={status} value={String(count)} />)}
+        </div>
+      ) : null}
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        {activeKitchenOrders.length || activeCustomerOrders.length ? (
+          <>
+            {activeKitchenOrders.map((order, index) => (
+              <article key={order.id} className="rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-black text-slate-950">{readableTableOrderId(order, index + 1)}</h3>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">{order.tableNumber} · {order.customerName || order.guestName || "Walk-in"} · {actualOrderTime(order.createdAt)}</p>
+                  </div>
+                  <Badge variant={order.priority === "rush" ? "destructive" : "secondary"}>{order.lines.length} items</Badge>
+                </div>
+                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                  <ActiveInfoRow label="Order type" value={readablePosOrderType(order.orderType ?? "dine-in")} />
+                  <ActiveInfoRow label="Kitchen" value={order.status} />
+                  <ActiveInfoRow label="Payment" value={paymentLabel(order.paymentStatus)} />
+                  <ActiveInfoRow label="Total" value={formatCurrency(order.total ?? 0)} />
+                  <ActiveInfoRow label="Waiter" value={order.waiterName || "-"} />
+                  <ActiveInfoRow label="ETA" value={`${order.etaMinutes ?? 12} min`} />
+                </div>
+                <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-500 sm:grid-cols-3">
+                  <p className="rounded-lg bg-slate-50 px-3 py-2">Order: {actualOrderTime(order.createdAt)}</p>
+                  <p className="rounded-lg bg-slate-50 px-3 py-2">Kitchen: {order.status}</p>
+                  <p className="rounded-lg bg-slate-50 px-3 py-2">Payment: {paymentLabel(order.paymentStatus)}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => onOpen(order)}>Open</Button>
+                  <Button size="sm" variant="outline" onClick={() => onOpen(order)}>Edit</Button>
+                  <Button size="sm" variant="outline" onClick={() => onOpen(order)}>Add Items</Button>
+                  <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}>Print Bill</Button>
+                  <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}>Print Receipt</Button>
+                  <Button size="sm" variant="outline" onClick={() => onPrintKot(order)}>Print KOT</Button>
+                  <Button size="sm" variant="outline" onClick={() => onCollectPayment(order)}>Collect Payment</Button>
+                  <Button size="sm" variant="outline" onClick={() => onSplitBill(order)}>Split Bill</Button>
+                  <Button size="sm" variant="outline" onClick={() => onTransfer(order)}>Transfer Table</Button>
+                  <Button size="sm" variant="outline" onClick={() => onMerge(order)}>Merge Table</Button>
+                  <Button size="sm" variant="outline" onClick={() => onReminder(order)}>Send Reminder</Button>
+                  <Button size="sm" variant="outline" onClick={() => onComplete(order)}>Complete</Button>
+                  <Button size="sm" variant="outline" className="text-red-600" onClick={() => onCancel(order)}>Cancel</Button>
+                </div>
+              </article>
+            ))}
             {activeCustomerOrders.map((order, index) => (
               <OrderPanelRow
                 key={order.id}
@@ -1346,12 +1844,30 @@ function ActiveOrdersPanel({
             ))}
           </>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm font-semibold text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm font-semibold text-slate-500 lg:col-span-2">
             No active orders right now.
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+function ActiveInfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2">
+      <p className="text-[11px] font-black uppercase text-slate-400">{label}</p>
+      <p className="mt-0.5 font-black text-slate-800">{value}</p>
+    </div>
+  );
+}
+
+function OperationalMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-[11px] font-black uppercase text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-black text-slate-950">{value}</p>
+    </div>
   );
 }
 

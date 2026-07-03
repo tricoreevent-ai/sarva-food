@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     const scope = tenantScope(session, request.nextUrl.searchParams.get("restaurantId"));
     return NextResponse.json({ data: await new LoyaltyRepository().getRules(scope.tenantId) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load loyalty rules." }, { status: 400 });
+    console.error("[owner/loyalty-rules] load failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Unable to load loyalty rules." }, { status: 400 });
   }
 }
 
@@ -27,6 +28,7 @@ export async function PATCH(request: NextRequest) {
     const scope = tenantScope(session, body.restaurantId);
     return NextResponse.json({ data: await new LoyaltyRepository().saveRules(scope.tenantId, body.rules ?? {}, session.uid) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save loyalty rules." }, { status: 400 });
+    console.error("[owner/loyalty-rules] save failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Unable to save loyalty rules." }, { status: 400 });
   }
 }

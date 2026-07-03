@@ -319,6 +319,7 @@ export type MenuScheduleDoc = TenantScopedDoc & {
 };
 
 export type OrderStatus =
+  | "draft"
   | "new"
   | "accepted"
   | "rejected"
@@ -331,7 +332,7 @@ export type OrderStatus =
   | "cancelled";
 
 export type OrderChannel = "web" | "instagram" | "whatsapp" | "pos" | "catering" | "qr";
-export type PaymentStatus = "pending" | "authorized" | "paid" | "failed" | "refunded";
+export type PaymentStatus = "pending" | "authorized" | "partial" | "paid" | "failed" | "refunded";
 
 export type OrderLineDoc = {
   menuItemId: string;
@@ -362,13 +363,16 @@ export type OrderDoc = TenantScopedDoc & {
   deliveryFee: number;
   total: number;
   paymentStatus: PaymentStatus;
-  statusHistory?: Array<{ status?: OrderStatus; foodStatus?: KitchenOrderStatus; paymentStatus?: PaymentStatus; at: FirestoreDate; by?: string }>;
+  paidAmount?: number;
+  statusHistory?: Array<{ status?: OrderStatus; foodStatus?: KitchenOrderStatus; paymentStatus?: PaymentStatus; event?: string; at: FirestoreDate; by?: string }>;
   preparedBy?: string;
   servedBy?: string;
   completedBy?: string;
   printedCount?: number;
   lastPrintedAt?: FirestoreDate | null;
   deliveryOtp: string;
+  kitchenOrderId?: string;
+  invoiceNumber?: string;
   orderType?: "dine-in" | "takeaway" | "parcel" | "delivery";
   tableNumber?: string;
   waiterId?: string;
@@ -833,7 +837,7 @@ export type PaymentTransactionDoc = TenantScopedDoc & {
   branchId: string;
   receiptId: string;
   invoiceNumber: string;
-  method: "cash" | "card" | "upi";
+  method: "cash" | "card" | "upi" | "credit";
   amount: number;
   reference?: string;
   cashierId: string;

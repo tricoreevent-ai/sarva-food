@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ data: await customers.list(scope, request.nextUrl.searchParams.get("search") ?? "") });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load customers." }, { status: 400 });
+    console.error("[owner/customers] load failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Unable to load customers." }, { status: 400 });
   }
 }

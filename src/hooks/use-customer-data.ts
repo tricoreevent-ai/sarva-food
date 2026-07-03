@@ -37,15 +37,21 @@ export function useCustomerData(customerId?: string | null) {
     }
     setStatus("loading");
     setError(null);
-    const response = await fetch("/api/customer/account", { cache: "no-store" });
-    const payload = await response.json().catch(() => ({})) as { data?: Payload; error?: string };
-    if (!response.ok || !payload.data) {
+    try {
+      const response = await fetch("/api/customer/account", { cache: "no-store" });
+      const payload = await response.json().catch(() => ({})) as { data?: Payload; error?: string };
+      if (!response.ok || !payload.data) {
+        setStatus("error");
+        setError(payload.error || "Could not load customer account.");
+        return;
+      }
+      setData(payload.data);
+      setStatus("success");
+    } catch (error) {
+      console.error("[customer-data] load failed", error);
       setStatus("error");
-      setError(payload.error || "Could not load customer account.");
-      return;
+      setError("Could not load customer account. Check your connection and try again.");
     }
-    setData(payload.data);
-    setStatus("success");
   }, [customerId]);
 
   useEffect(() => {

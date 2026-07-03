@@ -555,6 +555,7 @@ export type PaymentBreakdown = {
 export type OrderChannel = "Web" | "Instagram" | "WhatsApp" | "POS" | "Catering" | "QR";
 
 export type OrderStatus =
+  | "draft"
   | "new"
   | "accepted"
   | "rejected"
@@ -605,6 +606,7 @@ export type DemoOrder = {
   status: OrderStatus;
   createdAt: string;
   deliveryOtp: string;
+  kitchenOrderId?: string;
   statusNote?: string;
   fulfillmentType?: "delivery" | "parcel" | "dine-in";
   scheduleMode?: "now" | "scheduled";
@@ -885,7 +887,7 @@ export type SocialPost = {
 
 export type TableStatus = "vacant" | "new" | "occupied" | "preparing" | "ready" | "served" | "completed" | "billed";
 
-export type KitchenLifecycleStatus = "new" | "accepted" | "preparing" | "ready" | "served" | "completed";
+export type KitchenLifecycleStatus = "new" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
 
 export type TableOrderStatus = KitchenLifecycleStatus | "occupied" | "billed";
 

@@ -14,6 +14,7 @@ import type { OrderStatus, TimelineStep } from "@/lib/types";
 import type { OrderStatus as FirebaseOrderStatus } from "@/types/firebase";
 
 const statusRank: Record<OrderStatus, number> = {
+  draft: 0,
   new: 0,
   accepted: 1,
   rejected: 1,

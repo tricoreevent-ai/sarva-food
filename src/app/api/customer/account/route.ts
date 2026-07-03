@@ -8,9 +8,14 @@ export const runtime = "nodejs";
 const resources = new Set<CustomerResource>(["profile", "addresses", "payments", "savedRestaurants", "coupons", "reviews"]);
 
 export async function GET(request: NextRequest) {
-  const session = await customerSession(request);
-  if (session instanceof NextResponse) return session;
-  return NextResponse.json({ data: await new CustomerAccountRepository().snapshot(session.uid) });
+  try {
+    const session = await customerSession(request);
+    if (session instanceof NextResponse) return session;
+    return NextResponse.json({ data: await new CustomerAccountRepository().snapshot(session.uid) });
+  } catch (error) {
+    logCustomerAccountError("load", error);
+    return NextResponse.json({ error: "Could not load your account. Please try again." }, { status: 400 });
+  }
 }
 
 export async function PATCH(request: NextRequest) {
@@ -22,6 +27,7 @@ export async function PATCH(request: NextRequest) {
     if (!body.resource || !resources.has(body.resource) || !id) return NextResponse.json({ error: "Valid customer resource and id are required." }, { status: 400 });
     return NextResponse.json({ data: await new CustomerAccountRepository().set(session.uid, body.resource, id, body.data ?? {}) });
   } catch (error) {
+    logCustomerAccountError("save", error);
     return NextResponse.json({ error: friendlyError(error) }, { status: 400 });
   }
 }
@@ -35,6 +41,7 @@ export async function DELETE(request: NextRequest) {
     if (!resource || resource === "profile" || !resources.has(resource) || !id) return NextResponse.json({ error: "Valid customer resource and id are required." }, { status: 400 });
     return NextResponse.json({ data: await new CustomerAccountRepository().delete(session.uid, resource, id) });
   } catch (error) {
+    logCustomerAccountError("delete", error);
     return NextResponse.json({ error: friendlyError(error) }, { status: 400 });
   }
 }
@@ -46,6 +53,17 @@ async function customerSession(request: NextRequest) {
 }
 
 function friendlyError(error: unknown) {
-  if (error instanceof Error && error.message) return error.message;
+  const message = error instanceof Error ? error.message : "";
+  if (/already saved/i.test(message)) return "This delivery address is already saved.";
+  if (/not found/i.test(message)) return "That saved item could not be found. Refresh and try again.";
+  if (/invalid/i.test(message)) return "Some saved details look invalid. Check them and try again.";
   return "Customer account update failed. Please try again.";
+}
+
+function logCustomerAccountError(action: string, error: unknown) {
+  console.error("[customer/account] request failed", {
+    requestId: crypto.randomUUID(),
+    action,
+    reason: error instanceof Error ? error.message : String(error ?? "unknown"),
+  });
 }

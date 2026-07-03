@@ -45,8 +45,8 @@ export function CustomerSelector({
             placeholder="Guest Customer"
           />
         </label>
-        <Button variant="outline" className="h-11 border-emerald-200 text-emerald-700">
-          Add customer
+        <Button type="button" variant="outline" className="h-11 border-emerald-200 text-emerald-700" onClick={onLookup}>
+          Lookup
         </Button>
       </div>
       <label className="relative block">

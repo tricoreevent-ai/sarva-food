@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-02
+Last updated: 2026-07-03
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Release stabilization and tracker consolidation |
+| Current Sprint | Production release readiness audit |
 | Release Version | `0.1.0` |
 | Latest Git Commit | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Build Date | 2026-07-02 |
-| Verification Status | Passed for tracker consolidation audit |
-| Scope | Single source of truth, release stabilization backlog, unfinished marker audit, and enterprise gap dashboard |
+| Build Date | 2026-07-03 |
+| Verification Status | Passed local code validation; production env/rules/deployment remain blocked |
+| Scope | Production audit across codebase, security, performance, UX, Firestore, env, providers, and deployment readiness |
 
 ## Enterprise Project Dashboard
 
@@ -26,12 +26,12 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 
 | Field | Status |
 | --- | --- |
-| Overall Completion | 96% code-ready; remaining work is mostly manual deployment, provider validation, and future roadmap integrations. |
+| Overall Completion | 97% code-ready; 92% production-release ready pending manual env, rules, deployment, provider, and browser smoke validation. |
 | Current Commit SHA | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
 | Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
 | Validation Status | Local code validation passed for latest feature commits; hosted redeploy validation remains manual. |
-| Last Updated | 2026-07-02 |
+| Last Updated | 2026-07-03 |
 | Next Sprint | Release stabilization: Hostinger env/cache/redeploy, manual browser/device smoke, provider readiness checks. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
 | Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
@@ -43,7 +43,7 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Architecture and repository migration | 100% | Completed | Maintain repository-first rules. |
 | Customer module stabilization | 96% | Code-ready | Manual mobile/browser/provider smoke. |
 | Owner operations | 98% | Code-ready | Manual view-switch and hosted session smoke. |
-| Kitchen Operations Center | 98% | Code-ready | Manual tablet/TV, SSE, sound, and printer smoke. |
+| Kitchen Operations Center | 99% | Code-ready | Manual tablet/TV, SSE, sound, swipe gesture, and printer smoke. |
 | POS and printing | 98% | Code-ready | Manual device/printer and cashier permission smoke. |
 | QR ordering and phone verification | 97% | Code-ready | Manual device, OTP, table-session smoke. |
 | Enterprise Menu Master Library | 94% | Code-ready | Manual Admin library and owner template import smoke after redeploy. |
@@ -58,7 +58,7 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Customer | 96% | Stabilized | Codex + Manual | Manual browser/device and provider validation remains. |
 | Restaurant public pages | 96% | Stabilized | Codex + Manual | Public cache and profile completeness guards implemented. |
 | Owner | 98% | Stabilized | Codex + Manual | View-switch password verification remains manual. |
-| Kitchen | 98% | Stabilized | Manual | Real printer, TV, SSE, and sound checks remain. |
+| Kitchen | 99% | Stabilized | Manual | Mobile/tablet responsive board is optimized; real printer, TV, SSE, gestures, and sound checks remain. |
 | POS | 98% | Stabilized | Manual | Hardware printer/device and permission smoke remains. |
 | Admin | 94% | Stabilized | Manual | Provider/env-backed workflows need hosted smoke. |
 | Staff | 90% | Implemented | Manual | Live staff permission matrix smoke remains. |
@@ -1277,3 +1277,200 @@ Kitchen verification:
 | `npm run lint` | Passed |
 | `npm run build` | Initial run was blocked by the active Next dev-server guard; passed with `SARVA_ALLOW_BUILD_WITH_DEV=1`. Existing protobuf dynamic dependency warning remains. |
 | `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+## Master Menu Library Import Stabilization - 2026-07-02
+
+| Field | Result |
+| --- | --- |
+| Master Library Readiness | 98% code-ready; remaining validation is manual import smoke with production admin credentials. |
+| Master Menu Bugs Found | 1 confirmed import compatibility issue. |
+| Master Menu Bugs Fixed | 1 fixed in this pass. |
+| Remaining Risks | Admin must manually import the provided JSON/CSV/XLSX dataset into production before owners can see live master templates. |
+| Manual Tasks | Admin import provided Kerala JSON, verify owner template picker, import one template into owner menu wizard, and confirm images/fallbacks. |
+
+Master Menu bugs fixed:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| MENU-LIB-FIX-001 | Import Compatibility | Master template import now accepts the uploaded `keralaFoods` JSON shape, maps `itemName`, channel prices, packing charge, descriptions, cuisines, ingredients, nutrition, modifiers, add-ons, availability, ratings, and images, and supports JSON/CSV/XLSX loading from the existing Admin Menu Library screen. |
+
+Master Menu verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+## Master Menu Final Stabilization - 2026-07-02
+
+| Field | Result |
+| --- | --- |
+| Master Library Readiness | 99% code-ready; remaining validation is manual production admin/owner smoke after redeploy. |
+| Master Menu Bugs Found | 8 production-readiness gaps. |
+| Master Menu Bugs Fixed | 8 fixed in this pass. |
+| Remaining Risks | Firestore rules/deployment and real admin/owner browser credentials still require manual production validation. |
+| Manual Tasks | Import provided Kerala JSON/CSV/XLSX in Admin, verify dashboard counts, export samples, refresh Owner picker, and import one template into owner menu wizard. |
+
+Master Menu bugs fixed:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| MENU-LIB-FIX-002 | Import Summary | Admin import now refreshes UI/counts and reports imported, skipped, merged, duplicates, and failed rows. |
+| MENU-LIB-FIX-003 | Empty Library UX | Empty library state now shows an illustration, import actions, and sample downloads for JSON, CSV, and Excel. |
+| MENU-LIB-FIX-004 | Owner Picker | Owner picker uses no-store masterMenuTemplates reads, cache-busting refresh, and a manual Refresh action. |
+| MENU-LIB-FIX-005 | Search and Filters | Master template search covers item name, keywords, category, cuisine, tags, ingredients, and descriptions; filters now include subcategory, availability, rating, price, prep time, popular, and newest. |
+| MENU-LIB-FIX-006 | Duplicate Protection | Admin import detects duplicates by item name, category, cuisine, and food type; owner template import blocks duplicate restaurant menu drafts by name, category, and variant. |
+| MENU-LIB-FIX-007 | Import Preview | Admin import shows a preview table with image, item, category, cuisine, price, and New/Merged/Duplicate/Skipped status before import. |
+| MENU-LIB-FIX-008 | Export and Samples | Admin library supports JSON, CSV, and Excel export for entire, selected, or filtered records plus schema-based sample downloads. |
+| MENU-LIB-FIX-009 | Dashboard Counts | Admin library top cards now show total items, categories, cuisines, recently imported, and duplicate counts. |
+
+Master Menu final verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+## Production Release Readiness Audit - 2026-07-03
+
+| Field | Result |
+| --- | --- |
+| Production Readiness | 92% release-ready; local code passes, production access/configuration blockers remain. |
+| Code Readiness | 97% code-ready across completed Customer, Owner, Kitchen, POS, QR Ordering, and Master Menu modules. |
+| Audit Scope | Codebase markers, API/session patterns, Firestore/rules/index coverage, env validation, provider readiness, runtime logs, listener/timer hotspots, bundle/component size, UX state coverage, and deployment metadata. |
+| Files Changed | Documentation only: `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Release Recommendation | Hold production release until P0 blockers are cleared; app is a release candidate after Hostinger env/cache/redeploy, Firestore rules/index review, and browser/provider smoke pass. |
+
+Audit commands and results:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing protobuf dynamic dependency warning from Firebase/protobuf loader path. |
+| `npm run validate:prod-env` | Failed locally: missing `NEXT_PUBLIC_APP_ENV`, Firebase Admin values, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| Private API auth scan | No unauthenticated private API route file was listed by the scan; public/auth/payment/cloudinary/release routes remain intentionally separate. |
+| Firestore rules/index scan | `masterMenuTemplates`, `phoneVerificationSessions`, `emailOtps`, and `modulePasswordOtps` are used by code but were not found in `firestore.rules`; deployment review remains required. |
+
+Critical issues found:
+
+| ID | Area | Finding | Evidence | Owner | Required Action |
+| --- | --- | --- | --- | --- | --- |
+| PROD-AUDIT-CRIT-001 | Production Env | Production-equivalent env validation fails locally. | `npm run validate:prod-env` reports missing `NEXT_PUBLIC_APP_ENV`, Firebase Admin credentials, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. | Manual | Complete MAN-002/MAN-003 and rerun validation with real Hostinger env. |
+| PROD-AUDIT-CRIT-002 | Deployment | Hostinger still points to older validated SHA than current audited code. | Tracker metadata: current Git `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6`; Hostinger `35017398773ba04efbdc3ab37d250cfa547c0675`. | Manual | Complete MAN-006, clear cache, redeploy, verify `/api/release-info` and smoke routes. |
+| PROD-AUDIT-CRIT-003 | Firestore Rules | Newer live collections are not matched in local rules scan. | `masterMenuTemplates`, `phoneVerificationSessions`, `emailOtps`, `modulePasswordOtps` found in code but not in `firestore.rules`. | Manual + Codex | Complete SEC-001/MAN-008 before release; add or confirm server-only intent, deploy rules/indexes, smoke protected flows. |
+
+Medium issues found:
+
+| ID | Area | Finding | Evidence | Recommendation |
+| --- | --- | --- | --- | --- |
+| PROD-AUDIT-MED-001 | API Errors | Some route handlers still return raw `error.message` for domain failures. | `src/app/api/owner/tables/route.ts`, `src/app/api/owner/sync/route.ts`, `src/app/api/owner/profile/route.ts`, `src/app/api/owner/offers/route.ts`, `src/app/api/auth/phone-verification/route.ts`. | Keep as targeted release hardening if testing confirms user-visible technical messages. |
+| PROD-AUDIT-MED-002 | Runtime Logging | Runtime logs remain in selected server/client paths. | `rg console.*` found sanitized logs plus raw error logging in notification/session/table/profile/public paths. | Audit high-traffic production logs after deployment; keep diagnostics sanitized and non-sensitive. |
+| PROD-AUDIT-MED-003 | Bundle / Maintenance | Large client flow components remain maintenance and route-bundle risks. | Largest flows: `owner-menu-management-flow.tsx` ~164 KB, `restaurant-detail-flow.tsx` ~140 KB, `owner-settings-flow.tsx` ~95 KB, `pos-billing-flow.tsx` ~79 KB. | Defer code splitting to PERF-001 after release smoke; do not refactor during release freeze. |
+| PROD-AUDIT-MED-004 | Provider Readiness | Razorpay, WhatsApp Cloud API, SMTP, Google/Firebase auth domains, Cloudinary, and Mapbox remain production-access dependent. | Existing MAN/PAY/WA tasks and failed env validation. | Complete provider smoke with real credentials before enabling live launch expectations. |
+| PROD-AUDIT-MED-005 | UX / Browser Smoke | Code-level loading/empty/error states are improved, but full browser/device smoke is still manual. | Tracker module notes for Customer, Owner, Kitchen, POS, QR, Printing, Master Menu. | Run RELEASE-SMOKE-001 on mobile/tablet/desktop/TV/printer after redeploy. |
+
+Low priority improvements:
+
+| ID | Area | Finding | Recommendation |
+| --- | --- | --- | --- |
+| PROD-AUDIT-LOW-001 | Compatibility Naming | Legacy/demo/mock compatibility names remain in type names, mappers, and seed/cleanup paths. | Keep until a planned cleanup; do not rename during release. |
+| PROD-AUDIT-LOW-002 | Dev Scripts | CLI scripts contain expected `console.log`/sample/legacy labels. | Accept for scripts; keep production sample flags off. |
+| PROD-AUDIT-LOW-003 | XSS Surface | Legal rendering uses sanitizer and CMS editor uses controlled admin HTML editing. | Keep legal sanitizer tests/manual checks in future e2e suite. |
+| PROD-AUDIT-LOW-004 | Listener Hotspots | Listener/timer/EventSource scan found expected operational listeners with existing cleanup patterns; offline sync is app-lifetime infrastructure. | Recheck only if manual long-running TV/POS smoke shows leaks. |
+
+Production audit conclusion:
+
+| Area | Result |
+| --- | --- |
+| Codebase | No new release-blocking code failure found by typecheck, lint, build, or static scans. |
+| Security | Auth/session/tenant patterns are broadly present; release is blocked by env/rules/provider validation, not by a newly confirmed code exploit. |
+| Performance | No new duplicate listener blocker confirmed; large flow components remain tracked future debt. |
+| UX | Completed modules are code-ready; manual browser/device/printer smoke remains required. |
+| Production | Not ready to release until env, Firestore rules/indexes, Hostinger redeploy, and provider smoke are complete. |
+
+## POS and Kitchen Operations Stabilization - 2026-07-03
+
+| Field | Result |
+| --- | --- |
+| POS/Kitchen Readiness | 98% code-ready for the confirmed P0 workflow fixes; full milestone acceptance still needs manual multi-device restaurant smoke. |
+| Scope Completed | Canonical POS draft persistence, kitchen/payment flow decoupling, active order visibility, sidebar count accuracy, incremental KOT generation, and Kitchen mobile layout cleanup. |
+| Files Changed | `src/app/api/owner/pos/route.ts`, `src/repositories/order-repository.ts`, `src/components/flows/pos-billing-flow.tsx`, `src/modules/owner/pos/components/cart-panel.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/lib/app-store.ts`, `src/lib/operational-api-mappers.ts`, `src/components/flows/order-tracking-flow.tsx`, `src/types/entities.ts`, `src/types/firebase.ts`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Remaining Risk | Browser, tablet, printer, and multi-user realtime smoke remain manual; production env/rules/redeploy blockers from the production audit still apply. |
+
+Fixed issues:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| POS-KDS-FIX-001 | Draft Persistence | POS draft order now persists through the owner POS API into the existing `orders` collection as a single deterministic draft document instead of relying on the persisted browser store. |
+| POS-KDS-FIX-002 | Remove Item Refresh | Add item, remove item, quantity changes, order type, table, customer, waiter, payment, discount, GST/parcel charge, address, landmark, and notes now commit through the canonical draft write path. |
+| POS-KDS-FIX-003 | Empty Draft Cleanup | Removing the last item or clearing/holding/submitting the order deletes the canonical draft so refresh opens an empty Order Desk. |
+| POS-KDS-FIX-004 | Kitchen/Payment Independence | Collecting payment updates `paymentStatus` only and no longer forces the Kitchen ticket to `completed`; kitchen status remains its own state machine. |
+| POS-KDS-FIX-005 | Send To Kitchen | POS review action now exposes `Send To Kitchen` as the primary action, with payment collection optional. |
+| POS-KDS-FIX-006 | Incremental KOT | Adding items after a linked Kitchen ticket exists creates a new rush incremental KOT containing only the newly added quantities instead of resending the full original order. |
+| POS-KDS-FIX-007 | Active Orders | POS Active Orders now includes live Kitchen tickets with kitchen status, payment status, table/customer/order type, ETA, waiter, amount, and quick action surface instead of only repository customer orders. |
+| POS-KDS-FIX-008 | Sidebar Counts | POS sidebar counts now use active customer orders plus active Kitchen tickets, pending Kitchen queue, today's completed past orders, and held order count instead of broad/demo counts. |
+| POS-KDS-FIX-009 | Kitchen Mobile | Kitchen board now removes forced horizontal width on mobile, adds touch-friendly status tabs, and reduces dashboard statistics to live operational counts. |
+
+Verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Draft Persistence | Browser-smoke add/remove/refresh/last-item-delete across cashier and waiter devices. |
+| Multi-user Realtime | Verify two-device POS/Kitchen updates, incremental KOT visibility, and Kitchen sound behavior in a real browser session. |
+| Billing/Printing | Test bill/KOT/receipt output on 58mm and 80mm printers. |
+| Production | Complete MAN-002, MAN-006, MAN-008, SMTP/provider checks, and hosted route smoke before release. |
+
+## Mobile Kitchen Operations Center Redesign - 2026-07-03
+
+| Field | Result |
+| --- | --- |
+| Kitchen Mobile/Tablet Readiness | 99% code-ready; desktop Kitchen view intentionally unchanged. |
+| Scope Completed | Added a mobile/tablet-only Kitchen shell for `0-1024px` with sticky compact header, status chips, collapsible summary, bottom-sheet filters, order-type/staff/printer filters, compact swipe-ready cards, tablet two-column order grid, quick actions, More panel, and bottom navigation. |
+| Files Changed | `src/components/flows/kitchen-display-flow.tsx`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Desktop Impact | Existing desktop Kanban/statistics/timeline/history/footer render path is preserved behind `min-[1025px]`; no desktop business logic or API changes were made. |
+| Remaining Risk | Manual mobile/tablet browser smoke is required for swipe gestures, one-hand ergonomics, sticky bottom actions, printer selection, sound toggle, and long-running Kitchen sessions. |
+
+Fixed issues:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| KITCHEN-MOBILE-FIX-001 | Mobile Layout | Replaced squeezed mobile Kanban with a mobile/tablet-only order-first interface using status chips and one visible queue at a time. |
+| KITCHEN-MOBILE-FIX-002 | Statistics | Moved dashboard metrics into a collapsed Today's Summary strip so orders appear first. |
+| KITCHEN-MOBILE-FIX-003 | Filters | Moved search, source, order type, priority, table, station, staff, printer, auto-print, and sound controls into an Escape-closeable bottom sheet on mobile/tablet. |
+| KITCHEN-MOBILE-FIX-004 | Cards | Added compact order cards with priority left border, hidden overflow item list, sticky action row, and 44px touch targets. |
+| KITCHEN-MOBILE-FIX-005 | Gestures | Added swipe right for next status, swipe left for reject/cancel, and long press for KOT preview on compact cards. |
+| KITCHEN-MOBILE-FIX-006 | Tablet | Added two-column tablet queue layout without switching to desktop Kanban before `1025px`. |
+| KITCHEN-MOBILE-FIX-007 | Navigation | Added mobile/tablet bottom navigation for Orders, Kitchen quick actions, and More with printer/KOT/history tools. |
+
+Verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| `npm run build` | Passed with `SARVA_ALLOW_BUILD_WITH_DEV=1` because a local Next dev server was active; existing Firebase/protobuf dynamic dependency warning remains. |
+
+Manual checks still required:
+
+| Area | Task |
+| --- | --- |
+| Mobile | Verify sticky header/tabs/actions, filter sheet, swipe accept/reject, long-press preview, and bottom navigation on a real phone. |
+| Tablet | Verify two-column card grid, touch targets, quick actions, and no desktop Kanban at 769-1024px. |
+| Desktop | Verify existing desktop Kitchen remains unchanged above 1024px. |
+| Operations | Verify realtime updates, sound, KOT print/reprint, and printer selection in browser after redeploy. |

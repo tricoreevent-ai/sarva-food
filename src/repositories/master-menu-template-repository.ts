@@ -21,10 +21,16 @@ type TemplateAction = "delete" | "archive" | "restore" | "enable" | "disable" | 
 type ListOptions = {
   q?: string;
   categoryId?: string;
+  subcategoryId?: string;
   cuisineId?: string;
   foodType?: string;
   tag?: string;
   status?: string;
+  minRating?: number;
+  maxPrice?: number;
+  maxPrepTime?: number;
+  sort?: string;
+  ids?: string[];
   tab?: "master" | "restaurant" | "favorites" | "recent" | "popular";
   restaurantId?: string;
   includeArchived?: boolean;
@@ -54,18 +60,28 @@ export class MasterMenuTemplateRepository {
       .filter((item) => options.includeArchived || item.archived !== true)
       .filter((item) => matchesStatus(item, options.status))
       .filter((item) => matchesTab(item, options.tab, options.restaurantId))
+      .filter((item) => !options.ids?.length || options.ids.includes(String(item.id)))
       .filter((item) => !options.categoryId || item.categoryId === options.categoryId)
+      .filter((item) => !options.subcategoryId || item.subcategoryId === options.subcategoryId)
       .filter((item) => !options.cuisineId || includes(item.cuisineIds, options.cuisineId))
       .filter((item) => !options.foodType || item.foodType === options.foodType)
       .filter((item) => !options.tag || includes(item.tags, options.tag) || includes(item.badges, options.tag))
+      .filter((item) => !options.minRating || Number(item.rating ?? 0) >= Number(options.minRating))
+      .filter((item) => !options.maxPrice || Number(item.recommendedPrice ?? item.basePrice ?? 0) <= Number(options.maxPrice))
+      .filter((item) => !options.maxPrepTime || Number(item.prepTime ?? 0) <= Number(options.maxPrepTime))
       .filter((item) => !q || searchableText(item).includes(q));
+    rows.sort(sortTemplates(options.sort));
     return { data: rows.slice(offset, offset + limit), count: rows.length, limit, offset, offsetNext: offset + limit < rows.length ? offset + limit : null };
   }
 
   async export(options: ListOptions, format: TemplateImportFormat) {
-    const rows = (await this.list({ ...options, limit: 100, offset: 0, includeArchived: true })).data as MasterTemplateInput[];
+    const rows = await this.exportRows(options);
     if (format === "csv") return { body: templatesToCsv(rows), contentType: "text/csv; charset=utf-8", filename: "master-menu-templates.csv" };
     return { body: JSON.stringify({ templates: rows }, null, 2), contentType: "application/json; charset=utf-8", filename: "master-menu-templates.json" };
+  }
+
+  async exportRows(options: ListOptions) {
+    return (await this.list({ ...options, limit: 1000, offset: 0, includeArchived: true })).data as MasterTemplateInput[];
   }
 
   async upsert(input: MasterTemplateInput, userId: string) {
@@ -98,30 +114,47 @@ export class MasterMenuTemplateRepository {
   }
 
   async importMany(inputs: MasterTemplateInput[], userId: string, mode: TemplateImportMode = "merge") {
-    const summary = { imported: 0, updated: 0, skipped: 0, errors: [] as string[] };
+    const summary = { imported: 0, updated: 0, merged: 0, skipped: 0, duplicates: 0, failed: 0, errors: [] as string[] };
+    const snapshot = await this.collection.orderBy("displayOrder").limit(1000).get();
+    const existingByKey = new Map<string, string>();
+    for (const doc of snapshot.docs) {
+      const item = dataWithId<Record<string, unknown>>(doc.id, doc.data());
+      if (item.isDeleted !== true) existingByKey.set(templateDuplicateKey(item), doc.id);
+    }
     const seenIds = new Set<string>();
-    const seenNames = new Set<string>();
+    const seenKeys = new Set<string>();
     for (const [index, input] of inputs.entries()) {
       const label = `Row ${index + 1}`;
       try {
         const data = normalizeMasterTemplate(input, index);
-        const id = String(data.id);
-        const nameKey = String(data.displayName).trim().toLowerCase();
-        if (seenIds.has(id)) throw new Error(`${label}: duplicate id ${id}.`);
-        if (seenNames.has(nameKey)) throw new Error(`${label}: duplicate name ${data.displayName}.`);
-        seenIds.add(id);
-        seenNames.add(nameKey);
-        const errors = validateMasterTemplate(data);
-        if (errors.length) throw new Error(`${label}: ${errors.join(" ")}`);
-        const exists = (await this.collection.doc(id).get()).exists;
-        if (exists && mode === "create-only") {
+        const key = templateDuplicateKey(data);
+        let id = String(data.id);
+        const duplicateId = existingByKey.get(key);
+        if (duplicateId && duplicateId !== id) id = duplicateId;
+        if (seenIds.has(id) || seenKeys.has(key)) {
+          summary.duplicates += 1;
           summary.skipped += 1;
           continue;
         }
+        seenIds.add(id);
+        seenKeys.add(key);
+        data.id = id;
+        const errors = validateMasterTemplate(data);
+        if (errors.length) throw new Error(`${label}: ${errors.join(" ")}`);
+        const exists = Boolean(duplicateId) || (await this.collection.doc(id).get()).exists;
+        if (exists && mode === "create-only") {
+          summary.skipped += 1;
+          summary.duplicates += 1;
+          continue;
+        }
         await this.upsert(data, userId);
-        if (exists) summary.updated += 1;
+        if (exists) {
+          summary.updated += 1;
+          summary.merged += 1;
+        }
         else summary.imported += 1;
       } catch (error) {
+        summary.failed += 1;
         summary.errors.push(error instanceof Error ? error.message : `${label}: template import failed.`);
       }
     }
@@ -235,7 +268,27 @@ function matchesTab(item: Record<string, unknown>, tab?: ListOptions["tab"], res
 }
 
 function searchableText(item: Record<string, unknown>) {
-  return [item.displayName, item.templateName, item.categoryId, item.foodType, ...(Array.isArray(item.cuisineIds) ? item.cuisineIds : []), ...(Array.isArray(item.ingredients) ? item.ingredients : []), ...(Array.isArray(item.tags) ? item.tags : []), ...(Array.isArray(item.searchKeywords) ? item.searchKeywords : [])].join(" ").toLowerCase();
+  return [item.displayName, item.templateName, item.categoryId, item.subcategoryId, item.foodType, item.description, item.shortDescription, ...(Array.isArray(item.cuisineIds) ? item.cuisineIds : []), ...(Array.isArray(item.ingredients) ? item.ingredients : []), ...(Array.isArray(item.tags) ? item.tags : []), ...(Array.isArray(item.badges) ? item.badges : []), ...(Array.isArray(item.searchKeywords) ? item.searchKeywords : [])].join(" ").toLowerCase();
+}
+
+function sortTemplates(sort?: string) {
+  return (left: Record<string, unknown>, right: Record<string, unknown>) => {
+    if (sort === "popular") return Number(right.usageCount ?? 0) - Number(left.usageCount ?? 0);
+    if (sort === "newest") return dateValue(right.createdAt ?? right.updatedAt) - dateValue(left.createdAt ?? left.updatedAt);
+    if (sort === "rating") return Number(right.rating ?? 0) - Number(left.rating ?? 0);
+    if (sort === "price") return Number(left.recommendedPrice ?? left.basePrice ?? 0) - Number(right.recommendedPrice ?? right.basePrice ?? 0);
+    return Number(left.displayOrder ?? 0) - Number(right.displayOrder ?? 0);
+  };
+}
+
+function templateDuplicateKey(item: Record<string, unknown>) {
+  return [item.displayName, item.categoryId, Array.isArray(item.cuisineIds) ? item.cuisineIds.join("|") : "", item.foodType].map((value) => String(value ?? "").trim().toLowerCase()).join("::");
+}
+
+function dateValue(value: unknown) {
+  if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") return value.toDate().getTime();
+  const time = Date.parse(String(value ?? ""));
+  return Number.isFinite(time) ? time : 0;
 }
 
 function includes(value: unknown, item: unknown) {

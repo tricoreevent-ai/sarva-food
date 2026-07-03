@@ -115,9 +115,15 @@ export default function CartPage() {
                 <Separator />
                 <div className="flex justify-between text-lg font-black"><span>Total</span><span>{formatCurrency(totals.total)}</span></div>
               </div>
-              <Button asChild size="lg" className="w-full" disabled={!items.length}>
-                <Link href="/checkout">Checkout</Link>
-              </Button>
+              {items.length ? (
+                <Button asChild size="lg" className="w-full">
+                  <Link href="/checkout">Checkout</Link>
+                </Button>
+              ) : (
+                <Button type="button" size="lg" className="w-full" disabled>
+                  Checkout
+                </Button>
+              )}
             </CardContent>
           </Card>
         </section>

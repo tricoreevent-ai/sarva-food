@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CheckCircle2, ReceiptText, Truck } from "lucide-react";
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { EmptyStateCard } from "@/components/layout/empty-state";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,25 @@ import { InlineLoading } from "@/components/state/page-state";
 import { formatCurrency } from "@/lib/utils";
 
 export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
-  const { order, loading } = useRealtimeOrder(orderId);
+  const { order, loading, error } = useRealtimeOrder(orderId);
 
-  if (loading || !order) {
+  if (loading) {
     return <CustomerShell><main className="container-page py-8"><InlineLoading label="Loading order receipt" /></main></CustomerShell>;
+  }
+
+  if (!order) {
+    return (
+      <CustomerShell>
+        <main className="container-page py-6">
+          <EmptyStateCard
+            title="Receipt not available"
+            description={error || "We could not load this order receipt. Check your recent orders or try tracking with the order id."}
+            actionLabel="View recent orders"
+            actionHref="/orders"
+          />
+        </main>
+      </CustomerShell>
+    );
   }
 
   // Success receipt reads the order cache immediately after checkout; tracking can subscribe to Firestore by order ID.

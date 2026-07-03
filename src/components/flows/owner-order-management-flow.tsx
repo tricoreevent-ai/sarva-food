@@ -48,6 +48,7 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   ready: "completed",
   served: "completed",
   completed: "completed",
+  cancelled: "cancelled",
   billed: "completed",
 };
 

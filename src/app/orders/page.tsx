@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowRight, CircleHelp, FileText, History, LogIn, PackageOpen, RefreshCw, RotateCcw, Star } from "lucide-react";
 import { CustomerShell } from "@/components/layout/customer-shell";
@@ -178,6 +178,8 @@ function ReviewDialog({ order, restaurant, onClose }: { order: CustomerOrderDoc;
   const [saving, setSaving] = useState(false);
   const chips = ["Fresh food", "Fast delivery", "Great packing", "Good value", "Will reorder"];
 
+  useEscapeClose(onClose);
+
   async function submit() {
     setSaving(true);
     try {
@@ -199,8 +201,8 @@ function ReviewDialog({ order, restaurant, onClose }: { order: CustomerOrderDoc;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-2xl">
-        <h3 className="text-xl font-black">Review {restaurant?.displayName || restaurant?.name || "restaurant"}</h3>
+      <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="customer-review-title">
+        <h3 id="customer-review-title" className="text-xl font-black">Review {restaurant?.displayName || restaurant?.name || "restaurant"}</h3>
         <div className="mt-4 flex gap-1">
           {[1, 2, 3, 4, 5].map((value) => (
             <button key={value} type="button" className={value <= rating ? "text-amber-500" : "text-slate-300"} onClick={() => setRating(value)} aria-label={`${value} stars`}>
@@ -215,8 +217,8 @@ function ReviewDialog({ order, restaurant, onClose }: { order: CustomerOrderDoc;
             </button>
           ))}
         </div>
-        <textarea className="mt-3 min-h-28 w-full rounded-lg border p-3 text-sm font-semibold" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Write your review" />
-        <input className="mt-3 h-11 w-full rounded-lg border px-3 text-sm" value={images.join(", ")} onChange={(event) => setImages(event.target.value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 5))} placeholder="Image URLs, up to 5" />
+        <textarea className="mt-3 min-h-28 w-full rounded-lg border p-3 text-sm font-semibold" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Write your review" aria-label="Review comment" autoFocus />
+        <input className="mt-3 h-11 w-full rounded-lg border px-3 text-sm" value={images.join(", ")} onChange={(event) => setImages(event.target.value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 5))} placeholder="Image URLs, up to 5" aria-label="Review image URLs" />
         <label className="mt-3 flex items-center gap-2 text-sm font-bold">
           <input type="checkbox" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} />
           Post anonymously
@@ -231,19 +233,31 @@ function ReviewDialog({ order, restaurant, onClose }: { order: CustomerOrderDoc;
 }
 
 function ReorderDialog({ onClose, onMerge, onReplace }: { onClose: () => void; onMerge: () => void; onReplace: () => void }) {
+  useEscapeClose(onClose);
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl">
-        <h3 className="text-xl font-black">Reorder items</h3>
+      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="customer-reorder-title">
+        <h3 id="customer-reorder-title" className="text-xl font-black">Reorder items</h3>
         <p className="mt-2 text-sm font-semibold text-muted-foreground">Your cart already has items. Merge available items or replace the cart.</p>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" variant="outline" onClick={onMerge}>Merge</Button>
-          <Button type="button" onClick={onReplace}>Replace</Button>
+          <Button type="button" variant="outline" onClick={onMerge}>Merge cart</Button>
+          <Button type="button" onClick={onReplace}>Replace cart</Button>
         </div>
       </div>
     </div>
   );
+}
+
+function useEscapeClose(onClose: () => void) {
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
 }
 
 async function fetchCurrentMenu(restaurantId: string) {

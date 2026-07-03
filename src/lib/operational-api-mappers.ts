@@ -13,9 +13,10 @@ export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
     offerCode: order.offerCode,
     payment: "upi",
     channel: order.channel === "instagram" ? "Instagram" : order.channel === "whatsapp" ? "WhatsApp" : order.channel === "pos" ? "POS" : order.channel === "catering" ? "Catering" : order.channel === "qr" ? "QR" : "Web",
-    status: order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
+    status: order.status === "draft" ? "new" : order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
     createdAt: parseFirestoreDateIso(order.createdAt) ?? new Date().toISOString(),
     deliveryOtp: order.deliveryOtp,
+    kitchenOrderId: order.kitchenOrderId,
     fulfillmentType: normalizeFulfillment(order.fulfillmentType ?? order.orderType),
     scheduleMode: order.scheduleMode,
     scheduledFor: parseFirestoreDateIso(order.scheduledFor),
@@ -39,7 +40,7 @@ export function kitchenDocToTableOrder(order: KitchenOrderDoc | Record<string, u
     deliveryAddress: str(order.deliveryAddress),
     scheduledFor: parseFirestoreDateIso(order.scheduledFor),
     lines: lines.map((line) => ({ itemId: str(line.menuItemId || line.itemId), name: str(line.name), price: num(line.price), quantity: num(line.quantity), notes: str(line.notes) })),
-    status: str(order.status) === "cancelled" ? "completed" : tableStatus(str(order.status)),
+    status: tableStatus(str(order.status)),
     priority: str(order.priority) === "rush" ? "rush" : "normal",
     waiterId: str(order.waiterId),
     waiterName: str(order.waiterName),
@@ -198,7 +199,7 @@ function normalizePosOrderType(value: string) {
 }
 
 function tableStatus(value: string): TableOrder["status"] {
-  return ["new", "accepted", "occupied", "preparing", "ready", "served", "completed", "billed"].includes(value) ? value as TableOrder["status"] : "new";
+  return ["new", "accepted", "occupied", "preparing", "ready", "served", "completed", "cancelled", "billed"].includes(value) ? value as TableOrder["status"] : "new";
 }
 
 function paymentStatus(value: string): TableOrder["paymentStatus"] {

@@ -28,7 +28,10 @@ export async function GET(request: NextRequest) {
               .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
             send("orders", { data, count: data.length });
           },
-          (error) => send("error", { error: error.message }),
+          (error) => {
+            console.error("[kitchen-stream] snapshot failed", { reason: error instanceof Error ? error.name : typeof error });
+            send("error", { error: "Kitchen realtime sync failed." });
+          },
         );
 
       request.signal.addEventListener("abort", () => {

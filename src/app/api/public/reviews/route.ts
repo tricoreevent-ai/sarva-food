@@ -124,7 +124,8 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const reviewId = safeDocId(`${session.uid}-${tenantId}-${menuItemId || "restaurant"}-${orderId}`);
     const existing = await adminDb().collection("customerReviews").doc(reviewId).get();
-    if (existing.exists && Date.now() - dateMillis(existing.data()?.createdAt) > 24 * 60 * 60 * 1000) {
+    const existingReview = existing.exists ? existing.data() as Partial<ReviewDoc> : null;
+    if (existingReview && Date.now() - dateMillis(existingReview.createdAt) > 24 * 60 * 60 * 1000) {
       return NextResponse.json({ ok: false, error: "Reviews can be edited for 24 hours after posting." }, { status: 409 });
     }
     const doc: ReviewDoc = {
@@ -143,14 +144,15 @@ export async function POST(request: NextRequest) {
       verifiedOrder: true,
       status: "published",
       reportCount: 0,
-      createdAt: now,
+      createdAt: existingReview?.createdAt ?? now,
       updatedAt: now,
     };
 
     await adminDb().collection("customerReviews").doc(reviewId).set(doc, { merge: true });
     await persistRestaurantReviewAndStats(doc);
     return NextResponse.json({ ok: true, data: toPublicReview(doc) });
-  } catch {
+  } catch (error) {
+    console.error("[public/reviews] save failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.message : String(error ?? "unknown") });
     return NextResponse.json({ ok: false, error: "Unable to save review right now." }, { status: 500 });
   }
 }
@@ -282,7 +284,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     return NextResponse.json({ ok: false, error: "Invalid review action." }, { status: 400 });
-  } catch {
+  } catch (error) {
+    console.error("[public/reviews] update failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.message : String(error ?? "unknown") });
     return NextResponse.json({ ok: false, error: "Unable to update review right now." }, { status: 500 });
   }
 }

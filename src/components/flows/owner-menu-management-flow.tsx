@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, Save, Search, SlidersHorizontal, Star, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, RefreshCw, Save, Search, SlidersHorizontal, Star, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
@@ -206,6 +206,7 @@ export function OwnerMenuManagementFlow() {
   const [templatePickerSearch, setTemplatePickerSearch] = useState("");
   const [templatePickerRows, setTemplatePickerRows] = useState<TemplatePickerRow[]>([]);
   const [templatePickerLoading, setTemplatePickerLoading] = useState(false);
+  const [templatePickerRefreshKey, setTemplatePickerRefreshKey] = useState(0);
   const [templatePreview, setTemplatePreview] = useState<TemplatePickerRow | null>(null);
   const [importedTemplateMeta, setImportedTemplateMeta] = useState<{ id: string; version: number } | null>(null);
   const [templateUpdate, setTemplateUpdate] = useState<TemplatePickerRow | null>(null);
@@ -301,6 +302,7 @@ export function OwnerMenuManagementFlow() {
           tab: templatePickerTab,
           restaurantId,
           limit: "24",
+          _ts: String(Date.now()),
         });
         const response = await fetch(`/api/owner/master-menu-templates?${params}`, { cache: "no-store", signal: controller.signal });
         const payload = (await response.json()) as { data?: TemplatePickerRow[]; error?: string };
@@ -313,7 +315,7 @@ export function OwnerMenuManagementFlow() {
       }
     })();
     return () => controller.abort();
-  }, [restaurantId, templatePickerOpen, templatePickerTab, templatePickerSearch]);
+  }, [restaurantId, templatePickerOpen, templatePickerTab, templatePickerSearch, templatePickerRefreshKey]);
 
   useEffect(() => {
     if (!editing) return;
@@ -483,6 +485,11 @@ export function OwnerMenuManagementFlow() {
       const payload = (await response.json()) as { data?: Partial<MenuFormValues> & { imagePath?: string; imagePaths?: string[]; templateId?: string; templateVersion?: number; masterTemplateId?: string; masterTemplateVersion?: number }; error?: string };
       if (!response.ok || !payload.data) throw new Error(payload.error || "Template import failed.");
       const draft = payload.data;
+      const draftKey = ownerMenuDuplicateKey(draft);
+      if (menuItems.some((item) => ownerMenuDuplicateKey(item) === draftKey)) {
+        toast.error("This menu item already exists for this restaurant.");
+        return;
+      }
       form.reset({
         ...createEmptyMenuDraft(),
         name: String(draft.name || ""),
@@ -2127,6 +2134,10 @@ export function OwnerMenuManagementFlow() {
                 <Input value={templatePickerQuery} onChange={(event) => setTemplatePickerQuery(event.target.value)} placeholder="Search templates by name, cuisine, category, tag" className="pl-9" />
               </label>
               <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => setTemplatePickerRefreshKey((value) => value + 1)}>
+                  <RefreshCw className="size-4" />
+                  Refresh
+                </Button>
                 {(["master", "restaurant", "favorites", "recent", "popular"] as TemplatePickerTab[]).map((tab) => (
                   <Button key={tab} type="button" size="sm" variant={templatePickerTab === tab ? "default" : "outline"} onClick={() => setTemplatePickerTab(tab)}>
                     {humanizeFilterLabel(tab)}
@@ -2163,7 +2174,12 @@ export function OwnerMenuManagementFlow() {
                   </CardContent>
                 </Card>
               )) : (
-                <div className="col-span-full rounded-md border border-dashed p-8 text-center font-semibold text-muted-foreground">No templates found.</div>
+                <div className="col-span-full rounded-md border border-dashed p-8 text-center font-semibold text-muted-foreground">
+                  Master templates are empty or no templates match this search.
+                  <div className="mt-3">
+                    <Button type="button" variant="outline" onClick={() => setTemplatePickerRefreshKey((value) => value + 1)}>Refresh</Button>
+                  </div>
+                </div>
               )}
             </div>
             {templatePreview ? (
@@ -2294,6 +2310,10 @@ function normalizeFoodType(value: string): MenuFoodType {
   return "veg";
 }
 
+function ownerMenuDuplicateKey(item: Partial<MenuFormValues> | MenuItem) {
+  const record = item as Partial<MenuFormValues> & MenuItem & { variant?: unknown; variantName?: unknown };
+  return [record.name, record.categoryId || record.category, record.variant || record.variantName || ""].map((value) => String(value ?? "").trim().toLowerCase()).join("::");
+}
 
 function normalizeSpiceLevel(value: string): MenuFormValues["spiceLevel"] {
   const normalized = value.trim().toLowerCase();

@@ -202,7 +202,8 @@ export default function ProfilePage() {
       setAddressMessage(message);
       toast.success(message);
     } catch (error) {
-      setAddressMessage(error instanceof Error ? error.message : "Could not save address to Firebase. Please try again.");
+      console.error("[customer/profile] address save failed", error);
+      setAddressMessage(friendlyProfileMessage(error, "Could not save address. Check the details and try again."));
     } finally {
       setSavingAddress(false);
     }
@@ -223,13 +224,15 @@ export default function ProfilePage() {
       setAddressMessage("Could not find this address in Firebase. Refresh and try again.");
       return;
     }
-    const response = await fetch(`/api/customer/account?resource=addresses&id=${encodeURIComponent(addressId)}`, { method: "DELETE" });
-    if (!response.ok) {
-      setAddressMessage("Could not delete address. Try again.");
-      return;
+    try {
+      const response = await fetch(`/api/customer/account?resource=addresses&id=${encodeURIComponent(addressId)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Address delete failed.");
+      customer.retry();
+      setAddressMessage("Address deleted.");
+    } catch (error) {
+      console.error("[customer/profile] address delete failed", error);
+      setAddressMessage("Could not delete address. Refresh and try again.");
     }
-    customer.retry();
-    setAddressMessage("Address deleted.");
   }
 
   async function handleDeleteSavedRestaurant(favoriteId: string) {
@@ -438,7 +441,8 @@ export default function ProfilePage() {
     } catch (error) {
       const message = error instanceof Error && /requires-recent-login/i.test(error.message)
         ? "For security, sign out and sign in again before changing email or password."
-        : "Could not save profile to Firebase. Please try again.";
+        : "Could not save profile. Please check the details and try again.";
+      console.error("[customer/profile] account save failed", error);
       setAccountMessage(message);
     } finally {
       setSavingAccount(false);
@@ -1328,4 +1332,11 @@ function filterProfileCatering(inquiries: CateringQuote[], email: string, phone:
 function profileTabFromUrl(tab: string | null) {
   const allowed = new Set(["overview", "addresses", "payments", "orders", "catering", "saved", "reviews", "offers", "settings"]);
   return tab && allowed.has(tab) ? tab : "overview";
+}
+
+function friendlyProfileMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  if (/already saved/i.test(message)) return "This delivery address is already saved.";
+  if (/not found/i.test(message)) return "That saved item could not be found. Refresh and try again.";
+  return fallback;
 }

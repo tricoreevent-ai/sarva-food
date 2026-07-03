@@ -14,21 +14,31 @@ const ownerReadRoles = new Set<UserRole>(["owner", "manager", "cashier", "chef",
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest(request, "owner");
   if (!session || !ownerReadRoles.has(session.role)) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
-  const params = request.nextUrl.searchParams;
-  const restaurantId = resolveTenantId(params.get("restaurantId") || session.tenantId || DEFAULT_RESTAURANT_ID);
-  const result = await new MasterMenuTemplateRepository().list({
-    q: params.get("q") ?? "",
-    categoryId: params.get("categoryId") ?? "",
-    cuisineId: params.get("cuisineId") ?? "",
-    foodType: params.get("foodType") ?? "",
-    tag: params.get("tag") ?? "",
-    status: "active",
-    tab: (params.get("tab") as "master" | "restaurant" | "favorites" | "recent" | "popular" | null) ?? "master",
-    restaurantId,
-    limit: Number(params.get("limit") ?? 24),
-    offset: Number(params.get("offset") ?? 0),
-  });
-  return NextResponse.json(result);
+  try {
+    const params = request.nextUrl.searchParams;
+    const restaurantId = resolveTenantId(params.get("restaurantId") || session.tenantId || DEFAULT_RESTAURANT_ID);
+    const result = await new MasterMenuTemplateRepository().list({
+      q: params.get("q") ?? "",
+      categoryId: params.get("categoryId") ?? "",
+      subcategoryId: params.get("subcategoryId") ?? "",
+      cuisineId: params.get("cuisineId") ?? "",
+      foodType: params.get("foodType") ?? "",
+      tag: params.get("tag") ?? "",
+      minRating: Number(params.get("minRating") || 0),
+      maxPrice: Number(params.get("maxPrice") || 0),
+      maxPrepTime: Number(params.get("maxPrepTime") || 0),
+      sort: params.get("sort") ?? "",
+      status: "active",
+      tab: (params.get("tab") as "master" | "restaurant" | "favorites" | "recent" | "popular" | null) ?? "master",
+      restaurantId,
+      limit: Number(params.get("limit") ?? 24),
+      offset: Number(params.get("offset") ?? 0),
+    });
+    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("[owner-master-menu-templates] list failed", { reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Menu templates could not be loaded." }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -54,6 +64,7 @@ export async function POST(request: NextRequest) {
     if (body.action === "unfavorite") return NextResponse.json({ data: await repository.favorite(body.templateId, scope, session.uid, false) });
     return NextResponse.json({ data: await repository.markUsed(body.templateId, scope, session.uid, body.mode ?? "wizard") });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Template action failed." }, { status: 400 });
+    console.error("[owner-master-menu-templates] request failed", { action: body.action ?? "import", reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Template action failed. Try again." }, { status: 400 });
   }
 }

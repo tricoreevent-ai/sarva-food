@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load canonical analytics." }, { status: 400 });
+    console.error("[owner/analytics] load failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Unable to load canonical analytics." }, { status: 400 });
   }
 }
 

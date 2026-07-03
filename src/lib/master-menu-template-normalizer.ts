@@ -2,7 +2,7 @@ import type { MasterMenuTemplateDoc } from "@/types/firebase";
 
 export type MasterTemplateInput = Partial<MasterMenuTemplateDoc> & Record<string, unknown>;
 export type TemplateImportMode = "overwrite" | "merge" | "create-only";
-export type TemplateImportFormat = "json" | "csv";
+export type TemplateImportFormat = "json" | "csv" | "xlsx";
 
 export const keralaStarterMenuTemplates: MasterTemplateInput[] = [
   {
@@ -92,35 +92,51 @@ export const keralaStarterMenuTemplates: MasterTemplateInput[] = [
 ];
 
 export function normalizeMasterTemplate(input: MasterTemplateInput, index = 0): MasterTemplateInput {
-  const displayName = String(input.displayName || input.templateName || input.name || "").trim();
+  const displayName = String(input.displayName || input.templateName || input.name || input.itemName || "").trim();
   const templateName = slug(String(input.templateName || displayName));
-  const images = uniqueStrings([...(Array.isArray(input.images) ? input.images : []), input.primaryImage, input.thumbnail]).filter(isSafeImageUrl);
+  const images = uniqueStrings([...(Array.isArray(input.images) ? input.images : []), input.primaryImage, input.thumbnail, input.imageURL, input.imageUrl, input.image]).filter(isSafeImageUrl);
+  const price = Number(input.recommendedPrice ?? input.price ?? input.basePrice ?? input.dineInPrice ?? 0);
+  const active = input.active !== false && input.isAvailable !== false;
   return {
     ...input,
     id: String(input.id || templateName),
     templateName,
     displayName,
     categoryId: String(input.categoryId || input.category || "").trim(),
-    subcategoryId: input.subcategoryId ? String(input.subcategoryId) : "",
+    subcategoryId: String(input.subcategoryId || input.subCategory || input.subcategory || "").trim(),
     cuisineIds: uniqueStrings(input.cuisineIds || input.cuisines || []),
     foodType: normalizeFoodType(input.foodType),
-    description: String(input.description || input.shortDescription || displayName),
-    shortDescription: String(input.shortDescription || input.description || "").slice(0, 180),
+    description: String(input.description || input.longDescription || input.shortDescription || displayName),
+    shortDescription: String(input.shortDescription || input.description || input.longDescription || "").slice(0, 180),
     ingredients: uniqueStrings(input.ingredients || []),
     allergens: uniqueStrings(input.allergens || []),
     searchKeywords: uniqueStrings(input.searchKeywords || input.keywords || []),
     badges: uniqueStrings(input.badges || []),
     tags: uniqueStrings(input.tags || []),
+    nutrition: asRecord(input.nutrition || input.nutritionInfo),
+    modifiers: normalizeModifierGroups(input.modifiers),
+    addonGroups: normalizeAddons(input.addonGroups || input.addOns || input.addons),
     images,
     primaryImage: String(input.primaryImage || images[0] || ""),
     thumbnail: String(input.thumbnail || input.primaryImage || images[0] || ""),
     displayOrder: Number(input.displayOrder ?? index + 1),
-    recommendedPrice: Number(input.recommendedPrice ?? input.price ?? 0),
+    recommendedPrice: price,
+    basePrice: Number(input.basePrice ?? price),
+    dineInPrice: Number(input.dineInPrice ?? price),
+    parcelPrice: Number(input.parcelPrice ?? price),
+    deliveryPrice: Number(input.deliveryPrice ?? price),
     packingCharge: Number(input.packingCharge ?? 0),
     gst: Number(input.gst ?? input.GST ?? 5),
+    prepTime: parseMinutes(input.prepTime),
+    cookTime: parseMinutes(input.cookTime),
+    totalTime: parseMinutes(input.totalTime),
+    rating: Number(input.rating ?? 0),
+    reviewCount: Number(input.reviewCount ?? 0),
+    channelDefaults: input.channelDefaults || { dineIn: true, parcel: true, delivery: true },
+    availability: input.availability || { active, soldOut: !active },
     version: Number(input.version ?? 1),
     scope: input.scope || "master",
-    active: input.active !== false,
+    active,
     archived: input.archived === true,
   };
 }
@@ -146,9 +162,9 @@ export function templateToOwnerMenuDraft(template: MasterTemplateInput) {
     prepTime: String(template.prepTime ?? "20 min"),
     cookTime: template.cookTime,
     price,
-    dineInPrice: price,
-    parcelPrice: price,
-    deliveryPrice: price,
+    dineInPrice: Number(template.dineInPrice ?? price),
+    parcelPrice: Number(template.parcelPrice ?? price),
+    deliveryPrice: Number(template.deliveryPrice ?? price),
     packingCharge: template.packingCharge,
     gstRate: template.gst,
     image: template.primaryImage || images[0] || "",
@@ -171,18 +187,22 @@ export function parseTemplatePayload(payload: unknown, format: TemplateImportFor
   if (Array.isArray(value)) return value as MasterTemplateInput[];
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
-    const rows = record.templates || record.items || record.data || record.menuTemplates;
+    const rows = record.templates || record.items || record.data || record.menuTemplates || record.keralaFoods;
     if (Array.isArray(rows)) return rows as MasterTemplateInput[];
   }
   return [];
 }
 
 export function templatesToCsv(rows: MasterTemplateInput[]) {
-  const headers = ["id", "displayName", "categoryId", "cuisineIds", "foodType", "recommendedPrice", "prepTime", "tags", "badges", "description", "primaryImage", "active", "archived", "version"];
+  const headers = templateExportHeaders;
   return [
     headers.join(","),
     ...rows.map((row) => headers.map((key) => csvCell(csvValue(row, key))).join(",")),
   ].join("\n");
+}
+
+export function templatesToExcelRows(rows: MasterTemplateInput[]) {
+  return rows.map((row) => Object.fromEntries(templateExportHeaders.map((key) => [key, csvValue(row, key)])));
 }
 
 export function parseTemplatesFromCsv(csv: string): MasterTemplateInput[] {
@@ -207,7 +227,8 @@ export function validateMasterTemplate(input: MasterTemplateInput) {
 
 function csvValue(row: MasterTemplateInput, key: string) {
   const value = row[key];
-  if (Array.isArray(value)) return value.join("|");
+  if (Array.isArray(value)) return value.every((item) => typeof item !== "object" || item === null) ? value.join("|") : JSON.stringify(value);
+  if (value && typeof value === "object") return JSON.stringify(value);
   if (typeof value === "boolean") return value ? "true" : "false";
   return value ?? "";
 }
@@ -242,9 +263,19 @@ function splitCsvLine(line: string) {
 function parseCsvValue(key: string, value: string) {
   const text = value.trim();
   if (["cuisineIds", "tags", "badges", "images", "allergens", "searchKeywords", "ingredients"].includes(key)) return uniqueStrings(text.split("|"));
-  if (["recommendedPrice", "prepTime", "packingCharge", "gst", "version", "displayOrder"].includes(key)) return Number(text || 0);
+  if (["nutrition", "modifiers", "addonGroups", "availability", "channelDefaults"].includes(key)) return parseJsonCell(text);
+  if (["recommendedPrice", "basePrice", "dineInPrice", "parcelPrice", "deliveryPrice", "prepTime", "cookTime", "totalTime", "packingCharge", "gst", "version", "displayOrder", "rating", "reviewCount"].includes(key)) return Number(text || 0);
   if (["active", "archived"].includes(key)) return text.toLowerCase() === "true";
   return text;
+}
+
+function parseJsonCell(text: string) {
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 function normalizeFoodType(value: unknown) {
@@ -252,6 +283,33 @@ function normalizeFoodType(value: unknown) {
   if (text === "nonveg" || text === "nonvegetarian" || text === "non") return "nonveg";
   if (text === "vegetarian") return "veg";
   return text;
+}
+
+function normalizeModifierGroups(value: unknown) {
+  if (Array.isArray(value)) return value as Array<Record<string, unknown>>;
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value as Record<string, unknown>).map(([name, options]) => ({
+    name,
+    options: Array.isArray(options) ? options : [],
+  }));
+}
+
+function normalizeAddons(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [{
+    name: "Add-ons",
+    options: value.map((item) => typeof item === "object" && item ? item : { name: String(item), price: 0 }),
+  }];
+}
+
+function parseMinutes(value: unknown) {
+  if (typeof value === "number") return value;
+  const match = String(value ?? "").match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function uniqueStrings(value: unknown) {
@@ -266,3 +324,41 @@ function isSafeImageUrl(value: string) {
 function slug(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `template-${Date.now()}`;
 }
+
+const templateExportHeaders = [
+  "id",
+  "displayName",
+  "templateName",
+  "categoryId",
+  "subcategoryId",
+  "cuisineIds",
+  "foodType",
+  "recommendedPrice",
+  "basePrice",
+  "dineInPrice",
+  "parcelPrice",
+  "deliveryPrice",
+  "packingCharge",
+  "prepTime",
+  "cookTime",
+  "totalTime",
+  "tags",
+  "badges",
+  "searchKeywords",
+  "ingredients",
+  "allergens",
+  "description",
+  "shortDescription",
+  "primaryImage",
+  "thumbnail",
+  "images",
+  "nutrition",
+  "modifiers",
+  "addonGroups",
+  "availability",
+  "rating",
+  "reviewCount",
+  "active",
+  "archived",
+  "version",
+];

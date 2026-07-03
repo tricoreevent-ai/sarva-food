@@ -96,10 +96,11 @@ export function CartPanel({
   const [discountValue, setDiscountValue] = useState("10");
   const subtotal = useMemo(() => bill.lines.reduce((sum, line) => sum + line.price * line.quantity, 0), [bill.lines]);
   const itemCount = useMemo(() => bill.lines.reduce((sum, line) => sum + line.quantity, 0), [bill.lines]);
+  const processing = processingState !== "idle";
 
   function applyDiscount() {
-    const value = Number(discountValue) || 0;
-    if (discountType === "percentage") onDiscount(Math.min(subtotal, Math.round((subtotal * value) / 100)));
+    const value = Math.max(0, Number(discountValue) || 0);
+    if (discountType === "percentage") onDiscount(Math.min(subtotal, Math.round((subtotal * Math.min(100, value)) / 100)));
     if (discountType === "flat") onDiscount(Math.min(subtotal, value));
     if (discountType === "item") onDiscount(Math.min(subtotal, value || bill.lines[0]?.price || 0));
     if (discountType === "coupon") onDiscount(Math.min(subtotal, value || 50));
@@ -185,13 +186,13 @@ export function CartPanel({
                 <OrderSummary subtotal={totals.subtotal} discount={totals.discount} cgst={totals.cgst} sgst={totals.sgst} packing={totals.packingCharge} service={totals.serviceCharge} total={totals.total} />
               </div>
               <div className="grid gap-2">
-                <Button className="h-12 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onProcessOrder(false)} disabled={!bill.lines.length} title="Save order and create kitchen ticket">
+                <Button className="h-12 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onProcessOrder(false)} disabled={!bill.lines.length || processing} title="Send this order to kitchen without collecting payment">
                   <Send className="size-4" />
-                  Send KOT & Place Order
+                  Send To Kitchen
                 </Button>
-                <Button variant="outline" className="h-11" onClick={() => onProcessOrder(true)} disabled={!bill.lines.length || bill.paid} title="Capture payment locally, then create the kitchen ticket">
+                <Button variant="outline" className="h-11" onClick={() => onProcessOrder(true)} disabled={!bill.lines.length || bill.paid || processing} title="Send to kitchen and mark payment collected">
                   <Banknote className="size-4" />
-                  Checkout & Place {formatCurrency(totals.total)}
+                  Send + Collect {formatCurrency(totals.total)}
                 </Button>
               </div>
               <Button variant="ghost" className="w-full" onClick={() => onStep(2)}>Back to details</Button>
@@ -246,15 +247,15 @@ export function CartPanel({
       {step <= 3 ? (
         <div className="sticky bottom-0 grid gap-2 border-t border-slate-100 bg-white p-3">
           <div className="grid grid-cols-3 gap-2">
-            <Button variant="outline" size="sm" onClick={onHold} disabled={!bill.lines.length} title="Hold the current order with selected items">
+            <Button variant="outline" size="sm" onClick={onHold} disabled={!bill.lines.length || processing} title="Hold the current order with selected items">
               <PauseCircle className="size-4" />
               Hold
             </Button>
-            <Button variant="outline" size="sm" onClick={onSave} disabled={!bill.lines.length} title="Save this order so it can be resumed later">
+            <Button variant="outline" size="sm" onClick={onSave} disabled={!bill.lines.length || processing} title="Save this order so it can be resumed later">
               <Save className="size-4" />
               Save
             </Button>
-            <Button variant="outline" size="sm" className="text-red-600" onClick={onClear} title="Clear all selected items and reset this bill">
+            <Button variant="outline" size="sm" className="text-red-600" onClick={onClear} disabled={!bill.lines.length || processing} title="Clear all selected items and reset this bill">
               <RotateCcw className="size-4" />
               Clear
             </Button>

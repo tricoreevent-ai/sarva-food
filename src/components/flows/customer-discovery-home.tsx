@@ -194,7 +194,8 @@ export function CustomerDiscoveryHome() {
       }
       customer.retry();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update favorite.");
+      console.error("[customer/home] favorite update failed", error);
+      toast.error("Could not update favorite. Please try again.");
     }
   }
 

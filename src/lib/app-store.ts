@@ -2355,7 +2355,7 @@ export const useAppStore = create<AppStore>()(
         cateringPackages: state.cateringPackages,
         cateringInquiries: state.cateringInquiries,
         posTables: state.posTables,
-        posBill: state.posBill,
+        posBill: initialPosBill,
         ownerBusinessProfile: state.ownerBusinessProfile,
         socialPosts: state.socialPosts,
         tableOrders: [],

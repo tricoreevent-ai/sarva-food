@@ -170,7 +170,7 @@ export function CheckoutForm({
           </div>
         ) : null}
         <form
-          className="grid gap-3 sm:gap-4"
+          className="grid gap-3 pb-24 sm:gap-4 md:pb-0"
           onSubmit={handleSubmit(async (values) => {
             if (!items.length) return;
             setSubmitting(true);
