@@ -1806,17 +1806,43 @@ function PosConfirmDialog({
 }
 
 function PosDialogFrame({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
+  const dialogRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])") ?? [])
+        .filter((item) => !item.hasAttribute("disabled") && item.tabIndex !== -1);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.setTimeout(() => dialogRef.current?.querySelector<HTMLElement>("button, input, select, textarea")?.focus(), 0);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
   }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-3">
-      <section role="dialog" aria-modal="true" aria-labelledby="pos-dialog-title" className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="pos-dialog-title" className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
           <div>
             <h2 id="pos-dialog-title" className="text-lg font-black text-slate-950">{title}</h2>
@@ -2051,21 +2077,21 @@ function orderBalanceDue(canonical: ExtendedDemoOrder | undefined, order: Operat
 }
 
 function timelineEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
-  return [
+  return dedupeTimeline([
     ...safeTimeline(canonical?.auditTimeline),
     ...safeTimeline(canonical?.statusHistory),
     ...safeTimeline(canonical?.paymentTimeline),
     ...safeTimeline(order.auditTimeline),
     ...safeTimeline(order.statusHistory),
     ...safeTimeline(order.paymentTimeline),
-  ].sort((first, second) => timelineMillis(first) - timelineMillis(second));
+  ]).sort((first, second) => timelineMillis(first) - timelineMillis(second));
 }
 
 function paymentEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
-  return [
+  return dedupeTimeline([
     ...safeTimeline(canonical?.paymentTimeline),
     ...safeTimeline(order.paymentTimeline),
-  ].sort((first, second) => timelineMillis(first) - timelineMillis(second));
+  ]).sort((first, second) => timelineMillis(first) - timelineMillis(second));
 }
 
 function printHistoryEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder, logs: PrintLog[]) {
@@ -2077,11 +2103,21 @@ function printHistoryEntries(canonical: ExtendedDemoOrder | undefined, order: Op
       return entry.orderId === canonicalId || entry.referenceId === canonicalId || entry.referenceId === order.id;
     })
     .map((log) => ({ type: `${log.type || "print"}_${log.status || "logged"}`, timestamp: log.timestamp, user: log.user, device: (log as PrintLog & { printerProfileId?: string }).printerProfileId }));
-  return [...printEvents, ...logEvents].sort((first, second) => timelineMillis(first) - timelineMillis(second));
+  return dedupeTimeline([...printEvents, ...logEvents]).sort((first, second) => timelineMillis(first) - timelineMillis(second));
 }
 
 function safeTimeline(value?: TimelineEntry[]) {
   return Array.isArray(value) ? value.filter((entry) => entry && typeof entry === "object") : [];
+}
+
+function dedupeTimeline(entries: TimelineEntry[]) {
+  const seen = new Set<string>();
+  return entries.filter((entry) => {
+    const key = [timelineLabel(entry), timelineMillis(entry), entry.amount ?? "", entry.method ?? "", entry.user ?? "", entry.device ?? ""].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function timelineLabel(entry: TimelineEntry) {

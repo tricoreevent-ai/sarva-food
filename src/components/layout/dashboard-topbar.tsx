@@ -1114,7 +1114,12 @@ function buildNotifications(input: {
     });
 
   input.orders
-    .filter((order) => ["partial", "pending"].includes(String((order as DemoOrder & { paymentStatus?: string }).paymentStatus ?? "pending")) && !["cancelled", "rejected"].includes(order.status))
+    .filter((order) => {
+      const paid = Number((order as DemoOrder & { paidAmount?: number }).paidAmount ?? 0);
+      const due = Math.max(0, Number(order.totals.total ?? 0) - paid);
+      const paymentStatus = String((order as DemoOrder & { paymentStatus?: string }).paymentStatus ?? "pending");
+      return due > 0.01 && ["partial", "pending"].includes(paymentStatus) && !["cancelled", "rejected", "completed", "delivered"].includes(order.status);
+    })
     .slice(0, 6)
     .forEach((order) => {
       const paid = Number((order as DemoOrder & { paidAmount?: number }).paidAmount ?? 0);

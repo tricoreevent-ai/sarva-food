@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC2 operational workflow and production readiness |
+| Current Sprint | RC3 production hardening and release validation |
 | Release Version | `0.1.0` |
-| Latest Git Commit | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
+| Latest Git Commit | RC3 final commit recorded in the release handoff report. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
 | Build Date | 2026-07-04 |
-| Verification Status | RC2 typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
-| Scope | RC2 operational POS/Kitchen workflow completion, notification center readiness, and production validation |
+| Verification Status | RC3 typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
+| Scope | Final production hardening and release validation across completed operational workflow code paths |
 
 ## Enterprise Project Dashboard
 
@@ -26,11 +26,11 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 
 | Field | Status |
 | --- | --- |
-| Overall Completion | 99% code-ready; 96% production-release ready pending manual env, rules, deployment, provider, hardware, and browser smoke validation. |
-| Current Commit SHA | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
+| Overall Completion | 99% code-ready; 98% production-release ready pending manual env, rules, deployment, provider, hardware, and browser smoke validation. |
+| Current Commit SHA | RC3 final commit recorded in the release handoff report. |
 | Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
 | Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
-| Validation Status | Typecheck, lint, build, and diff checks passed for RC2 operational workflow completion; hosted redeploy validation remains manual. |
+| Validation Status | Typecheck, lint, build, and diff checks passed for RC3 production hardening; hosted redeploy validation remains manual. |
 | Last Updated | 2026-07-04 |
 | Next Sprint | Production smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
@@ -1639,3 +1639,60 @@ Remaining manual tasks:
 | Hardware | Test real 58mm/80mm bill, receipt, split receipt, KOT, and reprint output. |
 | Deployment | Complete Hostinger env/cache/redeploy, Firestore rules/index deployment, SMTP/provider checks, and route smoke. |
 | Provider | Razorpay live refund/settlement, WhatsApp/SMS/push provider adapters, and external delivery GPS remain provider/future gated. |
+
+## RC3 Production Hardening and Release Validation - 2026-07-04
+
+| Field | Result |
+| --- | --- |
+| Sprint Status | Final RC3 production hardening complete within the approved RC2-modified implementation scope. |
+| Production Readiness | 98% release-ready; remaining blockers require manual environment, rules, deployment, provider, hardware, and browser validation. |
+| Scope Completed | Production safety fixes for repository consistency, timeline/payment history rendering, notification noise control, and operational dialog accessibility. |
+| Files Changed | `src/repositories/order-repository.ts`, `src/components/flows/pos-billing-flow.tsx`, `src/components/layout/dashboard-topbar.tsx`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Scope Preserved | No new business features, APIs, Firestore collections, repositories, route families, or UI redesigns were added. |
+
+Production bugs fixed:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| RC3-FIX-001 | Merge Tables Consistency | Merged target orders now preserve source `paymentTimeline`, `splitBills`, and source audit timeline details, keeping payment history and audit review consistent after merge. |
+| RC3-FIX-002 | Timeline Rendering | Order timeline, payment history, and print history now de-duplicate events when the canonical order and linked Kitchen ticket expose the same repository-backed timeline fields. |
+| RC3-FIX-003 | Notification Center | Pending-payment notifications now ignore completed, delivered, cancelled, rejected, and zero-balance orders to prevent stale/noisy operational alerts. |
+| RC3-FIX-004 | Operational Dialog Accessibility | Split, transfer, merge, timeline, and payment-history dialogs now trap focus, restore focus on close, support Escape, and lock background scrolling while open. |
+
+Production hardening:
+
+| Area | Result |
+| --- | --- |
+| Repository Consistency | Split, transfer, merge, payment, print, audit, and notification writes remain on existing repositories and collections; merge now carries source payment/split history into the target order. |
+| API Hardening | Existing owner order/POS route validation, tenant scoping, authorization checks, dynamic/no-store read behavior, and safe error mapping were preserved. |
+| Realtime / Refresh | POS canonical refresh remains the source for post-write active-order state; no new listeners or subscriptions were added. |
+| Accessibility | RC2 modal workflows now include focus containment, focus restoration, Escape close, and scroll locking. |
+| Performance | No new polling/listeners were introduced; timeline de-duplication reduces duplicate rendered rows in active operational dialogs. |
+
+Verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Production Access | Complete MAN-002, MAN-006, MAN-008, SMTP/provider checks, Firebase authorized domains, and hosted route smoke. |
+| Browser Smoke | Verify Customer, Restaurant, QR Ordering, Owner, Kitchen, POS, Admin, Waiter, Printing, Notification Center, Split Bill, Transfer Table, Merge Tables, Timeline, Payment History, Print History, Phone Verification, and Master Menu Library flows after redeploy. |
+| Multi-device | Verify POS/Kitchen realtime handoff, notification center state, payment status, timeline visibility, and active-order updates across cashier/waiter/kitchen/manager devices. |
+| Hardware | Test real 58mm/80mm bill, receipt, split receipt, KOT, duplicate copy, and reprint output. |
+| Provider | Razorpay live order/verify/webhook/refund/settlement, WhatsApp Cloud API, SMTP, SMS, push, Meta, GPS delivery, Cloudinary, Mapbox, and Google/Firebase auth checks remain provider/manual gated. |
+
+Known production risks:
+
+| Risk | Owner | Next Action |
+| --- | --- | --- |
+| Hostinger still needs current commit redeploy. | Manual | Clear cache, redeploy current branch, and verify `/api/release-info`. |
+| Production env and provider secrets are not validated in this local workspace. | Manual | Complete Hostinger env validation with real credentials. |
+| Firestore rules/index deployment remains manual. | Manual + Codex | Review and deploy rules/indexes in the target Firebase project. |
+| Hardware and browser smoke remain external. | Manual | Run production smoke on real devices/printers after redeploy. |

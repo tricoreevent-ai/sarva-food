@@ -711,6 +711,9 @@ export class OrderRepository {
       const paymentStatus = paymentStatusFromPaid(total, paidTotal);
       const tableNumber = input.tableNumber?.trim() || target.tableNumber || sources.map((order) => order.tableNumber).filter(Boolean).join(" + ");
       const entry = auditEvent("merge_tables", scope, input, now, { sourceOrderIds: sourceIds, tableNumber, total, paymentStatus });
+      const sourceAudit = sources.flatMap(auditTimelineOf);
+      const sourcePayments = sources.flatMap(paymentTimelineOf);
+      const sourceSplits = sources.flatMap(splitBillsOf);
       const targetPatch = cleanRecord({
         lines,
         subtotal,
@@ -721,9 +724,11 @@ export class OrderRepository {
         paidAmount: paidTotal,
         paymentStatus,
         tableNumber,
-        splitPayment: ordersToMerge.some((order) => Boolean((order as OrderDoc & { splitPayment?: boolean }).splitPayment)),
+        splitPayment: sourceSplits.length > 0 || ordersToMerge.some((order) => Boolean((order as OrderDoc & { splitPayment?: boolean }).splitPayment)),
         mergedOrderIds: FieldValue.arrayUnion(...sourceIds),
-        auditTimeline: FieldValue.arrayUnion(entry),
+        auditTimeline: sourceAudit.length ? FieldValue.arrayUnion(...sourceAudit, entry) : FieldValue.arrayUnion(entry),
+        ...(sourcePayments.length ? { paymentTimeline: FieldValue.arrayUnion(...sourcePayments) } : {}),
+        ...(sourceSplits.length ? { splitBills: FieldValue.arrayUnion(...sourceSplits) } : {}),
         statusHistory: FieldValue.arrayUnion({ event: "merge_tables", sourceOrderIds: sourceIds, at: now, by: input.userId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -885,6 +890,18 @@ function assertOrderTenant(order: OrderDoc, scope: TenantScope) {
 function auditTimelineOf(order: OrderDoc | null) {
   if (!order) return [];
   const value = (order as OrderDoc & { auditTimeline?: unknown[] }).auditTimeline;
+  return Array.isArray(value) ? value : [];
+}
+
+function paymentTimelineOf(order: OrderDoc | null) {
+  if (!order) return [];
+  const value = (order as OrderDoc & { paymentTimeline?: unknown[] }).paymentTimeline;
+  return Array.isArray(value) ? value : [];
+}
+
+function splitBillsOf(order: OrderDoc | null) {
+  if (!order) return [];
+  const value = (order as OrderDoc & { splitBills?: unknown[] }).splitBills;
   return Array.isArray(value) ? value : [];
 }
 
