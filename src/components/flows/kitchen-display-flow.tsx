@@ -9,7 +9,6 @@ import {
   Eye,
   Filter,
   Maximize2,
-  Menu,
   MoreHorizontal,
   Printer,
   RefreshCw,
@@ -341,7 +340,6 @@ export function KitchenDisplayFlow() {
     <div className={cn(fullscreen ? "fixed inset-0 z-50 overflow-auto bg-slate-50 min-[1025px]:p-4" : "", "kitchen-ops-center")}>
       <div className="min-[1025px]:hidden">
         <CompactKitchenBoard
-          activeRequests={activeRequests.length}
           autoPrint={settings.autoPrintOrders}
           busyOrderId={busyOrderId}
           compactBaseOrders={compactBaseOrders}
@@ -589,7 +587,6 @@ function KitchenMetric({ label, value, tone, compact }: { label: string; value: 
 }
 
 function CompactKitchenBoard({
-  activeRequests,
   autoPrint,
   busyOrderId,
   compactBaseOrders,
@@ -638,7 +635,6 @@ function CompactKitchenBoard({
   onTabChange,
   onToggleAutoPrint,
 }: {
-  activeRequests: number;
   autoPrint: boolean;
   busyOrderId: string | null;
   compactBaseOrders: TableOrder[];
@@ -701,20 +697,6 @@ function CompactKitchenBoard({
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24 text-slate-950">
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white/95 px-3 shadow-sm backdrop-blur">
-        <button type="button" className="grid size-11 place-items-center rounded-lg text-slate-800" aria-label="Open kitchen navigation">
-          <Menu className="size-5" />
-        </button>
-        <div className="text-center">
-          <p className="text-lg font-black leading-none text-orange-700">Nammude</p>
-          <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Kitchen</p>
-        </div>
-        <button type="button" className="relative grid size-11 place-items-center rounded-lg text-slate-800" aria-label={`${activeRequests} open waiter requests`}>
-          <BellRing className="size-5" />
-          {activeRequests ? <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-orange-600 text-[10px] font-black text-white">{activeRequests}</span> : null}
-        </button>
-      </header>
-
       <main className="mx-auto max-w-5xl space-y-3 px-3 py-3">
         <section className="flex items-center justify-between gap-3">
           <div>
@@ -746,7 +728,7 @@ function CompactKitchenBoard({
           ) : null}
         </section>
 
-        <section className="sticky top-14 z-30 -mx-3 overflow-x-auto border-y bg-white px-3 py-2 shadow-sm">
+        <section className="sticky top-0 z-30 -mx-3 overflow-x-auto border-y bg-white px-3 py-2 shadow-sm">
           <div className="flex min-w-max gap-2">
             {compactTabs.map((tab) => {
               const count = compactBaseOrders.filter((order) => tab.statuses.includes(order.status)).length;
@@ -930,6 +912,7 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
   const visibleLines = expanded ? order.lines : order.lines.slice(0, 2);
   const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
   const priorityTone = order.priority === "rush" ? "border-l-red-500" : delayed ? "border-l-orange-500" : "border-l-emerald-500";
+  const channel = order.source || order.orderType || "POS";
 
   function clearLongPress() {
     if (longPress.current) window.clearTimeout(longPress.current);
@@ -955,20 +938,27 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
       <div className="space-y-3 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-base font-black">#{order.id}</p>
-            <p className="mt-1 text-sm font-bold text-slate-600">{order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="truncate text-base font-black">Order #{shortOrderId(order.id)}</p>
+              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-black uppercase", channelTone(channel))}>{channel}</span>
+            </div>
+            <p className="mt-1 text-sm font-bold text-slate-600">Table {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-xs font-black text-slate-500">{ageMinutes}m ago</span>
-            <Badge variant="outline">{order.orderType?.toUpperCase() ?? "DINE-IN"}</Badge>
+            <span className="text-xs font-black text-slate-500">Waiting {ageMinutes}m</span>
+            <Badge variant={delayed ? "destructive" : order.status === "ready" ? "success" : "outline"}>{delayed ? "LATE" : statusLabel(order.status)}</Badge>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
-          <span>{order.customerName || order.guestName || "Walk-in"}</span>
-          <span className="text-right">ETA {order.etaMinutes}m</span>
-          <span>{order.assignedStaffName || order.waiterName || "Unassigned"}</span>
-          <span className="text-right">{paymentLabel(order.paymentStatus)}</span>
+          <span>Table: {order.tableNumber}</span>
+          <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
+          <span>Type: {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
+          <span className="text-right">Waiting: {ageMinutes}m</span>
+          <span>Kitchen: {statusLabel(order.status)}</span>
+          <span className="text-right">Payment: {paymentLabel(order.paymentStatus)}</span>
+          <span>Priority: {order.priority === "rush" ? "High" : "Normal"}</span>
+          <span className="text-right">Items: {order.lines.length}</span>
         </div>
 
         <div className="rounded-lg bg-slate-50 p-2">
@@ -1309,6 +1299,26 @@ function paymentLabel(value?: PaymentState | TableOrder["paymentStatus"]) {
   if (value === "refunded") return "REFUNDED";
   if (value === "partial" || value === "authorized") return "PARTIAL";
   return "UNPAID";
+}
+
+function shortOrderId(id: string) {
+  return id.length > 12 ? id.slice(-8).toUpperCase() : id;
+}
+
+function readableKitchenOrderType(type: NonNullable<TableOrder["orderType"]>) {
+  if (type === "dine-in") return "Dine in";
+  if (type === "takeaway") return "Takeaway";
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function channelTone(channel: string) {
+  const key = channel.toLowerCase();
+  if (key.includes("qr")) return "bg-emerald-50 text-emerald-700";
+  if (key.includes("waiter")) return "bg-blue-50 text-blue-700";
+  if (key.includes("delivery")) return "bg-violet-50 text-violet-700";
+  if (key.includes("parcel") || key.includes("takeaway")) return "bg-amber-50 text-amber-700";
+  if (key.includes("web") || key.includes("online")) return "bg-violet-50 text-violet-700";
+  return "bg-slate-100 text-slate-700";
 }
 
 function statusLabel(status: TableOrderStatus) {

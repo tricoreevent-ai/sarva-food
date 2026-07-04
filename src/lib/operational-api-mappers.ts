@@ -12,6 +12,7 @@ export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
     totals: { subtotal: Number(order.subtotal ?? 0), discount: Number(order.discount ?? 0), deliveryFee: Number(order.deliveryFee ?? 0), tax: Number(order.tax ?? 0), total: Number(order.total ?? 0) },
     offerCode: order.offerCode,
     payment: "upi",
+    paymentStatus: order.paymentStatus,
     channel: order.channel === "instagram" ? "Instagram" : order.channel === "whatsapp" ? "WhatsApp" : order.channel === "pos" ? "POS" : order.channel === "catering" ? "Catering" : order.channel === "qr" ? "QR" : "Web",
     status: order.status === "draft" ? "new" : order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
     createdAt: parseFirestoreDateIso(order.createdAt) ?? new Date().toISOString(),

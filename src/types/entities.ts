@@ -602,6 +602,7 @@ export type DemoOrder = {
   totals: OrderTotals;
   offerCode?: string;
   payment: PaymentOption;
+  paymentStatus?: "pending" | "authorized" | "partial" | "paid" | "failed" | "refunded";
   channel: OrderChannel;
   status: OrderStatus;
   createdAt: string;

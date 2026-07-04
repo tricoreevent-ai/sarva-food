@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const draft = await ordersRepo.getPosDraft(scope);
   return NextResponse.json({
     data: {
-      orders: orders.map(orderDocToDemoOrder),
+      orders: orders.map(orderDocToOperationalDemoOrder),
       kitchen: kitchen.map(kitchenDocToTableOrder),
       menu: menu.map(menuDocToMenuItem),
       customers: customers.map(customerDocToLoyaltyCustomer),
@@ -42,23 +42,33 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const access = await requireOwnerFeature(request, "pos", "update");
-  if (access.error) return access.error;
-  const body = await request.json().catch(() => ({}));
-  if (!body.bill || !Array.isArray(body.bill.lines)) return NextResponse.json({ error: "Valid POS draft is required." }, { status: 400 });
-  const scope = tenantScope(access.session, body.restaurantId);
-  const draft = await new OrderRepository().savePosDraft(scope, body);
-  return NextResponse.json({ data: draft ? orderDocToPosDraft(draft) : null });
+  const requestId = requestIdFor();
+  try {
+    const access = await requireOwnerFeature(request, "pos", "update");
+    if (access.error) return access.error;
+    const body = await request.json().catch(() => ({}));
+    if (!body.bill || !Array.isArray(body.bill.lines)) return NextResponse.json({ error: "Valid POS draft is required." }, { status: 400 });
+    const scope = tenantScope(access.session, body.restaurantId);
+    const draft = await new OrderRepository().savePosDraft(scope, body);
+    return NextResponse.json({ data: draft ? orderDocToPosDraft(draft) : null });
+  } catch (error) {
+    return posError("draft", error, requestId);
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireOwnerFeature(request, "pos", "create");
-  if (access.error) return access.error;
-  const body = await request.json().catch(() => ({}));
-  if (!body.kitchenOrderId) return NextResponse.json({ error: "Kitchen order id is required." }, { status: 400 });
-  const scope = tenantScope(access.session, body.restaurantId);
-  const order = await new OrderRepository().placePosDraft(scope, { kitchenOrderId: String(body.kitchenOrderId) });
-  return NextResponse.json({ data: orderDocToDemoOrder(order), raw: order });
+  const requestId = requestIdFor();
+  try {
+    const access = await requireOwnerFeature(request, "pos", "create");
+    if (access.error) return access.error;
+    const body = await request.json().catch(() => ({}));
+    if (!body.kitchenOrderId) return NextResponse.json({ error: "Kitchen ticket not found." }, { status: 400 });
+    const scope = tenantScope(access.session, body.restaurantId);
+    const order = await new OrderRepository().placePosDraft(scope, { kitchenOrderId: String(body.kitchenOrderId) });
+    return NextResponse.json({ data: orderDocToOperationalDemoOrder(order), raw: order });
+  } catch (error) {
+    return posError("place", error, requestId);
+  }
 }
 
 export async function DELETE(request: NextRequest) {
@@ -67,6 +77,34 @@ export async function DELETE(request: NextRequest) {
   const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
   await new OrderRepository().deletePosDraft(scope);
   return NextResponse.json({ ok: true });
+}
+
+function posError(action: string, error: unknown, requestId: string) {
+  console.error("[owner-pos-api] request failed", { action, requestId, message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+  const message = error instanceof Error ? error.message : "";
+  if (/POS draft not found|draft/i.test(message)) return NextResponse.json({ error: "This order is no longer active. Please refresh.", requestId }, { status: 409 });
+  if (/Kitchen ticket not found|Kitchen order/i.test(message)) return NextResponse.json({ error: "Kitchen ticket not found.", requestId }, { status: 404 });
+  if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return NextResponse.json({ error: "Unable to contact server. Please retry.", requestId }, { status: 503 });
+  return NextResponse.json({ error: `Unexpected error. Reference ID ${requestId}`, requestId }, { status: 500 });
+}
+
+function requestIdFor() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function orderDocToOperationalDemoOrder(order: OrderDoc) {
+  return {
+    ...orderDocToDemoOrder(order),
+    paymentTimeline: (order as OrderDoc & { paymentTimeline?: unknown[] }).paymentTimeline ?? [],
+    auditTimeline: (order as OrderDoc & { auditTimeline?: unknown[] }).auditTimeline ?? [],
+    statusHistory: order.statusHistory ?? [],
+    splitBills: (order as OrderDoc & { splitBills?: unknown[] }).splitBills ?? [],
+    paidAmount: (order as OrderDoc & { paidAmount?: number }).paidAmount,
+    mergedOrderIds: (order as OrderDoc & { mergedOrderIds?: string[] }).mergedOrderIds ?? [],
+    mergedIntoOrderId: (order as OrderDoc & { mergedIntoOrderId?: string }).mergedIntoOrderId,
+    tableNumber: order.tableNumber,
+    waiterName: order.waiterName,
+  };
 }
 
 function orderDocToPosDraft(order: OrderDoc) {

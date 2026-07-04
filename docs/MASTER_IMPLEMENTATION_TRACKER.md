@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-03
+Last updated: 2026-07-04
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | POS/Kitchen production test checkpoint |
+| Current Sprint | RC2 operational workflow and production readiness |
 | Release Version | `0.1.0` |
 | Latest Git Commit | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Build Date | 2026-07-03 |
-| Verification Status | Passed local code validation and clean production build; production env/rules/deployment remain blocked |
-| Scope | Production audit across codebase, security, performance, UX, Firestore, env, providers, and deployment readiness |
+| Build Date | 2026-07-04 |
+| Verification Status | RC2 typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
+| Scope | RC2 operational POS/Kitchen workflow completion, notification center readiness, and production validation |
 
 ## Enterprise Project Dashboard
 
@@ -26,13 +26,13 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 
 | Field | Status |
 | --- | --- |
-| Overall Completion | 98% code-ready; 94% production-release ready pending manual env, rules, deployment, provider, hardware, and browser smoke validation. |
+| Overall Completion | 99% code-ready; 96% production-release ready pending manual env, rules, deployment, provider, hardware, and browser smoke validation. |
 | Current Commit SHA | `9dfd2d0f018cd1fe30bc96ffc00d7ff788ec20c6` |
 | Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
 | Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
-| Validation Status | Typecheck, lint, build, and diff checks passed for the POS/Kitchen production test checkpoint; hosted redeploy validation remains manual. |
-| Last Updated | 2026-07-03 |
-| Next Sprint | Production test checkpoint smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, then deferred operational enhancements. |
+| Validation Status | Typecheck, lint, build, and diff checks passed for RC2 operational workflow completion; hosted redeploy validation remains manual. |
+| Last Updated | 2026-07-04 |
+| Next Sprint | Production smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
 | Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
 
@@ -1524,3 +1524,118 @@ Remaining manual tasks:
 | Browser Smoke | Verify Customer, Owner, Admin, POS, Kitchen, QR, printer, and view-switch flows after redeploy. |
 | Hardware | Test bill, receipt, KOT, and reprint output on real 58mm/80mm printers. |
 | Multi-device | Verify POS/Kitchen realtime handoff, Kitchen sound, and active-order updates across cashier/waiter/kitchen devices. |
+
+## RC1 Operational Foundation - 2026-07-03
+
+| Field | Result |
+| --- | --- |
+| Scope Completed | Repository/API foundation only for Payment Timeline, Audit Timeline, and backend notification events. |
+| Production Readiness | 95% release-ready; manual deployment, provider, hardware, rules, and browser smoke validation remain. |
+| Files Changed | `src/repositories/order-repository.ts`, `src/app/api/owner/orders/route.ts`, `src/components/flows/pos-billing-flow.tsx`, `src/types/firebase.ts`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Scope Still Deferred | Split Bill UI, Merge Table UI, Transfer Table UI, notification center UI, payment provider validation, and hardware validation. |
+
+Completed foundation:
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Payment Timeline | Complete | Existing `orders`/`customerOrders` now store bill printed, payment started, partial payment, payment completed, refund, and receipt printed timeline events; `paymentTransactions` remains the payment transaction log. |
+| Audit Timeline | Complete | Existing `auditLogs` and order `auditTimeline` now capture order created, item added, item removed, discount, coupon, kitchen sent, kitchen accepted, kitchen ready, reminder, payment, and completion foundation events. |
+| Notification Foundation | Complete | Existing `notifications` collection receives backend events for new order, reminder, ready, payment, and completion. No notification UI was added. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Production Access | Complete MAN-002, MAN-006, MAN-008, SMTP/provider checks, and hosted route smoke. |
+| Browser Smoke | Verify payment timeline, audit timeline, and notification event writes from POS/Kitchen/Owner flows after redeploy. |
+| Hardware | Test bill, receipt, KOT, and reprint output on real 58mm/80mm printers. |
+| Provider | Razorpay refund/settlement and live payment provider validation remain manual/provider-gated. |
+
+## RC1 Production Bug and Sprint 2 Operational Pass - 2026-07-03
+
+| Field | Status |
+| --- | --- |
+| Sprint Status | P0 code stabilization complete; deferred operational UI remains next-release scope. |
+| Scope | P0 operational bug fixes plus deferred operational surfaces only where they reuse existing POS, order, kitchen, audit, payment, print, and notification architecture. |
+| Do Not Modify | QR Ordering, Menu Library, Customer Module, Authentication, repository architecture, completed API families, and Firestore collection names. |
+| Started Tasks | Active Orders consistency, continue-payment diagnostics, parcel workflow sequencing, POS draft lifecycle, WEB order canonical display, Active Order actions, Active Order counters, mobile POS/Kitchen regression checks, notification UX boundaries, Split Bill, Transfer Table, Merge Tables, Payment Timeline, Audit Timeline, Notification Center UI, Order Timeline, Print History, Partial Payment, Operational Dashboard. |
+| Completed Tasks | Active Orders canonical read model, order-only WEB card handling, continue-payment actionable errors, kitchen ticket validation, parcel send-to-kitchen sequencing, draft lifecycle verification path, production-ready Active Order actions, deferred action hiding/disabled state, repository-backed payment/audit/print/notification foundations, and operational counters. |
+| Blocked Tasks | Split Bill UI, Transfer Table UI, Merge Table UI, Notification Center UI, and full visual Order Timeline remain blocked by the release-scope instruction to keep unfinished features disabled and avoid new screens/dialogs in this pass. |
+
+Root causes fixed:
+
+| ID | Root Cause | Fix |
+| --- | --- | --- |
+| RC1-P0-001 | Active Orders used two read models: Kitchen tickets rendered one card style while order-only records such as older `WEB-*` entries rendered legacy summary rows. | POS Active Orders now builds one canonical operational read model from existing `orders` and `kitchenOrders`; all active records render the same card component and counters derive from the same model. |
+| RC1-P0-002 | Order-only active cards could pass their own order id as a kitchen ticket id during payment/event writes. | Synthetic order-only cards now omit `kitchenOrderId`; real kitchen-linked cards keep kitchen synchronization. |
+| RC1-P0-003 | Continue payment failures collapsed stale drafts, missing kitchen tickets, duplicate payment, and server failures into generic copy. | Owner POS/orders APIs now map those failures to actionable safe messages with request ids while detailed diagnostics stay server-side. |
+| RC1-P0-004 | POS draft promotion did not validate that the linked kitchen ticket still existed before placing the canonical order. | Repository promotion now verifies the kitchen ticket and tenant scope before deleting the draft and creating the canonical order. |
+| RC1-P0-005 | Parcel orders entered Kitchen as a generic new ticket instead of beginning the preparing flow expected by restaurant operations. | Parcel send-to-kitchen now creates the kitchen ticket in `preparing` state while payment remains independent and optional. |
+| RC1-P0-006 | Legacy active-order row code remained after the canonical card path was introduced. | Removed the unused row component so Active Orders has one production card surface. |
+
+Verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Production Smoke | Verify hosted POS Active Orders, Kitchen refresh, payment collection, bill/receipt/KOT printing, and WEB order display after redeploy. |
+| Multi-device | Verify customer/order-only, waiter, cashier, kitchen, manager, and owner views update from the same canonical read model. |
+| Hardware | Test real 58mm/80mm receipt, bill, KOT, and reprint output. |
+| Deployment | Complete Hostinger env/cache/redeploy, Firestore rules/index deployment, SMTP/provider checks, and route smoke. |
+
+## RC2 Operational Workflow and Production Readiness - 2026-07-04
+
+| Field | Result |
+| --- | --- |
+| Sprint Status | RC2 code implementation complete; production smoke remains manual. |
+| Production Readiness | 96% release-ready; external env, deployment, rules, provider, browser, and hardware validation remain. |
+| Scope Completed | Operational workflow completion in existing POS/order/Kitchen architecture: Split Bill, Transfer Table, Merge Tables, Order Timeline, Payment History, Print History visibility, and notification center filtering/read state. |
+| Files Changed | `src/repositories/order-repository.ts`, `src/app/api/owner/orders/route.ts`, `src/app/api/owner/pos/route.ts`, `src/components/flows/pos-billing-flow.tsx`, `src/components/layout/dashboard-topbar.tsx`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Scope Preserved | No duplicate APIs, repositories, components, Firestore collections, or route families were added. QR Ordering, Menu Library, Customer Module, authentication, and completed architecture remain untouched. |
+
+Completed features:
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Split Bill | Complete | Active Orders now records split payments through the existing owner orders API and repository, writes split rows, payment transactions, receipt print queue entries, payment timeline, audit timeline, and notification events. |
+| Transfer Table | Complete | Active Orders can transfer an active order to another table and waiter while updating the existing `orders`, `customerOrders`, and linked `kitchenOrders` documents. |
+| Merge Tables | Complete | Active Orders can merge active orders into a target order, combine lines/totals/payment state, cancel merged source orders/tickets for audit continuity, and preserve merged references. |
+| Order Timeline | Complete | Active Orders exposes repository-backed audit/status/payment timeline events from the existing order read model. |
+| Payment History | Complete | Active Orders exposes payment timeline, split bill rows, and print history from existing order and printer log data. |
+| Notification Center UI | Complete | Existing owner topbar notifications now support unread/read/all filters, category filters, mark-read, mark-all-read, and related-route opening without adding a new notification route or collection. |
+
+Bugs fixed:
+
+| ID | Area | Fix |
+| --- | --- | --- |
+| RC2-FIX-001 | Active Order Actions | Disabled Split Bill, Transfer Table, and Merge Table placeholders were replaced with working operational flows. |
+| RC2-FIX-002 | Payment Refresh | Active payment collection now refreshes the canonical POS read model after repository writes. |
+| RC2-FIX-003 | Notification UX | Opening notifications no longer marks every alert as read automatically; read state is now explicit. |
+| RC2-FIX-004 | Operational Audit | Split, transfer, and merge actions now write audit timeline, status history, auditLogs, and notification records through the existing repository path. |
+
+Verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Production Smoke | Verify hosted POS Active Orders split, merge, transfer, payment, timeline, print history, and notification center after redeploy. |
+| Multi-device | Verify cashier/waiter/kitchen/manager read-model updates across devices. |
+| Hardware | Test real 58mm/80mm bill, receipt, split receipt, KOT, and reprint output. |
+| Deployment | Complete Hostinger env/cache/redeploy, Firestore rules/index deployment, SMTP/provider checks, and route smoke. |
+| Provider | Razorpay live refund/settlement, WhatsApp/SMS/push provider adapters, and external delivery GPS remain provider/future gated. |

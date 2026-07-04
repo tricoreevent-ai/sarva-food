@@ -1,8 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, ChefHat, ClipboardList, Download, Eye, FileDown, Grid2X2, Loader2, MapPin, MessageCircle, Printer, ReceiptText, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRightLeft, CheckCircle2, ChefHat, ClipboardList, CreditCard, Download, Eye, FileDown, GitMerge, Grid2X2, History, ListChecks, Loader2, MapPin, MessageCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, type LucideIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
@@ -35,6 +35,71 @@ type HeldPosOrder = {
 
 type BillCopy = "Customer Copy" | "Cashier Copy" | "Kitchen Copy" | "Duplicate Copy";
 const billCopyOptions: BillCopy[] = ["Customer Copy", "Cashier Copy", "Kitchen Copy", "Duplicate Copy"];
+type PaymentMethod = "cash" | "upi" | "card" | "credit";
+type TimelineEntry = Record<string, unknown>;
+type SplitBillRecord = {
+  id?: string;
+  customerName?: string;
+  amount?: number;
+  method?: PaymentMethod | string;
+  basis?: string;
+  itemId?: string;
+  quantity?: number;
+  percent?: number;
+  receipt?: boolean;
+  note?: string;
+  at?: unknown;
+};
+
+type OperationalOrder = TableOrder & {
+  canonicalOrderId?: string;
+  canonicalStatus?: DemoOrder["status"];
+  hasKitchenTicket?: boolean;
+  paymentTimeline?: TimelineEntry[];
+  auditTimeline?: TimelineEntry[];
+  statusHistory?: TimelineEntry[];
+  splitBills?: SplitBillRecord[];
+  paidAmount?: number;
+  mergedOrderIds?: string[];
+  mergedIntoOrderId?: string;
+};
+
+type ExtendedDemoOrder = DemoOrder & {
+  paymentTimeline?: TimelineEntry[];
+  auditTimeline?: TimelineEntry[];
+  statusHistory?: TimelineEntry[];
+  splitBills?: SplitBillRecord[];
+  paidAmount?: number;
+  mergedOrderIds?: string[];
+  mergedIntoOrderId?: string;
+  tableNumber?: string;
+  waiterName?: string;
+};
+
+type SplitBillDraft = {
+  key: string;
+  customerName: string;
+  amount: number;
+  method: PaymentMethod;
+  basis: "item" | "quantity" | "percentage" | "custom";
+  itemId: string;
+  quantity: number;
+  percent: number;
+  receipt: boolean;
+  note: string;
+};
+
+type SplitBillPayload = {
+  customerName: string;
+  amount: number;
+  method: PaymentMethod;
+  basis: SplitBillDraft["basis"];
+  itemId?: string;
+  quantity?: number;
+  percent?: number;
+  receipt: boolean;
+  note?: string;
+};
 
 type PosReadModel = {
   menuItems: MenuItem[];
@@ -84,6 +149,12 @@ export function PosBillingFlow() {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [resumeTarget, setResumeTarget] = useState<HeldPosOrder | null>(null);
   const [heldDeleteTarget, setHeldDeleteTarget] = useState<HeldPosOrder | null>(null);
+  const [splitTarget, setSplitTarget] = useState<OperationalOrder | null>(null);
+  const [transferTarget, setTransferTarget] = useState<OperationalOrder | null>(null);
+  const [mergeTarget, setMergeTarget] = useState<OperationalOrder | null>(null);
+  const [timelineTarget, setTimelineTarget] = useState<OperationalOrder | null>(null);
+  const [paymentHistoryTarget, setPaymentHistoryTarget] = useState<OperationalOrder | null>(null);
+  const [activeAction, setActiveAction] = useState<string | null>(null);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
     menuCategories: [],
@@ -126,31 +197,40 @@ export function PosBillingFlow() {
   useEffect(() => {
     window.localStorage.setItem(heldOrdersKey, JSON.stringify(heldOrders));
   }, [heldOrders]);
+
+  const refreshPosReadModel = useCallback(async (options: { signal?: AbortSignal; applyDraft?: boolean } = {}) => {
+    const response = await fetch("/api/owner/pos", { cache: "no-store", signal: options.signal });
+    const payload = await readPosPayload<PosPayload>(response, "POS data could not be loaded.");
+    setReadModel((current) => ({
+      ...current,
+      menuItems: payload.data?.menu ?? [],
+      orders: payload.data?.orders ?? [],
+      tables: payload.data?.tables ?? [],
+      loyaltyCustomers: payload.data?.customers ?? [],
+      tableOrders: payload.data?.kitchen ?? [],
+      staffMembers: payload.data?.staff ?? [],
+    }));
+    if (options.applyDraft === false) return;
+    if (payload.data?.draft?.lines?.length) setPosBill(payload.data.draft);
+    else resetPosBill();
+  }, [resetPosBill, setPosBill]);
+
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/owner/pos", { cache: "no-store", signal: controller.signal })
-      .then((response) => readPosPayload<PosPayload>(response, "POS data could not be loaded."))
-      .then((payload) => {
-        setReadModel((current) => ({
-          ...current,
-          menuItems: payload.data?.menu ?? [],
-          orders: payload.data?.orders ?? [],
-          tables: payload.data?.tables ?? [],
-          loyaltyCustomers: payload.data?.customers ?? [],
-          tableOrders: payload.data?.kitchen ?? [],
-          staffMembers: payload.data?.staff ?? [],
-        }));
-        if (payload.data?.draft?.lines?.length) setPosBill(payload.data.draft);
-        else resetPosBill();
-      })
-      .catch((error) => {
-        if ((error as Error).name !== "AbortError") {
-          console.error("[pos] bootstrap failed", { reason: error instanceof Error ? error.name : typeof error });
-          toast.error("POS data could not be loaded.");
-        }
-      });
-    return () => controller.abort();
-  }, [resetPosBill, setPosBill]);
+    const timer = window.setTimeout(() => {
+      void refreshPosReadModel({ signal: controller.signal })
+        .catch((error) => {
+          if ((error as Error).name !== "AbortError") {
+            console.error("[pos] bootstrap failed", { reason: error instanceof Error ? error.name : typeof error });
+            toast.error("POS data could not be loaded.");
+          }
+        });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [refreshPosReadModel]);
   useEffect(() => {
     if (panel !== "new" || wizardStep <= 1 || wizardStep >= 4) return;
     window.history.pushState({ sarvaPosWizardStep: wizardStep }, "");
@@ -279,10 +359,10 @@ export function PosBillingFlow() {
   const billingPrinter = printerSettings.profiles?.find((profile) => profile.type === "billing") ?? printerSettings.profiles?.[0];
   const totals = calculateBillTotals(billContext);
   const activeKitchenOrder = bill.linkedKitchenOrderId ? tableOrders.find((order) => order.id === bill.linkedKitchenOrderId) : undefined;
-  const activeCustomerOrders = orders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status));
-  const activeKitchenOrders = tableOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
-  const activeKotCount = activeKitchenOrders.filter((order) => ["new", "accepted", "preparing", "ready"].includes(order.status)).length;
-  const activeOrderCount = activeCustomerOrders.length + activeKitchenOrders.length;
+  const operationalOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
+  const activeOperationalOrders = operationalOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
+  const activeKotCount = activeOperationalOrders.filter((order) => order.hasKitchenTicket !== false && ["new", "accepted", "preparing", "ready"].includes(order.status)).length;
+  const activeOrderCount = activeOperationalOrders.length;
   const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status) && isToday(order.createdAt)).length;
 
   const persistDraft = useCallback(async (nextBill: PosBill, extra: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }> = {}) => {
@@ -377,6 +457,8 @@ export function PosBillingFlow() {
       customerPhone: bill.customerPhone || undefined,
       deliveryAddress: bill.orderType === "delivery" ? [deliveryAddress, landmark].filter(Boolean).join(", ") || undefined : undefined,
       lines: bill.lines,
+      status: bill.orderType === "parcel" ? "preparing" as const : "new" as const,
+      foodStatus: bill.orderType === "parcel" ? "preparing" as const : "new" as const,
       priority: "normal" as const,
       waiterName: bill.waiterName || authUser.name,
       branchId: branch.id,
@@ -500,6 +582,7 @@ export function PosBillingFlow() {
       setWizardStep(4);
       setProcessingState("saving");
       await wait(420);
+      await persistDraft(bill, { deliveryAddress, landmark, orderNote });
       setProcessingState("kitchen");
       const kitchenOrder = await sendKot();
       if (!kitchenOrder) {
@@ -541,8 +624,9 @@ export function PosBillingFlow() {
       setWizardStep(5);
       toast.success("Order placed. Kitchen Operations has been updated.");
     } catch (error) {
-      console.error("[pos] order processing failed", { reason: error instanceof Error ? error.name : typeof error });
-      toast.error("Order could not be completed. Please retry.");
+      const message = error instanceof Error ? error.message : "Order could not be completed. Please retry.";
+      console.error("[pos] order processing failed", { message, reason: error instanceof Error ? error.name : typeof error });
+      toast.error(message);
       setProcessingState("idle");
       setWizardStep(3);
     }
@@ -689,13 +773,20 @@ export function PosBillingFlow() {
     setWizardStep(3);
   }
 
-  async function collectActivePayment(order: TableOrder, split = false) {
-    const canonical = orders.find((item) => item.kitchenOrderId === order.id);
+  function canonicalForKitchenOrder(order: OperationalOrder | TableOrder) {
+    const operational = order as OperationalOrder;
+    return operational.canonicalOrderId
+      ? orders.find((item) => item.id === operational.canonicalOrderId)
+      : orders.find((item) => item.kitchenOrderId === order.id);
+  }
+
+  async function collectActivePayment(order: TableOrder) {
+    const canonical = canonicalForKitchenOrder(order);
     if (!canonical) {
       toast.error("Open and save this order before collecting payment.");
       return;
     }
-    const amountText = window.prompt(split ? "Split payment amount" : "Payment amount", String(order.total ?? 0));
+    const amountText = window.prompt("Payment amount", String(order.total ?? 0));
     if (!amountText) return;
     const amount = Number(amountText);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -707,23 +798,32 @@ export function PosBillingFlow() {
       toast.error("Choose cash, upi, card, or credit.");
       return;
     }
-    const response = await fetch("/api/owner/orders", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "payment", orderId: canonical.id, kitchenOrderId: order.id, amount, method: methodText }),
-    });
-    const result = await readPosPayload<{ paymentStatus?: "pending" | "partial" | "paid" }>(response, "Payment could not be recorded.");
-    const paymentStatus = result.paymentStatus ?? (amount + 0.01 < Number(order.total ?? 0) ? "partial" : "paid");
-    setReadModel((current) => ({
-      ...current,
-      tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, paymentStatus } : item),
-      orders: current.orders.map((item) => item.id === canonical.id ? { ...item, splitPayment: paymentStatus === "partial" || item.splitPayment } : item),
-    }));
-    toast.success(paymentStatus === "partial" ? "Partial payment recorded." : "Payment recorded.");
+    const kitchenOrderId = (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id;
+    setActiveAction(`payment:${order.id}`);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "payment", orderId: canonical.id, kitchenOrderId, amount, method: methodText }),
+      });
+      const result = await readPosPayload<{ data?: { paymentStatus?: "pending" | "partial" | "paid" }; paymentStatus?: "pending" | "partial" | "paid" }>(response, "Payment could not be recorded.");
+      const paymentStatus = result.data?.paymentStatus ?? result.paymentStatus ?? (amount + 0.01 < Number(order.total ?? 0) ? "partial" : "paid");
+      await refreshPosReadModel({ applyDraft: false });
+      setReadModel((current) => ({
+        ...current,
+        tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, paymentStatus } : item),
+        orders: current.orders.map((item) => item.id === canonical.id ? { ...item, splitPayment: paymentStatus === "partial" || item.splitPayment } : item),
+      }));
+      toast.success(paymentStatus === "partial" ? "Partial payment recorded." : "Payment recorded.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Payment could not be recorded.");
+    } finally {
+      setActiveAction(null);
+    }
   }
 
-  async function recordActivePrint(order: TableOrder, type: "bill" | "kot") {
-    const canonical = orders.find((item) => item.kitchenOrderId === order.id);
+  async function recordActivePrint(order: TableOrder, type: "bill" | "kot" | "receipt") {
+    const canonical = canonicalForKitchenOrder(order);
     if (canonical) {
       await fetch("/api/owner/orders", {
         method: "PATCH",
@@ -732,44 +832,169 @@ export function PosBillingFlow() {
       }).catch(() => undefined);
     }
     openKitchenOrder(order);
-    if (type === "bill") setBillPreviewOpen(true);
+    if (type === "bill" || type === "receipt") setBillPreviewOpen(true);
     else window.setTimeout(() => printTicket("kot", ["Kitchen Copy"], Boolean(order.printedCount)), 0);
   }
 
-  async function moveActiveTable(order: TableOrder, mode: "transfer" | "merge") {
-    const target = window.prompt(mode === "merge" ? "Merge with table" : "Transfer to table", "");
-    if (!target?.trim()) return;
-    const tableNumber = mode === "merge" ? `${order.tableNumber}+${target.trim()}` : target.trim();
-    const response = await fetch("/api/owner/kitchen", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: order.id, tableNumber }),
-    });
-    const result = await readPosPayload<{ data?: TableOrder }>(response, "Table update could not be saved.");
-    if (result.data) setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? result.data! : item) }));
-    toast.success(mode === "merge" ? "Tables merged for this order." : "Order transferred.");
-  }
-
   async function remindKitchen(order: TableOrder) {
-    const response = await fetch("/api/owner/kitchen", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: order.id, priority: "rush", reminderAt: new Date().toISOString(), reminderBy: authUser.name || authUser.id }),
-    });
-    const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen reminder could not be sent.");
-    setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, ...(result.data ?? {}), priority: "rush" } : item) }));
+    const canonical = canonicalForKitchenOrder(order);
+    let updatedKitchen: TableOrder | undefined;
+    if ((order as OperationalOrder).hasKitchenTicket !== false) {
+      const response = await fetch("/api/owner/kitchen", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: order.id, priority: "rush", reminderAt: new Date().toISOString(), reminderBy: authUser.name || authUser.id }),
+      });
+      const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen reminder could not be sent.");
+      updatedKitchen = result.data;
+    }
+    if (canonical) {
+      const kitchenOrderId = (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id;
+      await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "event", event: "reminder", orderId: canonical.id, kitchenOrderId, note: "Kitchen reminder sent" }),
+      }).catch(() => undefined);
+    }
+    setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, ...(updatedKitchen ?? {}), priority: "rush" } : item) }));
     toast.success("Kitchen reminder sent.");
   }
 
   async function updateActiveOrderStatus(order: TableOrder, status: TableOrder["status"]) {
-    const response = await fetch("/api/owner/kitchen", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: order.id, status }),
-    });
-    const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
-    setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? result.data ?? { ...item, status } : item) }));
+    const canonical = canonicalForKitchenOrder(order);
+    let updatedKitchen: TableOrder | undefined;
+    if ((order as OperationalOrder).hasKitchenTicket !== false) {
+      const response = await fetch("/api/owner/kitchen", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: order.id, status }),
+      });
+      const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
+      updatedKitchen = result.data;
+    }
+    if (canonical && (status === "completed" || status === "cancelled")) {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderId: canonical.id, kitchenOrderId: (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id, status }),
+      });
+      await readPosPayload(response, "Order status could not be updated.");
+    }
+    const event = status === "ready" ? "kitchen_ready" : status === "accepted" ? "kitchen_accepted" : status === "completed" ? "completion" : null;
+    if (canonical && event) {
+      const kitchenOrderId = (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id;
+      await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "event", event, orderId: canonical.id, kitchenOrderId }),
+      }).catch(() => undefined);
+    }
+    setReadModel((current) => ({
+      ...current,
+      tableOrders: current.tableOrders.map((item) => item.id === order.id ? updatedKitchen ?? { ...item, status } : item),
+      orders: canonical ? current.orders.map((item) => item.id === canonical.id ? { ...item, status: demoStatusForTableStatus(status) } : item) : current.orders,
+    }));
     toast.success(status === "cancelled" ? "Order cancelled." : "Order completed.");
+  }
+
+  async function splitActiveBill(order: OperationalOrder, splits: SplitBillPayload[]) {
+    const canonical = canonicalForKitchenOrder(order);
+    if (!canonical) {
+      toast.error("Open and save this order before splitting the bill.");
+      return;
+    }
+    const actionId = `split:${order.id}`;
+    setActiveAction(actionId);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "split_bill",
+          orderId: canonical.id,
+          kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
+          splits,
+        }),
+      });
+      await readPosPayload(response, "Split bill could not be recorded.");
+      await refreshPosReadModel({ applyDraft: false });
+      setSplitTarget(null);
+      toast.success("Split bill recorded.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Split bill could not be recorded.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function transferActiveTable(order: OperationalOrder, tableNumber: string, waiterName?: string) {
+    const canonical = canonicalForKitchenOrder(order);
+    if (!canonical) {
+      toast.error("Open and save this order before transferring the table.");
+      return;
+    }
+    const actionId = `transfer:${order.id}`;
+    setActiveAction(actionId);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "transfer_table",
+          orderId: canonical.id,
+          kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
+          tableNumber,
+          waiterName,
+        }),
+      });
+      await readPosPayload(response, "Table transfer could not be saved.");
+      await refreshPosReadModel({ applyDraft: false });
+      setTransferTarget(null);
+      toast.success(`Moved to ${tableNumber}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Table transfer could not be saved.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function mergeActiveTables(order: OperationalOrder, sourceOrders: OperationalOrder[], tableNumber?: string) {
+    const canonical = canonicalForKitchenOrder(order);
+    if (!canonical) {
+      toast.error("Open and save this order before merging tables.");
+      return;
+    }
+    const sourceOrderIds = sourceOrders
+      .map((item) => canonicalForKitchenOrder(item)?.id)
+      .filter((id): id is string => Boolean(id && id !== canonical.id));
+    if (!sourceOrderIds.length) {
+      toast.error("Choose at least one order to merge.");
+      return;
+    }
+    const actionId = `merge:${order.id}`;
+    setActiveAction(actionId);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "merge_tables",
+          orderId: canonical.id,
+          kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
+          sourceOrderIds,
+          sourceKitchenOrderIds: sourceOrders.filter((item) => item.hasKitchenTicket !== false).map((item) => item.id),
+          tableNumber,
+        }),
+      });
+      await readPosPayload(response, "Tables could not be merged.");
+      await refreshPosReadModel({ applyDraft: false });
+      setMergeTarget(null);
+      toast.success("Tables merged.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Tables could not be merged.");
+    } finally {
+      setActiveAction(null);
+    }
   }
 
   function renderWizardMain() {
@@ -905,20 +1130,24 @@ export function PosBillingFlow() {
           ) : panel === "active" ? (
             <ActiveOrdersPanel
               orders={orders}
-              kitchenOrders={tableOrders}
+              kitchenOrders={operationalOrders}
               tables={tables}
               staff={staffMembers}
               onOpenNew={requestNewOrder}
               onOpen={openKitchenOrder}
               onPrintBill={(order) => void recordActivePrint(order, "bill")}
+              onPrintReceipt={(order) => void recordActivePrint(order, "receipt")}
               onPrintKot={(order) => void recordActivePrint(order, "kot")}
               onCollectPayment={(order) => void collectActivePayment(order)}
-              onSplitBill={(order) => void collectActivePayment(order, true)}
-              onTransfer={(order) => void moveActiveTable(order, "transfer")}
-              onMerge={(order) => void moveActiveTable(order, "merge")}
+              onSplit={(order) => setSplitTarget(order)}
+              onTransfer={(order) => setTransferTarget(order)}
+              onMerge={(order) => setMergeTarget(order)}
+              onTimeline={(order) => setTimelineTarget(order)}
+              onPaymentHistory={(order) => setPaymentHistoryTarget(order)}
               onReminder={(order) => void remindKitchen(order)}
               onComplete={(order) => void updateActiveOrderStatus(order, "completed")}
               onCancel={(order) => void updateActiveOrderStatus(order, "cancelled")}
+              activeAction={activeAction}
             />
           ) : panel === "past" ? (
             <PastOrdersPanel orders={orders} />
@@ -1033,6 +1262,49 @@ export function PosBillingFlow() {
             confirmLabel="Remove"
             onCancel={() => setHeldDeleteTarget(null)}
             onConfirm={() => removeHeldOrder(heldDeleteTarget)}
+          />
+        ) : null}
+        {splitTarget ? (
+          <SplitBillDialog
+            order={splitTarget}
+            canonical={canonicalForKitchenOrder(splitTarget) as ExtendedDemoOrder | undefined}
+            busy={activeAction === `split:${splitTarget.id}`}
+            onClose={() => setSplitTarget(null)}
+            onSubmit={(splits) => void splitActiveBill(splitTarget, splits)}
+          />
+        ) : null}
+        {transferTarget ? (
+          <TransferTableDialog
+            order={transferTarget}
+            tables={tables}
+            staff={activeWaiters}
+            busy={activeAction === `transfer:${transferTarget.id}`}
+            onClose={() => setTransferTarget(null)}
+            onSubmit={(tableNumber, waiterName) => void transferActiveTable(transferTarget, tableNumber, waiterName)}
+          />
+        ) : null}
+        {mergeTarget ? (
+          <MergeTablesDialog
+            target={mergeTarget}
+            orders={activeOperationalOrders.filter((order) => order.id !== mergeTarget.id)}
+            busy={activeAction === `merge:${mergeTarget.id}`}
+            onClose={() => setMergeTarget(null)}
+            onSubmit={(sourceOrders, tableNumber) => void mergeActiveTables(mergeTarget, sourceOrders, tableNumber)}
+          />
+        ) : null}
+        {timelineTarget ? (
+          <OrderTimelineDialog
+            order={timelineTarget}
+            canonical={canonicalForKitchenOrder(timelineTarget) as ExtendedDemoOrder | undefined}
+            onClose={() => setTimelineTarget(null)}
+          />
+        ) : null}
+        {paymentHistoryTarget ? (
+          <PaymentHistoryDialog
+            order={paymentHistoryTarget}
+            canonical={canonicalForKitchenOrder(paymentHistoryTarget) as ExtendedDemoOrder | undefined}
+            printLogs={printerSettings.printLogs ?? []}
+            onClose={() => setPaymentHistoryTarget(null)}
           />
         ) : null}
         {activeKitchenOrder ? <span className="sr-only">Active kitchen ticket {activeKitchenOrder.id}</span> : null}
@@ -1533,6 +1805,415 @@ function PosConfirmDialog({
   );
 }
 
+function PosDialogFrame({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-3">
+      <section role="dialog" aria-modal="true" aria-labelledby="pos-dialog-title" className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+          <div>
+            <h2 id="pos-dialog-title" className="text-lg font-black text-slate-950">{title}</h2>
+            {subtitle ? <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p> : null}
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}><X className="size-4" /></Button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function SplitBillDialog({ order, canonical, busy, onClose, onSubmit }: { order: OperationalOrder; canonical?: ExtendedDemoOrder; busy?: boolean; onClose: () => void; onSubmit: (splits: SplitBillPayload[]) => void }) {
+  const balance = orderBalanceDue(canonical, order);
+  const [rows, setRows] = useState<SplitBillDraft[]>(() => {
+    const first = moneyRound(balance / 2);
+    return [
+      createSplitDraft("Guest 1", first || balance),
+      createSplitDraft("Guest 2", moneyRound(balance - first)),
+    ].filter((row) => row.amount > 0);
+  });
+  const splitTotal = moneyRound(rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0));
+  const invalid = !rows.length || splitTotal <= 0 || splitTotal > balance + 0.01;
+
+  function updateRow(key: string, patch: Partial<SplitBillDraft>) {
+    setRows((current) => current.map((row) => row.key === key ? { ...row, ...patch } : row));
+  }
+
+  function submit() {
+    if (invalid) return toast.error(splitTotal > balance ? "Split amount exceeds the balance due." : "Add at least one valid split row.");
+    onSubmit(rows.filter((row) => row.amount > 0).map((row) => ({
+      customerName: row.customerName,
+      amount: row.amount,
+      method: row.method,
+      basis: row.basis,
+      itemId: row.itemId || undefined,
+      quantity: row.quantity || undefined,
+      percent: row.percent || undefined,
+      receipt: row.receipt,
+      note: row.note || undefined,
+    })));
+  }
+
+  return (
+    <PosDialogFrame title="Split Bill" subtitle={`${order.tableNumber} · Balance ${formatCurrency(balance)}`} onClose={onClose}>
+      <div className="max-h-[70vh] overflow-y-auto p-4">
+        <div className="grid gap-3">
+          {rows.map((row, index) => (
+            <div key={row.key} className="grid gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[1fr_130px_130px_130px_auto]">
+              <input className="h-10 rounded-lg border px-3 text-sm font-semibold" value={row.customerName} onChange={(event) => updateRow(row.key, { customerName: event.target.value })} aria-label={`Split customer ${index + 1}`} />
+              <input className="h-10 rounded-lg border px-3 text-sm font-semibold" type="number" min="0" step="1" value={row.amount} onChange={(event) => updateRow(row.key, { amount: Number(event.target.value) })} aria-label={`Split amount ${index + 1}`} />
+              <select className="h-10 rounded-lg border px-3 text-sm font-semibold" value={row.method} onChange={(event) => updateRow(row.key, { method: event.target.value as PaymentMethod })} aria-label={`Payment method ${index + 1}`}>
+                {(["cash", "upi", "card", "credit"] as PaymentMethod[]).map((method) => <option key={method} value={method}>{method.toUpperCase()}</option>)}
+              </select>
+              <select className="h-10 rounded-lg border px-3 text-sm font-semibold" value={row.basis} onChange={(event) => updateRow(row.key, { basis: event.target.value as SplitBillDraft["basis"] })} aria-label={`Split basis ${index + 1}`}>
+                <option value="custom">Custom</option>
+                <option value="item">Item</option>
+                <option value="quantity">Quantity</option>
+                <option value="percentage">Percentage</option>
+              </select>
+              <Button variant="outline" size="sm" className="h-10" onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}>Remove</Button>
+              <select className="h-10 rounded-lg border px-3 text-sm font-semibold md:col-span-2" value={row.itemId} onChange={(event) => updateRow(row.key, { itemId: event.target.value })} aria-label={`Split item ${index + 1}`}>
+                <option value="">No item binding</option>
+                {order.lines.map((line) => <option key={line.itemId} value={line.itemId}>{line.name}</option>)}
+              </select>
+              <input className="h-10 rounded-lg border px-3 text-sm font-semibold" type="number" min="0" value={row.quantity} onChange={(event) => updateRow(row.key, { quantity: Number(event.target.value) })} aria-label={`Split quantity ${index + 1}`} />
+              <input className="h-10 rounded-lg border px-3 text-sm font-semibold" type="number" min="0" max="100" value={row.percent} onChange={(event) => updateRow(row.key, { percent: Number(event.target.value) })} aria-label={`Split percent ${index + 1}`} />
+              <label className="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-bold"><input type="checkbox" checked={row.receipt} onChange={(event) => updateRow(row.key, { receipt: event.target.checked })} />Receipt</label>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <Button variant="outline" onClick={() => setRows((current) => [...current, createSplitDraft(`Guest ${current.length + 1}`, 0)])}><Scissors className="size-4" />Add Split</Button>
+          <div className="text-sm font-black text-slate-700">Split total {formatCurrency(splitTotal)} / {formatCurrency(balance)}</div>
+        </div>
+      </div>
+      <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-2">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={busy || invalid} onClick={submit}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Scissors className="size-4" />}Record Split Bill</Button>
+      </div>
+    </PosDialogFrame>
+  );
+}
+
+function TransferTableDialog({ order, tables, staff, busy, onClose, onSubmit }: { order: OperationalOrder; tables: PosTable[]; staff: StaffMember[]; busy?: boolean; onClose: () => void; onSubmit: (tableNumber: string, waiterName?: string) => void }) {
+  const [tableNumber, setTableNumber] = useState(order.tableNumber || "");
+  const [waiterName, setWaiterName] = useState(order.waiterName || "");
+  const tableOptions = tables.map((table) => table.table).filter(Boolean);
+  return (
+    <PosDialogFrame title="Transfer Table" subtitle={`${order.tableNumber || "Current order"} · ${formatCurrency(order.total ?? 0)}`} onClose={onClose}>
+      <div className="grid gap-4 p-4">
+        <label className="grid gap-2 text-sm font-black text-slate-700">
+          Target table
+          <input list="pos-transfer-tables" className="h-11 rounded-xl border px-3 text-sm font-semibold" value={tableNumber} onChange={(event) => setTableNumber(event.target.value)} />
+          <datalist id="pos-transfer-tables">{tableOptions.map((table) => <option key={table} value={table} />)}</datalist>
+        </label>
+        <label className="grid gap-2 text-sm font-black text-slate-700">
+          Waiter
+          <select className="h-11 rounded-xl border px-3 text-sm font-semibold" value={waiterName} onChange={(event) => setWaiterName(event.target.value)}>
+            <option value="">Keep current waiter</option>
+            {staff.map((member) => <option key={member.id} value={member.name}>{member.name}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-2">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={busy || !tableNumber.trim()} onClick={() => onSubmit(tableNumber.trim(), waiterName || undefined)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowRightLeft className="size-4" />}Transfer</Button>
+      </div>
+    </PosDialogFrame>
+  );
+}
+
+function MergeTablesDialog({ target, orders, busy, onClose, onSubmit }: { target: OperationalOrder; orders: OperationalOrder[]; busy?: boolean; onClose: () => void; onSubmit: (orders: OperationalOrder[], tableNumber?: string) => void }) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [tableNumber, setTableNumber] = useState(target.tableNumber || "");
+  const selected = orders.filter((order) => selectedIds.includes(order.id));
+  const total = moneyRound([target, ...selected].reduce((sum, order) => sum + Number(order.total ?? 0), 0));
+  return (
+    <PosDialogFrame title="Merge Tables" subtitle={`Target ${target.tableNumber || target.id} · ${formatCurrency(target.total ?? 0)}`} onClose={onClose}>
+      <div className="max-h-[70vh] overflow-y-auto p-4">
+        <label className="mb-3 grid gap-2 text-sm font-black text-slate-700">
+          Final table label
+          <input className="h-11 rounded-xl border px-3 text-sm font-semibold" value={tableNumber} onChange={(event) => setTableNumber(event.target.value)} />
+        </label>
+        <div className="grid gap-2">
+          {orders.length ? orders.map((order) => (
+            <label key={order.id} className="grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-200 p-3">
+              <input type="checkbox" checked={selectedIds.includes(order.id)} onChange={(event) => setSelectedIds((current) => event.target.checked ? [...current, order.id] : current.filter((id) => id !== order.id))} />
+              <span className="min-w-0">
+                <span className="block font-black text-slate-950">{order.tableNumber || order.id}</span>
+                <span className="block truncate text-xs font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"} · {order.lines.length} items · {order.status}</span>
+              </span>
+              <span className="font-black text-slate-800">{formatCurrency(order.total ?? 0)}</span>
+            </label>
+          )) : (
+            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm font-semibold text-slate-500">No other active orders can be merged.</div>
+          )}
+        </div>
+      </div>
+      <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]">
+        <div className="text-sm font-black text-slate-700">Merged total {formatCurrency(total)}</div>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={busy || !selected.length} onClick={() => onSubmit(selected, tableNumber || undefined)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <GitMerge className="size-4" />}Merge</Button>
+      </div>
+    </PosDialogFrame>
+  );
+}
+
+function OrderTimelineDialog({ order, canonical, onClose }: { order: OperationalOrder; canonical?: ExtendedDemoOrder; onClose: () => void }) {
+  const entries = timelineEntries(canonical, order);
+  return (
+    <PosDialogFrame title="Order Timeline" subtitle={`${order.tableNumber || order.id} · ${order.status}`} onClose={onClose}>
+      <TimelineList entries={entries} empty="No timeline events recorded yet." />
+    </PosDialogFrame>
+  );
+}
+
+function PaymentHistoryDialog({ order, canonical, printLogs, onClose }: { order: OperationalOrder; canonical?: ExtendedDemoOrder; printLogs: PrintLog[]; onClose: () => void }) {
+  const payments = paymentEntries(canonical, order);
+  const splits = canonical?.splitBills ?? order.splitBills ?? [];
+  const prints = printHistoryEntries(canonical, order, printLogs);
+  return (
+    <PosDialogFrame title="Payment History" subtitle={`${paymentLabel(order.paymentStatus)} · Paid ${formatCurrency(orderPaidAmount(canonical, order))} / ${formatCurrency(order.total ?? canonical?.totals.total ?? 0)}`} onClose={onClose}>
+      <div className="max-h-[70vh] overflow-y-auto p-4">
+        <h3 className="mb-2 text-sm font-black uppercase text-slate-400">Payments</h3>
+        <TimelineList entries={payments} empty="No payment events recorded." compact />
+        <h3 className="mb-2 mt-5 text-sm font-black uppercase text-slate-400">Split Bills</h3>
+        {splits.length ? (
+          <div className="grid gap-2">
+            {splits.map((split, index) => (
+              <div key={`${split.id ?? index}`} className="grid gap-2 rounded-xl border border-slate-200 p-3 sm:grid-cols-[1fr_auto_auto]">
+                <div>
+                  <p className="font-black text-slate-950">{split.customerName || `Split ${index + 1}`}</p>
+                  <p className="text-xs font-semibold text-slate-500">{split.basis || "custom"} · {formatTimelineTime(split.at)}</p>
+                </div>
+                <p className="font-black text-slate-800">{String(split.method ?? "").toUpperCase()}</p>
+                <p className="font-black text-emerald-700">{formatCurrency(Number(split.amount ?? 0))}</p>
+              </div>
+            ))}
+          </div>
+        ) : <p className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm font-semibold text-slate-500">No split bills recorded.</p>}
+        <h3 className="mb-2 mt-5 text-sm font-black uppercase text-slate-400">Print History</h3>
+        <TimelineList entries={prints} empty="No print history recorded." compact />
+      </div>
+    </PosDialogFrame>
+  );
+}
+
+function TimelineList({ entries, empty, compact = false }: { entries: TimelineEntry[]; empty: string; compact?: boolean }) {
+  return entries.length ? (
+    <div className="grid gap-2">
+      {entries.map((entry, index) => (
+        <div key={`${timelineLabel(entry)}-${index}`} className={cn("rounded-xl border border-slate-200", compact ? "p-3" : "p-4")}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-black text-slate-950">{timelineLabel(entry)}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">{formatTimelineTime(entryTimeValue(entry))}</p>
+            </div>
+            {Number.isFinite(Number(entry.amount)) ? <Badge variant="secondary">{formatCurrency(Number(entry.amount))}</Badge> : null}
+          </div>
+          {entry.method || entry.role || entry.user || entry.device ? <p className="mt-2 text-xs font-semibold text-slate-500">{[entry.method ? String(entry.method).toUpperCase() : "", entry.role, entry.user, entry.device].filter(Boolean).join(" · ")}</p> : null}
+        </div>
+      ))}
+    </div>
+  ) : <p className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm font-semibold text-slate-500">{empty}</p>;
+}
+
+function createSplitDraft(customerName: string, amount: number): SplitBillDraft {
+  return {
+    key: Math.random().toString(36).slice(2),
+    customerName,
+    amount: moneyRound(amount),
+    method: "cash",
+    basis: "custom",
+    itemId: "",
+    quantity: 0,
+    percent: 0,
+    receipt: true,
+    note: "",
+  };
+}
+
+function orderPaidAmount(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
+  const paid = canonical?.paidAmount ?? order.paidAmount;
+  if (Number.isFinite(paid)) return Number(paid);
+  return order.paymentStatus === "paid" ? Number(order.total ?? canonical?.totals.total ?? 0) : 0;
+}
+
+function orderBalanceDue(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
+  return Math.max(0, moneyRound(Number(order.total ?? canonical?.totals.total ?? 0) - orderPaidAmount(canonical, order)));
+}
+
+function timelineEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
+  return [
+    ...safeTimeline(canonical?.auditTimeline),
+    ...safeTimeline(canonical?.statusHistory),
+    ...safeTimeline(canonical?.paymentTimeline),
+    ...safeTimeline(order.auditTimeline),
+    ...safeTimeline(order.statusHistory),
+    ...safeTimeline(order.paymentTimeline),
+  ].sort((first, second) => timelineMillis(first) - timelineMillis(second));
+}
+
+function paymentEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
+  return [
+    ...safeTimeline(canonical?.paymentTimeline),
+    ...safeTimeline(order.paymentTimeline),
+  ].sort((first, second) => timelineMillis(first) - timelineMillis(second));
+}
+
+function printHistoryEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder, logs: PrintLog[]) {
+  const canonicalId = canonical?.id ?? order.canonicalOrderId ?? order.id;
+  const printEvents = timelineEntries(canonical, order).filter((entry) => /print/i.test(String(entry.type ?? entry.event ?? "")));
+  const logEvents = logs
+    .filter((log) => {
+      const entry = log as PrintLog & { orderId?: string; referenceId?: string };
+      return entry.orderId === canonicalId || entry.referenceId === canonicalId || entry.referenceId === order.id;
+    })
+    .map((log) => ({ type: `${log.type || "print"}_${log.status || "logged"}`, timestamp: log.timestamp, user: log.user, device: (log as PrintLog & { printerProfileId?: string }).printerProfileId }));
+  return [...printEvents, ...logEvents].sort((first, second) => timelineMillis(first) - timelineMillis(second));
+}
+
+function safeTimeline(value?: TimelineEntry[]) {
+  return Array.isArray(value) ? value.filter((entry) => entry && typeof entry === "object") : [];
+}
+
+function timelineLabel(entry: TimelineEntry) {
+  const raw = String(entry.type ?? entry.event ?? entry.status ?? "event");
+  return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function entryTimeValue(entry: TimelineEntry) {
+  return entry.timestamp ?? entry.at ?? entry.createdAt ?? entry.time;
+}
+
+function formatTimelineTime(value: unknown) {
+  const millis = valueMillis(value);
+  return millis ? new Date(millis).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Time not recorded";
+}
+
+function timelineMillis(entry: TimelineEntry) {
+  return valueMillis(entryTimeValue(entry)) || 0;
+}
+
+function valueMillis(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof value === "object" && "toDate" in value && typeof (value as { toDate?: unknown }).toDate === "function") {
+    const date = (value as { toDate: () => Date }).toDate();
+    return date.getTime();
+  }
+  if (typeof value === "object" && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds ?? 0) * 1000;
+  }
+  return 0;
+}
+
+function moneyRound(value: number) {
+  return Number.isFinite(value) ? Math.max(0, Math.round(value * 100) / 100) : 0;
+}
+
+function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]): OperationalOrder[] {
+  const ordersByKitchen = new Map(orders.filter((order) => order.kitchenOrderId).map((order) => [order.kitchenOrderId, order]));
+  const linkedKitchenIds = new Set(kitchenOrders.map((order) => order.id));
+  const merged = kitchenOrders.map((order) => {
+    const canonical = ordersByKitchen.get(order.id);
+    return {
+      ...order,
+      canonicalOrderId: canonical?.id,
+      canonicalStatus: canonical?.status,
+      hasKitchenTicket: true,
+      paymentStatus: paymentStateForOrder(canonical) ?? order.paymentStatus,
+      total: canonical?.totals.total ?? order.total,
+      customerName: canonical?.customer.name || order.customerName,
+      customerPhone: canonical?.customer.phone || order.customerPhone,
+      paymentTimeline: (canonical as ExtendedDemoOrder | undefined)?.paymentTimeline,
+      auditTimeline: (canonical as ExtendedDemoOrder | undefined)?.auditTimeline,
+      statusHistory: (canonical as ExtendedDemoOrder | undefined)?.statusHistory,
+      splitBills: (canonical as ExtendedDemoOrder | undefined)?.splitBills,
+      paidAmount: (canonical as ExtendedDemoOrder | undefined)?.paidAmount,
+      mergedOrderIds: (canonical as ExtendedDemoOrder | undefined)?.mergedOrderIds,
+    } satisfies OperationalOrder;
+  });
+  const orderOnly = orders
+    .filter((order) => isActiveDemoOrder(order))
+    .filter((order) => !order.kitchenOrderId || !linkedKitchenIds.has(order.kitchenOrderId))
+    .map(orderToOperationalOrder);
+  return [...merged, ...orderOnly].sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
+}
+
+function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
+  const orderType = order.fulfillmentType === "delivery" ? "delivery" : order.fulfillmentType === "dine-in" ? "dine-in" : "parcel";
+  return {
+    id: order.id,
+    canonicalOrderId: order.id,
+    canonicalStatus: order.status,
+    hasKitchenTicket: false,
+    tableNumber: order.fulfillmentType === "dine-in" ? "Dine-in" : order.fulfillmentType === "delivery" ? "Online" : "Parcel",
+    source: order.channel === "QR" ? "QR" : order.fulfillmentType === "delivery" ? "Delivery" : order.fulfillmentType === "parcel" ? "Parcel" : "POS",
+    orderType,
+    customerName: order.customer.name,
+    customerPhone: order.customer.phone,
+    deliveryAddress: order.customer.address,
+    scheduledFor: order.scheduledFor,
+    lines: order.lines,
+    status: tableStatusForOrder(order.status),
+    priority: "normal",
+    paymentStatus: paymentStateForOrder(order),
+    createdAt: order.createdAt,
+    etaMinutes: order.prepEstimateMinutes ?? 12,
+    total: order.totals.total,
+    paymentTimeline: (order as ExtendedDemoOrder).paymentTimeline,
+    auditTimeline: (order as ExtendedDemoOrder).auditTimeline,
+    statusHistory: (order as ExtendedDemoOrder).statusHistory,
+    splitBills: (order as ExtendedDemoOrder).splitBills,
+    paidAmount: (order as ExtendedDemoOrder).paidAmount,
+    mergedOrderIds: (order as ExtendedDemoOrder).mergedOrderIds,
+    mergedIntoOrderId: (order as ExtendedDemoOrder).mergedIntoOrderId,
+  };
+}
+
+function isActiveDemoOrder(order: DemoOrder) {
+  return !["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+}
+
+function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] {
+  if (status === "accepted") return "accepted";
+  if (status === "preparing") return "preparing";
+  if (status === "ready") return "ready";
+  if (status === "served") return "served";
+  if (status === "completed" || status === "delivered") return "completed";
+  if (status === "cancelled" || status === "rejected") return "cancelled";
+  return "new";
+}
+
+function demoStatusForTableStatus(status: TableOrder["status"]): DemoOrder["status"] {
+  if (status === "completed") return "completed";
+  if (status === "cancelled") return "cancelled";
+  if (status === "accepted") return "accepted";
+  if (status === "preparing") return "preparing";
+  if (status === "ready") return "ready";
+  if (status === "served") return "served";
+  return "new";
+}
+
+function paymentStateForOrder(order?: DemoOrder): TableOrder["paymentStatus"] | undefined {
+  if (!order?.paymentStatus) return undefined;
+  if (order.paymentStatus === "paid" || order.paymentStatus === "partial" || order.paymentStatus === "refunded") return order.paymentStatus;
+  return "unpaid";
+}
+
 function readablePosOrderType(type: PosBill["orderType"]) {
   if (type === "dine-in") return "Dine-in";
   if (type === "takeaway") return "Quick Bill";
@@ -1565,9 +2246,29 @@ function wait(ms: number) {
 }
 
 async function readPosPayload<T>(response: Response, fallback: string) {
-  const payload = await response.json().catch(() => ({})) as T;
-  if (!response.ok) throw new Error(fallback);
+  const payload = await response.json().catch(() => ({})) as T & { error?: string };
+  if (!response.ok) throw new Error(toSafePosError(payload.error, fallback));
   return payload;
+}
+
+function toSafePosError(reason: string | undefined, fallback: string) {
+  if (!reason) return fallback;
+  const text = reason.toLowerCase();
+  if (/(firebase|firestore|repository|stack|admin|permission-denied|internal)/.test(text)) return fallback;
+  if (text.includes("no longer active") || text.includes("pos draft not found")) return "This order is no longer active. Please refresh.";
+  if (text.includes("kitchen ticket not found")) return "Kitchen ticket not found.";
+  if (text.includes("already been collected")) return "Payment has already been collected.";
+  if (text.includes("split bill")) return "Split bill could not be recorded. Check the split amounts and retry.";
+  if (text.includes("balance due")) return "Split amount exceeds the balance due.";
+  if (text.includes("target table")) return "Choose a target table before transferring.";
+  if (text.includes("source order")) return "Choose at least one active order to merge.";
+  if (text.includes("kitchen")) return "Kitchen ticket could not be updated. Check Kitchen Operations and retry.";
+  if (text.includes("payment")) return "Payment could not be recorded. Keep the bill open and retry.";
+  if (text.includes("network") || text.includes("fetch")) return "Network connection was interrupted. Check internet and retry.";
+  if (text.includes("unauthorized") || text.includes("forbidden")) return "Your session cannot complete this action. Sign in again or ask the owner.";
+  if (text.includes("closed")) return "Restaurant is closed for ordering. Update hours or retry when open.";
+  if (text.includes("unavailable") || text.includes("sold out")) return "One or more items are unavailable. Review the cart and retry.";
+  return reason.length <= 120 ? reason : fallback;
 }
 
 function addItemToBill(bill: PosBill, item: PosProduct): PosBill {
@@ -1596,6 +2297,7 @@ function updateBillQuantity(bill: PosBill, itemId: string, quantity: number): Po
 }
 
 function tableOrderToBill(order: TableOrder, current: PosBill): PosBill {
+  const operational = order as OperationalOrder;
   return {
     ...current,
     table: order.tableNumber || "DIRECT",
@@ -1604,7 +2306,7 @@ function tableOrderToBill(order: TableOrder, current: PosBill): PosBill {
     paid: order.paymentStatus === "paid",
     customerName: order.customerName || order.guestName,
     customerPhone: order.customerPhone,
-    linkedKitchenOrderId: order.id,
+    linkedKitchenOrderId: operational.hasKitchenTicket === false ? undefined : order.id,
     waiterName: order.waiterName,
   };
 }
@@ -1683,37 +2385,45 @@ function ActiveOrdersPanel({
   onOpenNew,
   onOpen,
   onPrintBill,
+  onPrintReceipt,
   onPrintKot,
   onCollectPayment,
-  onSplitBill,
+  onSplit,
   onTransfer,
   onMerge,
+  onTimeline,
+  onPaymentHistory,
   onReminder,
   onComplete,
   onCancel,
+  activeAction,
 }: {
   orders: DemoOrder[];
-  kitchenOrders: TableOrder[];
+  kitchenOrders: OperationalOrder[];
   tables: PosTable[];
   staff: StaffMember[];
   onOpenNew: () => void;
   onOpen: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
+  onPrintReceipt: (order: TableOrder) => void;
   onPrintKot: (order: TableOrder) => void;
   onCollectPayment: (order: TableOrder) => void;
-  onSplitBill: (order: TableOrder) => void;
-  onTransfer: (order: TableOrder) => void;
-  onMerge: (order: TableOrder) => void;
+  onSplit: (order: OperationalOrder) => void;
+  onTransfer: (order: OperationalOrder) => void;
+  onMerge: (order: OperationalOrder) => void;
+  onTimeline: (order: OperationalOrder) => void;
+  onPaymentHistory: (order: OperationalOrder) => void;
   onReminder: (order: TableOrder) => void;
   onComplete: (order: TableOrder) => void;
   onCancel: (order: TableOrder) => void;
+  activeAction?: string | null;
 }) {
   const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">("operations");
-  const activeCustomerOrders = orders.filter((order) => !["delivered", "completed", "cancelled", "rejected"].includes(order.status));
   const activeKitchenOrders = kitchenOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
   const readyOrders = activeKitchenOrders.filter((order) => order.status === "ready");
   const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
   const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
+  const completedToday = orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length;
   const delayedOrders = activeKitchenOrders.filter(isDelayedTableOrder);
   const occupiedTables = tables.filter((table) => ["occupied", "reserved"].includes(String(table.status)));
   const activeStaff = staff.filter((member) => member.status === "active");
@@ -1753,10 +2463,10 @@ function ActiveOrdersPanel({
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         {view === "operations" ? (
           <>
-            <OperationalMetric label="Active orders" value={String(activeKitchenOrders.length + activeCustomerOrders.length)} />
-            <OperationalMetric label="Ready orders" value={String(readyOrders.length)} />
+            <OperationalMetric label="Active orders" value={String(activeKitchenOrders.length)} />
+            <OperationalMetric label="Kitchen queue" value={String(activeKitchenOrders.filter((order) => ["new", "accepted", "preparing", "ready"].includes(order.status)).length)} />
             <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
-            <OperationalMetric label="Kitchen load" value={String(activeKitchenOrders.length)} />
+            <OperationalMetric label="Completed" value={String(completedToday)} />
           </>
         ) : null}
         {view === "waiter" ? (
@@ -1789,8 +2499,8 @@ function ActiveOrdersPanel({
           {Object.entries(kitchenLoad).map(([status, count]) => <OperationalMetric key={status} label={status} value={String(count)} />)}
         </div>
       ) : null}
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
-        {activeKitchenOrders.length || activeCustomerOrders.length ? (
+      <div className="mt-5 grid items-start gap-3 lg:grid-cols-2">
+        {activeKitchenOrders.length ? (
           <>
             {activeKitchenOrders.map((order, index) => (
               <article key={order.id} className="rounded-2xl border border-slate-200 p-4 shadow-sm">
@@ -1819,28 +2529,19 @@ function ActiveOrdersPanel({
                   <Button size="sm" variant="outline" onClick={() => onOpen(order)}>Edit</Button>
                   <Button size="sm" variant="outline" onClick={() => onOpen(order)}>Add Items</Button>
                   <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}>Print Bill</Button>
-                  <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}>Print Receipt</Button>
+                  <Button size="sm" variant="outline" onClick={() => onPrintReceipt(order)}>Print Receipt</Button>
                   <Button size="sm" variant="outline" onClick={() => onPrintKot(order)}>Print KOT</Button>
-                  <Button size="sm" variant="outline" onClick={() => onCollectPayment(order)}>Collect Payment</Button>
-                  <Button size="sm" variant="outline" onClick={() => onSplitBill(order)}>Split Bill</Button>
-                  <Button size="sm" variant="outline" onClick={() => onTransfer(order)}>Transfer Table</Button>
-                  <Button size="sm" variant="outline" onClick={() => onMerge(order)}>Merge Table</Button>
+                  <Button size="sm" variant="outline" onClick={() => onCollectPayment(order)} disabled={activeAction === `payment:${order.id}`}><CreditCard className="size-3.5" />Collect Payment</Button>
+                  <Button size="sm" variant="outline" onClick={() => onSplit(order)} disabled={activeAction === `split:${order.id}`}><Scissors className="size-3.5" />Split Bill</Button>
+                  <Button size="sm" variant="outline" onClick={() => onTransfer(order)} disabled={activeAction === `transfer:${order.id}`}><ArrowRightLeft className="size-3.5" />Transfer Table</Button>
+                  <Button size="sm" variant="outline" onClick={() => onMerge(order)} disabled={activeKitchenOrders.length < 2 || activeAction === `merge:${order.id}`}><GitMerge className="size-3.5" />Merge Table</Button>
+                  <Button size="sm" variant="outline" onClick={() => onTimeline(order)}><ListChecks className="size-3.5" />Timeline</Button>
+                  <Button size="sm" variant="outline" onClick={() => onPaymentHistory(order)}><History className="size-3.5" />Payment History</Button>
                   <Button size="sm" variant="outline" onClick={() => onReminder(order)}>Send Reminder</Button>
                   <Button size="sm" variant="outline" onClick={() => onComplete(order)}>Complete</Button>
                   <Button size="sm" variant="outline" className="text-red-600" onClick={() => onCancel(order)}>Cancel</Button>
                 </div>
               </article>
-            ))}
-            {activeCustomerOrders.map((order, index) => (
-              <OrderPanelRow
-                key={order.id}
-                id={readableOrderId({ id: order.id, channel: order.channel, orderType: order.fulfillmentType, createdAt: order.createdAt, sequence: index + 1 })}
-                customer={order.customer.name}
-                amount={order.totals.total}
-                time={actualOrderTime(order.createdAt)}
-                status={order.status}
-                source={order.channel}
-              />
             ))}
           </>
         ) : (
@@ -2018,38 +2719,6 @@ function CustomersPanel({ customers, onSelect }: { customers: LoyaltyCustomer[];
         )}
       </div>
     </section>
-  );
-}
-
-function OrderPanelRow({
-  id,
-  customer,
-  amount,
-  time,
-  status,
-  source,
-  actionLabel,
-  onAction,
-}: {
-  id: string;
-  customer: string;
-  amount: number;
-  time: string;
-  status: string;
-  source: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <article className="grid gap-3 rounded-2xl border border-slate-200 p-4 md:grid-cols-[1fr_auto_auto_auto] md:items-center">
-      <div>
-        <h3 className="font-black text-slate-950">{id}</h3>
-        <p className="mt-1 text-sm font-semibold text-slate-500">{customer} • {source} • {time}</p>
-      </div>
-      <Badge variant="muted">{status}</Badge>
-      <p className="text-lg font-black">{formatCurrency(amount)}</p>
-      {onAction ? <Button size="sm" variant="outline" onClick={onAction}>{actionLabel ?? "Open"}</Button> : null}
-    </article>
   );
 }
 

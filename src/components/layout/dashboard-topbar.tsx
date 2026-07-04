@@ -69,7 +69,7 @@ type SearchResult = {
 
 type NotificationItem = {
   id: string;
-  group: "New Orders" | "Delayed Orders" | "Catering" | "System Alerts";
+  group: "Restaurant Events" | "Kitchen" | "Payments" | "Customers" | "System";
   title: string;
   description: string;
   priority: "critical" | "medium" | "normal" | "success";
@@ -225,6 +225,16 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
     }
   }
 
+  function acknowledgeNotification(id: string) {
+    const next = new Set([...acknowledgedIds, id]);
+    setAcknowledgedIds(next);
+    try {
+      localStorage.setItem(notificationStorageKey, JSON.stringify(Array.from(next).slice(-150)));
+    } catch {
+      // Local notification acknowledgements are best-effort only.
+    }
+  }
+
   function toggleMute() {
     const next = !soundMuted;
     setSoundMuted(next);
@@ -294,14 +304,13 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
                 onClick={() => {
                   setNotificationsOpen((value) => !value);
                   setQuickActionsOpen(false);
-                  acknowledgeNotifications();
                 }}
               />
               {unreadCount ? (
                 <span className="absolute -right-1 -top-1 grid size-5 animate-pulse place-items-center rounded-full bg-red-500 text-[10px] font-black text-white">{unreadCount}</span>
               ) : null}
               {notificationsOpen ? (
-                <NotificationPanel notifications={notifications} onClose={() => setNotificationsOpen(false)} />
+                <NotificationPanel notifications={notifications} acknowledgedIds={acknowledgedIds} onMarkRead={acknowledgeNotification} onMarkAllRead={acknowledgeNotifications} onClose={() => setNotificationsOpen(false)} />
               ) : null}
             </div>
 
@@ -894,27 +903,47 @@ function SearchResultsPanel({ results, query, mobile = false, onNavigate }: { re
   return <div className="absolute left-0 right-0 top-14 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">{content}</div>;
 }
 
-function NotificationPanel({ notifications, onClose }: { notifications: NotificationItem[]; onClose: () => void }) {
-  const grouped = groupBy(notifications, (item) => item.group);
+function NotificationPanel({ notifications, acknowledgedIds, onMarkRead, onMarkAllRead, onClose }: { notifications: NotificationItem[]; acknowledgedIds: Set<string>; onMarkRead: (id: string) => void; onMarkAllRead: () => void; onClose: () => void }) {
+  const [statusFilter, setStatusFilter] = useState<"unread" | "all" | "read">("unread");
+  const [groupFilter, setGroupFilter] = useState<NotificationItem["group"] | "All">("All");
+  const groups: Array<NotificationItem["group"] | "All"> = ["All", "Restaurant Events", "Kitchen", "Payments", "Customers", "System"];
+  const filtered = notifications.filter((item) => {
+    const isRead = acknowledgedIds.has(item.id);
+    const matchesStatus = statusFilter === "all" || (statusFilter === "read" ? isRead : !isRead);
+    const matchesGroup = groupFilter === "All" || item.group === groupFilter;
+    return matchesStatus && matchesGroup;
+  });
+  const grouped = groupBy(filtered, (item) => item.group);
   return (
     <div className="absolute right-0 top-14 z-50 w-[min(92vw,420px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
       <div className="flex items-center justify-between border-b border-slate-100 p-4">
         <div>
-          <p className="font-black text-slate-950">Notifications</p>
-          <p className="text-xs font-semibold text-slate-500">Orders, kitchen and system alerts</p>
+          <p className="font-black text-slate-950">Notification Center</p>
+          <p className="text-xs font-semibold text-slate-500">Restaurant events, kitchen, payments, customers, and system alerts</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close notifications">
           <X className="size-4" />
         </Button>
       </div>
-      {notifications.length ? (
-        <div className="max-h-[70vh] overflow-y-auto p-3">
+      <div className="grid gap-2 border-b border-slate-100 p-3">
+        <div className="flex flex-wrap gap-2">
+          {(["unread", "all", "read"] as const).map((item) => (
+            <button key={item} type="button" onClick={() => setStatusFilter(item)} className={cn("h-8 rounded-lg border px-3 text-xs font-black capitalize", statusFilter === item ? "border-orange-200 bg-orange-50 text-orange-700" : "border-slate-200 bg-white text-slate-600")}>{item}</button>
+          ))}
+          <Button size="sm" variant="outline" className="ml-auto h-8" onClick={onMarkAllRead}>Mark all read</Button>
+        </div>
+        <select className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" value={groupFilter} onChange={(event) => setGroupFilter(event.target.value as NotificationItem["group"] | "All")} aria-label="Filter notifications by category">
+          {groups.map((group) => <option key={group} value={group}>{group}</option>)}
+        </select>
+      </div>
+      {filtered.length ? (
+        <div className="max-h-[62vh] overflow-y-auto p-3">
           {Object.entries(grouped).map(([group, items]) => (
             <section key={group} className="py-2">
               <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">{group}</p>
               <div className="space-y-2">
                 {items.map((item) => (
-                  <NotificationRow key={item.id} item={item} />
+                  <NotificationRow key={item.id} item={item} read={acknowledgedIds.has(item.id)} onRead={() => onMarkRead(item.id)} />
                 ))}
               </div>
             </section>
@@ -923,35 +952,38 @@ function NotificationPanel({ notifications, onClose }: { notifications: Notifica
       ) : (
         <div className="p-8 text-center">
           <p className="font-black text-slate-950">All clear</p>
-          <p className="mt-1 text-sm text-slate-500">No urgent operational alerts right now.</p>
+          <p className="mt-1 text-sm text-slate-500">No matching operational alerts right now.</p>
         </div>
       )}
     </div>
   );
 }
 
-function NotificationRow({ item }: { item: NotificationItem }) {
+function NotificationRow({ item, read, onRead }: { item: NotificationItem; read: boolean; onRead: () => void }) {
   const body = (
-    <div className="rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50">
+    <div className={cn("rounded-xl border p-3 transition hover:bg-slate-50", read ? "border-slate-200 bg-white" : "border-orange-200 bg-orange-50/40")}>
       <div className="flex items-start gap-3">
         <span className={cn("mt-0.5 size-2.5 shrink-0 rounded-full", priorityClass[item.priority])} />
         <div className="min-w-0">
-          <p className="font-black text-slate-950">{item.title}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-black text-slate-950">{item.title}</p>
+            <Badge variant={read ? "muted" : "warning"}>{read ? "Read" : "Unread"}</Badge>
+          </div>
           <p className="mt-1 text-sm leading-5 text-slate-600">{item.description}</p>
           {item.createdAt ? <p className="mt-1 text-xs font-bold text-slate-400">{relativeOrderTime(item.createdAt)} · {actualOrderTime(item.createdAt)}</p> : null}
         </div>
       </div>
     </div>
   );
-  if (!item.href) return body;
+  if (!item.href) return <button type="button" className="w-full text-left" onClick={onRead}>{body}</button>;
   if (item.href === "#sync") {
     return (
-      <button type="button" className="w-full text-left" onClick={() => window.dispatchEvent(new CustomEvent("sarva-open-sync-center"))}>
+      <button type="button" className="w-full text-left" onClick={() => { onRead(); window.dispatchEvent(new CustomEvent("sarva-open-sync-center")); }}>
         {body}
       </button>
     );
   }
-  return <Link href={item.href}>{body}</Link>;
+  return <Link href={item.href} onClick={onRead}>{body}</Link>;
 }
 
 function buildSearchResults(input: {
@@ -1072,11 +1104,28 @@ function buildNotifications(input: {
     .forEach((order) => {
       notifications.push({
         id: `order-${order.id}-${order.status}`,
-        group: "New Orders",
+        group: "Restaurant Events",
         title: `${readableOrderId(order)} needs attention`,
         description: `${order.customer.name} · ${order.fulfillmentType ?? order.channel} · ${formatCurrency(order.totals.total)}`,
         priority: `${order.channel}`.toLowerCase() === "web" || order.fulfillmentType === "delivery" ? "critical" : "medium",
         href: `/owner/orders?search=${encodeURIComponent(readableOrderId(order))}`,
+        createdAt: order.createdAt,
+      });
+    });
+
+  input.orders
+    .filter((order) => ["partial", "pending"].includes(String((order as DemoOrder & { paymentStatus?: string }).paymentStatus ?? "pending")) && !["cancelled", "rejected"].includes(order.status))
+    .slice(0, 6)
+    .forEach((order) => {
+      const paid = Number((order as DemoOrder & { paidAmount?: number }).paidAmount ?? 0);
+      const due = Math.max(0, Number(order.totals.total ?? 0) - paid);
+      notifications.push({
+        id: `payment-${order.id}-${due}`,
+        group: "Payments",
+        title: `${readableOrderId(order)} payment pending`,
+        description: `${order.customer.name} · Due ${formatCurrency(due)}`,
+        priority: due > 0 ? "medium" : "normal",
+        href: `/owner/pos?search=${encodeURIComponent(readableOrderId(order))}`,
         createdAt: order.createdAt,
       });
     });
@@ -1087,10 +1136,25 @@ function buildNotifications(input: {
     .forEach((order) => {
       notifications.push({
         id: `kot-${order.id}-${order.status}`,
-        group: "New Orders",
+        group: "Kitchen",
         title: `${readableTableOrderId(order)} is waiting`,
         description: `${order.tableNumber} · ${order.source} · ${(order.total ?? 0) ? formatCurrency(order.total ?? 0) : `${order.lines.length} items`}`,
         priority: "medium",
+        href: `/owner/kitchen?search=${encodeURIComponent(readableTableOrderId(order))}`,
+        createdAt: order.createdAt,
+      });
+    });
+
+  input.tableOrders
+    .filter((order) => order.status === "ready" || order.status === "served")
+    .slice(0, 6)
+    .forEach((order) => {
+      notifications.push({
+        id: `ready-${order.id}-${order.status}`,
+        group: "Kitchen",
+        title: `${readableTableOrderId(order)} is ${order.status}`,
+        description: `${order.tableNumber} · ${order.customerName || order.guestName || "Walk-in"} · ${formatCurrency(order.total ?? 0)}`,
+        priority: order.status === "ready" ? "critical" : "normal",
         href: `/owner/kitchen?search=${encodeURIComponent(readableTableOrderId(order))}`,
         createdAt: order.createdAt,
       });
@@ -1103,7 +1167,7 @@ function buildNotifications(input: {
       if (minutes >= 30) {
         notifications.push({
           id: `critical-delay-${order.id}`,
-          group: "Delayed Orders",
+          group: "Kitchen",
           title: `${readableTableOrderId(order)} is critically delayed`,
           description: `${order.tableNumber} order delayed by ${minutes} minutes.`,
           priority: "critical",
@@ -1113,7 +1177,7 @@ function buildNotifications(input: {
       } else if (minutes >= 15) {
         notifications.push({
           id: `delay-${order.id}`,
-          group: "Delayed Orders",
+          group: "Kitchen",
           title: `${readableTableOrderId(order)} is delayed`,
           description: `${order.tableNumber} order has crossed the prep warning threshold.`,
           priority: "medium",
@@ -1129,7 +1193,7 @@ function buildNotifications(input: {
     .forEach((quote) => {
       notifications.push({
         id: `catering-${quote.id}-${quote.status ?? "new"}`,
-        group: "Catering",
+        group: "Customers",
         title: quote.status === "quoted" ? "Catering quotation pending customer response" : "New catering request",
         description: `${quote.name} · ${quote.guestCount} guests · ${formatCurrency(quote.total)}`,
         priority: "critical",
@@ -1141,7 +1205,7 @@ function buildNotifications(input: {
   if (failedQueue.length) {
     notifications.push({
       id: `sync-failed-${failedQueue.length}`,
-      group: "System Alerts",
+      group: "System",
       title: "Sync needs attention",
       description: `${failedQueue.length} offline action${failedQueue.length === 1 ? "" : "s"} failed. Open sync center to retry.`,
       priority: "critical",
@@ -1151,7 +1215,7 @@ function buildNotifications(input: {
   if (input.printerOffline) {
     notifications.push({
       id: "printer-offline",
-      group: "System Alerts",
+      group: "System",
       title: "Printer offline",
       description: "Billing or kitchen printer is not connected.",
       priority: "medium",
@@ -1161,7 +1225,7 @@ function buildNotifications(input: {
   if (!input.browserOnline) {
     notifications.push({
       id: "internet-offline",
-      group: "System Alerts",
+      group: "System",
       title: "Internet disconnected",
       description: "POS can continue locally. Sync will retry when connection returns.",
       priority: "critical",
