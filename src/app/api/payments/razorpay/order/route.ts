@@ -8,6 +8,7 @@ import {
   assertRazorpayUsable,
   createRazorpayClient,
   getRazorpayRuntimeForOrder,
+  restaurantPaymentGatewayNotConfigured,
 } from "@/lib/server/owner-payment-settings";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,11 @@ export async function POST(request: NextRequest) {
   if (order.paymentStatus === "paid") {
     return NextResponse.json({ error: "This order is already paid." }, { status: 409 });
   }
-  assertRazorpayUsable(settings);
+  try {
+    assertRazorpayUsable(settings);
+  } catch {
+    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+  }
 
   const orderTotal = Number(order.total ?? 0);
   if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
@@ -51,19 +56,24 @@ export async function POST(request: NextRequest) {
   }
 
   const receipt = `${settings.receiptPrefix}-${order.id}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
-  const providerOrder = await createRazorpayClient(settings).orders.create({
-    amount: amountToSubunits(orderTotal),
-    currency: settings.currency,
-    receipt,
-    partial_payment: settings.partialPayments,
-    ...(settings.partialPayments ? { first_payment_min_amount: amountToSubunits(settings.minimumAmount) } : {}),
-    notes: {
-      orderId: order.id,
-      restaurantId: order.restaurantId,
-      tenantId: order.tenantId,
-      customerId: session.uid,
-    },
-  });
+  let providerOrder: Awaited<ReturnType<ReturnType<typeof createRazorpayClient>["orders"]["create"]>>;
+  try {
+    providerOrder = await createRazorpayClient(settings).orders.create({
+      amount: amountToSubunits(orderTotal),
+      currency: settings.currency,
+      receipt,
+      partial_payment: settings.partialPayments,
+      ...(settings.partialPayments ? { first_payment_min_amount: amountToSubunits(settings.minimumAmount) } : {}),
+      notes: {
+        orderId: order.id,
+        restaurantId: order.restaurantId,
+        tenantId: order.tenantId,
+        customerId: session.uid,
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: "Payment gateway is unavailable. Please try again." }, { status: 502 });
+  }
 
   await adminDb().collection("paymentIntents").doc(providerOrder.id).set({
     provider: "razorpay",

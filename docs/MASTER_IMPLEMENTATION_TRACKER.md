@@ -1935,7 +1935,7 @@ Remaining provider tasks:
 | Architecture | No duplicate payment API family, repository, or Firestore collection was added. Owner-specific Razorpay config is stored under existing owner profile settings; only non-secret flags are mirrored to restaurant payment config. |
 | Secrets | Razorpay Secret and Webhook Secret are encrypted before storage and are never returned to the frontend; owner settings show only configured/masked state. |
 | Checkout | Customer Razorpay checkout now follows server-created order, checkout handoff, server signature verification, server payment fetch, repository payment transaction, timeline/audit/notification, receipt queue, and paid/authorized/failed status handling. |
-| Webhooks | Webhook route verifies raw-body HMAC signature with the owner webhook secret, handles `payment.authorized`, `payment.captured`, `payment.failed`, `refund.created`, `refund.processed`, and `order.paid`, and ignores duplicate deliveries using `x-razorpay-event-id`. |
+| Webhooks | Webhook route verifies raw-body HMAC signature with the owner webhook secret, handles `payment.authorized`, `payment.captured`, `payment.failed`, `refund.created`, `refund.processed`, `order.paid`, `payment.dispute.*`, and `payment.downtime.*`, and ignores duplicate deliveries using `x-razorpay-event-id`. |
 | Refunds | Owner Razorpay refund API supports full/partial refunds with reason, provider refund id, timeline, audit, notification, and payment transaction records. |
 | Owner Settings | Payments tab now includes Razorpay enable/disable, test/live mode, key id, encrypted secret, encrypted webhook secret, company name/logo, allowed methods, partial payments, min/max amount, auto capture, webhook, refund, invoice prefix, receipt prefix, INR currency, Test Connection, Save, and Reset. |
 | Provider Settings | Owner Settings surfaces configurable provider sections for Payment, SMTP, WhatsApp, SMS, Cloudinary, Google OAuth, and Maps while leaving infrastructure/provider secrets in production environment setup. |
@@ -1950,3 +1950,59 @@ Remaining Razorpay manual tasks:
 | Live Credentials | Replace test credentials with live Razorpay keys only after sandbox smoke passes. |
 | Provider Smoke | Verify order create, checkout, signature verify, webhook delivery, captured payment, failed payment, full refund, partial refund, and settlement records in Razorpay dashboard. |
 | Production Deployment | Redeploy Hostinger current commit and verify `/api/release-info` before live payment launch. |
+
+## Kitchen Operations and Razorpay Production Readiness - 2026-07-05
+
+| Field | Result |
+| --- | --- |
+| Scope | Completed the interrupted Kitchen Operations Center and Razorpay production-readiness pass without changing repository structure, Firestore collections, or payment architecture. |
+| Production Readiness | 99% code-ready; 98% production-release ready pending manual infrastructure, provider, hardware, and hosted browser validation. |
+| Kitchen Completed | Desktop Kitchen now uses the compact four-column operational board, sticky header controls, non-blocking new-order toast, order detail drawer, display order numbers, KOT preview/print/reprint access, accepted-order auto print, mobile notification highlight, and the existing SSE listener with cleanup. |
+| Kitchen History | Added `/owner/kitchen/history` and owner sidebar navigation using the existing Kitchen data API; history supports date/status/payment/search filters, display order numbers, and the shared order drawer. |
+| Razorpay Completed | Owner settings support key id, encrypted key secret, optional merchant id, encrypted webhook secret, test/live mode, enable/disable, masked saved secrets, and Test Connection. |
+| Razorpay Webhooks | Webhook handling now covers payment authorized/captured/failed, order paid, refund created/processed, dispute events, and downtime events with signature verification, idempotency, audit logs, owner notifications, and timeline updates when an order is matched. |
+| Safe Errors | Missing gateway configuration, gateway unavailable, invalid verification, invalid webhook signature, and rejected refund paths now return safe user-facing messages without exposing secrets or stack traces. |
+
+Completed items:
+
+| Item | Status |
+| --- | --- |
+| Desktop Kitchen redesign | Completed |
+| Four-column KDS layout | Completed |
+| Non-blocking new-order toast | Completed |
+| Order details drawer | Completed |
+| Kitchen History page | Completed |
+| Sidebar navigation | Completed |
+| Display order numbers | Completed with UI/display fallback; no schema change added. |
+| KOT preview and print history surfaces | Completed using existing print engine/log paths. |
+| Realtime updates and cleanup | Completed with existing SSE singleton and cleanup. |
+| Razorpay dispute/downtime webhook coverage | Completed |
+| Gateway error improvements | Completed |
+| Test Connection improvements | Completed |
+
+Remaining items:
+
+| Area | Remaining Work |
+| --- | --- |
+| Kitchen | Manual tablet/mobile/TV smoke for touch gestures, new-order toast behavior, drawer ergonomics, sound policy, and long-running SSE stability. |
+| Printing | Real 58mm/80mm/A4 KOT, bill, receipt, split receipt, duplicate copy, and reprint hardware checks. |
+| Razorpay | Save real test/live secrets in Owner Settings, run Test Connection, register webhook endpoint, and verify dashboard deliveries, settlement, and refund state. |
+| Production | Hostinger cache clear/redeploy, hosted `/api/release-info`, Firebase rules/indexes, authorized domains, and route smoke remain manual. |
+
+Known risks:
+
+| Risk | Owner | Next Action |
+| --- | --- | --- |
+| Hosted app may still serve an older commit until redeployed. | Manual | Complete Hostinger redeploy and verify release metadata. |
+| Razorpay live payment behavior depends on real key secret and webhook secret not present in this workspace. | Manual/provider | Configure credentials in Owner Settings and provider dashboard, then run sandbox/live smoke. |
+| Browser audio, popup print, and thermal printer behavior are device/browser dependent. | Manual | Run hardware and browser smoke on target restaurant devices. |
+| Firestore rules/index deployment remains external. | Manual + Codex if a real rule bug is found | Deploy reviewed rules/indexes and smoke protected flows. |
+
+Manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Deployment | Redeploy `release/production-nammude`, clear cache, and verify hosted HTTPS routes. |
+| Browser Smoke | Verify Kitchen desktop/tablet/mobile, History, POS payment, refund, notification, timeline, and owner settings flows. |
+| Provider Smoke | Verify Razorpay order, checkout, signature verification, webhook, dispute/downtime delivery, full refund, and partial refund. |
+| Hardware Smoke | Verify KOT/bill/receipt/split receipt/duplicate copy/reprint output on real printers. |

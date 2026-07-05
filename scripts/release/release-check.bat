@@ -46,6 +46,10 @@ for /f "delims=" %%n in ('npm -v 2^>nul') do set "NPM_VERSION=%%n"
 if not defined NPM_VERSION set "NPM_VERSION=unknown"
 for /f "delims=" %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-ddTHH:mm:sszzz" 2^>nul') do set "BUILD_DATE=%%d"
 if not defined BUILD_DATE set "BUILD_DATE=%DATE% %TIME%"
+set "PUBLIC_APP_URL=%NEXT_PUBLIC_APP_URL%"
+if not defined PUBLIC_APP_URL set "PUBLIC_APP_URL=https://violet-squid-380447.hostingersite.com"
+set "DEPLOYMENT_ENV=%NEXT_PUBLIC_APP_ENV%"
+if not defined DEPLOYMENT_ENV set "DEPLOYMENT_ENV=production"
 exit /b 0
 
 :run_step
@@ -84,6 +88,9 @@ set "REPORT=%~dp0release-report.md"
 >> "%REPORT%" echo ^| Build Date ^| %BUILD_DATE% ^|
 >> "%REPORT%" echo ^| Git Branch ^| %BRANCH% ^|
 >> "%REPORT%" echo ^| Commit SHA ^| %COMMIT% ^|
+>> "%REPORT%" echo ^| Public App URL ^| %PUBLIC_APP_URL% ^|
+>> "%REPORT%" echo ^| Deployment Environment ^| %DEPLOYMENT_ENV% ^|
+>> "%REPORT%" echo ^| Release Metadata Fields ^| currentCommitSha, currentBranch, buildTimestamp, deploymentEnvironment, publicAppUrl, applicationVersion ^|
 >> "%REPORT%" echo ^| Node Version ^| %NODE_VERSION% ^|
 >> "%REPORT%" echo ^| NPM Version ^| %NPM_VERSION% ^|
 >> "%REPORT%" echo ^| Build Status ^| %BUILD_STATUS% ^|

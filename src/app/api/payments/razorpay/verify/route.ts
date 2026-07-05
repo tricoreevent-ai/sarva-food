@@ -8,6 +8,7 @@ import {
   createRazorpayClient,
   getRazorpayRuntimeForOrder,
   paymentMethod,
+  restaurantPaymentGatewayNotConfigured,
   scopeFromRazorpayOrder,
   subunitsToAmount,
 } from "@/lib/server/owner-payment-settings";
@@ -45,12 +46,19 @@ export async function POST(request: NextRequest) {
   if (order.customerId !== session.uid) {
     return NextResponse.json({ error: "Payment is not available for this order." }, { status: 403 });
   }
-  assertRazorpayUsable(settings);
+  try {
+    assertRazorpayUsable(settings);
+  } catch {
+    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+  }
   if (!verifyCheckoutSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature, settings.keySecret)) {
     return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
   }
 
-  const payment = await createRazorpayClient(settings).payments.fetch(razorpay_payment_id);
+  const payment = await createRazorpayClient(settings).payments.fetch(razorpay_payment_id).catch(() => null);
+  if (!payment) {
+    return NextResponse.json({ error: "Payment gateway is unavailable. Please try again." }, { status: 502 });
+  }
   if (payment.order_id !== razorpay_order_id) {
     return NextResponse.json({ error: "Payment does not match this order." }, { status: 400 });
   }

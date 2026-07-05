@@ -46,6 +46,7 @@ export const ownerNav: NavItem[] = [
   { label: "Overview", href: "/owner", icon: Home, featureKey: "overview" },
   { label: "Orders", href: "/owner/orders", icon: ClipboardList, featureKey: "orders" },
   { label: "Kitchen Operations Center", href: "/owner/kitchen", icon: ChefHat, featureKey: "kitchen" },
+  { label: "Kitchen Order History", href: "/owner/kitchen/history", icon: FileText, featureKey: "kitchen" },
   { label: "Order Desk", href: "/owner/pos", icon: ReceiptText, featureKey: "pos" },
   { label: "Menu", href: "/owner/menu", icon: Utensils, featureKey: "menu" },
   { label: "Banners", href: "/owner/settings?tab=branding", icon: ImagePlus, featureKey: "settings" },

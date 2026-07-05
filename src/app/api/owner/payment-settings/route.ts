@@ -4,6 +4,7 @@ import {
   createRazorpayClient,
   getOwnerRazorpayRuntimeSettings,
   getOwnerRazorpaySettings,
+  restaurantPaymentGatewayNotConfigured,
   resetOwnerRazorpaySettings,
   saveOwnerRazorpaySettings,
 } from "@/lib/server/owner-payment-settings";
@@ -42,9 +43,12 @@ export async function POST(request: NextRequest) {
       const settings = await getOwnerRazorpayRuntimeSettings(access.session, body.restaurantId);
       assertRazorpayUsable(settings);
       await createRazorpayClient(settings).orders.all({ count: 1 });
-      return NextResponse.json({ ok: true, mode: settings.mode });
-    } catch {
-      return NextResponse.json({ error: "Razorpay connection failed. Check the key id, secret, mode, and account status." }, { status: 422 });
+      return NextResponse.json({ ok: true, mode: settings.mode, message: "Payment gateway is configured successfully." });
+    } catch (error) {
+      if (error instanceof Error && error.message === restaurantPaymentGatewayNotConfigured) {
+        return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+      }
+      return NextResponse.json({ error: "Payment gateway is unavailable. Check the key id, secret, mode, and account status." }, { status: 422 });
     }
   }
 

@@ -1,4 +1,5 @@
 const aliases = [
+  ["NEXT_PUBLIC_APP_ENV"],
   ["NEXT_PUBLIC_APP_URL"],
   ["NEXT_PUBLIC_FIREBASE_API_KEY"],
   ["NEXT_PUBLIC_FIREBASE_PROJECT_ID"],
@@ -15,6 +16,7 @@ const aliases = [
   ["SMTP_PASS", "SMTP_PASSWORD"],
   ["NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_ID"],
   ["RAZORPAY_KEY_SECRET", "RAZORPAY_SECRET"],
+  ["RAZORPAY_WEBHOOK_SECRET"],
   ["CLOUDINARY_URL", "CLOUDINARY_CLOUD_NAME"],
   ["TABLE_QR_SECRET", "QR_SECRET"],
   ["NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID"],
@@ -30,6 +32,14 @@ const invalid = [];
 
 if (has("NEXT_PUBLIC_APP_URL") && !process.env.NEXT_PUBLIC_APP_URL.startsWith("https://")) {
   invalid.push("NEXT_PUBLIC_APP_URL must use https://.");
+}
+
+if (has("NEXT_PUBLIC_APP_ENV") && process.env.NEXT_PUBLIC_APP_ENV !== "production") {
+  invalid.push("NEXT_PUBLIC_APP_ENV must be production.");
+}
+
+if (has("NEXT_PUBLIC_APP_URL") && process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "") !== "https://violet-squid-380447.hostingersite.com") {
+  invalid.push("NEXT_PUBLIC_APP_URL must be https://violet-squid-380447.hostingersite.com for this test release.");
 }
 
 const smtpPort = process.env.SMTP_PORT && Number(process.env.SMTP_PORT);

@@ -11,6 +11,7 @@ import type { OrderDoc } from "@/types/firebase";
 
 export const razorpaySampleKeyId = "rzp_test_T9lbdbFplbPTXF";
 export const razorpaySampleMerchantId = "T9lUMBJPGiTKrd";
+export const restaurantPaymentGatewayNotConfigured = "Restaurant payment gateway is not configured.";
 
 export type RazorpayMethodSettings = {
   upi: boolean;
@@ -30,6 +31,7 @@ export type RazorpayPublicSettings = {
   webhookSecretMasked: string;
   companyName: string;
   companyLogo: string;
+  merchantId: string;
   methods: RazorpayMethodSettings;
   partialPayments: boolean;
   minimumAmount: number;
@@ -57,6 +59,7 @@ type SavedRazorpaySettings = Partial<Omit<RazorpayPublicSettings, "secretConfigu
   webhookSecretEncrypted?: string;
   keySecret?: string;
   webhookSecret?: string;
+  merchantId?: string;
   razorpayEnabled?: boolean;
   razorpayKeyId?: string;
 };
@@ -196,8 +199,7 @@ export function createRazorpayClient(settings: Pick<RazorpayRuntimeSettings, "ke
 }
 
 export function assertRazorpayUsable(settings: RazorpayRuntimeSettings) {
-  if (!settings.enabled) throw new Error("Razorpay is disabled for this restaurant.");
-  if (!settings.keyId || !settings.keySecret) throw new Error("Razorpay credentials are incomplete.");
+  if (!settings.enabled || !settings.keyId || !settings.keySecret) throw new Error(restaurantPaymentGatewayNotConfigured);
 }
 
 export function amountToSubunits(amount: number) {
@@ -237,6 +239,7 @@ function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpa
     enabled: Boolean(input.enabled),
     mode: input.mode === "live" ? "live" : "test",
     keyId: stringOrEmpty(input.keyId || input.razorpayKeyId),
+    merchantId: stringOrEmpty(input.merchantId).slice(0, 80),
     keySecretEncrypted: secret && !isMaskedSecret(secret) ? encryptSecret(secret) : existing.keySecretEncrypted,
     webhookSecretEncrypted: webhookSecret && !isMaskedSecret(webhookSecret) ? encryptSecret(webhookSecret) : existing.webhookSecretEncrypted,
     companyName: stringOrEmpty(input.companyName).slice(0, 80),
@@ -300,6 +303,7 @@ function normalized(raw: SavedRazorpaySettings): Omit<RazorpayPublicSettings, "s
     enabled: Boolean(raw.enabled ?? raw.razorpayEnabled),
     mode: raw.mode === "live" ? "live" : "test",
     keyId: stringOrEmpty(raw.keyId || raw.razorpayKeyId),
+    merchantId: stringOrEmpty(raw.merchantId),
     companyName: stringOrEmpty(raw.companyName),
     companyLogo: stringOrEmpty(raw.companyLogo),
     methods: {
@@ -327,6 +331,7 @@ function toRestaurantPaymentConfig(raw: SavedRazorpaySettings) {
     razorpayEnabled: settings.enabled,
     razorpayMode: settings.mode,
     razorpayKeyId: settings.keyId,
+    razorpayMerchantId: settings.merchantId,
     razorpayCompanyName: settings.companyName,
     razorpayCompanyLogo: settings.companyLogo,
     razorpayMethods: settings.methods,

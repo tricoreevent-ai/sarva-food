@@ -75,6 +75,7 @@ type RazorpaySettingsDraft = {
   webhookSecretMasked: string;
   companyName: string;
   companyLogo: string;
+  merchantId: string;
   methods: {
     upi: boolean;
     card: boolean;
@@ -1053,6 +1054,7 @@ const emptyRazorpaySettings: RazorpaySettingsDraft = {
   webhookSecretMasked: "",
   companyName: "",
   companyLogo: "",
+  merchantId: "",
   methods: { upi: true, card: true, netbanking: true, wallet: true, emi: false },
   partialPayments: false,
   minimumAmount: 1,
@@ -1140,9 +1142,9 @@ function PaymentGatewaySettingsPanel() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "test" }),
       });
-      const payload = await response.json().catch(() => ({})) as { error?: string };
+      const payload = await response.json().catch(() => ({})) as { error?: string; message?: string };
       if (!response.ok) throw new Error(payload.error || "Razorpay connection failed.");
-      toast.success("Razorpay connection verified.");
+      toast.success(payload.message || "Payment gateway is configured successfully.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Razorpay connection failed.");
     } finally {
@@ -1209,6 +1211,7 @@ function PaymentGatewaySettingsPanel() {
           <ProfileField label={`Webhook Secret${draft.webhookSecretConfigured ? ` (${draft.webhookSecretMasked})` : ""}`} type="password" value={draft.webhookSecret} onChange={(webhookSecret) => update({ webhookSecret })} placeholder={draft.webhookSecretConfigured ? "Leave blank to keep saved secret" : "Enter webhook secret"} />
           <ProfileField label="Company Name" value={draft.companyName} onChange={(companyName) => update({ companyName })} />
           <ProfileField label="Company Logo" value={draft.companyLogo} onChange={(companyLogo) => update({ companyLogo })} />
+          <ProfileField label="Merchant ID" value={draft.merchantId} onChange={(merchantId) => update({ merchantId })} placeholder={draft.sampleMerchantId} />
           <ProfileField label="Default Currency" value={draft.currency} onChange={() => update({ currency: "INR" })} />
           <ProfileField label="Invoice Prefix" value={draft.invoicePrefix} onChange={(invoicePrefix) => update({ invoicePrefix })} />
           <ProfileField label="Receipt Prefix" value={draft.receiptPrefix} onChange={(receiptPrefix) => update({ receiptPrefix })} />

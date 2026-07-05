@@ -5,6 +5,7 @@ import {
   createRazorpayClient,
   getRazorpayRuntimeForOrder,
   paymentMethod,
+  restaurantPaymentGatewayNotConfigured,
   subunitsToAmount,
 } from "@/lib/server/owner-payment-settings";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
@@ -30,13 +31,20 @@ export async function POST(request: NextRequest) {
 
   const { order, settings } = await getRazorpayRuntimeForOrder(body.orderId);
   const scope = tenantScope(access.session, order.restaurantId || order.tenantId);
-  assertRazorpayUsable(settings);
+  try {
+    assertRazorpayUsable(settings);
+  } catch {
+    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+  }
   if (!settings.refundEnabled) {
     return NextResponse.json({ error: "Razorpay refunds are disabled for this restaurant." }, { status: 403 });
   }
 
   const client = createRazorpayClient(settings);
-  const payment = await client.payments.fetch(body.paymentId);
+  const payment = await client.payments.fetch(body.paymentId).catch(() => null);
+  if (!payment) {
+    return NextResponse.json({ error: "Payment gateway is unavailable. Please try again." }, { status: 502 });
+  }
   if (payment.status !== "captured" && !payment.captured) {
     return NextResponse.json({ error: "Only captured Razorpay payments can be refunded." }, { status: 409 });
   }
@@ -48,7 +56,10 @@ export async function POST(request: NextRequest) {
       orderId: body.orderId,
       reason: body.reason?.trim() || "Owner refund",
     },
-  });
+  }).catch(() => null);
+  if (!refund) {
+    return NextResponse.json({ error: "Refund was rejected by the payment gateway." }, { status: 502 });
+  }
 
   const refundAmount = subunitsToAmount(refund.amount) || amount || subunitsToAmount(payment.amount);
   const data = await new OrderRepository().recordRefund(scope, {

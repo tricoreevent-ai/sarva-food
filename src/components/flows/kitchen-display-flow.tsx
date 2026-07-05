@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   BellRing,
   ChevronDown,
   CheckCircle2,
-  Clock,
   Eye,
   Filter,
+  History,
   Maximize2,
   MoreHorizontal,
   Printer,
@@ -21,7 +22,6 @@ import {
   XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,15 +36,18 @@ type ConfirmAction = { title: string; description: string; confirmLabel: string;
 type CompactTabId = "new" | "accepted" | "preparing" | "ready" | "completed";
 type CompactPane = "orders" | "kitchen" | "more";
 type CompactOrderTypeFilter = NonNullable<TableOrder["orderType"]> | "all";
+type KitchenDisplayOrder = TableOrder & {
+  orderNumber?: string | number;
+  displayOrderNumber?: string | number;
+  invoiceNumber?: string;
+  billNumber?: string;
+};
 
-const columns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
-  { id: "new", title: "New Orders", tone: "red", statuses: ["new", "occupied"] },
+const desktopColumns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
+  { id: "new", title: "New", tone: "red", statuses: ["new", "occupied"] },
   { id: "accepted", title: "Accepted", tone: "orange", statuses: ["accepted"] },
   { id: "preparing", title: "Preparing", tone: "amber", statuses: ["preparing"] },
-  { id: "ready", title: "Ready for Service", tone: "green", statuses: ["ready"] },
-  { id: "served", title: "Served", tone: "blue", statuses: ["served"] },
-  { id: "completed", title: "Completed", tone: "slate", statuses: ["completed", "billed"] },
-  { id: "cancelled", title: "Cancelled", tone: "slate", statuses: ["cancelled"] },
+  { id: "ready", title: "Ready / Serve", tone: "green", statuses: ["ready", "served"] },
 ];
 
 const compactTabs: Array<{ id: CompactTabId; label: string; statuses: TableOrderStatus[]; tone: string }> = [
@@ -96,9 +99,12 @@ export function KitchenDisplayFlow() {
   const [staffFilter, setStaffFilter] = useState("all");
   const [orderTypeFilter, setOrderTypeFilter] = useState<CompactOrderTypeFilter>("all");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
   const busyOrders = useRef(new Set<string>());
   const printedThisSession = useRef(new Set<string>());
-  const previousNewOrders = useRef(new Set<string>());
+  const previousAcceptedOrders = useRef(new Set<string>());
+  const autoPrintReady = useRef(false);
   const soundReady = useRef(false);
   const alertedOrders = useRef(new Set<string>());
   const lastDelayedToast = useRef(0);
@@ -121,10 +127,10 @@ export function KitchenDisplayFlow() {
   }, [compactBaseOrders, compactTab]);
   const preparingOrders = useMemo(() => visibleOrders.filter((order) => order.status === "preparing"), [visibleOrders]);
   const readyOrders = useMemo(() => visibleOrders.filter((order) => order.status === "ready"), [visibleOrders]);
-  const servedOrders = useMemo(() => visibleOrders.filter((order) => order.status === "served"), [visibleOrders]);
   const cancellableOrders = useMemo(() => visibleOrders.filter((order) => !isCompleted(order.status)), [visibleOrders]);
   const activeRequests = useMemo(() => tables.flatMap((table) => (table.serviceRequests ?? []).filter((request) => request.status === "open").map((request) => ({ ...request, table: table.table }))).slice(-8).reverse(), [tables]);
   const historyOrders = useMemo(() => orders.filter((order) => isCompleted(order.status) && !isToday(order.createdAt)), [orders]);
+  const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId]);
   const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders), [now, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
 
   useEffect(() => {
@@ -185,22 +191,6 @@ export function KitchenDisplayFlow() {
   }, []);
 
   useEffect(() => {
-    if (connectionState === "loading") return;
-    const currentNewOrders = boardOrders.filter((order) => ["new", "occupied"].includes(order.status));
-    if (!soundReady.current) {
-      currentNewOrders.forEach((order) => alertedOrders.current.add(order.id));
-      soundReady.current = true;
-      return;
-    }
-    if (!soundAlerts) return;
-    currentNewOrders.forEach((order) => {
-      if (alertedOrders.current.has(order.id)) return;
-      alertedOrders.current.add(order.id);
-      playReadyTone();
-    });
-  }, [boardOrders, connectionState, soundAlerts]);
-
-  useEffect(() => {
     if (!stats.delayed) {
       lastDelayedToast.current = 0;
       return;
@@ -239,6 +229,51 @@ export function KitchenDisplayFlow() {
     }
   }, [orders]);
 
+  const showNewOrderNotification = useCallback((order: TableOrder) => {
+    const id = `new-order-${order.id}`;
+    const view = () => {
+      setSelectedOrderId(order.id);
+      setHighlightedOrderId(order.id);
+      setCompactPane("orders");
+      setCompactTab("new");
+      toast.dismiss(id);
+      window.setTimeout(() => setHighlightedOrderId((current) => current === order.id ? null : current), 8000);
+    };
+    toast.custom((item) => (
+      <div className={cn("w-[min(92vw,360px)] rounded-xl border bg-white p-3 text-left shadow-2xl", item.visible ? "animate-in slide-in-from-top-2" : "animate-out fade-out")}>
+        <button type="button" onClick={view} className="flex w-full items-start gap-3 text-left">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-600"><BellRing className="size-5" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-black text-slate-950">New Order #{displayOrderNumber(order)}</span>
+            <span className="mt-1 block text-xs font-bold text-slate-600">{order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"} · {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
+          </span>
+        </button>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Button variant="outline" size="sm" onClick={view}>View</Button>
+          <Button size="sm" onClick={() => { void updateStatus(order, "accepted"); toast.dismiss(id); }}>Accept</Button>
+          <Button variant="outline" size="sm" onClick={() => toast.dismiss(id)}>Dismiss</Button>
+        </div>
+      </div>
+    ), { id, duration: 12000, position: window.innerWidth < 768 ? "top-center" : "top-right" });
+  }, [updateStatus]);
+
+  useEffect(() => {
+    if (connectionState === "loading") return;
+    const currentNewOrders = boardOrders.filter((order) => ["new", "occupied"].includes(order.status));
+    if (!soundReady.current) {
+      currentNewOrders.forEach((order) => alertedOrders.current.add(order.id));
+      soundReady.current = true;
+      return;
+    }
+    if (!soundAlerts) return;
+    currentNewOrders.forEach((order) => {
+      if (alertedOrders.current.has(order.id)) return;
+      alertedOrders.current.add(order.id);
+      showNewOrderNotification(order);
+      playReadyTone();
+    });
+  }, [boardOrders, connectionState, showNewOrderNotification, soundAlerts]);
+
   const printKot = useCallback(async (order: TableOrder, options: { auto?: boolean; reprint?: boolean } = {}) => {
     const jobId = `${order.id}:${options.reprint ? "reprint" : "print"}`;
     if (!options.reprint && printedThisSession.current.has(jobId)) return;
@@ -273,16 +308,26 @@ export function KitchenDisplayFlow() {
   }, [logPrint, selectedPrinter]);
 
   useEffect(() => {
-    if (!settings.autoPrintOrders) return;
-    const nextNewOrders = new Set(boardOrders.filter((order) => ["new", "occupied"].includes(order.status)).map((order) => order.id));
-    boardOrders
-      .filter((order) => nextNewOrders.has(order.id) && !previousNewOrders.current.has(order.id))
+    if (!settings.autoPrintOrders) {
+      previousAcceptedOrders.current = new Set();
+      autoPrintReady.current = false;
+      return;
+    }
+    const acceptedOrders = boardOrders.filter((order) => order.status === "accepted");
+    const acceptedOrderIds = new Set(acceptedOrders.map((order) => order.id));
+    if (!autoPrintReady.current) {
+      previousAcceptedOrders.current = acceptedOrderIds;
+      autoPrintReady.current = true;
+      return;
+    }
+    acceptedOrders
+      .filter((order) => !previousAcceptedOrders.current.has(order.id))
       .forEach((order) => {
         if (!printedThisSession.current.has(`${order.id}:print`) && !order.printedCount) {
           void printKot(order, { auto: true });
         }
       });
-    previousNewOrders.current = nextNewOrders;
+    previousAcceptedOrders.current = acceptedOrderIds;
   }, [boardOrders, printKot, settings.autoPrintOrders]);
 
   async function toggleAutoPrint() {
@@ -326,18 +371,6 @@ export function KitchenDisplayFlow() {
     });
   }
 
-  function requestBulkComplete() {
-    setConfirmAction({
-      title: "Complete served orders?",
-      description: `Complete ${servedOrders.length} served kitchen order${servedOrders.length === 1 ? "" : "s"}.`,
-      confirmLabel: "Complete served",
-      onConfirm: async () => {
-        setConfirmAction(null);
-        await bulkUpdateStatus(servedOrders, "completed");
-      },
-    });
-  }
-
   function requestBulkCancel() {
     setConfirmAction({
       title: "Cancel visible active tickets?",
@@ -363,6 +396,7 @@ export function KitchenDisplayFlow() {
           connectionState={connectionState}
           filtersOpen={filtersOpen}
           historyOrders={historyOrders}
+          highlightedOrderId={highlightedOrderId}
           now={now}
           selectedPrinter={selectedPrinter}
           selectedPrinterId={selectedPrinterId}
@@ -403,32 +437,35 @@ export function KitchenDisplayFlow() {
           onReprint={(order) => void printKot(order, { reprint: true })}
         />
       </div>
-      <div className="hidden space-y-5 min-[1025px]:block">
-      <SectionHeader
-        title="Kitchen Operations Center"
-        description="Manage and track kitchen orders in real time."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant={filtersOpen ? "default" : "outline"} onClick={() => setFiltersOpen((value) => !value)} title="Filter kitchen orders"><Filter className="size-4" />Filters</Button>
-            <Button variant={settingsOpen ? "default" : "outline"} onClick={() => setSettingsOpen((value) => !value)} title="Kitchen settings"><Settings2 className="size-4" />Kitchen Settings</Button>
-            <Button variant="outline" onClick={() => void bulkUpdateStatus(preparingOrders, "ready")} disabled={!preparingOrders.length} title="Mark all preparing orders ready"><CheckCircle2 className="size-4" />Bulk Ready</Button>
-            <Button variant="outline" onClick={() => void bulkUpdateStatus(readyOrders, "served")} disabled={!readyOrders.length} title="Serve all ready orders"><CheckCircle2 className="size-4" />Serve Ready</Button>
-            <Button variant="outline" onClick={requestBulkComplete} disabled={!servedOrders.length} title="Complete all served orders"><CheckCircle2 className="size-4" />Complete Served</Button>
-            <Button variant="outline" className="text-red-600" onClick={requestBulkCancel} disabled={!cancellableOrders.length} title="Cancel all visible active kitchen tickets"><XCircle className="size-4" />Bulk Cancel</Button>
-            <Button variant={settings.autoPrintOrders ? "default" : "outline"} onClick={toggleAutoPrint} title="Toggle automatic KOT printing">
-              <Printer className="size-4" />Auto Print KOT {settings.autoPrintOrders ? "ON" : "OFF"}
-            </Button>
-            <Button variant="outline" onClick={() => setFullscreen((value) => !value)} title="Toggle kitchen full screen"><Maximize2 className="size-4" />{fullscreen ? "Exit" : "Full screen"}</Button>
-          </div>
-        }
-      />
+      <div className="hidden min-h-[calc(100vh-96px)] space-y-3 min-[1025px]:block">
+      <header className="sticky top-0 z-30 -mx-1 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b bg-slate-50/95 px-1 py-2 backdrop-blur">
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="truncate text-xl font-black text-slate-950">Kitchen Operations Center</h1>
+          <Badge variant={connectionState === "realtime" ? "success" : connectionState === "error" ? "warning" : "muted"}>
+            {connectionState === "realtime" ? "Live" : connectionState === "loading" ? "Loading" : connectionState === "error" ? "Sync issue" : "Snapshot"}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <label className="flex h-10 items-center gap-2 rounded-lg border bg-white px-3 text-xs font-black text-slate-600">
+            <Printer className="size-4" />
+            <select className="max-w-52 bg-transparent text-sm font-bold outline-none" value={selectedPrinter?.id ?? selectedPrinterId} onChange={(event) => setSelectedPrinterId(event.target.value)} aria-label="Select kitchen printer">
+              {(kitchenPrinters.length ? kitchenPrinters : [{ id: "browser-kitchen", name: "Browser print", paperWidth: "80mm" } as PrinterProfile]).map((profile) => (
+                <option key={profile.id} value={profile.id}>{profile.name} ({profile.paperWidth})</option>
+              ))}
+            </select>
+          </label>
+          <Button variant={settings.autoPrintOrders ? "default" : "outline"} onClick={toggleAutoPrint} title="Toggle automatic KOT printing">
+            <Printer className="size-4" />Auto Print {settings.autoPrintOrders ? "ON" : "OFF"}
+          </Button>
+          <Button variant={filtersOpen ? "default" : "outline"} onClick={() => setFiltersOpen((value) => !value)} title="Filter kitchen orders"><Filter className="size-4" />Filter</Button>
+          <Button variant={settingsOpen ? "default" : "outline"} onClick={() => setSettingsOpen((value) => !value)} title="Kitchen settings"><Settings2 className="size-4" />Settings</Button>
+          <Button variant="outline" asChild title="Kitchen order history"><Link href="/owner/kitchen/history"><History className="size-4" />History</Link></Button>
+          <Button variant="outline" onClick={() => setFullscreen((value) => !value)} title="Toggle kitchen full screen"><Maximize2 className="size-4" />{fullscreen ? "Exit" : "Full"}</Button>
+        </div>
+      </header>
 
       {filtersOpen ? (
-        <section className="grid gap-3 rounded-xl border bg-white p-3 shadow-sm lg:grid-cols-[minmax(220px,1fr)_160px_160px_160px_160px_160px_auto]">
-          <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-emerald-500" placeholder="Search order, table, customer, item" aria-label="Search kitchen orders" />
-          </label>
+        <section className="grid gap-2 rounded-lg border bg-white p-2 shadow-sm lg:grid-cols-[160px_160px_160px_160px_160px_auto]">
           <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as TableOrder["source"] | "all")} aria-label="Filter by source">
             <option value="all">All sources</option>
             {(["QR", "Waiter", "POS", "Takeaway", "Parcel", "Delivery"] as TableOrder["source"][]).map((source) => <option key={source} value={source}>{source}</option>)}
@@ -450,11 +487,11 @@ export function KitchenDisplayFlow() {
             <option value="all">All stations</option>
             {stationOptions.map((station) => <option key={station} value={station}>{station}</option>)}
           </select>
-          <Button variant="outline" onClick={() => { setQuery(""); setSourceFilter("all"); setPriorityFilter("all"); setStatusFilter("all"); setTableFilter("all"); setStationFilter("all"); }}>Clear</Button>
+          <Button variant="outline" onClick={() => { setSourceFilter("all"); setPriorityFilter("all"); setStatusFilter("all"); setTableFilter("all"); setStationFilter("all"); }}>Clear</Button>
         </section>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-9">
+      <section className="grid gap-2 xl:grid-cols-9">
         <KitchenMetric label="New Orders" value={stats.newOrders} tone="red" />
         <KitchenMetric label="Accepted" value={stats.accepted} tone="orange" />
         <KitchenMetric label="Preparing" value={stats.preparing} tone="amber" />
@@ -466,34 +503,17 @@ export function KitchenDisplayFlow() {
         <KitchenMetric label="Critical" value={stats.critical} tone="red" />
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={connectionState === "realtime" ? "success" : connectionState === "error" ? "warning" : "muted"}>
-            {connectionState === "realtime" ? "Realtime Firestore" : connectionState === "fallback" ? "API Snapshot" : connectionState === "error" ? "Sync error" : "Loading"}
-          </Badge>
-          <Badge variant={settings.autoPrintOrders ? "success" : "muted"}>Auto Refresh ON</Badge>
-          <Button variant="ghost" onClick={() => setSoundAlerts((value) => !value)} title="Toggle sound alerts">
-            <Volume2 className="size-4" />Sound {soundAlerts ? "ON" : "OFF"}
-          </Button>
-        </div>
-        <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
-          Printer
-          <select className="h-10 rounded-lg border bg-white px-3 text-sm" value={selectedPrinter?.id ?? selectedPrinterId} onChange={(event) => setSelectedPrinterId(event.target.value)}>
-            {(kitchenPrinters.length ? kitchenPrinters : [{ id: "browser-kitchen", name: "Browser print", paperWidth: "80mm" } as PrinterProfile]).map((profile) => (
-              <option key={profile.id} value={profile.id}>{profile.name} ({profile.paperWidth})</option>
-            ))}
-          </select>
-        </label>
-      </section>
-
       {settingsOpen ? (
-        <section className="grid gap-3 rounded-xl border bg-white p-3 shadow-sm md:grid-cols-3">
+        <section className="grid gap-3 rounded-lg border bg-white p-3 shadow-sm md:grid-cols-5">
           <Button variant={soundAlerts ? "default" : "outline"} onClick={() => setSoundAlerts((value) => !value)} title="Toggle one-time new order sound alerts">
             <Volume2 className="size-4" />Sound Alerts {soundAlerts ? "ON" : "OFF"}
           </Button>
           <Button variant={settings.autoPrintOrders ? "default" : "outline"} onClick={toggleAutoPrint} title="Toggle automatic KOT printing">
             <Printer className="size-4" />Auto Print {settings.autoPrintOrders ? "ON" : "OFF"}
           </Button>
+          <Button variant="outline" onClick={() => void bulkUpdateStatus(preparingOrders, "ready")} disabled={!preparingOrders.length} title="Mark all preparing orders ready"><CheckCircle2 className="size-4" />Bulk Ready</Button>
+          <Button variant="outline" onClick={() => void bulkUpdateStatus(readyOrders, "served")} disabled={!readyOrders.length} title="Serve all ready orders"><CheckCircle2 className="size-4" />Serve Ready</Button>
+          <Button variant="outline" className="text-red-600" onClick={requestBulkCancel} disabled={!cancellableOrders.length} title="Cancel all visible active kitchen tickets"><XCircle className="size-4" />Bulk Cancel</Button>
           <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
             {visibleOrders.length} visible / {boardOrders.length} board orders
           </div>
@@ -533,12 +553,12 @@ export function KitchenDisplayFlow() {
             No kitchen orders match the current filters.
           </p>
         ) : null}
-        <div className="grid gap-4 lg:min-w-[1680px] lg:grid-cols-7">
-          {columns.map((column) => {
+        <div className="grid gap-3 xl:grid-cols-4">
+          {desktopColumns.map((column) => {
             const columnOrders = visibleOrders.filter((order) => column.statuses.includes(order.status));
             return (
-              <div key={column.id} className={cn("max-h-[calc(100vh-330px)] overflow-y-auto rounded-xl border bg-white shadow-sm md:max-h-none lg:max-h-[calc(100vh-330px)]", statusFilter !== "all" && !column.statuses.includes(statusFilter) && "hidden md:block", columnBorder(column.tone))}>
-                <div className={cn("sticky top-0 z-10 flex items-center justify-between border-b px-3 py-3", columnHeader(column.tone))}>
+              <div key={column.id} className={cn("max-h-[calc(100vh-270px)] overflow-y-auto rounded-lg border bg-white shadow-sm", statusFilter !== "all" && !column.statuses.includes(statusFilter) && "hidden", columnBorder(column.tone))}>
+                <div className={cn("sticky top-0 z-10 flex items-center justify-between border-b px-3 py-2", columnHeader(column.tone))}>
                   <h2 className="text-sm font-black uppercase">{column.title}</h2>
                   <Badge variant="secondary">{columnOrders.length}</Badge>
                 </div>
@@ -549,8 +569,10 @@ export function KitchenDisplayFlow() {
                       order={order}
                       now={now}
                       busy={busyOrderId === order.id}
+                      highlighted={highlightedOrderId === order.id}
                       onPrint={(reprint) => void printKot(order, { reprint })}
                       onPreview={() => previewKot(order)}
+                      onOpen={() => setSelectedOrderId(order.id)}
                       onNext={(status) => void updateStatus(order, status)}
                       onCancel={() => requestCancel(order)}
                     />
@@ -561,12 +583,6 @@ export function KitchenDisplayFlow() {
             );
           })}
         </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1.2fr]">
-        <InfoPanel title="Order Timeline" orders={visibleOrders.slice(0, 1)} />
-        <PrintPanel orders={visibleOrders} onReprint={(order) => void printKot(order, { reprint: true })} />
-        <HistoryPanel orders={historyOrders} />
       </section>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold text-white">
@@ -583,19 +599,147 @@ export function KitchenDisplayFlow() {
           onConfirm={confirmAction.onConfirm}
         />
       ) : null}
+      {selectedOrder ? (
+        <KitchenOrderDrawer
+          order={selectedOrder}
+          now={now}
+          onClose={() => setSelectedOrderId(null)}
+          onPrint={() => void printKot(selectedOrder, { reprint: Boolean(selectedOrder.printedCount) })}
+          onPreview={() => previewKot(selectedOrder)}
+          onNext={(status) => void updateStatus(selectedOrder, status)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+export function KitchenOrderHistoryFlow() {
+  const [orders, setOrders] = useState<TableOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [range, setRange] = useState<"today" | "yesterday" | "7d" | "month" | "all">("today");
+  const [status, setStatus] = useState<TableOrderStatus | "all">("all");
+  const [payment, setPayment] = useState<PaymentState | "all">("all");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    void fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal })
+      .then((response) => readKitchenPayload<{ data?: TableOrder[] }>(response, "Kitchen history could not be loaded."))
+      .then((payload) => {
+        if (active) setOrders(payload.data ?? []);
+      })
+      .catch((error) => {
+        if ((error as Error).name !== "AbortError") toast.error("Kitchen history could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    return orders
+      .filter((order) => matchesDateRange(order.createdAt, range))
+      .filter((order) => status === "all" || order.status === status)
+      .filter((order) => payment === "all" || order.paymentStatus === payment)
+      .filter((order) => !search || [
+        displayOrderNumber(order),
+        order.id,
+        order.tableNumber,
+        order.customerName,
+        order.guestName,
+        order.assignedStaffName,
+        order.waiterName,
+        order.source,
+        order.orderType,
+        paymentLabel(order.paymentStatus),
+        ...order.lines.map((line) => line.name),
+      ].filter(Boolean).join(" ").toLowerCase().includes(search))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  }, [orders, payment, query, range, status]);
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
+
+  return (
+    <main className="space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-slate-950">Kitchen Order History</h1>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Search completed, cancelled, and active kitchen tickets by order number, table, staff, payment, and item.</p>
+        </div>
+        <Button variant="outline" asChild><Link href="/owner/kitchen"><UtensilsCrossed className="size-4" />Kitchen Operations</Link></Button>
+      </header>
+      <section className="grid gap-2 rounded-lg border bg-white p-3 shadow-sm xl:grid-cols-[minmax(220px,1fr)_150px_150px_150px]">
+        <label className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Search order number, table, customer, item" aria-label="Search kitchen history" />
+        </label>
+        <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={range} onChange={(event) => setRange(event.target.value as typeof range)} aria-label="Date range">
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="7d">Last 7 Days</option>
+          <option value="month">This Month</option>
+          <option value="all">Past / Future</option>
+        </select>
+        <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={status} onChange={(event) => setStatus(event.target.value as TableOrderStatus | "all")} aria-label="Status">
+          <option value="all">All status</option>
+          {(["new", "accepted", "preparing", "ready", "served", "completed", "billed", "cancelled"] as TableOrderStatus[]).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+        </select>
+        <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={payment} onChange={(event) => setPayment(event.target.value as PaymentState | "all")} aria-label="Payment">
+          <option value="all">All payments</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partial</option>
+          <option value="paid">Paid</option>
+          <option value="refunded">Refunded</option>
+        </select>
+      </section>
+      <section className="rounded-lg border bg-white shadow-sm">
+        <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 border-b px-4 py-3 text-xs font-black uppercase text-slate-500">
+          <span>Order</span><span>Table / Customer</span><span>Status</span><span>Payment</span><span>Staff</span><span>Print</span>
+        </div>
+        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+          {filtered.map((order) => (
+            <button key={order.id} type="button" onClick={() => setSelectedOrderId(order.id)} className="grid w-full grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 border-b px-4 py-3 text-left text-sm hover:bg-orange-50">
+              <span className="font-black text-slate-950">#{displayOrderNumber(order)}<small className="mt-1 block font-semibold text-slate-500">{timeOnly(order.createdAt)}</small></span>
+              <span className="font-bold text-slate-700">{order.tableNumber}<small className="mt-1 block truncate font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"}</small></span>
+              <span><Badge variant={order.status === "cancelled" ? "destructive" : isCompleted(order.status) ? "success" : "warning"}>{statusLabel(order.status)}</Badge></span>
+              <span className="font-bold text-slate-700">{paymentLabel(order.paymentStatus)}</span>
+              <span className="truncate font-bold text-slate-700">{order.assignedStaffName || order.waiterName || "Unassigned"}</span>
+              <span className="text-right font-black text-slate-600">{order.printedCount ?? 0}</span>
+            </button>
+          ))}
+          {!filtered.length ? <p className="p-8 text-center text-sm font-semibold text-slate-500">{loading ? "Loading kitchen history..." : "No kitchen orders match the selected filters."}</p> : null}
+        </div>
+      </section>
+      {selectedOrder ? (
+        <KitchenOrderDrawer
+          order={selectedOrder}
+          now={now}
+          onClose={() => setSelectedOrderId(null)}
+          onPrint={() => toast("Open Kitchen Operations to print or reprint KOT.")}
+          onPreview={() => toast("Open Kitchen Operations to preview KOT.")}
+          onNext={() => undefined}
+        />
+      ) : null}
+    </main>
   );
 }
 
 function KitchenMetric({ label, value, tone, compact }: { label: string; value: string | number; tone: "red" | "orange" | "amber" | "green" | "blue" | "violet" | "slate"; compact?: boolean }) {
   return (
     <Card className="overflow-hidden border-slate-200 shadow-sm">
-      <CardContent className="flex h-20 items-center justify-between gap-3 p-4">
+      <CardContent className="flex h-16 items-center justify-between gap-3 p-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-black text-slate-500">{label}</p>
-          <p className={cn("mt-1 font-black text-slate-950", compact ? "truncate text-sm" : "text-2xl")}>{value}</p>
+          <p className={cn("mt-0.5 font-black text-slate-950", compact ? "truncate text-sm" : "text-xl")}>{value}</p>
         </div>
-        <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", iconTone(tone))}>
+        <span className={cn("grid size-8 shrink-0 place-items-center rounded-full", iconTone(tone))}>
           {tone === "red" ? <BellRing className="size-4" /> : tone === "amber" || tone === "orange" ? <Timer className="size-4" /> : <CheckCircle2 className="size-4" />}
         </span>
       </CardContent>
@@ -613,6 +757,7 @@ function CompactKitchenBoard({
   connectionState,
   filtersOpen,
   historyOrders,
+  highlightedOrderId,
   kitchenPrinters,
   now,
   orderTypeFilter,
@@ -661,6 +806,7 @@ function CompactKitchenBoard({
   connectionState: "realtime" | "fallback" | "error" | "loading";
   filtersOpen: boolean;
   historyOrders: TableOrder[];
+  highlightedOrderId: string | null;
   kitchenPrinters: PrinterProfile[];
   now: number;
   orderTypeFilter: CompactOrderTypeFilter;
@@ -774,6 +920,7 @@ function CompactKitchenBoard({
                 <CompactKitchenOrderCard
                   key={order.id}
                   busy={busyOrderId === order.id}
+                  highlighted={highlightedOrderId === order.id}
                   now={now}
                   order={order}
                   onCancel={() => onCancel(order)}
@@ -916,7 +1063,7 @@ function QuickAction({ title, value, icon, onClick }: { title: string; value: st
   );
 }
 
-function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCancel }: { order: TableOrder; now: number; busy: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onCancel: () => void }) {
+function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onCancel: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const startX = useRef(0);
   const longPress = useRef<number | null>(null);
@@ -939,7 +1086,7 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
 
   return (
     <article
-      className={cn("overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, delayed && "border-red-300 bg-red-50/50 kitchen-delay-pulse")}
+      className={cn("overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/50 kitchen-delay-pulse")}
       aria-label={delayed ? `${order.tableNumber} delayed by ${delay.lateMinutes} minutes` : undefined}
       onPointerDown={(event) => {
         startX.current = event.clientX;
@@ -958,7 +1105,7 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="truncate text-base font-black">Order #{shortOrderId(order.id)}</p>
+              <p className="truncate text-base font-black">Order #{displayOrderNumber(order)}</p>
               <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-black uppercase", channelTone(channel))}>{channel}</span>
             </div>
             <p className="mt-1 text-sm font-bold text-slate-600">Table {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
@@ -1071,7 +1218,7 @@ function KitchenConfirmDialog({
   );
 }
 
-function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCancel }: { order: TableOrder; now: number; busy: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onCancel: () => void }) {
+function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted?: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onOpen: () => void; onCancel: () => void }) {
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
   const delay = getKitchenDelay(order, now);
@@ -1080,12 +1227,12 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const final = isCompleted(order.status);
   return (
-    <Card className={cn("border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", delay.priority === "critical" && "ring-2 ring-red-300")}>
-      <CardContent className="space-y-3 p-4">
+    <Card className={cn("cursor-pointer border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", delay.priority === "critical" && "ring-2 ring-red-300", highlighted && "ring-2 ring-orange-400")} onClick={onOpen}>
+      <CardContent className="space-y-3 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-black text-slate-950">#{order.id}</p>
-            <p className="mt-1 text-lg font-black text-slate-950">{order.tableNumber}</p>
+            <p className="truncate text-2xl font-black text-slate-950">Order #{displayOrderNumber(order)}</p>
+            <p className="mt-1 text-sm font-black text-slate-600">{order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <Badge variant="outline">{order.orderType?.toUpperCase() ?? "DINE-IN"}</Badge>
@@ -1095,7 +1242,7 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
         {delayed ? <DelayWarning delay={delay} /> : null}
         <div className="grid gap-1 text-xs font-bold text-slate-600">
           <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
-          <span>ETA {order.etaMinutes}m · {ageMinutes}m since order</span>
+          <span>ETA {order.etaMinutes}m · {ageMinutes}m waiting</span>
           <span>{delay.elapsedLabel}</span>
           <span>Staff: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
           <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
@@ -1112,11 +1259,11 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
           ))}
         </div>
         <div className="grid grid-cols-[44px_44px_minmax(0,1fr)_44px] gap-2" role="group" aria-label={`Kitchen actions for ${order.tableNumber}`}>
-          <Button variant="outline" className="h-11 w-11 p-0" onClick={onPreview} title="Preview KOT" aria-label={`Preview KOT for ${order.tableNumber}`}>
+          <Button variant="outline" className="h-11 w-11 p-0" onClick={(event) => { event.stopPropagation(); onPreview(); }} title="Preview KOT" aria-label={`Preview KOT for ${order.tableNumber}`}>
             <Eye className="size-4" />
             <span className="sr-only">Preview KOT</span>
           </Button>
-          <Button variant="outline" className="h-11 w-11 p-0" onClick={() => onPrint(Boolean(order.printedCount))} title={order.printedCount ? "Reprint KOT" : "Print KOT"} aria-label={`${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`}>
+          <Button variant="outline" className="h-11 w-11 p-0" onClick={(event) => { event.stopPropagation(); onPrint(Boolean(order.printedCount)); }} title={order.printedCount ? "Reprint KOT" : "Print KOT"} aria-label={`${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`}>
             <Printer className="size-4" />
             <span className="sr-only">{order.printedCount ? "Reprint KOT" : "Print KOT"}</span>
           </Button>
@@ -1127,11 +1274,11 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
             </Button>
           ) : (
             <>
-              <Button className="h-11 min-w-0" disabled={busy || !next} onClick={() => next && onNext(next)} title={label} aria-label={`${label} ${order.tableNumber}`}>
+              <Button className="h-11 min-w-0" disabled={busy || !next} onClick={(event) => { event.stopPropagation(); if (next) onNext(next); }} title={label} aria-label={`${label} ${order.tableNumber}`}>
                 <UtensilsCrossed className="size-4 shrink-0" />
                 <span className="truncate">{label}</span>
               </Button>
-              <Button variant="outline" className="h-11 w-11 p-0 text-red-600" disabled={busy} onClick={onCancel} title="Cancel ticket" aria-label={`Cancel kitchen ticket ${order.tableNumber}`}>
+              <Button variant="outline" className="h-11 w-11 p-0 text-red-600" disabled={busy} onClick={(event) => { event.stopPropagation(); onCancel(); }} title="Cancel ticket" aria-label={`Cancel kitchen ticket ${order.tableNumber}`}>
                 <XCircle className="size-4" />
                 <span className="sr-only">Cancel ticket</span>
               </Button>
@@ -1140,6 +1287,93 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function KitchenOrderDrawer({ order, now, onClose, onPrint, onPreview, onNext }: { order: TableOrder; now: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const next = nextStatus[order.status];
+  const delay = getKitchenDelay(order, now);
+  const timeline = order.statusHistory ?? [];
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[65] bg-slate-950/30" role="presentation" onClick={onClose}>
+      <aside role="dialog" aria-modal="true" aria-label={`Order ${displayOrderNumber(order)} details`} className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-white p-4">
+          <div>
+            <p className="text-xs font-black uppercase text-orange-600">Kitchen ticket</p>
+            <h2 className="mt-1 text-3xl font-black text-slate-950">Order #{displayOrderNumber(order)}</h2>
+            <p className="mt-1 text-sm font-bold text-slate-600">{order.tableNumber} · {order.customerName || order.guestName || "Walk-in"} · {paymentLabel(order.paymentStatus)}</p>
+          </div>
+          <Button ref={closeRef} variant="ghost" size="icon" onClick={onClose} aria-label="Close order details"><XCircle className="size-5" /></Button>
+        </header>
+        <div className="space-y-4 p-4">
+          {delay.delayed ? <DelayWarning delay={delay} /> : null}
+          <section className="grid grid-cols-2 gap-2 text-sm font-bold text-slate-600">
+            <InfoTile label="Status" value={statusLabel(order.status)} />
+            <InfoTile label="Priority" value={priorityLabel(order, delay)} />
+            <InfoTile label="ETA" value={`${order.etaMinutes} min`} />
+            <InfoTile label="Source" value={order.source} />
+            <InfoTile label="Staff" value={order.assignedStaffName || order.waiterName || "Unassigned"} />
+            <InfoTile label="Total" value={typeof order.total === "number" ? `₹${order.total}` : "Pending"} />
+          </section>
+          <section className="rounded-lg border p-3">
+            <h3 className="text-sm font-black uppercase text-slate-700">Items</h3>
+            <div className="mt-3 space-y-2">
+              {order.lines.map((line, index) => (
+                <div key={`${line.itemId}-${index}`} className="rounded-lg bg-slate-50 p-3">
+                  <p className="font-black text-slate-950">{line.quantity}x {line.name}</p>
+                  {line.modifiers?.length ? <p className="mt-1 text-xs font-bold text-orange-600">{line.modifiers.join(", ")}</p> : null}
+                  {line.notes ? <p className="mt-1 text-xs font-semibold text-slate-600">Note: {line.notes}</p> : null}
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="rounded-lg border p-3">
+            <h3 className="text-sm font-black uppercase text-slate-700">Timeline</h3>
+            <div className="mt-3 space-y-2">
+              <TimelineRow label="Created" value={timeOnly(order.createdAt)} />
+              {timeline.slice(-8).map((entry, index) => (
+                <TimelineRow key={`${entry.event || entry.status || index}-${entry.at}`} label={statusLabel((entry.status || entry.foodStatus || "completed") as TableOrderStatus)} value={entry.at ? timeOnly(entry.at) : "Recorded"} />
+              ))}
+              {!timeline.length ? <p className="text-sm font-semibold text-slate-500">No additional timeline entries.</p> : null}
+            </div>
+          </section>
+          <section className="grid grid-cols-3 gap-2">
+            <Button variant="outline" onClick={onPreview}><Eye className="size-4" />Preview</Button>
+            <Button variant="outline" onClick={onPrint}><Printer className="size-4" />{order.printedCount ? "Reprint" : "Print"}</Button>
+            <Button disabled={!next || isCompleted(order.status)} onClick={() => next && onNext(next)}><CheckCircle2 className="size-4" />{actionLabel[order.status] ?? readyActionLabel(order)}</Button>
+          </section>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-sm font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function TimelineRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+      <span className="font-black text-slate-700">{label}</span>
+      <span className="font-semibold text-slate-500">{value}</span>
+    </div>
   );
 }
 
@@ -1152,25 +1386,6 @@ function DelayWarning({ delay, compact }: { delay: DelayState; compact?: boolean
   );
 }
 
-function InfoPanel({ title, orders }: { title: string; orders: TableOrder[] }) {
-  const order = orders[0];
-  return (
-    <Card><CardContent className="p-4">
-      <h3 className="font-black text-slate-950">{title}</h3>
-      {order ? (
-        <div className="mt-4 space-y-3 text-sm">
-          {["Created", "Accepted", "Preparing", "Ready", "Served", "Paid", "Completed"].map((stage, index) => (
-            <div key={stage} className="flex items-center justify-between">
-              <span className="flex items-center gap-2 font-bold text-slate-700"><Clock className={cn("size-4", index <= 2 ? "text-orange-500" : "text-slate-300")} />{stage}</span>
-              <span className="text-xs text-slate-500">{index === 0 ? timeOnly(order.createdAt) : "Pending"}</span>
-            </div>
-          ))}
-        </div>
-      ) : <p className="mt-4 text-sm font-semibold text-slate-500">No active timeline</p>}
-    </CardContent></Card>
-  );
-}
-
 function PrintPanel({ orders, onReprint }: { orders: TableOrder[]; onReprint: (order: TableOrder) => void }) {
   const printed = orders.filter((order) => order.printedCount);
   return (
@@ -1179,7 +1394,7 @@ function PrintPanel({ orders, onReprint }: { orders: TableOrder[]; onReprint: (o
       <div className="mt-4 space-y-2">
         {printed.slice(0, 4).map((order) => (
           <div key={order.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-            <span className="font-black">#{order.id}</span>
+            <span className="font-black">#{displayOrderNumber(order)}</span>
             <span className="text-slate-500">{order.tableNumber}</span>
             <Button variant="ghost" size="sm" onClick={() => onReprint(order)}>Reprint</Button>
           </div>
@@ -1197,7 +1412,7 @@ function HistoryPanel({ orders }: { orders: TableOrder[] }) {
       <div className="mt-4 space-y-2">
         {orders.slice(0, 5).map((order) => (
           <div key={order.id} className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg border p-3 text-sm">
-            <span className="font-black">#{order.id}</span>
+            <span className="font-black">#{displayOrderNumber(order)}</span>
             <span>{order.tableNumber}</span>
             <Badge variant={order.status === "cancelled" ? "destructive" : "success"}>{statusLabel(order.status)}</Badge>
           </div>
@@ -1252,6 +1467,7 @@ function filterKitchenOrders(
     const station = order.kitchenStation || stationForOrder(order);
     const staff = order.assignedStaffName || order.waiterName || "";
     const matchesSearch = !search || [
+      displayOrderNumber(order),
       order.id,
       order.tableNumber,
       order.customerName,
@@ -1283,7 +1499,7 @@ function openKitchenTicket(order: TableOrder, printer: PrinterProfile | undefine
   const content = [
     "*** KOT ***",
     "Cafe Al Arab UL",
-    `Order: ${order.id}`,
+    `Order: ${displayOrderNumber(order)}`,
     `Date: ${new Date().toLocaleString("en-IN")}`,
     `Table: ${order.tableNumber}`,
     `Type: ${order.orderType ?? "dine-in"}`,
@@ -1330,6 +1546,26 @@ function isToday(value: string) {
   return Number.isFinite(date.getTime()) && date.toDateString() === new Date().toDateString();
 }
 
+function matchesDateRange(value: string, range: "today" | "yesterday" | "7d" | "month" | "all") {
+  if (range === "all") return true;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return false;
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (range === "today") return date >= start;
+  if (range === "yesterday") {
+    const yesterday = new Date(start);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return date >= yesterday && date < start;
+  }
+  if (range === "7d") {
+    const week = new Date(start);
+    week.setDate(week.getDate() - 6);
+    return date >= week;
+  }
+  return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth();
+}
+
 function readyActionLabel(order: TableOrder) {
   if (order.orderType === "delivery") return "Hand to Rider";
   if (order.orderType === "parcel" || order.orderType === "takeaway") return "Collected";
@@ -1370,8 +1606,13 @@ function paymentLabel(value?: PaymentState | TableOrder["paymentStatus"]) {
   return "UNPAID";
 }
 
-function shortOrderId(id: string) {
-  return id.length > 12 ? id.slice(-8).toUpperCase() : id;
+function displayOrderNumber(order: TableOrder) {
+  const extended = order as KitchenDisplayOrder;
+  const explicit = extended.orderNumber ?? extended.displayOrderNumber ?? extended.invoiceNumber ?? extended.billNumber;
+  if (explicit) return String(explicit).replace(/^INV[-_]?/i, "").slice(-8);
+  const digits = order.id.replace(/\D/g, "");
+  if (digits) return digits.slice(-4).padStart(4, "0");
+  return order.id.slice(-4).toUpperCase().padStart(4, "0");
 }
 
 function readableKitchenOrderType(type: NonNullable<TableOrder["orderType"]>) {

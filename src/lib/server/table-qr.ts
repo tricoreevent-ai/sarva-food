@@ -2,6 +2,7 @@ import "server-only";
 
 import crypto from "crypto";
 import { resolveTenantId } from "@/lib/tenant";
+import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 
 const secret = process.env.TABLE_QR_SECRET || process.env.NEXTAUTH_SECRET || process.env.FIREBASE_ADMIN_PROJECT_ID || "nammude-table-qr-dev";
 const defaultTtlDays = 365;
@@ -61,5 +62,5 @@ function configuredOrigin() {
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.SERVER_URL,
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
-  ].find((value) => value && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value)) || process.env.NEXT_PUBLIC_APP_URL || "https://nammude.example";
+  ].find((value) => value && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value)) || getConfiguredPublicAppUrl();
 }

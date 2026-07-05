@@ -39,6 +39,13 @@ exit /b 1
 
 :ready
 echo [validate] Server ready
+powershell -NoProfile -Command "try { $j=Invoke-RestMethod -UseBasicParsing -TimeoutSec 15 http://127.0.0.1:3000/api/release-info; if (-not $j.currentCommitSha -or -not $j.currentBranch -or -not $j.buildTimestamp -or -not $j.deploymentEnvironment -or -not $j.publicAppUrl -or -not $j.applicationVersion) { exit 1 }; if ($j.publicAppUrl -match 'localhost|127\.0\.0\.1' -or $j.publicAppUrl -notmatch '^https://') { exit 1 }; exit 0 } catch { exit 1 }"
+if errorlevel 1 (
+  echo [validate] FAIL: /api/release-info metadata is incomplete or has an invalid publicAppUrl.
+  exit /b 1
+)
+echo [validate] PASS: release metadata
+
 for %%P in (/ /api/release-info /api/owner/analytics) do (
   powershell -NoProfile -Command "$p='%%P'; try { $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 15 ('http://127.0.0.1:3000'+$p); if ($p -eq '/api/owner/analytics') { if ($r.StatusCode -ne 403 -and $r.StatusCode -ne 200) { exit 1 } } elseif ($r.StatusCode -ne 200) { exit 1 }; exit 0 } catch { if ($p -eq '/api/owner/analytics' -and $_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 403) { exit 0 }; exit 1 }"
   if errorlevel 1 (
