@@ -1,7 +1,11 @@
 import type { MetadataRoute } from "next";
+import { getRequestPublicAppUrl } from "@/lib/server/public-app-url";
 
-export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://nammude.example";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const baseUrl = await getRequestPublicAppUrl();
 
   return {
     rules: {

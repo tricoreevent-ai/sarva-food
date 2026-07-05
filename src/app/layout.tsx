@@ -15,11 +15,12 @@ import { getInitialTheme } from "@/lib/server/theme-preference";
 import { resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
+import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://nammude.example"),
+  metadataBase: new URL(getConfiguredPublicAppUrl()),
   title: {
     default: APP_DEFAULT_TITLE,
     template: `%s | ${APP_NAME}`,
