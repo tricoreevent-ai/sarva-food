@@ -1887,3 +1887,42 @@ Remaining release blockers:
 | Providers | SMTP, Razorpay, WhatsApp Cloud API, SMS, push, Meta, Cloudinary, Mapbox, and Google OAuth checks remain provider/manual gated. |
 | Hardware | 58mm/80mm/A4 printer, KOT, receipt, split receipt, reprint, Kitchen TV/tablet, and cashier device checks remain manual. |
 | Browser Smoke | Customer, owner, admin, POS, Kitchen, QR, notification, payment/timeline, and Master Menu Library hosted smoke remains manual. |
+
+## Release Freeze Verification
+
+| Check | Result |
+| --- | --- |
+| Localhost URL verification | PASS |
+| Manifest verification | PASS |
+| TypeScript | PASS |
+| ESLint | PASS |
+| Production Build | PASS with existing Firebase/protobuf dynamic dependency warning |
+| `git diff --check` | PASS |
+
+Remaining manual deployment tasks:
+
+| Area | Task |
+| --- | --- |
+| Deployment | Clear Hostinger cache, redeploy the current release branch, and verify hosted route health. |
+| Release metadata | Confirm hosted `/api/release-info` returns the deployed commit SHA and release branch. |
+| Browser smoke | Validate customer, owner, admin, POS, Kitchen, QR, notification, payment/timeline, and Master Menu Library flows on production. |
+| Device smoke | Validate mobile, tablet, desktop, Kitchen TV/tablet, cashier device, and multi-device synchronization. |
+| Printer smoke | Test real 58mm/80mm/A4 bill, receipt, KOT, split receipt, duplicate copy, and reprint output. |
+
+Remaining infrastructure tasks:
+
+| Area | Task |
+| --- | --- |
+| Environment | Verify production environment variables in Hostinger with real secrets. |
+| Firebase | Deploy and verify Firestore rules, Firestore indexes, Storage rules, and authorized domains. |
+| Cache/CDN | Confirm no stale app shell, manifest, service worker, or release metadata is served after deployment. |
+| Security | Verify production security headers on the hosted domain. |
+
+Remaining provider tasks:
+
+| Provider | Task |
+| --- | --- |
+| SMTP | Verify OTP, owner credentials, order notification, and outage alert email delivery. |
+| Razorpay | Verify sandbox/live order, verify, webhook, refund, and settlement flow before enabling live payments. |
+| WhatsApp/SMS | Verify Cloud API/SMS credentials, compliance, send flow, and webhook logging before launch. |
+| Cloudinary/Mapbox/Google OAuth | Verify upload/signature, maps, and hosted OAuth flows with production credentials. |

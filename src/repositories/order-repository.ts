@@ -211,8 +211,7 @@ export class OrderRepository {
     const rows = (await readTenantDocs(this.db, "orders", scope, ["tenantId", "restaurantId"], options.limit ?? 1_000))
       .map((doc) => dataWithId<OrderDoc>(doc.id, doc.data()))
       .filter((order) => options.includeDrafts || order.status !== "draft")
-      .filter((order) => !options.from || dateMs(order.createdAt) >= options.from.getTime())
-      .filter((order) => !options.to || dateMs(order.createdAt) <= options.to.getTime())
+      .filter((order) => matchesDateRange(order, options.from, options.to))
       .sort((first, second) => dateMs(second.createdAt) - dateMs(first.createdAt));
     return rows;
   }
@@ -275,9 +274,9 @@ export class OrderRepository {
       printedCount: 0,
       lastPrintedAt: null,
       deliveryOtp: "",
-      orderType: input.bill.orderType,
-      tableNumber: input.bill.table,
-      waiterName: input.bill.waiterName,
+      orderType: input.bill.orderType ?? "dine-in",
+      tableNumber: input.bill.table || "DIRECT",
+      waiterName: input.bill.waiterName ?? "",
       fulfillmentType: input.bill.orderType === "delivery" ? "delivery" : input.bill.orderType === "dine-in" ? "dine-in" : "parcel",
       scheduleMode: "now",
       createdAt: now,
@@ -1050,6 +1049,15 @@ function draftAuditEvents(previous: OrderDoc | null, bill: PosBill, scope: Tenan
 
 function cleanRecord(input: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+function matchesDateRange(order: OrderDoc, from?: Date, to?: Date) {
+  if (!from && !to) return true;
+  const fromMs = from?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const toMs = to?.getTime() ?? Number.POSITIVE_INFINITY;
+  const created = dateMs(order.createdAt);
+  const scheduled = dateMs(order.scheduledFor);
+  return (created >= fromMs && created <= toMs) || (scheduled >= fromMs && scheduled <= toMs);
 }
 
 function isString(value: unknown): value is string {

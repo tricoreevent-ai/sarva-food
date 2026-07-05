@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  AlertTriangle,
   BellRing,
   ChevronDown,
   CheckCircle2,
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
+import { delaySortRank, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
 import { cn } from "@/lib/utils";
 import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 
@@ -99,6 +101,7 @@ export function KitchenDisplayFlow() {
   const previousNewOrders = useRef(new Set<string>());
   const soundReady = useRef(false);
   const alertedOrders = useRef(new Set<string>());
+  const lastDelayedToast = useRef(0);
   const { settings, save: savePrinterSettings, log: logPrint } = usePrinterSettings();
 
   const kitchenPrinters = useMemo(
@@ -106,7 +109,7 @@ export function KitchenDisplayFlow() {
     [settings.profiles],
   );
   const selectedPrinter = kitchenPrinters.find((profile) => profile.id === selectedPrinterId) ?? kitchenPrinters[0];
-  const boardOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort(sortKitchenOrders), [orders]);
+  const boardOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort((a, b) => sortKitchenOrders(a, b, now)), [now, orders]);
   const stationOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.kitchenStation || stationForOrder(order)).filter(isStringValue))).sort(), [boardOrders]);
   const tableOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.tableNumber).filter(isStringValue))).sort(), [boardOrders]);
   const staffOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.assignedStaffName || order.waiterName).filter(isStringValue))).sort(), [boardOrders]);
@@ -197,6 +200,17 @@ export function KitchenDisplayFlow() {
     });
   }, [boardOrders, connectionState, soundAlerts]);
 
+  useEffect(() => {
+    if (!stats.delayed) {
+      lastDelayedToast.current = 0;
+      return;
+    }
+    if (lastDelayedToast.current === stats.delayed) return;
+    lastDelayedToast.current = stats.delayed;
+    toast(`${stats.delayed} kitchen order${stats.delayed === 1 ? "" : "s"} delayed.`, { icon: "!", className: "sarva-toast sarva-toast-warning" });
+    if (soundAlerts) playReadyTone();
+  }, [soundAlerts, stats.delayed]);
+
   const updateStatus = useCallback(async (order: TableOrder, status: TableOrderStatus, options: { silent?: boolean } = {}) => {
     if (busyOrders.current.has(order.id)) return;
     busyOrders.current.add(order.id);
@@ -211,7 +225,7 @@ export function KitchenDisplayFlow() {
       });
       const payload = await readKitchenPayload<{ data?: TableOrder }>(response, "Kitchen status could not be updated.");
       if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
-      if (!options.silent) toast.success(`${order.tableNumber} moved to ${statusLabel(status)}.`);
+      if (!options.silent) toast.success(kitchenActionToast(order, status));
       return true;
     } catch (error) {
       console.error("[kitchen] status update failed", { orderId: order.id, status, reason: error instanceof Error ? error.name : typeof error });
@@ -440,13 +454,16 @@ export function KitchenDisplayFlow() {
         </section>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-9">
         <KitchenMetric label="New Orders" value={stats.newOrders} tone="red" />
         <KitchenMetric label="Accepted" value={stats.accepted} tone="orange" />
         <KitchenMetric label="Preparing" value={stats.preparing} tone="amber" />
         <KitchenMetric label="Ready" value={stats.ready} tone="green" />
-        <KitchenMetric label="Urgent" value={stats.priority} tone="orange" />
         <KitchenMetric label="Delayed" value={stats.delayed} tone="red" />
+        <KitchenMetric label="Completed" value={stats.completedToday} tone="blue" />
+        <KitchenMetric label="Avg Prep" value={`${stats.averagePrep}m`} tone="slate" />
+        <KitchenMetric label="High Priority" value={stats.priority} tone="orange" />
+        <KitchenMetric label="Critical" value={stats.critical} tone="red" />
       </section>
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-3 shadow-sm">
@@ -905,13 +922,14 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
   const longPress = useRef<number | null>(null);
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
-  const delayed = ageMinutes > order.etaMinutes && !isCompleted(order.status);
+  const delay = getKitchenDelay(order, now);
+  const delayed = delay.delayed;
   const next = nextStatus[order.status];
   const final = isCompleted(order.status);
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const visibleLines = expanded ? order.lines : order.lines.slice(0, 2);
   const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
-  const priorityTone = order.priority === "rush" ? "border-l-red-500" : delayed ? "border-l-orange-500" : "border-l-emerald-500";
+  const priorityTone = delay.priority === "critical" ? "border-l-red-600" : delay.priority === "high" ? "border-l-red-500" : delayed ? "border-l-orange-500" : "border-l-emerald-500";
   const channel = order.source || order.orderType || "POS";
 
   function clearLongPress() {
@@ -921,7 +939,8 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
 
   return (
     <article
-      className={cn("overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone)}
+      className={cn("overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, delayed && "border-red-300 bg-red-50/50 kitchen-delay-pulse")}
+      aria-label={delayed ? `${order.tableNumber} delayed by ${delay.lateMinutes} minutes` : undefined}
       onPointerDown={(event) => {
         startX.current = event.clientX;
         longPress.current = window.setTimeout(onPreview, 650);
@@ -945,10 +964,12 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
             <p className="mt-1 text-sm font-bold text-slate-600">Table {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-xs font-black text-slate-500">Waiting {ageMinutes}m</span>
+            <span className="text-xs font-black text-slate-500">{delay.elapsedLabel}</span>
             <Badge variant={delayed ? "destructive" : order.status === "ready" ? "success" : "outline"}>{delayed ? "LATE" : statusLabel(order.status)}</Badge>
           </div>
         </div>
+
+        {delayed ? <DelayWarning delay={delay} compact /> : null}
 
         <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
           <span>Table: {order.tableNumber}</span>
@@ -957,7 +978,7 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
           <span className="text-right">Waiting: {ageMinutes}m</span>
           <span>Kitchen: {statusLabel(order.status)}</span>
           <span className="text-right">Payment: {paymentLabel(order.paymentStatus)}</span>
-          <span>Priority: {order.priority === "rush" ? "High" : "Normal"}</span>
+          <span>Priority: {priorityLabel(order, delay)}</span>
           <span className="text-right">Items: {order.lines.length}</span>
         </div>
 
@@ -1038,12 +1059,13 @@ function KitchenConfirmDialog({
 function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCancel }: { order: TableOrder; now: number; busy: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onCancel: () => void }) {
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
-  const delayed = ageMinutes > order.etaMinutes && !isCompleted(order.status);
+  const delay = getKitchenDelay(order, now);
+  const delayed = delay.delayed;
   const next = nextStatus[order.status];
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const final = isCompleted(order.status);
   return (
-    <Card className={cn("border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "bg-red-50/40")}>
+    <Card className={cn("border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", delay.priority === "critical" && "ring-2 ring-red-300")}>
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -1052,12 +1074,14 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
           </div>
           <div className="flex flex-col items-end gap-1">
             <Badge variant="outline">{order.orderType?.toUpperCase() ?? "DINE-IN"}</Badge>
-            <Badge variant={order.priority === "rush" ? "destructive" : delayed ? "warning" : "secondary"}>{priorityLabel(order, delayed)}</Badge>
+            <Badge variant={delay.priority === "critical" || delay.priority === "high" ? "destructive" : delayed ? "warning" : "secondary"}>{priorityLabel(order, delay)}</Badge>
           </div>
         </div>
+        {delayed ? <DelayWarning delay={delay} /> : null}
         <div className="grid gap-1 text-xs font-bold text-slate-600">
           <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
           <span>ETA {order.etaMinutes}m · {ageMinutes}m since order</span>
+          <span>{delay.elapsedLabel}</span>
           <span>Staff: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
           <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
           <span>Payment: {paymentLabel(order.paymentStatus)}</span>
@@ -1094,6 +1118,15 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DelayWarning({ delay, compact }: { delay: DelayState; compact?: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-black text-red-700", compact ? "text-xs" : "text-sm")} role="status" aria-live="polite">
+      <AlertTriangle className="size-4 shrink-0" />
+      <span>DELAYED · {delay.lateMinutes} min over ETA · Immediate attention required</span>
+    </div>
   );
 }
 
@@ -1156,10 +1189,8 @@ function HistoryPanel({ orders }: { orders: TableOrder[] }) {
 function buildKitchenStats(orders: TableOrder[], now: number, printerStatus: string, autoPrint: boolean) {
   const completedToday = orders.filter((order) => ["completed", "billed"].includes(order.status) && isToday(order.createdAt)).length;
   const active = orders.filter((order) => !isCompleted(order.status));
-  const delayed = active.filter((order) => {
-    const createdMs = Date.parse(order.createdAt);
-    return Number.isFinite(createdMs) && now - createdMs > order.etaMinutes * 60000;
-  }).length;
+  const delays = active.map((order) => getKitchenDelay(order, now));
+  const delayed = delays.filter((delay) => delay.delayed).length;
   const completed = orders.filter((order) => ["completed", "billed"].includes(order.status));
   const onTime = completed.filter((order) => {
     const createdMs = Date.parse(order.createdAt);
@@ -1171,9 +1202,10 @@ function buildKitchenStats(orders: TableOrder[], now: number, printerStatus: str
     preparing: orders.filter((order) => order.status === "preparing").length,
     ready: orders.filter((order) => order.status === "ready").length,
     completedToday,
-    averagePrep: orders.length ? Math.round(orders.reduce((sum, order) => sum + order.etaMinutes, 0) / orders.length) : 0,
+    averagePrep: active.length ? Math.round(delays.reduce((sum, delay) => sum + delay.elapsedMinutes, 0) / active.length) : 0,
     delayed,
-    priority: active.filter((order) => order.priority === "rush").length,
+    priority: delays.filter((delay) => delay.priority === "high" || delay.priority === "critical").length,
+    critical: delays.filter((delay) => delay.priority === "critical").length,
     efficiency: completed.length ? Math.round((onTime / completed.length) * 100) : active.length ? Math.max(0, 100 - delayed * 10) : 100,
     printerOnline: printerStatus !== "offline",
     printerLabel: autoPrint ? "Auto" : printerStatus === "browser-preview" ? "Browser" : printerStatus,
@@ -1252,11 +1284,15 @@ function openKitchenTicket(order: TableOrder, printer: PrinterProfile | undefine
   return true;
 }
 
-function sortKitchenOrders(a: TableOrder, b: TableOrder) {
-  const priority = (b.priority === "rush" ? 1 : 0) - (a.priority === "rush" ? 1 : 0);
+function sortKitchenOrders(a: TableOrder, b: TableOrder, now = Date.now()) {
+  const firstRank = delaySortRank(a, now);
+  const secondRank = delaySortRank(b, now);
+  const priority = secondRank.criticality - firstRank.criticality;
+  const late = secondRank.lateMinutes - firstRank.lateMinutes;
   const first = Date.parse(a.createdAt);
   const second = Date.parse(b.createdAt);
-  return priority || (Number.isFinite(first) ? first : 0) - (Number.isFinite(second) ? second : 0);
+  const oldest = (Number.isFinite(first) ? first : 0) - (Number.isFinite(second) ? second : 0);
+  return priority || late || oldest || firstRank.etaMinutes - secondRank.etaMinutes;
 }
 
 function isVisibleOnBoard(order: TableOrder) {
@@ -1288,10 +1324,21 @@ function stationForOrder(order: TableOrder) {
   return "Main Kitchen";
 }
 
-function priorityLabel(order: TableOrder, delayed: boolean) {
-  if (order.priority === "rush") return "High";
-  if (delayed) return "Medium";
-  return "Low";
+function priorityLabel(order: TableOrder, delay: DelayState) {
+  if (delay.priority === "critical") return "Critical";
+  if (delay.priority === "high" || order.priority === "rush") return "High";
+  if (delay.priority === "medium") return "Medium";
+  return "Normal";
+}
+
+function kitchenActionToast(order: TableOrder, status: TableOrderStatus) {
+  if (status === "accepted") return "Order accepted.";
+  if (status === "preparing") return "Cooking started.";
+  if (status === "ready") return "Order ready.";
+  if (status === "served") return readyActionLabel(order) === "Collected" ? "Parcel completed." : "Order served.";
+  if (status === "completed") return `${readyActionLabel(order) === "Collected" ? "Parcel" : "Order"} moved to Completed.`;
+  if (status === "cancelled") return "Order cancelled.";
+  return `${order.tableNumber} moved to ${statusLabel(status)}.`;
 }
 
 function paymentLabel(value?: PaymentState | TableOrder["paymentStatus"]) {

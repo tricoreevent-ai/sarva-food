@@ -15,6 +15,7 @@ import {
   PackageCheck,
   Phone,
   ReceiptText,
+  Search,
   Send,
   Settings,
   ShoppingBag,
@@ -32,6 +33,7 @@ import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
+import { getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
 import { normalizePhone } from "@/services/restaurant-ops-service";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -39,6 +41,10 @@ import type { OrderDoc } from "@/types/firebase";
 
 type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
 type SourceFilter = "all" | "website" | "pos" | "zomato" | "swiggy" | "dine-in" | "parcel" | "catering";
+type DatePreset = "today" | "yesterday" | "last7" | "week" | "last30" | "month" | "custom";
+type DateRange = { preset: DatePreset; from: string; to: string };
+
+const dateRangeSessionKey = "sarva-owner-orders-date-range:v1";
 
 const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   new: "accepted",
@@ -55,6 +61,10 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
 export function OwnerOrderManagementFlow() {
   const [tab, setTab] = useState<OrderTab>("all");
   const [filter, setFilter] = useState<SourceFilter>("all");
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange>(() => readSessionDateRange());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const [autoAccept, setAutoAccept] = useState(false);
   const [dialogPartner, setDialogPartner] = useState("");
   const [operationsOpen, setOperationsOpen] = useState(true);
@@ -63,19 +73,32 @@ export function OwnerOrderManagementFlow() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
-  const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders), [orders, tableOrders]);
+  const rangeLabel = useMemo(() => formatRangeLabel(dateRange), [dateRange]);
+  const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders, now), [now, orders, tableOrders]);
   const tabOrders = mappedOrders.filter((order) => matchesTab(order, tab));
   const tabCatering = cateringInquiries.filter((quote) => matchesCateringTab(quote, tab));
-  const visibleOrders = tabOrders.filter((order) => matchesFilter(order, filter));
-  const visibleCatering = tabCatering.filter(() => filter === "all" || filter === "catering");
+  const visibleOrders = tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, search));
+  const visibleCatering = tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, search));
   const metrics = buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries);
   const filters = buildFilters(tabOrders, tabCatering);
 
   useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    writeSessionDateRange(dateRange);
     const controller = new AbortController();
+    const query = dateRangeQuery(dateRange);
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      setLoading(true);
+      setLoadError("");
+    });
     void Promise.all([
-      fetch("/api/owner/orders", { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: OrderDoc[] }>(response, "Orders could not be loaded.")),
-      fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
+      fetch(`/api/owner/orders?${query}`, { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: OrderDoc[] }>(response, "Orders could not be loaded.")),
+      fetch(`/api/owner/kitchen?${query}`, { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
     ])
       .then(([ordersPayload, kitchenPayload]) => {
         if (controller.signal.aborted) return;
@@ -92,7 +115,7 @@ export function OwnerOrderManagementFlow() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, []);
+  }, [dateRange]);
 
   async function updateOrder(orderId: string, status: OrderStatus) {
     const response = await fetch("/api/owner/orders", {
@@ -105,6 +128,7 @@ export function OwnerOrderManagementFlow() {
       return;
     }
     setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order));
+    toast.success(orderStatusToast(status));
   }
 
   async function updateKitchenOrder(order: TableOrder) {
@@ -124,6 +148,7 @@ export function OwnerOrderManagementFlow() {
       return;
     }
     if (payload?.data) setTableOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
+    toast.success(orderStatusToast(status));
   }
 
   async function updateCateringInquiryStatus() {
@@ -136,17 +161,23 @@ export function OwnerOrderManagementFlow() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-black tracking-tight text-neutral-950">Orders</h1>
-        <p className="mt-2 text-base font-medium text-slate-600">Manage online orders from your website, POS, and delivery partners.</p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-neutral-950">Orders</h1>
+          <p className="mt-2 text-base font-medium text-slate-600">Manage online orders from your website, POS, and delivery partners.</p>
+          <p className="mt-2 text-sm font-black text-orange-600">{rangeLabel}</p>
+        </div>
+        <DateRangePicker key={`${dateRange.preset}:${dateRange.from}:${dateRange.to}`} open={datePickerOpen} range={dateRange} onChange={setDateRange} onOpenChange={setDatePickerOpen} />
       </div>
       {loadError ? <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm font-semibold text-destructive">{loadError}</div> : null}
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-6">
         <OrderMetricCard label="New" value={String(metrics.newOrders)} note="New orders" icon={ShoppingBag} tone="purple" />
         <OrderMetricCard label="Preparing" value={String(metrics.preparing)} note="Being prepared" icon={ChefHat} tone="orange" />
         <OrderMetricCard label="Ready" value={String(metrics.ready)} note="Ready for pickup" icon={CheckCircle2} tone="green" />
         <OrderMetricCard label="Kitchen Tickets" value={String(metrics.kotTickets)} note="Sent to kitchen" icon={ClipboardList} tone="blue" />
+        <OrderMetricCard label="Delayed" value={String(metrics.delayed)} note="Needs attention" icon={Bell} tone="red" />
+        <OrderMetricCard label="Critical" value={String(metrics.critical)} note="Top priority" icon={ChefHat} tone="red" />
       </section>
 
       <div className={operationsOpen ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" : "grid gap-6"}>
@@ -184,6 +215,11 @@ export function OwnerOrderManagementFlow() {
               </Button>
             </div>
           </div>
+
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-3 text-sm font-bold text-slate-950 outline-none focus:border-orange-400" placeholder="Search orders, customers, phones, dates" aria-label="Search orders" />
+          </label>
 
           <OrderFilters filters={filters} active={filter} onChange={setFilter} />
 
@@ -257,6 +293,63 @@ export function OwnerOrderManagementFlow() {
       </div>
 
       <IntegrationDialog partner={dialogPartner || "Partner"} open={Boolean(dialogPartner)} onOpenChange={(open) => !open && setDialogPartner("")} />
+    </div>
+  );
+}
+
+function DateRangePicker({ open, range, onChange, onOpenChange }: { open: boolean; range: DateRange; onChange: (range: DateRange) => void; onOpenChange: (open: boolean) => void }) {
+  const [draftFrom, setDraftFrom] = useState(range.from);
+  const [draftTo, setDraftTo] = useState(range.to);
+
+  function applyCustom() {
+    const from = draftFrom <= draftTo ? draftFrom : draftTo;
+    const to = draftFrom <= draftTo ? draftTo : draftFrom;
+    onChange({ preset: "custom", from, to });
+    onOpenChange(false);
+  }
+
+  return (
+    <div className="relative">
+      <Button type="button" variant="outline" onClick={() => onOpenChange(!open)} aria-expanded={open} aria-haspopup="dialog">
+        <CalendarClock className="size-4" />
+        {formatRangeLabel(range)}
+      </Button>
+      {open ? (
+        <section role="dialog" aria-label="Order date range" className="absolute right-0 z-40 mt-2 w-[min(92vw,28rem)] rounded-xl border bg-white p-3 shadow-2xl">
+          <div className="grid gap-3 md:grid-cols-[10rem_1fr]">
+            <div className="grid gap-1">
+              {datePresets.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => {
+                    if (preset.key === "custom") {
+                      onChange({ ...range, preset: "custom" });
+                      return;
+                    }
+                    onChange(rangeForPreset(preset.key));
+                    onOpenChange(false);
+                  }}
+                  className={range.preset === preset.key ? "rounded-lg bg-orange-50 px-3 py-2 text-left text-sm font-black text-orange-700" : "rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-600 hover:bg-slate-50"}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid content-start gap-3 rounded-lg border bg-slate-50 p-3">
+              <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
+                From
+                <input type="date" value={draftFrom} onChange={(event) => setDraftFrom(event.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm font-bold text-slate-950" />
+              </label>
+              <label className="grid gap-1 text-xs font-black uppercase text-slate-500">
+                To
+                <input type="date" value={draftTo} onChange={(event) => setDraftTo(event.target.value)} className="h-10 rounded-lg border bg-white px-3 text-sm font-bold text-slate-950" />
+              </label>
+              <Button type="button" onClick={applyCustom}>Apply Custom Range</Button>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -402,19 +495,100 @@ function EmptyOrders({ title = "No orders in this view" }: { title?: string }) {
   );
 }
 
+const datePresets: Array<{ key: DatePreset; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "last7", label: "Last 7 Days" },
+  { key: "week", label: "This Week" },
+  { key: "last30", label: "Last 30 Days" },
+  { key: "month", label: "This Month" },
+  { key: "custom", label: "Custom Range" },
+];
+
+function readSessionDateRange(): DateRange {
+  if (typeof window === "undefined") return rangeForPreset("today");
+  const saved = window.sessionStorage.getItem(dateRangeSessionKey);
+  if (!saved) return rangeForPreset("today");
+  try {
+    const value = JSON.parse(saved) as DateRange;
+    return value.from && value.to ? value : rangeForPreset("today");
+  } catch {
+    return rangeForPreset("today");
+  }
+}
+
+function writeSessionDateRange(range: DateRange) {
+  if (typeof window !== "undefined") window.sessionStorage.setItem(dateRangeSessionKey, JSON.stringify(range));
+}
+
+function dateRangeQuery(range: DateRange) {
+  const params = new URLSearchParams();
+  params.set("from", range.from);
+  params.set("to", range.to);
+  params.set("limit", "300");
+  return params.toString();
+}
+
+function rangeForPreset(preset: DatePreset): DateRange {
+  const today = startOfDay(new Date());
+  if (preset === "yesterday") {
+    const date = addDays(today, -1);
+    return { preset, from: inputDate(date), to: inputDate(date) };
+  }
+  if (preset === "last7") return { preset, from: inputDate(addDays(today, -6)), to: inputDate(today) };
+  if (preset === "week") return { preset, from: inputDate(addDays(today, -today.getDay())), to: inputDate(addDays(today, 6 - today.getDay())) };
+  if (preset === "last30") return { preset, from: inputDate(addDays(today, -29)), to: inputDate(today) };
+  if (preset === "month") return { preset, from: inputDate(new Date(today.getFullYear(), today.getMonth(), 1)), to: inputDate(new Date(today.getFullYear(), today.getMonth() + 1, 0)) };
+  return { preset, from: inputDate(today), to: inputDate(today) };
+}
+
+function formatRangeLabel(range: DateRange) {
+  if (range.preset === "today" && range.from === range.to) return `Today • ${formatDisplayDate(range.from)}`;
+  if (range.preset === "yesterday" && range.from === range.to) return `Yesterday • ${formatDisplayDate(range.from)}`;
+  if (range.from === range.to) return formatDisplayDate(range.from);
+  return `${formatDisplayDate(range.from)} → ${formatDisplayDate(range.to)}`;
+}
+
+function inputDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDisplayDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isFinite(date.getTime()) ? date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : value;
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function delayPriorityRank(priority: DelayPriority) {
+  if (priority === "critical") return 4;
+  if (priority === "high") return 3;
+  if (priority === "medium") return 2;
+  return 1;
+}
+
 async function readOwnerPayload<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error || fallback);
   return payload;
 }
 
-function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrder[] {
+function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: number): OpsOrder[] {
   const countByPhone = new Map<string, number>();
   for (const order of orders) {
     const phone = normalizePhone(order.customer.phone);
     if (phone) countByPhone.set(phone, (countByPhone.get(phone) ?? 0) + 1);
   }
   const customerOrders = orders.map((order, index) => ({
+    delay: getKitchenDelay({ status: order.status, createdAt: order.createdAt, prepEstimateMinutes: order.prepEstimateMinutes }),
     id: order.id,
     displayId: readableOrderId({
       id: order.id,
@@ -424,7 +598,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrde
       createdAt: order.createdAt,
       sequence: index + 1,
     }),
-    age: relativeOrderTime(order.createdAt),
+    age: relativeOrderTime(order.createdAt, now),
     actualTime: actualOrderTime(order.createdAt),
     source: sourceLabel(order.channel),
     customer: order.customer.name,
@@ -444,9 +618,10 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrde
     prepSuggestion: order.scheduledFor ? prepStartSuggestion(order.scheduledFor, order.prepEstimateMinutes ?? 50) : undefined,
   }));
   const kotOrders = tableOrders.map((order, index) => ({
+    delay: getKitchenDelay(order, now),
     id: order.id,
     displayId: readableTableOrderId(order, index + 1),
-    age: relativeOrderTime(order.createdAt),
+    age: relativeOrderTime(order.createdAt, now),
     actualTime: actualOrderTime(order.createdAt),
     source: order.source === "Delivery" ? "POS Delivery" : order.source === "Parcel" ? "POS Parcel" : "POS",
     customer: order.customerName ?? order.guestName ?? order.tableNumber,
@@ -461,7 +636,10 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrde
     payment: "Pending",
     scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
   }));
-  return [...customerOrders, ...kotOrders].sort((first, second) => orderRank(first.status) - orderRank(second.status));
+  return [...customerOrders, ...kotOrders].sort((first, second) => {
+    const priority = delayPriorityRank(second.delay.priority) - delayPriorityRank(first.delay.priority);
+    return priority || orderRank(first.status) - orderRank(second.status);
+  });
 }
 
 function buildOrderMetrics(orders: OpsOrder[], tableOrders: TableOrder[], cateringInquiries: CateringQuote[]) {
@@ -470,6 +648,8 @@ function buildOrderMetrics(orders: OpsOrder[], tableOrders: TableOrder[], cateri
     preparing: orders.filter((order) => ["accepted", "preparing", "occupied"].includes(order.status)).length,
     ready: orders.filter((order) => ["ready", "served"].includes(order.status)).length,
     kotTickets: tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length,
+    delayed: orders.filter((order) => order.delay?.delayed).length,
+    critical: orders.filter((order) => order.delay?.priority === "critical").length,
   };
 }
 
@@ -503,6 +683,29 @@ function matchesFilter(order: OpsOrder, filter: SourceFilter) {
   if (filter === "swiggy") return order.source === "Swiggy";
   if (filter === "catering") return order.source === "Catering";
   return order.type === filter;
+}
+
+function matchesSearch(order: OpsOrder, query: string) {
+  const search = query.trim().toLowerCase();
+  if (!search) return true;
+  return [
+    order.id,
+    order.displayId,
+    order.customer,
+    order.phone,
+    order.email,
+    order.address,
+    order.type,
+    order.source,
+    order.status,
+    order.scheduledLabel,
+  ].filter(Boolean).join(" ").toLowerCase().includes(search);
+}
+
+function matchesCateringSearch(quote: CateringQuote, query: string) {
+  const search = query.trim().toLowerCase();
+  if (!search) return true;
+  return [quote.id, quote.name, quote.phone, quote.email, quote.eventType, quote.eventDate, quote.eventTime].filter(Boolean).join(" ").toLowerCase().includes(search);
 }
 
 function matchesCateringTab(quote: CateringQuote, tab: OrderTab) {
@@ -545,6 +748,15 @@ function sourceLabel(channel: OrderChannel) {
 
 function orderRank(status: string) {
   return ["new", "accepted", "preparing", "ready", "served", "delivered", "completed", "rejected"].indexOf(status);
+}
+
+function orderStatusToast(status: OrderStatus | TableOrderStatus) {
+  if (status === "accepted") return "Order accepted.";
+  if (status === "preparing") return "Cooking started.";
+  if (status === "ready") return "Order ready.";
+  if (status === "delivered" || status === "completed") return "Order completed.";
+  if (status === "rejected" || status === "cancelled") return "Order cancelled.";
+  return `Order moved to ${status}.`;
 }
 
 function prepStartSuggestion(value: string, prepMinutes: number) {

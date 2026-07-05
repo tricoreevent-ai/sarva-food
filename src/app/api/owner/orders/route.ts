@@ -48,7 +48,11 @@ export async function GET(request: NextRequest) {
   if (access.error) return access.error;
   const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
   const limit = Number(request.nextUrl.searchParams.get("limit") ?? 500);
-  const orders = await new OrderRepository().list(scope, { limit: Number.isFinite(limit) ? limit : 500 });
+  const orders = await new OrderRepository().list(scope, {
+    from: startDate(request.nextUrl.searchParams.get("from")),
+    to: endDate(request.nextUrl.searchParams.get("to")),
+    limit: Number.isFinite(limit) ? limit : 500,
+  });
   return NextResponse.json({ data: orders, count: orders.length });
 }
 
@@ -134,4 +138,16 @@ function orderError(error: unknown, requestId: string) {
 
 function requestIdFor() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function startDate(value: string | null) {
+  if (!value) return undefined;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isFinite(date.getTime()) ? date : undefined;
+}
+
+function endDate(value: string | null) {
+  if (!value) return undefined;
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isFinite(date.getTime()) ? date : undefined;
 }

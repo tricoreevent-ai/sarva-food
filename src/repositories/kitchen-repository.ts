@@ -12,9 +12,10 @@ type KitchenUpdateResult = KitchenOrderDoc & { unchanged?: boolean };
 export class KitchenRepository {
   private readonly db = adminDb();
 
-  async list(scope: TenantScope, limit = 200) {
-    return (await readTenantDocs(this.db, "kitchenOrders", scope, ["tenantId", "restaurantId"], limit))
+  async list(scope: TenantScope, options: { from?: Date; to?: Date; limit?: number } = {}) {
+    return (await readTenantDocs(this.db, "kitchenOrders", scope, ["tenantId", "restaurantId"], options.limit ?? 200))
       .map((doc) => dataWithId<KitchenOrderDoc>(doc.id, doc.data()))
+      .filter((order) => matchesDateRange(order, options.from, options.to))
       .sort((first, second) => dateMs(second.createdAt) - dateMs(first.createdAt));
   }
 
@@ -111,4 +112,13 @@ function isValidStatusTransition(current: KitchenOrderStatus, next: KitchenOrder
   if (currentIndex < 0 || nextIndex < 0) return false;
   if (current === "ready" && next === "completed") return true;
   return nextIndex === currentIndex + 1;
+}
+
+function matchesDateRange(order: KitchenOrderDoc, from?: Date, to?: Date) {
+  if (!from && !to) return true;
+  const fromMs = from?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const toMs = to?.getTime() ?? Number.POSITIVE_INFINITY;
+  const created = dateMs(order.createdAt);
+  const scheduled = dateMs(order.scheduledFor);
+  return (created >= fromMs && created <= toMs) || (scheduled >= fromMs && scheduled <= toMs);
 }

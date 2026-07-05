@@ -21,8 +21,6 @@ type NativeMethods = {
 let originalNativeMethods: NativeMethods | null = null;
 let customNativeEnabled = true;
 let warnedNativeOverride = false;
-let originalToastMethods: { success: typeof toast.success; error: typeof toast.error } | null = null;
-let warnedToastBridge = false;
 
 export function AlertProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<AlertRequest[]>([]);
@@ -34,12 +32,10 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const api = useMemo<AlertApi>(() => ({
-    alert: (message, options = {}) => new Promise<void>((resolve) => enqueue({
-      kind: "alert",
-      message,
-      options,
-      resolve: () => resolve(),
-    })),
+    alert: (message, options = {}) => {
+      showAlertToast(message, options);
+      return Promise.resolve();
+    },
     confirm: (message, options = {}) => new Promise<boolean>((resolve) => enqueue({
       kind: "confirm",
       message,
@@ -63,7 +59,6 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     initializeNativeAlertOverrides(api);
-    initializeToastAlertBridge(api);
     return () => undefined;
   }, [api]);
 
@@ -101,7 +96,7 @@ export function initializeNativeAlertOverrides(api: AlertApi) {
 
   if (process.env.NODE_ENV !== "production" && !warnedNativeOverride) {
     warnedNativeOverride = true;
-    console.warn("[Nammude] Native alert/confirm/prompt are overridden by the animated AlertProvider. Use window.sarvaNativeAlerts.useNative() to temporarily restore native dialogs.");
+    console.warn("[Nammude] Native alert uses toast notifications; confirm/prompt use the custom AlertProvider.");
   }
 
   const controller: NativeAlertOverrideController = {
@@ -128,47 +123,6 @@ export function initializeNativeAlertOverrides(api: AlertApi) {
   if (customNativeEnabled) applyNativeOverrides(api);
 }
 
-function initializeToastAlertBridge(api: AlertApi) {
-  if (typeof window === "undefined") return;
-  const target = toast as typeof toast & { success: typeof toast.success; error: typeof toast.error };
-  originalToastMethods ??= {
-    success: target.success.bind(toast),
-    error: target.error.bind(toast),
-  };
-
-  if (process.env.NODE_ENV !== "production" && !warnedToastBridge) {
-    warnedToastBridge = true;
-    console.warn("[Nammude] Mobile toast success/error messages are routed through AlertProvider.");
-  }
-
-  target.success = ((message: Parameters<typeof toast.success>[0], options?: Parameters<typeof toast.success>[1]) => {
-    if (!shouldUseAlertToast(message)) return originalToastMethods!.success(message, options);
-    void api.alert(String(message), {
-      title: "Success",
-      okText: "Done",
-      tone: "success",
-      confetti: true,
-      closeOnBackdrop: true,
-    });
-    return `alert-success-${Date.now()}`;
-  }) as typeof toast.success;
-
-  target.error = ((message: Parameters<typeof toast.error>[0], options?: Parameters<typeof toast.error>[1]) => {
-    if (!shouldUseAlertToast(message)) return originalToastMethods!.error(message, options);
-    void api.alert(String(message), {
-      title: "Please check",
-      okText: "OK",
-      tone: "danger",
-      closeOnBackdrop: true,
-    });
-    return `alert-error-${Date.now()}`;
-  }) as typeof toast.error;
-}
-
-function shouldUseAlertToast(message: unknown) {
-  return typeof window !== "undefined" && (typeof message === "string" || typeof message === "number");
-}
-
 function applyNativeOverrides(api: AlertApi) {
   if (typeof window === "undefined") return;
   const target = window as unknown as {
@@ -179,6 +133,19 @@ function applyNativeOverrides(api: AlertApi) {
   target.alert = (message?: unknown) => api.alert(String(message ?? ""), { title: "Notice" });
   target.confirm = (message?: unknown) => api.confirm(String(message ?? ""), { title: "Confirm action" });
   target.prompt = (message?: unknown, defaultValue?: string) => api.prompt(String(message ?? ""), defaultValue ?? "");
+}
+
+function showAlertToast(message: ReactNode, options: AlertOptions) {
+  const content = (message ?? "") as Parameters<typeof toast>[0];
+  if (options.tone === "success") {
+    toast.success(content);
+    return;
+  }
+  if (options.tone === "danger") {
+    toast.error(content);
+    return;
+  }
+  toast(content, { icon: options.tone === "warning" ? "!" : undefined, className: options.tone === "warning" ? "sarva-toast sarva-toast-warning" : undefined });
 }
 
 function restoreNativeMethods() {

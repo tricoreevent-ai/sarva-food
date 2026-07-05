@@ -12,7 +12,7 @@ export function OrderMetricCard({
   value: string;
   note: string;
   icon: LucideIcon;
-  tone?: "orange" | "green" | "blue" | "purple";
+  tone?: "orange" | "green" | "blue" | "purple" | "red";
 }) {
   return (
     <div className={cn("flex items-center gap-4 rounded-2xl border bg-white p-5 shadow-sm", toneClass[tone].border)}>
@@ -33,4 +33,5 @@ const toneClass = {
   green: { border: "border-emerald-200", bg: "bg-emerald-50", text: "text-emerald-600" },
   blue: { border: "border-blue-200", bg: "bg-blue-50", text: "text-blue-600" },
   purple: { border: "border-violet-200", bg: "bg-violet-50", text: "text-violet-600" },
+  red: { border: "border-red-200", bg: "bg-red-50", text: "text-red-600" },
 };

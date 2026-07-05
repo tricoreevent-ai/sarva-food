@@ -1,8 +1,8 @@
-import { CalendarClock, Check, Eye, Mail, MapPin, MessageCircle, Phone, Star, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CalendarClock, Check, Eye, Mail, MapPin, MessageCircle, Phone, Star, X, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/owner/status-badge";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 type CommunicationEvent = {
   id: string;
@@ -33,6 +33,7 @@ export type OpsOrder = {
   instructions?: string;
   scheduledLabel?: string;
   prepSuggestion?: string;
+  delay?: { delayed: boolean; lateMinutes: number; priority: "normal" | "medium" | "high" | "critical"; elapsedLabel: string };
 };
 
 export function OrderCard({
@@ -55,6 +56,8 @@ export function OrderCard({
   const isPreparing = order.status === "accepted" || order.status === "preparing";
   const isReady = order.status === "ready";
   const isDone = ["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+  const delayed = Boolean(order.delay?.delayed);
+  const critical = order.delay?.priority === "critical";
 
   useEffect(() => {
     if (!contactOpen) return;
@@ -94,7 +97,7 @@ export function OrderCard({
   }
 
   return (
-    <article className="grid gap-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_220px] md:items-center">
+    <article className={cn("grid gap-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_180px_220px] md:items-center", delayed && "border-red-400 bg-red-50/45 kitchen-delay-pulse", critical && "ring-2 ring-red-300")}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-black text-neutral-950">{order.displayId ?? order.id}</h3>
@@ -128,6 +131,12 @@ export function OrderCard({
           </p>
         ) : null}
         {order.prepSuggestion ? <p className="mt-1 text-xs font-semibold text-slate-500">{order.prepSuggestion}</p> : null}
+        {delayed ? (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1 text-xs font-black uppercase text-red-700" role="status" aria-live="polite">
+            <AlertTriangle className="size-3.5" />
+            Delayed · {order.delay?.lateMinutes} min over ETA · {priorityLabel(order.delay?.priority)} Priority
+          </p>
+        ) : null}
         {order.instructions ? <p className="mt-2 text-sm text-slate-600">{order.instructions}</p> : null}
       </div>
 
@@ -211,6 +220,13 @@ export function OrderCard({
       ) : null}
     </article>
   );
+}
+
+function priorityLabel(priority?: string) {
+  if (priority === "critical") return "Critical";
+  if (priority === "high") return "High";
+  if (priority === "medium") return "Medium";
+  return "Normal";
 }
 
 function ContactButton({ href, icon: Icon, label, disabled, onOpen }: { href: string; icon: LucideIcon; label: string; disabled?: boolean; onOpen?: () => void }) {

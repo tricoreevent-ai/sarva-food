@@ -55,6 +55,24 @@ export function kitchenDocToTableOrder(order: KitchenOrderDoc | Record<string, u
     total: num(order.total),
     printedCount: num(order.printedCount),
     lastPrintedAt: parseFirestoreDateIso(order.lastPrintedAt),
+    statusHistory: Array.isArray(order.statusHistory)
+      ? order.statusHistory.map((entry) => normalizeStatusEntry(entry)).filter(Boolean) as TableOrder["statusHistory"]
+      : undefined,
+  };
+}
+
+function normalizeStatusEntry(entry: unknown) {
+  if (!entry || typeof entry !== "object") return null;
+  const value = entry as Record<string, unknown>;
+  const at = parseFirestoreDateIso(value.at);
+  if (!at) return null;
+  return {
+    status: tableStatus(str(value.status)),
+    foodStatus: tableStatus(str(value.foodStatus)),
+    event: str(value.event),
+    paymentStatus: str(value.paymentStatus),
+    at,
+    by: str(value.by),
   };
 }
 

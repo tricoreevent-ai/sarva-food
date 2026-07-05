@@ -919,6 +919,7 @@ export type TableOrder = {
   total?: number;
   printedCount?: number;
   lastPrintedAt?: string;
+  statusHistory?: Array<{ status?: TableOrderStatus; foodStatus?: TableOrderStatus; event?: string; paymentStatus?: string; at?: string; by?: string }>;
 };
 
 export type PaperWidth = "58mm" | "80mm" | "100mm" | "label" | "A4";

@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
     const access = await requireOwnerFeature(request, "kitchen", "read");
     if (access.error) return access.error;
     const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
-    const data = await new KitchenRepository().list(scope);
+    const limit = Number(request.nextUrl.searchParams.get("limit") ?? 200);
+    const data = await new KitchenRepository().list(scope, {
+      from: startDate(request.nextUrl.searchParams.get("from")),
+      to: endDate(request.nextUrl.searchParams.get("to")),
+      limit: Number.isFinite(limit) ? limit : 200,
+    });
     return NextResponse.json({ data: data.map(kitchenDocToTableOrder), count: data.length });
   } catch (error) {
     logKitchenError("list", error);
@@ -65,4 +70,16 @@ export async function PATCH(request: NextRequest) {
 
 function logKitchenError(action: string, error: unknown) {
   console.error("[owner-kitchen-api] request failed", { action, reason: error instanceof Error ? error.name : typeof error });
+}
+
+function startDate(value: string | null) {
+  if (!value) return undefined;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isFinite(date.getTime()) ? date : undefined;
+}
+
+function endDate(value: string | null) {
+  if (!value) return undefined;
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isFinite(date.getTime()) ? date : undefined;
 }

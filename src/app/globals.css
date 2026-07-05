@@ -687,15 +687,94 @@ textarea::selection,
 
 @media (max-width: 767px) {
   .sarva-toast-container {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 5.25rem) !important;
+    bottom: auto !important;
     left: 0 !important;
     padding-inline: 1rem !important;
     right: 0 !important;
-    top: auto !important;
+    top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important;
     transform: none !important;
   }
 
   .sarva-toast-container > div {
     width: 100% !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .sarva-toast-container {
+    left: 50% !important;
+    right: auto !important;
+    top: calc(env(safe-area-inset-top, 0px) + 1rem) !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+.sarva-toast {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 0.75rem;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 18px 45px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.sarva-toast-success {
+  border-color: color-mix(in srgb, #059669 28%, transparent);
+}
+
+.sarva-toast-info {
+  border-color: color-mix(in srgb, #2563eb 28%, transparent);
+}
+
+.sarva-toast-warning {
+  border-color: color-mix(in srgb, #f97316 34%, transparent);
+}
+
+.sarva-toast-error {
+  border-color: color-mix(in srgb, #ef4444 34%, transparent);
+}
+
+.sarva-toast-progress {
+  animation: sarva-toast-progress linear forwards;
+  background: currentColor;
+  bottom: 0;
+  height: 3px;
+  left: 0;
+  opacity: 0.35;
+  position: absolute;
+  transform-origin: left;
+  width: 100%;
+}
+
+@keyframes sarva-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.kitchen-delay-pulse {
+  animation: kitchen-delay-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes kitchen-delay-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(239 68 68 / 0.16);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgb(239 68 68 / 0.10);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sarva-toast-progress,
+  .kitchen-delay-pulse {
+    animation: none;
   }
 }

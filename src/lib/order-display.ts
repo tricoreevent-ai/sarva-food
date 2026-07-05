@@ -43,10 +43,10 @@ export function actualOrderTime(value?: string) {
   return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function relativeOrderTime(value?: string) {
+export function relativeOrderTime(value?: string, now = Date.now()) {
   const date = safeDate(value);
   if (!date) return "now";
-  const diff = Date.now() - date.getTime();
+  const diff = now - date.getTime();
   const minutes = Math.max(0, Math.round(diff / 60000));
   if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes} min ago`;

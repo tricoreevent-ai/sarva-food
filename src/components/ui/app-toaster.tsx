@@ -8,24 +8,28 @@ export function AppToaster() {
   return (
     <Toaster
       position="top-right"
+      gutter={10}
       containerClassName="sarva-toast-container"
       containerStyle={{
         zIndex: Z_INDEX.toast,
       }}
       toastOptions={{
-        duration: 30000,
-        className: "rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-950 shadow-xl",
+        duration: 3800,
+        ariaProps: { role: "status", "aria-live": "polite" },
+        className: "sarva-toast sarva-toast-info",
         success: {
-          duration: 12000,
-          className: "rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-xl",
+          duration: 3600,
+          className: "sarva-toast sarva-toast-success",
           iconTheme: { primary: "#059669", secondary: "#ecfdf5" },
         },
         error: {
-          className: "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-950 shadow-xl",
+          duration: 4000,
+          className: "sarva-toast sarva-toast-error",
           iconTheme: { primary: "#ef4444", secondary: "#fef2f2" },
         },
         loading: {
-          className: "rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-950 shadow-xl",
+          duration: 3800,
+          className: "sarva-toast sarva-toast-warning",
           iconTheme: { primary: "#f97316", secondary: "#fff7ed" },
         },
       }}
@@ -38,12 +42,13 @@ export function AppToaster() {
               <div className="min-w-0 flex-1">{message}</div>
               <button
                 type="button"
-                className="grid size-7 shrink-0 place-items-center rounded-full bg-white/70 text-current hover:bg-white"
+                className="grid size-7 shrink-0 place-items-center rounded-full bg-white/70 text-current hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
                 onClick={() => toast.dismiss(item.id)}
                 aria-label="Close notification"
               >
                 <X className="size-4" />
               </button>
+              <span className="sarva-toast-progress" style={{ animationDuration: `${item.duration ?? 3800}ms` }} />
             </div>
           )}
         </ToastBar>
