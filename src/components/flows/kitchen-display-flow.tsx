@@ -996,16 +996,31 @@ function CompactKitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview,
 
       <div className="sticky bottom-0 grid grid-cols-2 gap-2 border-t bg-white p-3">
         {final ? (
-          <Button className="col-span-2 min-h-11" disabled><CheckCircle2 className="size-4" />{statusLabel(order.status)}</Button>
+          <Button className="col-span-2 min-h-11 min-w-0" disabled title={statusLabel(order.status)}>
+            <CheckCircle2 className="size-4 shrink-0" />
+            <span className="truncate">{statusLabel(order.status)}</span>
+          </Button>
         ) : order.status === "new" || order.status === "occupied" ? (
           <>
-            <Button variant="outline" className="min-h-11 border-red-300 text-red-600" disabled={busy} onClick={onCancel}><XCircle className="size-4" />Reject</Button>
-            <Button className="min-h-11 bg-orange-600 hover:bg-orange-700" disabled={busy || !next} onClick={() => next && onNext(next)}><CheckCircle2 className="size-4" />Accept</Button>
+            <Button variant="outline" className="min-h-11 min-w-0 border-red-300 text-red-600" disabled={busy} onClick={onCancel} title="Reject order">
+              <XCircle className="size-4 shrink-0" />
+              <span className="truncate">Reject</span>
+            </Button>
+            <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || !next} onClick={() => next && onNext(next)} title="Accept order">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span className="truncate">Accept</span>
+            </Button>
           </>
         ) : (
           <>
-            <Button variant="outline" className="min-h-11" disabled={busy} onClick={() => onPrint(Boolean(order.printedCount))}><Printer className="size-4" />{order.printedCount ? "Reprint" : "Print"}</Button>
-            <Button className="min-h-11 bg-orange-600 hover:bg-orange-700" disabled={busy || !next} onClick={() => next && onNext(next)}><UtensilsCrossed className="size-4" />{label}</Button>
+            <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={() => onPrint(Boolean(order.printedCount))} title={order.printedCount ? "Reprint KOT" : "Print KOT"}>
+              <Printer className="size-4 shrink-0" />
+              <span className="truncate">{order.printedCount ? "Reprint" : "Print"}</span>
+            </Button>
+            <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || !next} onClick={() => next && onNext(next)} title={label}>
+              <UtensilsCrossed className="size-4 shrink-0" />
+              <span className="truncate">{label}</span>
+            </Button>
           </>
         )}
       </div>
@@ -1096,22 +1111,29 @@ function KitchenOrderCard({ order, now, busy, onNext, onPrint, onPreview, onCanc
             </div>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="shrink-0" onClick={onPreview} aria-label={`Preview KOT for ${order.tableNumber}`}>
-            <Eye className="size-4" />Preview
+        <div className="grid grid-cols-[44px_44px_minmax(0,1fr)_44px] gap-2" role="group" aria-label={`Kitchen actions for ${order.tableNumber}`}>
+          <Button variant="outline" className="h-11 w-11 p-0" onClick={onPreview} title="Preview KOT" aria-label={`Preview KOT for ${order.tableNumber}`}>
+            <Eye className="size-4" />
+            <span className="sr-only">Preview KOT</span>
           </Button>
-          <Button variant="outline" className="shrink-0" onClick={() => onPrint(Boolean(order.printedCount))} aria-label={`${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`}>
-            <Printer className="size-4" />{order.printedCount ? "Reprint KOT" : "Print KOT"}
+          <Button variant="outline" className="h-11 w-11 p-0" onClick={() => onPrint(Boolean(order.printedCount))} title={order.printedCount ? "Reprint KOT" : "Print KOT"} aria-label={`${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`}>
+            <Printer className="size-4" />
+            <span className="sr-only">{order.printedCount ? "Reprint KOT" : "Print KOT"}</span>
           </Button>
           {final ? (
-            <Button className="flex-1" disabled><CheckCircle2 className="size-4" />{statusLabel(order.status)}</Button>
+            <Button className="col-span-2 h-11 min-w-0" disabled title={statusLabel(order.status)}>
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span className="truncate">{statusLabel(order.status)}</span>
+            </Button>
           ) : (
             <>
-              <Button className="flex-1" disabled={busy || !next} onClick={() => next && onNext(next)} aria-label={`${label} ${order.tableNumber}`}>
-              <UtensilsCrossed className="size-4" />{label}
+              <Button className="h-11 min-w-0" disabled={busy || !next} onClick={() => next && onNext(next)} title={label} aria-label={`${label} ${order.tableNumber}`}>
+                <UtensilsCrossed className="size-4 shrink-0" />
+                <span className="truncate">{label}</span>
               </Button>
-              <Button variant="outline" className="text-red-600" disabled={busy} onClick={onCancel} aria-label={`Cancel kitchen ticket ${order.tableNumber}`}>
-                <XCircle className="size-4" />Cancel
+              <Button variant="outline" className="h-11 w-11 p-0 text-red-600" disabled={busy} onClick={onCancel} title="Cancel ticket" aria-label={`Cancel kitchen ticket ${order.tableNumber}`}>
+                <XCircle className="size-4" />
+                <span className="sr-only">Cancel ticket</span>
               </Button>
             </>
           )}

@@ -360,10 +360,14 @@ export function PosBillingFlow() {
   const totals = calculateBillTotals(billContext);
   const activeKitchenOrder = bill.linkedKitchenOrderId ? tableOrders.find((order) => order.id === bill.linkedKitchenOrderId) : undefined;
   const operationalOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
-  const activeOperationalOrders = operationalOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
+  const activeOperationalOrders = useMemo(() => operationalOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status)), [operationalOrders]);
+  const occupiedTableNames = useMemo(() => new Set(activeOperationalOrders
+    .filter((order) => order.id !== bill.linkedKitchenOrderId && order.tableNumber)
+    .map((order) => normalizeTableName(order.tableNumber))), [activeOperationalOrders, bill.linkedKitchenOrderId]);
   const activeKotCount = activeOperationalOrders.filter((order) => order.hasKitchenTicket !== false && ["new", "accepted", "preparing", "ready"].includes(order.status)).length;
   const activeOrderCount = activeOperationalOrders.length;
   const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status) && isToday(order.createdAt)).length;
+  const lastInvalidTableWarning = useRef("");
 
   const persistDraft = useCallback(async (nextBill: PosBill, extra: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }> = {}) => {
     const body = {
@@ -392,6 +396,25 @@ export function PosBillingFlow() {
     }
   }
 
+  useEffect(() => {
+    if (panel !== "new" || bill.orderType !== "dine-in" || !tables.length) return;
+    const selectedTable = findTableByName(tables, bill.table);
+    if (selectedTable && isTableSelectable(selectedTable, occupiedTableNames)) return;
+    if (bill.table && bill.table !== "DIRECT" && selectedTable && !isTableSelectable(selectedTable, occupiedTableNames)) {
+      const warningKey = `${bill.table}:${tableAvailability(selectedTable, occupiedTableNames).label}`;
+      if (lastInvalidTableWarning.current !== warningKey) {
+        lastInvalidTableWarning.current = warningKey;
+        toast.error(tableUnavailableMessage(bill.table, tableAvailability(selectedTable, occupiedTableNames).label));
+      }
+      return;
+    }
+    const firstAvailable = tables.find((table) => isTableSelectable(table, occupiedTableNames));
+    if (firstAvailable && bill.table !== firstAvailable.table) {
+      lastInvalidTableWarning.current = "";
+      void persistDraft({ ...bill, table: firstAvailable.table, paid: false });
+    }
+  }, [bill, occupiedTableNames, panel, persistDraft, tables]);
+
   function handleAdd(item: PosProduct) {
     void commitDraft(addItemToBill(bill, item));
   }
@@ -410,10 +433,18 @@ export function PosBillingFlow() {
   }
 
   function handleOrderType(value: PosBill["orderType"]) {
-    void commitDraft({ ...bill, orderType: value, table: value === "dine-in" ? bill.table : "DIRECT", paid: false });
+    const selectedTable = value === "dine-in"
+      ? preferredDineInTable(bill.table, tables, occupiedTableNames)
+      : "DIRECT";
+    void commitDraft({ ...bill, orderType: value, table: selectedTable, paid: false });
   }
 
   function handleTable(value: string) {
+    const selectedTable = findTableByName(tables, value);
+    if (selectedTable && !isTableSelectable(selectedTable, occupiedTableNames)) {
+      toast.error(tableUnavailableMessage(value, tableAvailability(selectedTable, occupiedTableNames).label));
+      return;
+    }
     void commitDraft({ ...bill, table: value, paid: false });
   }
 
@@ -1070,6 +1101,7 @@ export function PosBillingFlow() {
             <CustomerOrderDetailsStep
               bill={bill}
               tables={tables}
+              occupiedTables={occupiedTableNames}
               lookupItems={customerLookupItems}
               activeWaiters={activeWaiters}
               deliveryAddress={deliveryAddress}
@@ -1426,6 +1458,7 @@ type CustomerLookupItem = {
 function CustomerOrderDetailsStep({
   bill,
   tables,
+  occupiedTables,
   lookupItems,
   activeWaiters,
   deliveryAddress,
@@ -1444,6 +1477,7 @@ function CustomerOrderDetailsStep({
 }: {
   bill: PosBill;
   tables: PosTable[];
+  occupiedTables: Set<string>;
   lookupItems: CustomerLookupItem[];
   activeWaiters: StaffMember[];
   deliveryAddress: string;
@@ -1510,7 +1544,7 @@ function CustomerOrderDetailsStep({
           <section className="rounded-2xl border border-slate-200 p-4">
             <h3 className="font-black text-slate-950">{bill.orderType === "dine-in" ? "Table selection" : "Location"}</h3>
             <div className="mt-3">
-              <TableSelector orderType={bill.orderType} table={bill.table} tables={tables} onTable={onTable} />
+              <TableSelector orderType={bill.orderType} table={bill.table} tables={tables} occupiedTables={occupiedTables} onTable={onTable} />
             </div>
             <p className="mt-2 text-xs font-semibold text-slate-500">{bill.orderType === "dine-in" ? "A table is mandatory before sending KOT." : "No table required for parcel, delivery, or quick bill."}</p>
           </section>
@@ -2230,6 +2264,39 @@ function valueMillis(value: unknown): number {
 
 function moneyRound(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.round(value * 100) / 100) : 0;
+}
+
+function normalizeTableName(value?: string) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function findTableByName(tables: PosTable[], value?: string) {
+  const normalized = normalizeTableName(value);
+  return tables.find((table) => normalizeTableName(table.table) === normalized);
+}
+
+function tableAvailability(table: PosTable, occupiedTables: Set<string>) {
+  const status = String(table.status ?? "").toLowerCase();
+  if (table.active === false || table.dineInEnabled === false || status === "inactive") return { label: "Disabled", selectable: false, tone: "slate" as const };
+  if (occupiedTables.has(normalizeTableName(table.table)) || status === "occupied" || status === "dining" || status === "bill requested") return { label: "Occupied", selectable: false, tone: "red" as const };
+  if (status === "reserved") return { label: "Reserved", selectable: false, tone: "orange" as const };
+  if (status === "cleaning") return { label: "Cleaning", selectable: false, tone: "amber" as const };
+  return { label: "Available", selectable: true, tone: "green" as const };
+}
+
+function tableUnavailableMessage(table: string, label: string) {
+  if (label === "Occupied") return `Table ${table} was assigned to another order. Please choose another table.`;
+  return `${table} is ${label.toLowerCase()}. Choose an available table.`;
+}
+
+function isTableSelectable(table: PosTable, occupiedTables: Set<string>) {
+  return tableAvailability(table, occupiedTables).selectable;
+}
+
+function preferredDineInTable(currentTable: string, tables: PosTable[], occupiedTables: Set<string>) {
+  const selected = findTableByName(tables, currentTable);
+  if (selected && isTableSelectable(selected, occupiedTables)) return selected.table;
+  return tables.find((table) => isTableSelectable(table, occupiedTables))?.table ?? "DIRECT";
 }
 
 function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]): OperationalOrder[] {
