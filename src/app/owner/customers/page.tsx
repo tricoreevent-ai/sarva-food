@@ -53,23 +53,28 @@ export default function OwnerCustomersPage() {
   useEffect(() => {
     if (!selectedId) return;
     const controller = new AbortController();
-    setDetailLoading(true);
-    setError("");
-    void (async () => {
-      try {
-        const response = await fetch(`/api/owner/customers?id=${encodeURIComponent(selectedId)}`, { cache: "no-store", signal: controller.signal });
-        const payload = await response.json().catch(() => ({})) as { data?: Detail; error?: string };
-        if (!response.ok) throw new Error(payload.error || "Customer profile could not be loaded.");
-        setDetail(payload.data ?? null);
-      } catch (reason) {
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : "Customer profile could not be loaded.");
-        setDetail(null);
-      } finally {
-        if (!controller.signal.aborted) setDetailLoading(false);
-      }
-    })();
-    return () => controller.abort();
+    const timer = window.setTimeout(() => {
+      setDetailLoading(true);
+      setError("");
+      void (async () => {
+        try {
+          const response = await fetch(`/api/owner/customers?id=${encodeURIComponent(selectedId)}`, { cache: "no-store", signal: controller.signal });
+          const payload = await response.json().catch(() => ({})) as { data?: Detail; error?: string };
+          if (!response.ok) throw new Error(payload.error || "Customer profile could not be loaded.");
+          setDetail(payload.data ?? null);
+        } catch (reason) {
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          setError(reason instanceof Error ? reason.message : "Customer profile could not be loaded.");
+          setDetail(null);
+        } finally {
+          if (!controller.signal.aborted) setDetailLoading(false);
+        }
+      })();
+    }, 0);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [selectedId]);
 
   const totals = useMemo(() => ({

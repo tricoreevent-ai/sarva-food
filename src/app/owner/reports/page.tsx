@@ -22,23 +22,28 @@ export default function OwnerReportsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    void fetch(`/api/owner/analytics?from=${range.from.toISOString()}&to=${range.to.toISOString()}`, { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({})) as { data?: Analytics; error?: string };
-        if (!response.ok) throw new Error(payload.error || "Reports could not be loaded.");
-        setData(payload.data ?? null);
-      })
-      .catch((reason: unknown) => {
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : "Reports could not be loaded.");
-        setData(null);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError("");
+      void fetch(`/api/owner/analytics?from=${range.from.toISOString()}&to=${range.to.toISOString()}`, { cache: "no-store", signal: controller.signal })
+        .then(async (response) => {
+          const payload = await response.json().catch(() => ({})) as { data?: Analytics; error?: string };
+          if (!response.ok) throw new Error(payload.error || "Reports could not be loaded.");
+          setData(payload.data ?? null);
+        })
+        .catch((reason: unknown) => {
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          setError(reason instanceof Error ? reason.message : "Reports could not be loaded.");
+          setData(null);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 0);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [range]);
 
   const rows = (data?.orders ?? []).map((order) => ({

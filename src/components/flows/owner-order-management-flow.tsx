@@ -61,6 +61,7 @@ export function OwnerOrderManagementFlow() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders), [orders, tableOrders]);
   const tabOrders = mappedOrders.filter((order) => matchesTab(order, tab));
@@ -71,20 +72,26 @@ export function OwnerOrderManagementFlow() {
   const filters = buildFilters(tabOrders, tabCatering);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     void Promise.all([
-      fetch("/api/owner/orders", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: OrderDoc[] }>,
-      fetch("/api/owner/kitchen", { cache: "no-store" }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+      fetch("/api/owner/orders", { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: OrderDoc[] }>(response, "Orders could not be loaded.")),
+      fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
     ])
       .then(([ordersPayload, kitchenPayload]) => {
-        if (!active) return;
+        if (controller.signal.aborted) return;
         setOrders((ordersPayload.data ?? []).map(toDemoOrder));
         setTableOrders(kitchenPayload.data ?? []);
       })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        const message = reason instanceof Error ? reason.message : "Orders could not be loaded.";
+        setLoadError(message);
+        toast.error(message);
+      })
       .finally(() => {
-        if (active) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
-    return () => { active = false; };
+    return () => controller.abort();
   }, []);
 
   async function updateOrder(orderId: string, status: OrderStatus) {
@@ -133,6 +140,7 @@ export function OwnerOrderManagementFlow() {
         <h1 className="text-3xl font-black tracking-tight text-neutral-950">Orders</h1>
         <p className="mt-2 text-base font-medium text-slate-600">Manage online orders from your website, POS, and delivery partners.</p>
       </div>
+      {loadError ? <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm font-semibold text-destructive">{loadError}</div> : null}
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <OrderMetricCard label="New" value={String(metrics.newOrders)} note="New orders" icon={ShoppingBag} tone="purple" />
@@ -392,6 +400,12 @@ function EmptyOrders({ title = "No orders in this view" }: { title?: string }) {
       <p className="mt-2 text-sm text-slate-500">Incoming website, POS, scheduled, and partner orders will appear here.</p>
     </div>
   );
+}
+
+async function readOwnerPayload<T>(response: Response, fallback: string): Promise<T> {
+  const payload = await response.json().catch(() => ({})) as T & { error?: string };
+  if (!response.ok) throw new Error(payload.error || fallback);
+  return payload;
 }
 
 function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[]): OpsOrder[] {

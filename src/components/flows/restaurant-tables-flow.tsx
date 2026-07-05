@@ -53,8 +53,8 @@ export function RestaurantTablesFlow() {
 
   const loadTables = useCallback(async (signal?: AbortSignal) => {
     await Promise.all([
-      fetch("/api/owner/tables", { cache: "no-store", signal }).then((response) => response.json()) as Promise<{ data?: PosTable[] }>,
-      fetch("/api/owner/kitchen", { cache: "no-store", signal }).then((response) => response.json()) as Promise<{ data?: TableOrder[] }>,
+      fetch("/api/owner/tables", { cache: "no-store", signal }).then((response) => readTablesPayload<{ data?: PosTable[] }>(response, "Tables could not be loaded.")),
+      fetch("/api/owner/kitchen", { cache: "no-store", signal }).then((response) => readTablesPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
     ]).then(([tables, kitchen]) => {
       setConfiguredTables(tables.data ?? []);
       setOrders(kitchen.data ?? []);
@@ -794,6 +794,12 @@ function downloadHref(name: string, href: string) {
 
 function safeTableName(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "table";
+}
+
+async function readTablesPayload<T>(response: Response, fallback: string): Promise<T> {
+  const payload = await response.json().catch(() => ({})) as T & { error?: string };
+  if (!response.ok) throw new Error(payload.error || fallback);
+  return payload;
 }
 
 async function validateGeneratedQr(table: PosTable) {

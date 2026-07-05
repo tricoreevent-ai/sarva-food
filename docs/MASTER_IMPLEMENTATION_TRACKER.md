@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Release engineering automation |
+| Current Sprint | Final production readiness cleanup |
 | Release Version | `0.1.0` |
 | Latest Git Commit | RC3 final commit recorded in the release handoff report. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
 | Build Date | 2026-07-05 |
-| Verification Status | Release engineering typecheck, lint, build, diff, BAT help, and JS syntax checks passed; production env/rules/deployment remain blocked |
-| Scope | Release automation scripts, production environment validator, deployment checklist, smoke-test checklist, release report, and release README only |
+| Verification Status | Final cleanup typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
+| Scope | Code cleanup only: guarded owner API bootstraps, response validation, abort cleanup, and release summary documentation |
 
 ## Enterprise Project Dashboard
 
@@ -30,7 +30,7 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Current Commit SHA | RC3 final commit recorded in the release handoff report. |
 | Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
 | Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
-| Validation Status | Release engineering validation passed; hosted redeploy validation remains manual. |
+| Validation Status | Final production readiness cleanup validation passed; hosted redeploy validation remains manual. |
 | Last Updated | 2026-07-05 |
 | Next Sprint | Production smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
@@ -1852,3 +1852,38 @@ Release engineering verification:
 | Production env validator syntax | Passed with `node --check scripts/release/validate-production.js`. |
 | Release validation runner | Passed; `release-check.bat` ran typecheck, lint, build, and `git diff --check`, then regenerated `release-report.md`. |
 | Feature changes | None. |
+
+## Final Production Readiness Cleanup - 2026-07-05
+
+| Field | Result |
+| --- | --- |
+| Scope | Code cleanup only; no new business feature, UI redesign, API route, repository, Firestore collection, or architecture change was added. |
+| Repository Review | Searched runtime code for debt markers, debug statements, unsafe `any` markers, bare fetch chains, missing response validation, and lifecycle cleanup gaps. |
+| Owner Orders | Bootstrap now aborts stale requests, validates owner orders and kitchen API responses, and surfaces recoverable load failures. |
+| Table Management | Bootstrap now validates owner tables and kitchen API responses before treating table data as loaded. |
+| Owner Reports | Range fetch now aborts stale requests, surfaces load errors, and avoids stale data after failed analytics reads. |
+| Owner Customers | Customer list/profile reads now use abort cleanup, safe response handling, visible error state, and profile loading state. |
+| React Lint Cleanup | `set-state-in-effect` findings introduced during cleanup were corrected by scheduling effect-owned state resets asynchronously or removing redundant initial setters. |
+| Files Changed | `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/restaurant-tables-flow.tsx`, `src/app/owner/reports/page.tsx`, `src/app/owner/customers/page.tsx`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Feature Changes | None. |
+
+Final cleanup verification:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| TypeScript errors | 0 |
+| ESLint errors | 0 |
+| Production build | Succeeded |
+
+Remaining release blockers:
+
+| Area | Remaining Work |
+| --- | --- |
+| Infrastructure | Hostinger env/cache/redeploy, Firebase authorized domains, Firestore rules/indexes, and hosted `/api/release-info` validation remain manual. |
+| Providers | SMTP, Razorpay, WhatsApp Cloud API, SMS, push, Meta, Cloudinary, Mapbox, and Google OAuth checks remain provider/manual gated. |
+| Hardware | 58mm/80mm/A4 printer, KOT, receipt, split receipt, reprint, Kitchen TV/tablet, and cashier device checks remain manual. |
+| Browser Smoke | Customer, owner, admin, POS, Kitchen, QR, notification, payment/timeline, and Master Menu Library hosted smoke remains manual. |
