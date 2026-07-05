@@ -6,7 +6,7 @@ export type PaymentProviderAdapter = {
   verifyWebhook: (payload: unknown, signature: string) => Promise<boolean>;
 };
 
-function notImplemented(provider: PaymentProvider): PaymentProviderAdapter {
+function deferredProvider(provider: PaymentProvider): PaymentProviderAdapter {
   return {
     provider,
     async createIntent(draft) {
@@ -22,14 +22,21 @@ function notImplemented(provider: PaymentProvider): PaymentProviderAdapter {
 }
 
 export const paymentProviders: Record<PaymentProvider, PaymentProviderAdapter> = {
-  razorpay: notImplemented("razorpay"),
-  stripe: notImplemented("stripe"),
-  upi: notImplemented("upi"),
+  razorpay: {
+    provider: "razorpay",
+    async createIntent(draft) {
+      const order = await createRazorpayOrder({ orderId: draft.orderId, amount: draft.amount, currency: draft.currency === "INR" ? "INR" : "INR" });
+      return { id: order.providerOrderId, clientSecret: order.keyId };
+    },
+    async verifyWebhook() {
+      return false;
+    },
+  },
+  stripe: deferredProvider("stripe"),
+  upi: deferredProvider("upi"),
 };
 
 export async function createPaymentIntentDraft(draft: PaymentIntentDraft) {
-  // Placeholder only: final gateway integration should live in Cloud Functions,
-  // never directly in client components.
   return paymentProviders[draft.provider].createIntent(draft);
 }
 
@@ -73,6 +80,7 @@ export async function createRazorpayOrder(input: {
 
   return response.json() as Promise<{
     provider: "razorpay";
+    keyId: string;
     providerOrderId: string;
     amount: number;
     currency: "INR";

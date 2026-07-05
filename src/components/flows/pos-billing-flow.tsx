@@ -2005,9 +2005,20 @@ function PaymentHistoryDialog({ order, canonical, printLogs, onClose }: { order:
   const payments = paymentEntries(canonical, order);
   const splits = canonical?.splitBills ?? order.splitBills ?? [];
   const prints = printHistoryEntries(canonical, order, printLogs);
+  const rows = paymentHistoryRows(order, canonical, payments, splits);
   return (
     <PosDialogFrame title="Payment History" subtitle={`${paymentLabel(order.paymentStatus)} · Paid ${formatCurrency(orderPaidAmount(canonical, order))} / ${formatCurrency(order.total ?? canonical?.totals.total ?? 0)}`} onClose={onClose}>
       <div className="max-h-[70vh] overflow-y-auto p-4">
+        <div className="mb-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => exportPaymentHistory(rows, "csv")}>
+            <Download className="size-4" />
+            CSV
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => exportPaymentHistory(rows, "excel")}>
+            <Download className="size-4" />
+            Excel
+          </Button>
+        </div>
         <h3 className="mb-2 text-sm font-black uppercase text-slate-400">Payments</h3>
         <TimelineList entries={payments} empty="No payment events recorded." compact />
         <h3 className="mb-2 mt-5 text-sm font-black uppercase text-slate-400">Split Bills</h3>
@@ -2104,6 +2115,67 @@ function printHistoryEntries(canonical: ExtendedDemoOrder | undefined, order: Op
     })
     .map((log) => ({ type: `${log.type || "print"}_${log.status || "logged"}`, timestamp: log.timestamp, user: log.user, device: (log as PrintLog & { printerProfileId?: string }).printerProfileId }));
   return dedupeTimeline([...printEvents, ...logEvents]).sort((first, second) => timelineMillis(first) - timelineMillis(second));
+}
+
+function paymentHistoryRows(order: OperationalOrder, canonical: ExtendedDemoOrder | undefined, payments: TimelineEntry[], splits: TimelineEntry[]) {
+  const orderId = canonical?.id ?? order.canonicalOrderId ?? order.id;
+  return [
+    ...payments.map((entry) => ({
+      transactionId: String(entry.id ?? entry.reference ?? entry.providerPaymentId ?? ""),
+      razorpayPaymentId: String(entry.providerPaymentId ?? ""),
+      orderId,
+      gateway: String(entry.provider ?? (entry.providerPaymentId ? "razorpay" : "manual")),
+      status: timelineLabel(entry),
+      method: String(entry.method ?? ""),
+      amount: Number(entry.amount ?? 0),
+      refund: /refund/i.test(timelineLabel(entry)) ? Number(entry.amount ?? 0) : "",
+      failureReason: String(entry.failureReason ?? ""),
+      capturedAt: formatTimelineTime(entry.capturedAt),
+      createdAt: formatTimelineTime(entryTimeValue(entry)),
+    })),
+    ...splits.map((split, index) => ({
+      transactionId: String(split.id ?? `split-${index + 1}`),
+      razorpayPaymentId: String(split.providerPaymentId ?? ""),
+      orderId,
+      gateway: String(split.provider ?? "manual"),
+      status: "Split Bill",
+      method: String(split.method ?? ""),
+      amount: Number(split.amount ?? 0),
+      refund: "",
+      failureReason: "",
+      capturedAt: "",
+      createdAt: formatTimelineTime(split.at ?? split.createdAt),
+    })),
+  ];
+}
+
+function exportPaymentHistory(rows: ReturnType<typeof paymentHistoryRows>, format: "csv" | "excel") {
+  const headers = ["Transaction ID", "Razorpay Payment ID", "Order ID", "Gateway", "Status", "Method", "Amount", "Refund", "Failure Reason", "Captured At", "Created At"];
+  const values = rows.map((row) => [row.transactionId, row.razorpayPaymentId, row.orderId, row.gateway, row.status, row.method, row.amount, row.refund, row.failureReason, row.capturedAt, row.createdAt]);
+  if (format === "csv") {
+    downloadPaymentFile("payment-history.csv", [headers, ...values].map((row) => row.map(csvCell).join(",")).join("\n"), "text/csv;charset=utf-8");
+    return;
+  }
+  const table = `<table><thead><tr>${headers.map((header) => `<th>${htmlCell(header)}</th>`).join("")}</tr></thead><tbody>${values.map((row) => `<tr>${row.map((value) => `<td>${htmlCell(String(value ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  downloadPaymentFile("payment-history.xls", table, "application/vnd.ms-excel;charset=utf-8");
+}
+
+function downloadPaymentFile(filename: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function csvCell(value: unknown) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function htmlCell(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
 function safeTimeline(value?: TimelineEntry[]) {

@@ -52,6 +52,33 @@ type CreateOrderRequest = {
   acceptedTermsVersion: string;
   acceptedTermsAt: string;
 };
+type RazorpayCheckoutResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+type RazorpayCheckoutOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  image?: string;
+  description: string;
+  order_id: string;
+  prefill?: { name?: string; contact?: string; email?: string };
+  handler: (response: RazorpayCheckoutResponse) => void;
+  modal: { ondismiss: () => void };
+  theme: { color: string };
+};
+type RazorpayCheckout = {
+  open: () => void;
+  on: (event: "payment.failed", handler: (response: { error?: { description?: string } }) => void) => void;
+};
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckout;
+  }
+}
 const checkoutPrefsKey = "nammude.checkout.preferences:v1";
 
 export function CheckoutForm({
@@ -227,6 +254,15 @@ export function CheckoutForm({
 
               try {
                 const order = await createOrderThroughServer(firebaseOrderInput);
+                if (values.payment === "card") {
+                  await payWithRazorpay({
+                    orderId: order.orderId,
+                    amount: totals.total,
+                    customerName: values.name,
+                    customerPhone: values.phone,
+                    restaurantName: restaurant?.name || restaurant?.displayName || "Nammude",
+                  });
+                }
                 clearScheduledOrderDraft();
                 clearCart();
                 await trackAnalyticsEvent("order_created", {
@@ -393,7 +429,7 @@ export function CheckoutForm({
               ) : (
                 <Bike className="size-4" />
               )}
-              {submitting ? "Creating order" : "Place order"}
+              {submitting ? "Creating order" : payment === "card" ? "Pay with Razorpay" : "Place order"}
             </Button>
             <WhatsAppOrderFlow />
           </div>
@@ -405,7 +441,7 @@ export function CheckoutForm({
           <div className="fixed inset-x-4 bottom-4 z-30 pb-[env(safe-area-inset-bottom)] md:hidden">
             <Button type="submit" size="lg" disabled={submitting || !items.length} className="w-full shadow-xl">
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <Bike className="size-4" />}
-              {submitting ? "Creating order" : "Pay and place order"}
+              {submitting ? "Creating order" : payment === "card" ? "Pay with Razorpay" : "Pay and place order"}
             </Button>
           </div>
         </form>
@@ -430,6 +466,76 @@ async function createOrderThroughServer(input: CreateOrderRequest) {
     throw new Error(payload.error || "Unable to create order right now.");
   }
   return { orderId: payload.orderId };
+}
+
+async function payWithRazorpay(input: { orderId: string; amount: number; customerName: string; customerPhone: string; restaurantName: string }) {
+  await loadRazorpayCheckout();
+  const orderResponse = await fetch("/api/payments/razorpay/order", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ orderId: input.orderId, amount: input.amount }),
+  });
+  const orderPayload = await orderResponse.json().catch(() => ({})) as {
+    keyId?: string;
+    providerOrderId?: string;
+    amount?: number;
+    currency?: string;
+    name?: string;
+    image?: string;
+    error?: string;
+  };
+  if (!orderResponse.ok || !orderPayload.keyId || !orderPayload.providerOrderId || !orderPayload.amount) {
+    throw new Error(orderPayload.error || "Unable to start Razorpay payment.");
+  }
+  const key = orderPayload.keyId;
+  const providerOrderId = orderPayload.providerOrderId;
+  const providerAmount = orderPayload.amount;
+  const checkout = window.Razorpay;
+  if (!checkout) throw new Error("Razorpay checkout could not be loaded.");
+  const payment = await new Promise<RazorpayCheckoutResponse>((resolve, reject) => {
+    const instance = new checkout({
+      key,
+      amount: providerAmount,
+      currency: orderPayload.currency || "INR",
+      name: orderPayload.name || input.restaurantName,
+      image: orderPayload.image || undefined,
+      description: `Order ${input.orderId}`,
+      order_id: providerOrderId,
+      prefill: { name: input.customerName, contact: input.customerPhone },
+      handler: resolve,
+      modal: { ondismiss: () => reject(new Error("Payment cancelled.")) },
+      theme: { color: "#f97316" },
+    });
+    instance.on("payment.failed", (response) => reject(new Error(response.error?.description || "Razorpay payment failed.")));
+    instance.open();
+  });
+  const verifyResponse = await fetch("/api/payments/razorpay/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...payment, orderId: input.orderId }),
+  });
+  const verifyPayload = await verifyResponse.json().catch(() => ({})) as { ok?: boolean; error?: string };
+  if (!verifyResponse.ok || !verifyPayload.ok) {
+    throw new Error(verifyPayload.error || "Payment verification failed.");
+  }
+}
+
+async function loadRazorpayCheckout() {
+  if (typeof window === "undefined" || window.Razorpay) return;
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Razorpay checkout failed to load.")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Razorpay checkout failed to load."));
+    document.head.appendChild(script);
+  });
 }
 
 function estimatePrepMinutes(itemCount: number) {

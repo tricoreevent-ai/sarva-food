@@ -1,17 +1,29 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { getSessionFromRequest } from "@/lib/server-auth";
-import { requireServerEnv } from "@/lib/env";
+import {
+  assertRazorpayUsable,
+  createRazorpayClient,
+  getRazorpayRuntimeForOrder,
+  paymentMethod,
+  scopeFromRazorpayOrder,
+  subunitsToAmount,
+} from "@/lib/server/owner-payment-settings";
+import { OrderRepository } from "@/repositories/order-repository";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const session = await getSessionFromRequest(request);
-  if (!session) {
+  const session = await getSessionFromRequest(request, "customer");
+  if (!session || session.role !== "customer") {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } =
-    (await request.json()) as {
+    (await request.json().catch(() => ({}))) as {
       razorpay_order_id?: string;
       razorpay_payment_id?: string;
       razorpay_signature?: string;
@@ -22,37 +34,82 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing Razorpay verification fields" }, { status: 400 });
   }
 
-  const { RAZORPAY_KEY_SECRET } = requireServerEnv(["RAZORPAY_KEY_SECRET"]);
-  const expected = createHmac("sha256", RAZORPAY_KEY_SECRET!)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest("hex");
-  const expectedBuffer = Buffer.from(expected);
-  const signatureBuffer = Buffer.from(razorpay_signature);
-  const valid =
-    expectedBuffer.length === signatureBuffer.length &&
-    timingSafeEqual(expectedBuffer, signatureBuffer);
+  const intentSnapshot = await adminDb().collection("paymentIntents").doc(razorpay_order_id).get();
+  const intent = intentSnapshot.data() as { orderId?: string; uid?: string; status?: string; amountSubunits?: number } | undefined;
+  if (!intent || intent.orderId !== orderId || intent.uid !== session.uid) {
+    return NextResponse.json({ error: "Payment session is invalid." }, { status: 403 });
+  }
+  if (intent.status === "paid") return NextResponse.json({ ok: true, status: "paid", duplicate: true });
 
-  if (!valid) {
+  const { order, settings } = await getRazorpayRuntimeForOrder(orderId);
+  if (order.customerId !== session.uid) {
+    return NextResponse.json({ error: "Payment is not available for this order." }, { status: 403 });
+  }
+  assertRazorpayUsable(settings);
+  if (!verifyCheckoutSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature, settings.keySecret)) {
     return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
   }
 
-  const batch = adminDb().batch();
-  batch.set(
-    adminDb().collection("paymentIntents").doc(razorpay_order_id),
-    {
-      status: "paid",
-      providerPaymentId: razorpay_payment_id,
-      ...(session.tenantId ? { tenantId: session.tenantId } : {}),
-      verifiedBy: session.uid,
-      verifiedAt: new Date(),
-    },
-    { merge: true },
-  );
-  batch.update(adminDb().collection("orders").doc(orderId), {
-    paymentStatus: "paid",
-    updatedAt: new Date(),
-  });
-  await batch.commit();
+  const payment = await createRazorpayClient(settings).payments.fetch(razorpay_payment_id);
+  if (payment.order_id !== razorpay_order_id) {
+    return NextResponse.json({ error: "Payment does not match this order." }, { status: 400 });
+  }
+  if (intent.amountSubunits && Number(payment.amount ?? 0) !== Number(intent.amountSubunits)) {
+    return NextResponse.json({ error: "Payment amount mismatch." }, { status: 400 });
+  }
 
-  return NextResponse.json({ ok: true });
+  const scope = scopeFromRazorpayOrder(order, settings);
+  const method = paymentMethod(payment.method);
+  const amount = subunitsToAmount(payment.amount);
+  const status = payment.status === "captured" || payment.captured ? "paid" : payment.status === "authorized" ? "authorized" : "failed";
+
+  await adminDb().collection("paymentIntents").doc(razorpay_order_id).set({
+    status,
+    providerPaymentId: razorpay_payment_id,
+    gatewayStatus: payment.status,
+    verifiedBy: session.uid,
+    verifiedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  const repository = new OrderRepository();
+  if (status === "paid") {
+    await repository.recordPayment(scope, {
+      orderId,
+      amount,
+      method,
+      reference: razorpay_payment_id,
+      cashierId: session.uid,
+      role: "customer",
+      provider: "razorpay",
+      providerPaymentId: razorpay_payment_id,
+      providerOrderId: razorpay_order_id,
+      gatewayStatus: payment.status,
+      capturedAt: payment.created_at ? new Date(payment.created_at * 1000) : new Date(),
+    });
+  } else {
+    await repository.recordGatewayPaymentEvent(scope, {
+      orderId,
+      amount,
+      method,
+      reference: razorpay_payment_id,
+      cashierId: session.uid,
+      role: "customer",
+      provider: "razorpay",
+      providerPaymentId: razorpay_payment_id,
+      providerOrderId: razorpay_order_id,
+      gatewayStatus: payment.status,
+      failureReason: payment.error_description,
+      status,
+    });
+  }
+
+  return NextResponse.json({ ok: true, status });
+}
+
+function verifyCheckoutSignature(orderId: string, paymentId: string, signature: string, secret: string) {
+  const expected = createHmac("sha256", secret).update(`${orderId}|${paymentId}`).digest("hex");
+  const left = Buffer.from(expected);
+  const right = Buffer.from(signature);
+  return left.length === right.length && timingSafeEqual(left, right);
 }

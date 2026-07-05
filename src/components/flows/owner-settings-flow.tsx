@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, Database, Download, HardDrive, ImageIcon, Mail, MessageCircle, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, Smartphone, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, CreditCard, Database, Download, HardDrive, ImageIcon, KeyRound, Mail, MessageCircle, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, ShieldCheck, Smartphone, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -61,6 +61,38 @@ type QrOrderingSettings = {
   feedback: boolean;
   qrLogo: string;
   rotation: "manual" | "daily" | "weekly";
+};
+
+type RazorpaySettingsDraft = {
+  enabled: boolean;
+  mode: "test" | "live";
+  keyId: string;
+  keySecret: string;
+  webhookSecret: string;
+  secretConfigured: boolean;
+  secretMasked: string;
+  webhookSecretConfigured: boolean;
+  webhookSecretMasked: string;
+  companyName: string;
+  companyLogo: string;
+  methods: {
+    upi: boolean;
+    card: boolean;
+    netbanking: boolean;
+    wallet: boolean;
+    emi: boolean;
+  };
+  partialPayments: boolean;
+  minimumAmount: number;
+  maximumAmount: number;
+  autoCapture: boolean;
+  webhookEnabled: boolean;
+  refundEnabled: boolean;
+  invoicePrefix: string;
+  receiptPrefix: string;
+  currency: "INR";
+  sampleKeyId: string;
+  sampleMerchantId: string;
 };
 
 type ProfileDraft = {
@@ -544,21 +576,25 @@ export function OwnerSettingsFlow() {
         </TabsContent>
 
         <TabsContent value="payments">
-          <DashboardCard title="Payments" action={<Button onClick={() => void saveProfile()}><Save className="size-4" />Save payments</Button>}>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <ProfileField label="UPI ID" value={profileDraft.upiId} onChange={(upiId) => setProfileDraft({ ...profileDraft, upiId })} placeholder="restaurant@upi" />
-              <ToggleRow label="COD enabled" checked={profileDraft.codEnabled} onChange={(codEnabled) => togglePaymentMethod("cod", codEnabled)} />
-              <PaymentMethodToggle label="UPI" method="upi" draft={profileDraft} setDraft={setProfileDraft} />
-              <PaymentMethodToggle label="Cash" method="cash" draft={profileDraft} setDraft={setProfileDraft} />
-              <PaymentMethodToggle label="Card" method="card" draft={profileDraft} setDraft={setProfileDraft} />
-              <ToggleRow label="Razorpay ready" checked={profileDraft.razorpayEnabled} onChange={(razorpayEnabled) => setProfileDraft({ ...profileDraft, razorpayEnabled })} />
-              <ProfileField label="Razorpay key ID" value={profileDraft.razorpayKeyId} onChange={(razorpayKeyId) => setProfileDraft({ ...profileDraft, razorpayKeyId })} />
-              <ToggleRow label="PhonePe ready" checked={profileDraft.phonePeEnabled} onChange={(phonePeEnabled) => setProfileDraft({ ...profileDraft, phonePeEnabled })} />
-              <ProfileField label="PhonePe merchant ID" value={profileDraft.phonePeMerchantId} onChange={(phonePeMerchantId) => setProfileDraft({ ...profileDraft, phonePeMerchantId })} />
-              <ToggleRow label="Paytm ready" checked={profileDraft.paytmEnabled} onChange={(paytmEnabled) => setProfileDraft({ ...profileDraft, paytmEnabled })} />
-              <ProfileField label="Paytm merchant ID" value={profileDraft.paytmMerchantId} onChange={(paytmMerchantId) => setProfileDraft({ ...profileDraft, paytmMerchantId })} />
-            </div>
-          </DashboardCard>
+          <div className="space-y-5">
+            <DashboardCard title="Payment Methods" action={<Button onClick={() => void saveProfile()}><Save className="size-4" />Save payments</Button>}>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <ProfileField label="UPI ID" value={profileDraft.upiId} onChange={(upiId) => setProfileDraft({ ...profileDraft, upiId })} placeholder="restaurant@upi" />
+                <ToggleRow label="COD enabled" checked={profileDraft.codEnabled} onChange={(codEnabled) => togglePaymentMethod("cod", codEnabled)} />
+                <PaymentMethodToggle label="UPI" method="upi" draft={profileDraft} setDraft={setProfileDraft} />
+                <PaymentMethodToggle label="Cash" method="cash" draft={profileDraft} setDraft={setProfileDraft} />
+                <PaymentMethodToggle label="Card" method="card" draft={profileDraft} setDraft={setProfileDraft} />
+                <ToggleRow label="Razorpay ready" checked={profileDraft.razorpayEnabled} onChange={(razorpayEnabled) => setProfileDraft({ ...profileDraft, razorpayEnabled })} />
+                <ProfileField label="Razorpay key ID" value={profileDraft.razorpayKeyId} onChange={(razorpayKeyId) => setProfileDraft({ ...profileDraft, razorpayKeyId })} />
+                <ToggleRow label="PhonePe ready" checked={profileDraft.phonePeEnabled} onChange={(phonePeEnabled) => setProfileDraft({ ...profileDraft, phonePeEnabled })} />
+                <ProfileField label="PhonePe merchant ID" value={profileDraft.phonePeMerchantId} onChange={(phonePeMerchantId) => setProfileDraft({ ...profileDraft, phonePeMerchantId })} />
+                <ToggleRow label="Paytm ready" checked={profileDraft.paytmEnabled} onChange={(paytmEnabled) => setProfileDraft({ ...profileDraft, paytmEnabled })} />
+                <ProfileField label="Paytm merchant ID" value={profileDraft.paytmMerchantId} onChange={(paytmMerchantId) => setProfileDraft({ ...profileDraft, paytmMerchantId })} />
+              </div>
+            </DashboardCard>
+            <PaymentGatewaySettingsPanel />
+            <ProviderConfigurationPanel />
+          </div>
         </TabsContent>
 
         <TabsContent value="hours">
@@ -1002,6 +1038,221 @@ function NumberRow({ label, value, onChange }: { label: string; value: number; o
       {label}
       <input className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" type="number" min={0} value={value} onChange={(event) => onChange(Number(event.target.value) || 0)} />
     </label>
+  );
+}
+
+const emptyRazorpaySettings: RazorpaySettingsDraft = {
+  enabled: false,
+  mode: "test",
+  keyId: "rzp_test_T9lbdbFplbPTXF",
+  keySecret: "",
+  webhookSecret: "",
+  secretConfigured: false,
+  secretMasked: "",
+  webhookSecretConfigured: false,
+  webhookSecretMasked: "",
+  companyName: "",
+  companyLogo: "",
+  methods: { upi: true, card: true, netbanking: true, wallet: true, emi: false },
+  partialPayments: false,
+  minimumAmount: 1,
+  maximumAmount: 500000,
+  autoCapture: true,
+  webhookEnabled: false,
+  refundEnabled: false,
+  invoicePrefix: "INV",
+  receiptPrefix: "RCPT",
+  currency: "INR",
+  sampleKeyId: "rzp_test_T9lbdbFplbPTXF",
+  sampleMerchantId: "T9lUMBJPGiTKrd",
+};
+
+function PaymentGatewaySettingsPanel() {
+  const [draft, setDraft] = useState<RazorpaySettingsDraft>(emptyRazorpaySettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/payment-settings", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: Partial<RazorpaySettingsDraft>; error?: string }) => {
+        if (!active) return;
+        if (payload.error) throw new Error(payload.error);
+        setDraft({ ...emptyRazorpaySettings, ...payload.data, keySecret: "", webhookSecret: "" });
+      })
+      .catch(() => toast.error("Payment gateway settings could not be loaded."))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function update(patch: Partial<RazorpaySettingsDraft>) {
+    setDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function updateMethod(method: keyof RazorpaySettingsDraft["methods"], value: boolean) {
+    setDraft((current) => ({ ...current, methods: { ...current.methods, [method]: value } }));
+  }
+
+  function validate() {
+    const next: string[] = [];
+    if (draft.enabled && !draft.keyId.trim()) next.push("Razorpay Key ID is required.");
+    if (draft.enabled && !draft.secretConfigured && !draft.keySecret.trim()) next.push("Razorpay Secret is required before enabling payments.");
+    if (draft.webhookEnabled && !draft.webhookSecretConfigured && !draft.webhookSecret.trim()) next.push("Webhook Secret is required before enabling webhooks.");
+    if (draft.minimumAmount < 1) next.push("Minimum amount must be at least INR 1.");
+    if (draft.maximumAmount < draft.minimumAmount) next.push("Maximum amount must be greater than minimum amount.");
+    if (!Object.values(draft.methods).some(Boolean)) next.push("Enable at least one Razorpay payment method.");
+    setErrors(next);
+    return next.length === 0;
+  }
+
+  async function save() {
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/owner/payment-settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const payload = await response.json().catch(() => ({})) as { data?: Partial<RazorpaySettingsDraft>; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Payment gateway settings could not be saved.");
+      setDraft({ ...emptyRazorpaySettings, ...payload.data, keySecret: "", webhookSecret: "" });
+      toast.success("Razorpay settings saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Payment gateway settings could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const response = await fetch("/api/owner/payment-settings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "test" }),
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Razorpay connection failed.");
+      toast.success("Razorpay connection verified.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Razorpay connection failed.");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function reset() {
+    if (!window.confirm("Reset Razorpay settings for this restaurant?")) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/owner/payment-settings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "reset" }),
+      });
+      const payload = await response.json().catch(() => ({})) as { data?: Partial<RazorpaySettingsDraft>; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Razorpay settings could not be reset.");
+      setDraft({ ...emptyRazorpaySettings, ...payload.data, keySecret: "", webhookSecret: "" });
+      toast.success("Razorpay settings reset.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Razorpay settings could not be reset.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <DashboardCard
+      title="Razorpay Payment Gateway"
+      action={(
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={loading || testing} onClick={() => void testConnection()}>
+            {testing ? <RefreshCcw className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+            Test
+          </Button>
+          <Button type="button" variant="outline" disabled={loading || saving} onClick={() => void reset()}>
+            <RotateCcw className="size-4" />
+            Reset
+          </Button>
+          <Button type="button" disabled={loading || saving} onClick={() => void save()}>
+            {saving ? <RefreshCcw className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Save
+          </Button>
+        </div>
+      )}
+    >
+      <div className="space-y-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <ToggleRow label="Enable Razorpay" checked={draft.enabled} onChange={(enabled) => update({ enabled })} />
+          <label className="grid gap-1 text-xs font-black uppercase text-muted-foreground">
+            Mode
+            <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={draft.mode} onChange={(event) => update({ mode: event.target.value === "live" ? "live" : "test" })}>
+              <option value="test">Test Mode</option>
+              <option value="live">Live Mode</option>
+            </select>
+          </label>
+          <ToggleRow label="Auto capture" checked={draft.autoCapture} onChange={(autoCapture) => update({ autoCapture })} />
+          <ToggleRow label="Refund enabled" checked={draft.refundEnabled} onChange={(refundEnabled) => update({ refundEnabled })} />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <ProfileField label="Razorpay Key ID" value={draft.keyId} onChange={(keyId) => update({ keyId })} placeholder={draft.sampleKeyId} />
+          <ProfileField label={`Razorpay Secret${draft.secretConfigured ? ` (${draft.secretMasked})` : ""}`} type="password" value={draft.keySecret} onChange={(keySecret) => update({ keySecret })} placeholder={draft.secretConfigured ? "Leave blank to keep saved secret" : "Enter secret"} />
+          <ProfileField label={`Webhook Secret${draft.webhookSecretConfigured ? ` (${draft.webhookSecretMasked})` : ""}`} type="password" value={draft.webhookSecret} onChange={(webhookSecret) => update({ webhookSecret })} placeholder={draft.webhookSecretConfigured ? "Leave blank to keep saved secret" : "Enter webhook secret"} />
+          <ProfileField label="Company Name" value={draft.companyName} onChange={(companyName) => update({ companyName })} />
+          <ProfileField label="Company Logo" value={draft.companyLogo} onChange={(companyLogo) => update({ companyLogo })} />
+          <ProfileField label="Default Currency" value={draft.currency} onChange={() => update({ currency: "INR" })} />
+          <ProfileField label="Invoice Prefix" value={draft.invoicePrefix} onChange={(invoicePrefix) => update({ invoicePrefix })} />
+          <ProfileField label="Receipt Prefix" value={draft.receiptPrefix} onChange={(receiptPrefix) => update({ receiptPrefix })} />
+          <ProfileField label="Sample Merchant ID" value={draft.sampleMerchantId} onChange={() => undefined} />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <ToggleRow label="UPI" checked={draft.methods.upi} onChange={(value) => updateMethod("upi", value)} />
+          <ToggleRow label="Cards" checked={draft.methods.card} onChange={(value) => updateMethod("card", value)} />
+          <ToggleRow label="Net Banking" checked={draft.methods.netbanking} onChange={(value) => updateMethod("netbanking", value)} />
+          <ToggleRow label="Wallet" checked={draft.methods.wallet} onChange={(value) => updateMethod("wallet", value)} />
+          <ToggleRow label="EMI" checked={draft.methods.emi} onChange={(value) => updateMethod("emi", value)} />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <ToggleRow label="Partial Payments" checked={draft.partialPayments} onChange={(partialPayments) => update({ partialPayments })} />
+          <ToggleRow label="Webhook Enabled" checked={draft.webhookEnabled} onChange={(webhookEnabled) => update({ webhookEnabled })} />
+          <NumberRow label="Minimum Amount" value={draft.minimumAmount} onChange={(minimumAmount) => update({ minimumAmount })} />
+          <NumberRow label="Maximum Amount" value={draft.maximumAmount} onChange={(maximumAmount) => update({ maximumAmount })} />
+        </div>
+        {errors.length ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+            {errors.map((error) => <p key={error}>{error}</p>)}
+          </div>
+        ) : null}
+      </div>
+    </DashboardCard>
+  );
+}
+
+function ProviderConfigurationPanel() {
+  const providers = [
+    { icon: CreditCard, title: "Payment", description: "Razorpay settings are saved per restaurant with encrypted server-side secrets." },
+    { icon: Mail, title: "SMTP", description: "Email routing, priority, and test target are configured in Communication settings." },
+    { icon: MessageCircle, title: "WhatsApp", description: "WhatsApp browser handoff is configurable; Cloud API secrets remain server/provider setup." },
+    { icon: Smartphone, title: "SMS", description: "SMS can be toggled in Communication settings after provider credentials are added." },
+    { icon: ImageIcon, title: "Cloudinary", description: "Uploads use the existing secure signing route and Branding media controls." },
+    { icon: KeyRound, title: "Google OAuth", description: "OAuth is controlled by production env and Firebase authorized domains." },
+    { icon: Store, title: "Maps", description: "Mapbox-backed delivery location settings live under Delivery & Location." },
+  ];
+  return (
+    <DashboardCard title="Provider Configuration">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {providers.map((provider) => <SettingTile key={provider.title} icon={provider.icon} title={provider.title} description={provider.description} />)}
+      </div>
+    </DashboardCard>
   );
 }
 

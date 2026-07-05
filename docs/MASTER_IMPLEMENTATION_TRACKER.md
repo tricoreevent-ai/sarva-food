@@ -1926,3 +1926,27 @@ Remaining provider tasks:
 | Razorpay | Verify sandbox/live order, verify, webhook, refund, and settlement flow before enabling live payments. |
 | WhatsApp/SMS | Verify Cloud API/SMS credentials, compliance, send flow, and webhook logging before launch. |
 | Cloudinary/Mapbox/Google OAuth | Verify upload/signature, maps, and hosted OAuth flows with production credentials. |
+
+## Razorpay Completion - 2026-07-05
+
+| Field | Result |
+| --- | --- |
+| Scope | Completed Razorpay payment gateway implementation using existing owner settings, payment routes, order repository, payment timeline, audit timeline, notifications, print logs, and existing `paymentIntents` / `paymentWebhooks` support collections. |
+| Architecture | No duplicate payment API family, repository, or Firestore collection was added. Owner-specific Razorpay config is stored under existing owner profile settings; only non-secret flags are mirrored to restaurant payment config. |
+| Secrets | Razorpay Secret and Webhook Secret are encrypted before storage and are never returned to the frontend; owner settings show only configured/masked state. |
+| Checkout | Customer Razorpay checkout now follows server-created order, checkout handoff, server signature verification, server payment fetch, repository payment transaction, timeline/audit/notification, receipt queue, and paid/authorized/failed status handling. |
+| Webhooks | Webhook route verifies raw-body HMAC signature with the owner webhook secret, handles `payment.authorized`, `payment.captured`, `payment.failed`, `refund.created`, `refund.processed`, and `order.paid`, and ignores duplicate deliveries using `x-razorpay-event-id`. |
+| Refunds | Owner Razorpay refund API supports full/partial refunds with reason, provider refund id, timeline, audit, notification, and payment transaction records. |
+| Owner Settings | Payments tab now includes Razorpay enable/disable, test/live mode, key id, encrypted secret, encrypted webhook secret, company name/logo, allowed methods, partial payments, min/max amount, auto capture, webhook, refund, invoice prefix, receipt prefix, INR currency, Test Connection, Save, and Reset. |
+| Provider Settings | Owner Settings surfaces configurable provider sections for Payment, SMTP, WhatsApp, SMS, Cloudinary, Google OAuth, and Maps while leaving infrastructure/provider secrets in production environment setup. |
+| Payment History | Existing POS payment history now includes exportable rows with transaction id, Razorpay payment id, order id, gateway, status, method, amount, refund, failure reason, captured at, and created at; CSV and Excel export are available. |
+
+Remaining Razorpay manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Razorpay Dashboard | Register the production webhook URL and configure the same webhook secret in Owner Settings. |
+| Test Credentials | Save the provided test key id and matching secret in Owner Settings, then run Test Connection. |
+| Live Credentials | Replace test credentials with live Razorpay keys only after sandbox smoke passes. |
+| Provider Smoke | Verify order create, checkout, signature verify, webhook delivery, captured payment, failed payment, full refund, partial refund, and settlement records in Razorpay dashboard. |
+| Production Deployment | Redeploy Hostinger current commit and verify `/api/release-info` before live payment launch. |

@@ -1,8 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSessionFromRequest } from "@/lib/server-auth";
-import { requireServerEnv } from "@/lib/env";
+import {
+  amountToSubunits,
+  assertRazorpayUsable,
+  createRazorpayClient,
+  getRazorpayRuntimeForOrder,
+} from "@/lib/server/owner-payment-settings";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") ?? "local";
@@ -10,58 +19,83 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Too many payment attempts" }, { status: 429 });
   }
 
-  const session = await getSessionFromRequest(request);
-  if (!session) {
+  const session = await getSessionFromRequest(request, "customer");
+  if (!session || session.role !== "customer") {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  const { orderId, amount, currency = "INR" } = (await request.json()) as {
+  const { orderId, amount } = (await request.json().catch(() => ({}))) as {
     orderId?: string;
     amount?: number;
-    currency?: "INR";
   };
+  if (!orderId) return NextResponse.json({ error: "Order id is required" }, { status: 400 });
 
-  if (!orderId || !amount || amount <= 0) {
-    return NextResponse.json({ error: "orderId and amount are required" }, { status: 400 });
+  const { order, settings } = await getRazorpayRuntimeForOrder(orderId);
+  if (order.customerId !== session.uid) {
+    return NextResponse.json({ error: "Payment is not available for this order." }, { status: 403 });
+  }
+  if (order.paymentStatus === "paid") {
+    return NextResponse.json({ error: "This order is already paid." }, { status: 409 });
+  }
+  assertRazorpayUsable(settings);
+
+  const orderTotal = Number(order.total ?? 0);
+  if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+    return NextResponse.json({ error: "Order amount is invalid." }, { status: 400 });
+  }
+  if (Number.isFinite(amount) && amount && Math.abs(Number(amount) - orderTotal) > 0.01) {
+    return NextResponse.json({ error: "Order amount changed. Please refresh checkout." }, { status: 409 });
+  }
+  if (orderTotal < settings.minimumAmount || orderTotal > settings.maximumAmount) {
+    return NextResponse.json({ error: "This order amount is outside the configured payment range." }, { status: 422 });
   }
 
-  const env = requireServerEnv(["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]);
-  const auth = Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString("base64");
-  const response = await fetch("https://api.razorpay.com/v1/orders", {
-    method: "POST",
-    headers: {
-      authorization: `Basic ${auth}`,
-      "content-type": "application/json",
+  const receipt = `${settings.receiptPrefix}-${order.id}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
+  const providerOrder = await createRazorpayClient(settings).orders.create({
+    amount: amountToSubunits(orderTotal),
+    currency: settings.currency,
+    receipt,
+    partial_payment: settings.partialPayments,
+    ...(settings.partialPayments ? { first_payment_min_amount: amountToSubunits(settings.minimumAmount) } : {}),
+    notes: {
+      orderId: order.id,
+      restaurantId: order.restaurantId,
+      tenantId: order.tenantId,
+      customerId: session.uid,
     },
-    body: JSON.stringify({
-      amount: Math.round(amount * 100),
-      currency,
-      receipt: orderId,
-      notes: { orderId, uid: session.uid, ...(session.tenantId ? { tenantId: session.tenantId } : {}) },
-    }),
   });
 
-  if (!response.ok) {
-    return NextResponse.json({ error: "Razorpay order creation failed" }, { status: 502 });
-  }
-
-  const providerOrder = (await response.json()) as { id: string; amount: number; currency: "INR" };
   await adminDb().collection("paymentIntents").doc(providerOrder.id).set({
     provider: "razorpay",
     providerOrderId: providerOrder.id,
-    orderId,
-    ...(session.tenantId ? { tenantId: session.tenantId } : {}),
-    amount,
-    currency,
+    ownerId: settings.ownerId,
+    orderId: order.id,
+    restaurantId: settings.restaurantId,
+    tenantId: settings.tenantId,
+    amount: orderTotal,
+    amountSubunits: providerOrder.amount,
+    currency: providerOrder.currency,
+    mode: settings.mode,
     status: "created",
     uid: session.uid,
-    createdAt: new Date(),
-  });
+    receipt,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
 
   return NextResponse.json({
     provider: "razorpay",
+    keyId: settings.keyId,
     providerOrderId: providerOrder.id,
+    orderId: order.id,
     amount: providerOrder.amount,
     currency: providerOrder.currency,
+    name: settings.companyName,
+    image: settings.companyLogo,
+    methods: settings.methods,
+    prefill: {
+      name: order.customerName,
+      contact: order.customerPhone,
+    },
   });
 }

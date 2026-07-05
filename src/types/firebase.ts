@@ -844,6 +844,14 @@ export type PaymentTransactionDoc = TenantScopedDoc & {
   reference?: string;
   cashierId: string;
   status: "authorized" | "paid" | "failed" | "refunded";
+  provider?: "manual" | "razorpay";
+  providerPaymentId?: string;
+  providerOrderId?: string;
+  providerRefundId?: string;
+  gatewayStatus?: string;
+  failureReason?: string;
+  capturedAt?: Timestamp | Date | string;
+  reason?: string;
 };
 
 export type KotPrintQueueDoc = TenantScopedDoc & {

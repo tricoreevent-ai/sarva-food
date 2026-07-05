@@ -860,6 +860,25 @@ export type OwnerPaymentConfig = {
   methods: Array<"upi" | "cod" | "cash" | "card">;
   razorpayEnabled?: boolean;
   razorpayKeyId?: string;
+  razorpayMode?: "test" | "live";
+  razorpayCompanyName?: string;
+  razorpayCompanyLogo?: string;
+  razorpayMethods?: {
+    upi: boolean;
+    card: boolean;
+    netbanking: boolean;
+    wallet: boolean;
+    emi: boolean;
+  };
+  razorpayPartialPayments?: boolean;
+  razorpayMinimumAmount?: number;
+  razorpayMaximumAmount?: number;
+  razorpayAutoCapture?: boolean;
+  razorpayWebhookEnabled?: boolean;
+  razorpayRefundEnabled?: boolean;
+  razorpayInvoicePrefix?: string;
+  razorpayReceiptPrefix?: string;
+  razorpayCurrency?: "INR";
   phonePeEnabled?: boolean;
   phonePeMerchantId?: string;
   paytmEnabled?: boolean;

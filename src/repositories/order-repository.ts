@@ -25,6 +25,14 @@ type PaymentInput = {
   cashierId?: string;
   role?: string;
   device?: string;
+  provider?: "razorpay" | "manual";
+  providerPaymentId?: string;
+  providerOrderId?: string;
+  providerRefundId?: string;
+  gatewayStatus?: string;
+  failureReason?: string;
+  capturedAt?: Date;
+  reason?: string;
 };
 
 type PaymentMethod = PaymentInput["method"];
@@ -372,11 +380,18 @@ export class OrderRepository {
       const paidTotal = previousPaid + amount;
       nextStatus = paidTotal <= 0 ? "pending" : paidTotal + 0.01 < Number(order.total ?? 0) ? "partial" : "paid";
       const balanceDue = Math.max(0, money(Number(order.total ?? 0) - paidTotal));
+      const gatewayDetails = {
+        provider: input.provider,
+        providerPaymentId: input.providerPaymentId,
+        providerOrderId: input.providerOrderId,
+        gatewayStatus: input.gatewayStatus,
+        capturedAt: input.capturedAt,
+      };
       const timeline = [
         ...(previousPaid <= 0 ? [paymentEvent("payment_started", scope, input, now, { balanceDue: Number(order.total ?? 0) })] : []),
-        paymentEvent(nextStatus === "paid" ? "payment_completed" : "partial_payment", scope, input, now, { balanceDue }),
+        paymentEvent(nextStatus === "paid" ? "payment_completed" : "partial_payment", scope, input, now, { balanceDue, ...gatewayDetails }),
       ];
-      const audit = timeline.map((entry) => auditEvent(String(entry.type), scope, input, now, { amount, method: input.method, balanceDue }));
+      const audit = timeline.map((entry) => auditEvent(String(entry.type), scope, input, now, { amount, method: input.method, balanceDue, ...gatewayDetails }));
       const paymentPatch = {
         paymentStatus: nextStatus,
         paidAmount: paidTotal,
@@ -389,7 +404,7 @@ export class OrderRepository {
       transaction.set(orderRef, paymentPatch, { merge: true });
       transaction.set(customerOrderRef, paymentPatch, { merge: true });
       if (kitchenRef) transaction.set(kitchenRef, { paymentStatus: nextStatus, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      transaction.set(paymentRef, {
+      transaction.set(paymentRef, cleanRecord({
         id: paymentRef.id,
         tenantId: scope.tenantId,
         restaurantId: scope.tenantId,
@@ -402,8 +417,27 @@ export class OrderRepository {
         reference: input.reference ?? "",
         cashierId: input.cashierId ?? scope.uid ?? "",
         status: nextStatus === "paid" || nextStatus === "partial" ? "paid" : "authorized",
+        provider: input.provider,
+        providerPaymentId: input.providerPaymentId,
+        providerOrderId: input.providerOrderId,
+        gatewayStatus: input.gatewayStatus,
+        capturedAt: input.capturedAt,
         createdAt: FieldValue.serverTimestamp(),
-      });
+      }));
+      if (nextStatus === "paid") {
+        const printRef = this.db.collection("printLogs").doc();
+        transaction.set(printRef, cleanRecord({
+          id: printRef.id,
+          tenantId: scope.tenantId,
+          restaurantId: scope.tenantId,
+          orderId: input.orderId,
+          type: "receipt",
+          status: "queued",
+          printedBy: input.cashierId ?? scope.uid ?? "",
+          device: input.device,
+          createdAt: FieldValue.serverTimestamp(),
+        }));
+      }
       for (const entry of audit) writeAudit(transaction, scope, { userId: input.cashierId ?? scope.uid, role: input.role, action: String(entry.type), entityId: input.orderId, after: entry, device: input.device });
       writeNotification(transaction, scope, {
         type: "payment",
@@ -434,8 +468,16 @@ export class OrderRepository {
       if (refundAmount <= 0) throw new Error("A valid refund amount is required.");
       const paidTotal = Math.max(0, previousPaid - refundAmount);
       nextStatus = paidTotal <= 0 ? "refunded" : "partial";
-      const entry = paymentEvent("refund", scope, input, now, { amount: refundAmount, balanceDue: Math.max(0, money(Number(order.total ?? 0) - paidTotal)) });
-      const audit = auditEvent("refund", scope, input, now, { amount: refundAmount, method: input.method });
+      const gatewayDetails = {
+        provider: input.provider,
+        providerPaymentId: input.providerPaymentId,
+        providerOrderId: input.providerOrderId,
+        providerRefundId: input.providerRefundId,
+        gatewayStatus: input.gatewayStatus,
+        reason: input.reason,
+      };
+      const entry = paymentEvent("refund", scope, input, now, { amount: refundAmount, balanceDue: Math.max(0, money(Number(order.total ?? 0) - paidTotal)), ...gatewayDetails });
+      const audit = auditEvent("refund", scope, input, now, { amount: refundAmount, method: input.method, ...gatewayDetails });
       const patch = {
         paymentStatus: nextStatus,
         paidAmount: paidTotal,
@@ -447,7 +489,7 @@ export class OrderRepository {
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
       if (input.kitchenOrderId) transaction.set(this.db.collection("kitchenOrders").doc(input.kitchenOrderId), { paymentStatus: nextStatus, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      transaction.set(paymentRef, {
+      transaction.set(paymentRef, cleanRecord({
         id: paymentRef.id,
         tenantId: scope.tenantId,
         restaurantId: scope.tenantId,
@@ -460,13 +502,84 @@ export class OrderRepository {
         reference: input.reference ?? "",
         cashierId: input.cashierId ?? scope.uid ?? "",
         status: "refunded",
+        provider: input.provider,
+        providerPaymentId: input.providerPaymentId,
+        providerOrderId: input.providerOrderId,
+        providerRefundId: input.providerRefundId,
+        gatewayStatus: input.gatewayStatus,
+        reason: input.reason,
         createdAt: FieldValue.serverTimestamp(),
-      });
+      }));
       writeAudit(transaction, scope, { userId: input.cashierId ?? scope.uid, role: input.role, action: "refund", entityId: input.orderId, after: audit, device: input.device });
       writeNotification(transaction, scope, { type: "payment", title: "Refund recorded", message: `Refund of ₹${refundAmount} recorded.`, priority: "high", orderId: input.orderId, kitchenOrderId: input.kitchenOrderId });
     });
     const updated = await orderRef.get();
     return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}), paymentStatus: nextStatus };
+  }
+
+  async recordGatewayPaymentEvent(scope: TenantScope, input: PaymentInput & { status: "authorized" | "failed" }) {
+    const orderRef = this.db.collection("orders").doc(input.orderId);
+    const customerOrderRef = this.db.collection("customerOrders").doc(input.orderId);
+    const paymentRef = this.db.collection("paymentTransactions").doc();
+    const now = new Date();
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) throw new Error("Order not found.");
+      const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+      if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+      const type = input.status === "authorized" ? "payment_authorized" : "payment_failed";
+      const amount = money(input.amount);
+      const details = {
+        amount,
+        method: input.method,
+        provider: input.provider,
+        providerPaymentId: input.providerPaymentId,
+        providerOrderId: input.providerOrderId,
+        gatewayStatus: input.gatewayStatus,
+        failureReason: input.failureReason,
+      };
+      const timeline = paymentEvent(type, scope, input, now, details);
+      const audit = auditEvent(type, scope, input, now, details);
+      const patch = {
+        paymentTimeline: FieldValue.arrayUnion(timeline),
+        auditTimeline: FieldValue.arrayUnion(audit),
+        statusHistory: FieldValue.arrayUnion({ event: type, paymentStatus: order.paymentStatus ?? "pending", at: now, by: input.cashierId ?? scope.uid }),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.set(orderRef, patch, { merge: true });
+      transaction.set(customerOrderRef, patch, { merge: true });
+      transaction.set(paymentRef, cleanRecord({
+        id: paymentRef.id,
+        tenantId: scope.tenantId,
+        restaurantId: scope.tenantId,
+        branchId: order.branchId ?? scope.branchIds?.[0] ?? "main",
+        receiptId: input.orderId,
+        invoiceNumber: order.invoiceNumber ?? input.orderId,
+        orderId: input.orderId,
+        method: input.method,
+        amount,
+        reference: input.reference ?? "",
+        cashierId: input.cashierId ?? scope.uid ?? "",
+        status: input.status,
+        provider: input.provider,
+        providerPaymentId: input.providerPaymentId,
+        providerOrderId: input.providerOrderId,
+        gatewayStatus: input.gatewayStatus,
+        failureReason: input.failureReason,
+        createdAt: FieldValue.serverTimestamp(),
+      }));
+      writeAudit(transaction, scope, { userId: input.cashierId ?? scope.uid, role: input.role, action: type, entityId: input.orderId, after: audit, device: input.device });
+      writeNotification(transaction, scope, {
+        type: "payment",
+        title: input.status === "authorized" ? "Payment authorized" : "Payment failed",
+        message: input.status === "authorized" ? `Razorpay payment of ₹${amount} authorized.` : `Razorpay payment of ₹${amount} failed.`,
+        priority: input.status === "authorized" ? "normal" : "high",
+        orderId: input.orderId,
+        kitchenOrderId: input.kitchenOrderId,
+      });
+    });
+    const updated = await orderRef.get();
+    return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}) };
   }
 
   async recordPrint(scope: TenantScope, input: PrintInput) {

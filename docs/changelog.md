@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-05
+
+- Completed multi-tenant Razorpay server integration through existing owner settings, payment routes, order repository payment/audit/notification timelines, webhook verification, refund support, checkout handoff, and payment history export.
+- Added encrypted owner Razorpay secret storage under existing owner profile settings and mirrored only non-secret gateway flags to restaurant payment config.
+- Added owner-visible provider configuration sections for payment, SMTP, WhatsApp, SMS, Cloudinary, Google OAuth, and Maps without adding new provider collections.
+
 ## 2026-07-02
 
 - Completed Enterprise Menu Master Library backend through the existing repository/API pattern: CRUD, search, pagination, filters, JSON/CSV import/export, Kerala seed data, duplicate/archive/restore/enable/disable, version history, usage counters, favorites, recent imports, private restaurant templates, and audit fields.
