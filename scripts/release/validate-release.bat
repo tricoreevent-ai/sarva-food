@@ -2,7 +2,18 @@
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0..\.."
 
-set "LOG_DIR=C:\tmp"
+if /I "%~1"=="--help" (
+  echo Usage: %~nx0
+  echo Starts the production server locally and validates key routes.
+  exit /b 0
+)
+if /I "%~1"=="/?" (
+  echo Usage: %~nx0
+  echo Starts the production server locally and validates key routes.
+  exit /b 0
+)
+
+set "LOG_DIR=%TEMP%\nammude-release"
 set "OUT_LOG=%LOG_DIR%\nammude-release-start.out.log"
 set "ERR_LOG=%LOG_DIR%\nammude-release-start.err.log"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>nul

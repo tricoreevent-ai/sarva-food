@@ -2,6 +2,17 @@
 setlocal EnableExtensions
 cd /d "%~dp0..\.."
 
+if /I "%~1"=="--help" (
+  echo Usage: %~nx0
+  echo Runs cleanup, pre-release, build, local validation, deploy helper, and production verification.
+  exit /b 0
+)
+if /I "%~1"=="/?" (
+  echo Usage: %~nx0
+  echo Runs cleanup, pre-release, build, local validation, deploy helper, and production verification.
+  exit /b 0
+)
+
 call scripts\release\cleanup.bat || (echo [release-all] FAIL: cleanup & exit /b 1)
 call scripts\release\pre-release.bat || (echo [release-all] FAIL: pre-release & exit /b 1)
 call scripts\release\build-release.bat || (echo [release-all] FAIL: build & exit /b 1)

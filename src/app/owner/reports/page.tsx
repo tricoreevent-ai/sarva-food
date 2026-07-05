@@ -16,14 +16,29 @@ type Preset = "today" | "last7" | "last30";
 export default function OwnerReportsPage() {
   const [preset, setPreset] = useState<Preset>("last30");
   const [data, setData] = useState<Analytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const range = useMemo(() => rangeFor(preset), [preset]);
 
   useEffect(() => {
-    let active = true;
-    void fetch(`/api/owner/analytics?from=${range.from.toISOString()}&to=${range.to.toISOString()}`, { cache: "no-store" })
-      .then((response) => response.json())
-      .then((payload: { data?: Analytics }) => { if (active) setData(payload.data ?? null); });
-    return () => { active = false; };
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    void fetch(`/api/owner/analytics?from=${range.from.toISOString()}&to=${range.to.toISOString()}`, { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({})) as { data?: Analytics; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Reports could not be loaded.");
+        setData(payload.data ?? null);
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Reports could not be loaded.");
+        setData(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [range]);
 
   const rows = (data?.orders ?? []).map((order) => ({
@@ -39,7 +54,7 @@ export default function OwnerReportsPage() {
     { key: "tax", label: "Tax", align: "right", render: (row) => formatCurrency(Number(row.tax ?? 0)) }, { key: "total", label: "Total", align: "right", render: (row) => formatCurrency(Number(row.total ?? 0)), exportValue: (row) => Number(row.total ?? 0) },
   ];
 
-  return <div className="space-y-6"><SectionHeader title="Restaurant Reports" description="Revenue and orders are read only from the canonical Firestore orders collection." action={<div className="flex gap-2"><Button variant="outline" onClick={() => window.print()}><Printer className="size-4" />Print</Button><Button variant="outline" onClick={() => exportRows(rows)}><FileSpreadsheet className="size-4" />CSV</Button></div>} /><Card><CardContent className="flex flex-wrap gap-2 p-4">{(["today", "last7", "last30"] as Preset[]).map((value) => <Button key={value} size="sm" variant={preset === value ? "default" : "outline"} onClick={() => setPreset(value)}>{value === "today" ? "Today" : value === "last7" ? "Last 7 days" : "Last 30 days"}</Button>)}</CardContent></Card><section className="dashboard-grid"><Metric title="Canonical revenue" value={formatCurrency(data?.revenue ?? 0)} note={`${data?.billableOrderCount ?? 0} billable orders`} /><Metric title="Orders" value={String(data?.orderCount ?? 0)} note="Orders collection" /><Metric title="GST / tax" value={formatCurrency(data?.tax ?? 0)} note="Orders collection" /><Metric title="Customers" value={String(data?.customerCount ?? 0)} note={`${data?.loyaltyCount ?? 0} loyalty accounts`} /></section><AdvancedDataTable title={data ? "Canonical order report" : "Loading canonical orders"} columns={columns} rows={rows} exportFilename="canonical-orders.csv" /></div>;
+  return <div className="space-y-6"><SectionHeader title="Restaurant Reports" description="Revenue and orders are read only from the canonical Firestore orders collection." action={<div className="flex gap-2"><Button variant="outline" onClick={() => window.print()}><Printer className="size-4" />Print</Button><Button variant="outline" onClick={() => exportRows(rows)}><FileSpreadsheet className="size-4" />CSV</Button></div>} /><Card><CardContent className="flex flex-wrap gap-2 p-4">{(["today", "last7", "last30"] as Preset[]).map((value) => <Button key={value} size="sm" variant={preset === value ? "default" : "outline"} onClick={() => setPreset(value)}>{value === "today" ? "Today" : value === "last7" ? "Last 7 days" : "Last 30 days"}</Button>)}</CardContent></Card>{error ? <Card><CardContent className="p-5 text-sm font-semibold text-destructive">{error}</CardContent></Card> : null}<section className="dashboard-grid"><Metric title="Canonical revenue" value={formatCurrency(data?.revenue ?? 0)} note={`${data?.billableOrderCount ?? 0} billable orders`} /><Metric title="Orders" value={String(data?.orderCount ?? 0)} note="Orders collection" /><Metric title="GST / tax" value={formatCurrency(data?.tax ?? 0)} note="Orders collection" /><Metric title="Customers" value={String(data?.customerCount ?? 0)} note={`${data?.loyaltyCount ?? 0} loyalty accounts`} /></section><AdvancedDataTable title={loading ? "Loading canonical orders" : "Canonical order report"} columns={columns} rows={rows} exportFilename="canonical-orders.csv" /></div>;
 }
 
 function Metric({ title, value, note }: { title: string; value: string; note: string }) { return <Card><CardContent className="p-5"><p className="text-sm font-bold text-muted-foreground">{title}</p><p className="mt-2 text-3xl font-black">{value}</p><p className="mt-1 text-sm text-muted-foreground">{note}</p></CardContent></Card>; }

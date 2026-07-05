@@ -2,6 +2,17 @@
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0..\.."
 
+if /I "%~1"=="--help" (
+  echo Usage: %~nx0
+  echo Verifies PRODUCTION_URL serves the current commit and smoke routes.
+  exit /b 0
+)
+if /I "%~1"=="/?" (
+  echo Usage: %~nx0
+  echo Verifies PRODUCTION_URL serves the current commit and smoke routes.
+  exit /b 0
+)
+
 if "%PRODUCTION_URL%"=="" (
   echo [production] FAIL: set PRODUCTION_URL, for example https://nammude.example
   exit /b 1

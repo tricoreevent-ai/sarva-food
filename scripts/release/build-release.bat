@@ -2,6 +2,17 @@
 setlocal EnableExtensions
 cd /d "%~dp0..\.."
 
+if /I "%~1"=="--help" (
+  echo Usage: %~nx0
+  echo Runs typecheck, lint, production build, and git diff --check.
+  exit /b 0
+)
+if /I "%~1"=="/?" (
+  echo Usage: %~nx0
+  echo Runs typecheck, lint, production build, and git diff --check.
+  exit /b 0
+)
+
 echo [build] typecheck
 call npm run typecheck
 if errorlevel 1 exit /b 1

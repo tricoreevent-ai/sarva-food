@@ -24,19 +24,34 @@ export default function OwnerAuditLogsPage() {
   const [query, setQuery] = useState("");
   const [module, setModule] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (module) params.set("module", module);
-    const response = await fetch(`/api/owner/audit-logs?${params}`, { cache: "no-store" });
-    const payload = await response.json().catch(() => ({})) as { data?: Row[] };
-    setRows(response.ok ? payload.data ?? [] : []);
-    setLoading(false);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (module) params.set("module", module);
+      const response = await fetch(`/api/owner/audit-logs?${params}`, { cache: "no-store", signal });
+      const payload = await response.json().catch(() => ({})) as { data?: Row[]; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Audit logs could not be loaded.");
+      setRows(payload.data ?? []);
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError") return;
+      setRows([]);
+      setError(reason instanceof Error ? reason.message : "Audit logs could not be loaded.");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [module]);
 
   useEffect(() => {
-    queueMicrotask(() => void load());
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void load(controller.signal), 0);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [load]);
 
   const data = useMemo(() => {
@@ -65,6 +80,7 @@ export default function OwnerAuditLogsPage() {
         </select>
         <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw className="size-4" />Refresh</Button>
       </div>
+      {error ? <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm font-semibold text-destructive">{error}</div> : null}
       <AdvancedDataTable title={loading ? "Loading audit logs..." : "Activity history"} columns={columns} rows={data} pageSize={15} exportFilename="audit-logs.csv" />
     </div>
   );

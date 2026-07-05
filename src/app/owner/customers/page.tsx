@@ -29,23 +29,47 @@ export default function OwnerCustomersPage() {
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let active = true;
-    void fetch("/api/owner/customers", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((payload: { data?: Customer[] }) => { if (active) setCustomers(payload.data ?? []); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/owner/customers", { cache: "no-store", signal: controller.signal });
+        const payload = await response.json().catch(() => ({})) as { data?: Customer[]; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Customers could not be loaded.");
+        setCustomers(payload.data ?? []);
+      } catch (reason) {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Customers could not be loaded.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
     if (!selectedId) return;
-    let active = true;
-    void fetch(`/api/owner/customers?id=${encodeURIComponent(selectedId)}`, { cache: "no-store" })
-      .then((response) => response.json())
-      .then((payload: { data?: Detail }) => { if (active) setDetail(payload.data ?? null); });
-    return () => { active = false; };
+    const controller = new AbortController();
+    setDetailLoading(true);
+    setError("");
+    void (async () => {
+      try {
+        const response = await fetch(`/api/owner/customers?id=${encodeURIComponent(selectedId)}`, { cache: "no-store", signal: controller.signal });
+        const payload = await response.json().catch(() => ({})) as { data?: Detail; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Customer profile could not be loaded.");
+        setDetail(payload.data ?? null);
+      } catch (reason) {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError(reason instanceof Error ? reason.message : "Customer profile could not be loaded.");
+        setDetail(null);
+      } finally {
+        if (!controller.signal.aborted) setDetailLoading(false);
+      }
+    })();
+    return () => controller.abort();
   }, [selectedId]);
 
   const totals = useMemo(() => ({
@@ -70,7 +94,9 @@ export default function OwnerCustomersPage() {
         <Metric icon={<IndianRupee className="size-5" />} title="Lifetime spend" value={formatCurrency(totals.spend)} />
         <Metric icon={<Star className="size-5" />} title="Loyalty points" value={String(totals.points)} />
       </section>
+      {error ? <Card><CardContent className="p-5 text-sm font-semibold text-destructive">{error}</CardContent></Card> : null}
       <AdvancedDataTable title={loading ? "Loading customers" : "Customer CRM"} columns={columns} rows={customers} searchPlaceholder="Search customer name or phone" exportFilename="customers.csv" />
+      {detailLoading ? <Card><CardContent className="p-5 text-sm font-semibold text-muted-foreground">Loading customer profile...</CardContent></Card> : null}
       {detail ? <CustomerProfile detail={detail} onClose={() => { setDetail(null); setSelectedId(""); }} /> : null}
     </div>
   );
