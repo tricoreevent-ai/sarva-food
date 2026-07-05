@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC3 production hardening and release validation |
+| Current Sprint | Release freeze deployment readiness documentation |
 | Release Version | `0.1.0` |
 | Latest Git Commit | RC3 final commit recorded in the release handoff report. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Build Date | 2026-07-04 |
-| Verification Status | RC3 typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
-| Scope | Final production hardening and release validation across completed operational workflow code paths |
+| Build Date | 2026-07-05 |
+| Verification Status | Release-freeze typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
+| Scope | Production deployment checklist, configuration checklist, smoke-test checklist, and remaining risk documentation only |
 
 ## Enterprise Project Dashboard
 
@@ -30,8 +30,8 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Current Commit SHA | RC3 final commit recorded in the release handoff report. |
 | Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
 | Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
-| Validation Status | Typecheck, lint, build, and diff checks passed for RC3 production hardening; hosted redeploy validation remains manual. |
-| Last Updated | 2026-07-04 |
+| Validation Status | Typecheck, lint, build, and diff checks passed for release-freeze documentation finalization; hosted redeploy validation remains manual. |
+| Last Updated | 2026-07-05 |
 | Next Sprint | Production smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
 | Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
@@ -1696,3 +1696,121 @@ Known production risks:
 | Production env and provider secrets are not validated in this local workspace. | Manual | Complete Hostinger env validation with real credentials. |
 | Firestore rules/index deployment remains manual. | Manual + Codex | Review and deploy rules/indexes in the target Firebase project. |
 | Hardware and browser smoke remain external. | Manual | Run production smoke on real devices/printers after redeploy. |
+
+## Release Freeze Production Deployment Documentation - 2026-07-05
+
+| Field | Result |
+| --- | --- |
+| Scope | Documentation-only production deployment readiness finalization. |
+| Code Changes | None. No business feature, UI redesign, API, repository, collection, or architecture change was made in this pass. |
+| Production QA Result | No new repository-scope production bug was confirmed by the release-freeze audit and validation commands. |
+| Release Readiness | 98% production-release ready pending manual infrastructure, provider, hardware, browser, and multi-device validation. |
+| Files Changed | `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+
+### Production Configuration Checklist
+
+No fake values should be committed. Configure real values in Hostinger or the target production environment and verify with `npm run validate:prod-env`.
+
+| Area | Required Production Configuration | Source / Validation | Status |
+| --- | --- | --- | --- |
+| App runtime | `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_URL` set to final HTTPS domain, `NEXT_PUBLIC_USE_FIREBASE=true`. | `scripts/validate-production-env.mjs`, `/api/release-info`, hosted route smoke. | Manual pending |
+| Firebase client | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, optional measurement id. | Firebase Console and env validation. | Manual pending |
+| Firebase Admin | `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY` with escaped newlines; do not commit service account JSON. | Admin diagnostics, env validation, Hostinger private-key normalization. | Manual pending |
+| Firebase auth domains | Hosted Hostinger domain and final custom domain authorized for Firebase/Google sign-in. | Firebase Console and customer Google sign-in smoke. | Manual pending |
+| QR signing | `TABLE_QR_SECRET` set if printed QR codes must remain stable across redeploys. | Owner QR/table smoke. | Manual recommended |
+| Cloudinary | `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`; `CLOUDINARY_URL` optional alternative. | Upload/signature smoke and Cloudinary dashboard. | Manual pending |
+| SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`; Gmail uses a 16 character app password. | OTP, owner credentials, order mail, outage alert smoke. | Manual pending |
+| Database alerts | `DATABASE_ALERT_EMAIL` and matching Admin CMS customer-data alert recipient. | Admin CMS and outage alert smoke. | Manual pending |
+| Google OAuth | `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`; public and server client ids must match. | Env validation and hosted Google sign-in smoke. | Manual pending |
+| Mapbox | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` with no spaces or line breaks. | Owner/admin map smoke. | Manual pending |
+| Razorpay | Optional until live payments launch; if enabled set `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` together. | Razorpay sandbox/live order, verify, webhook, refund/settlement smoke. | Provider pending |
+| WhatsApp Cloud API | `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` before Cloud API launch. | WhatsApp send/webhook event smoke. | Provider pending |
+| SMS | Provider, sender id, compliance rules, OTP/transactional env values after provider selection. | Future SMS adapter/provider smoke. | Provider pending |
+| Push | VAPID/provider values only after push implementation is approved. | Future push subscription/send smoke. | Future/provider pending |
+| Meta/social | Meta app credentials and approved permissions before production publishing. | Meta OAuth/publish smoke. | Provider pending |
+| Build metadata | Optional `NEXT_PUBLIC_BUILD_VERSION`, `NEXT_PUBLIC_GIT_COMMIT_SHA`, `NEXT_PUBLIC_COMMIT_SHA`, `NEXT_PUBLIC_BUILD_DATE`, `NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP`. | `/api/release-info`, admin diagnostics. | Manual recommended |
+| Dev/test login | `NEXT_PUBLIC_ENABLE_DEV_LOGIN=false`, `NEXT_PUBLIC_ENABLE_TEST_LOGIN=false` in production. | Hosted auth smoke. | Manual required |
+
+### Firestore Production Audit Matrix
+
+| Collection / Area | Repository / Owner | Production Consistency Check | Rule / Index Note |
+| --- | --- | --- | --- |
+| `orders` | `order-repository.ts`, owner orders/POS APIs, public order API. | Canonical order lifecycle, payment status, table transfers, merges, audit timeline, and customer-facing status remain synchronized. | Indexed in `firestore.indexes.json`; rules deployment remains manual. |
+| `customerOrders` | `order-repository.ts` mirrors customer-facing order records. | Customer history and tracking remain aligned with canonical order updates. | Indexed in `firestore.indexes.json`; rules deployment remains manual. |
+| `kitchenOrders` | `kitchen-repository.ts`, owner Kitchen/POS APIs. | POS/Kitchen handoff, status updates, cancellation, transfer, and merge continuity preserve tenant scope. | Indexed in `firestore.indexes.json`; rules deployment remains manual. |
+| `paymentTransactions` | `order-repository.ts` payment/split actions. | Payment, partial payment, split bill, refund state, and payment history have auditable records. | Indexed in `firestore.indexes.json`; rules deployment remains manual. |
+| `auditLogs` | `order-repository.ts` operational audit foundation. | Split, transfer, merge, kitchen, payment, and completion events write non-sensitive audit records. | Rules/index review remains manual. |
+| `notifications` | Existing notification foundation and owner topbar read model. | New order, reminder, ready, payment, completion, split, transfer, and merge events remain tenant scoped. | Indexed in `firestore.indexes.json`; rules deployment remains manual. |
+| `printLogs` | `printer-repository.ts` and print engine. | Bill, receipt, split receipt, KOT, duplicate copy, and reprint logs remain available for audit/history. | Indexed in `firestore.indexes.json`; rules deployment remains manual. |
+| `masterMenuTemplates` | Master Menu Library repository/API. | Admin import/export and owner template picker use the existing collection; no duplicate collection is approved. | Rules coverage must be confirmed before production library smoke. |
+| `communicationHistory` | `communication-repository.ts`. | Contact attempts, maps opens, test messages, and not-reachable events remain tenant scoped and non-sensitive. | Rules/index coverage must be reviewed before release. |
+| OTP/session support collections | Existing auth/session APIs. | `phoneVerificationSessions`, `emailOtps`, and `modulePasswordOtps` must remain protected and provider-gated. | Rules coverage was previously flagged for manual review. |
+
+### Deployment Checklist
+
+| Step | Expected Result | Pass | Fail | Notes |
+| --- | --- | --- | --- | --- |
+| Hostinger project access | Correct production site and Git branch selected. |  |  | Manual |
+| Environment variables | Hostinger env matches production configuration checklist with real secrets. |  |  | Manual |
+| Env validation | `npm run validate:prod-env` passes in production-equivalent environment. |  |  | Manual |
+| Deploy latest commit | Hosted app serves the release branch commit from this handoff. |  |  | Manual |
+| Cache clear | Hostinger/application cache cleared after deployment. |  |  | Manual |
+| Release info | `/api/release-info` reflects current commit/build metadata. |  |  | Manual |
+| Smoke routes | `/`, `/restaurants`, `/owner/login`, `/owner/pos`, `/owner/kitchen`, `/admin/login` load without console errors. |  |  | Manual |
+| Firestore rules | Target Firebase project has reviewed and deployed rules. |  |  | Manual |
+| Firestore indexes | Target Firebase project has deployed required indexes. |  |  | Manual |
+| Firebase auth domains | Hostinger domain and final custom domain are authorized. |  |  | Manual |
+| SMTP | OTP, owner credentials, order notification, and outage alert sends succeed. |  |  | Manual |
+| Razorpay | Sandbox/live order, verify, webhook, and refund/settlement flow pass before enabling live payments. |  |  | Provider |
+| WhatsApp | Cloud API token, phone id, webhook verify token, send, and webhook event logging pass before launch. |  |  | Provider |
+| Cloudinary | Signature route, upload widget, image display, and quota state pass. |  |  | Manual/provider |
+| Mapbox | Customer/owner map flows load with production token. |  |  | Manual/provider |
+| Printer configuration | Default profiles, 58mm/80mm/A4 formats, KOT, bill, receipt, split receipt, and reprint pass. |  |  | Hardware |
+| Browser validation | Chrome, Safari/Edge, mobile, tablet, and desktop smoke pass. |  |  | Manual |
+| Multi-device validation | Cashier, waiter, kitchen, manager, and owner sessions stay synchronized. |  |  | Manual |
+
+### Manual Smoke-Test Checklist
+
+| Area | Expected Result | Pass | Fail | Notes |
+| --- | --- | --- | --- | --- |
+| Customer discovery | Home, restaurants, restaurant detail, menu, item detail, offers, and loyalty load with loading/empty/error states. |  |  |  |
+| Customer auth | Email login, signup, forgot password, Google sign-in, and account continuity work on hosted domain. |  |  |  |
+| Customer checkout | Cart, delivery/parcel/dine-in validation, scheduled order, order success, recent orders, and tracking work. |  |  |  |
+| Restaurant public pages | Public restaurant pages show correct media, status, menu, no stale cache, and no demo/test-owner leakage. |  |  |  |
+| QR ordering | QR scan, session binding, OTP/phone verification, table order, waiter request, timeout, and device replacement work. |  |  |  |
+| Owner login/shell | Owner login, dashboard, topbar search, notification center, and protected view switch work. |  |  |  |
+| POS cashier | Add/remove items, draft refresh, discounts, charges, customer lookup, hold/resume, send to kitchen, payment, and clear confirmation work. |  |  |  |
+| Kitchen | Realtime intake, status lifecycle, bulk actions, timers, filters, sound toggle, KOT preview/print/reprint, and rollback on failures work. |  |  |  |
+| Waiter | Waiter active orders, table actions, QR handoff, send to kitchen, and service requests update the same read model. |  |  |  |
+| Admin | Admin login, CMS, restaurants, users, roles, support, diagnostics, and Menu Library import/export work. |  |  |  |
+| Printing | Bill, receipt, split receipt, KOT, duplicate copy, download, print history, and reprint output on real paper. |  |  |  |
+| Notification Center | Unread/read/all filters, category filters, mark-read, mark-all-read, related-route open, and stale alert suppression work. |  |  |  |
+| Split Bill | Split payments create split rows, payment transactions, receipt queue entries, audit timeline, and notification events. |  |  |  |
+| Transfer Table | Active order transfers table/waiter and updates linked order/customer/kitchen records. |  |  |  |
+| Merge Tables | Source orders merge into target order with totals, lines, payment history, audit timeline, split rows, and source cancellation continuity. |  |  |  |
+| Timeline | Order timeline shows audit/status/payment events without duplicate rows. |  |  |  |
+| Payment History | Payment timeline, split rows, and print history reflect repository-backed data. |  |  |  |
+| Master Menu Library | Admin import JSON/CSV/XLSX, duplicate handling, export, owner picker refresh, and owner template import work. |  |  |  |
+| Realtime / multi-device | Cashier, waiter, kitchen, manager, and owner sessions reflect active order and payment updates without duplicate requests/listeners. |  |  |  |
+| Responsive / accessibility | Mobile, tablet, desktop layouts, keyboard navigation, focus traps, Escape close, labels, and scroll locking work. |  |  |  |
+
+### Production Risks by Category
+
+| Category | Genuine Remaining Risk | Owner | Next Action |
+| --- | --- | --- | --- |
+| Code Risks | No confirmed local code blocker remains after typecheck, lint, build, and diff checks; browser-only issues still require hosted smoke. | Manual + Codex for confirmed bugs | Run production smoke and patch only confirmed repository-scope bugs. |
+| Infrastructure Risks | Hostinger env, cache clear, redeploy, release metadata, Firebase authorized domains, Firestore rules, and Firestore indexes remain manual. | Manual | Complete deployment checklist before release. |
+| Provider Risks | SMTP, Razorpay, WhatsApp Cloud API, SMS, push, Meta, Cloudinary, Mapbox, and Google OAuth depend on provider credentials/console setup. | Manual/provider | Validate each provider with real credentials before enabling live expectations. |
+| Hardware Risks | Real 58mm/80mm/A4 printers, KOT devices, receipt output, duplicate copies, TV/tablet Kitchen mode, and cashier tablets remain external. | Manual | Run hardware smoke with production printer profiles. |
+| Operational Risks | Staff permissions, owner password-protected view switch, multi-device handoff, stale production demo cleanup, and support/refund processes need live workflow validation. | Manual | Complete browser/device/operator checklist and document failures before launch. |
+
+Release-freeze validation:
+
+| Check | Result |
+| --- | --- |
+| Production feature changes | None |
+| Confirmed bugs found in this pass | None |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed |
