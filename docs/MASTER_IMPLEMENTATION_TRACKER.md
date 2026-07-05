@@ -2006,3 +2006,36 @@ Manual tasks:
 | Browser Smoke | Verify Kitchen desktop/tablet/mobile, History, POS payment, refund, notification, timeline, and owner settings flows. |
 | Provider Smoke | Verify Razorpay order, checkout, signature verification, webhook, dispute/downtime delivery, full refund, and partial refund. |
 | Hardware Smoke | Verify KOT/bill/receipt/split receipt/duplicate copy/reprint output on real printers. |
+
+## Owner Operations Center V2 Active Orders - 2026-07-05
+
+| Field | Result |
+| --- | --- |
+| Scope | Completed the interrupted Owner Operations Center V2 pass by touching only the owner order flow, shared toast provider, kitchen notification usage, owner orders API, order repository status path, and this tracker. |
+| Production Readiness | 99% code-ready; 98% production-release ready pending hosted browser, provider, hardware, and deployment validation. |
+| Active Orders | Live tab now opens first and renders a compact 30-order active grid with desktop 3-4 columns, tablet 2 columns, mobile 1 column, newest-first sorting, order number, customer, source, table/type, amount, item count, age, ETA, payment, kitchen, priority, and status. |
+| Order Lifecycle | Completed, delivered, cancelled, and rejected orders are excluded from Active Orders and remain available through Completed/All views. |
+| Notifications | Added reusable `SarvaNotification` with top-right stack, success/warning/error/info/critical tones, actions, close, animated progress, hover pause, and shared use from alert toast and Kitchen new-order/delay alerts. |
+| New Online Order Alert | New online customer orders trigger owner notification with View, Accept, and staged Reject actions; new-order card highlight auto-clears. |
+| Reject Safety | Reject requires confirmation, reason, and final confirmation before updating repository-backed status. |
+| Kitchen Handoff | Linked order status updates now mirror to the existing kitchen ticket when present, write audit/status history, and create owner/waiter/kitchen notifications without adding listeners or collections. |
+| Operations Panel | Delivery partner side panel is collapsed by default and remembers the owner browser preference. |
+| Performance | Active order lists, filters, metrics, and range views are memoized; no new polling or realtime listener was added. |
+
+Remaining manual tasks:
+
+| Area | Task |
+| --- | --- |
+| Browser Smoke | Verify Owner Orders active grid on desktop/tablet/mobile, including 20-30 active orders, search/filter, highlight states, and collapsed operations panel persistence. |
+| Workflow Smoke | Verify new customer order alert, accept, staged reject with reason, completed order removal from Active, and Completed/All visibility. |
+| Kitchen Smoke | Verify accepted linked orders update Kitchen realtime board and existing KOT print path on hosted deployment. |
+| Hardware Smoke | Verify KOT/bill/receipt/reprint output on real 58mm/80mm/A4 printers. |
+| Production | Redeploy Hostinger current branch, clear cache, and verify hosted `/api/release-info` before launch. |
+
+Known risks:
+
+| Risk | Owner | Next Action |
+| --- | --- | --- |
+| New-order alert visibility depends on the owner screen being loaded and refreshed through existing API reads; no new listener was added by design. | Manual | Smoke with production order flow and decide if future realtime owner-order alerts are required. |
+| Linked Kitchen update only mirrors when the order already has a kitchen ticket id; unmatched orders still update safely without throwing. | Manual + Codex if bug found | Verify production accept/Kitchen handoff and patch only if a real unmatched-ticket bug is confirmed. |
+| Browser animation, audio, and print behavior remain device/browser dependent. | Manual | Test on target restaurant devices after redeploy. |

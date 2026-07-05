@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import toast from "react-hot-toast";
 import { AlertModal } from "@/components/ui/AlertModal";
+import { showSarvaNotification } from "@/components/ui/app-toaster";
 import { AlertContext } from "@/hooks/useAlert";
 import type { AlertApi, AlertOptions, AlertRequest, NativeAlertOverrideController, PromptOptions } from "@/types/alert.types";
 
@@ -136,16 +136,11 @@ function applyNativeOverrides(api: AlertApi) {
 }
 
 function showAlertToast(message: ReactNode, options: AlertOptions) {
-  const content = (message ?? "") as Parameters<typeof toast>[0];
-  if (options.tone === "success") {
-    toast.success(content);
-    return;
-  }
-  if (options.tone === "danger") {
-    toast.error(content);
-    return;
-  }
-  toast(content, { icon: options.tone === "warning" ? "!" : undefined, className: options.tone === "warning" ? "sarva-toast sarva-toast-warning" : undefined });
+  showSarvaNotification({
+    tone: options.tone === "success" ? "success" : options.tone === "danger" ? "error" : options.tone === "warning" ? "warning" : "info",
+    title: options.title ?? "Notice",
+    message,
+  });
 }
 
 function restoreNativeMethods() {

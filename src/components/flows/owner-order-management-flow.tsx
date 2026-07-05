@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
+  AlertTriangle,
   Bell,
   CalendarClock,
   CheckCircle2,
   ChefHat,
   ClipboardList,
+  Eye,
   Globe2,
   IndianRupee,
   Mail,
@@ -19,9 +21,11 @@ import {
   Send,
   Settings,
   ShoppingBag,
+  Timer,
   Truck,
   Utensils,
   Users,
+  X,
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { OrderCard, type OpsOrder } from "@/components/orders/order-card";
@@ -32,19 +36,31 @@ import { PartnerCard } from "@/components/orders/partner-card";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { showSarvaNotification } from "@/components/ui/app-toaster";
+import { useAlert } from "@/hooks/useAlert";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
 import { normalizePhone } from "@/services/restaurant-ops-service";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";
 
 type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
 type SourceFilter = "all" | "website" | "pos" | "zomato" | "swiggy" | "dine-in" | "parcel" | "catering";
 type DatePreset = "today" | "yesterday" | "last7" | "week" | "last30" | "month" | "custom";
 type DateRange = { preset: DatePreset; from: string; to: string };
+type ActiveOpsOrder = OpsOrder & {
+  createdAtMs: number;
+  etaLabel: string;
+  kitchenStatus: string;
+  paymentStatusLabel: string;
+  priorityLabel: string;
+  isOnline: boolean;
+  kitchenOrder?: TableOrder;
+};
 
 const dateRangeSessionKey = "sarva-owner-orders-date-range:v1";
+const operationsPanelStorageKey = "sarva-owner-orders-operations-panel:v1";
 
 const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   new: "accepted",
@@ -59,7 +75,8 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
 };
 
 export function OwnerOrderManagementFlow() {
-  const [tab, setTab] = useState<OrderTab>("all");
+  const alert = useAlert();
+  const [tab, setTab] = useState<OrderTab>("live");
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>(() => readSessionDateRange());
@@ -67,25 +84,33 @@ export function OwnerOrderManagementFlow() {
   const [now, setNow] = useState(() => Date.now());
   const [autoAccept, setAutoAccept] = useState(false);
   const [dialogPartner, setDialogPartner] = useState("");
-  const [operationsOpen, setOperationsOpen] = useState(true);
+  const [operationsOpen, setOperationsOpen] = useState(() => readStoredBoolean(operationsPanelStorageKey, false));
+  const [highlightedOrderIds, setHighlightedOrderIds] = useState<Set<string>>(() => new Set());
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const knownNewOrders = useRef<Set<string> | null>(null);
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
   const rangeLabel = useMemo(() => formatRangeLabel(dateRange), [dateRange]);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders, now), [now, orders, tableOrders]);
-  const tabOrders = mappedOrders.filter((order) => matchesTab(order, tab));
-  const tabCatering = cateringInquiries.filter((quote) => matchesCateringTab(quote, tab));
-  const visibleOrders = tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, search));
-  const visibleCatering = tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, search));
-  const metrics = buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries);
-  const filters = buildFilters(tabOrders, tabCatering);
+  const tabOrders = useMemo(() => mappedOrders.filter((order) => matchesTab(order, tab)), [mappedOrders, tab]);
+  const tabCatering = useMemo(() => cateringInquiries.filter((quote) => matchesCateringTab(quote, tab)), [cateringInquiries, tab]);
+  const visibleOrders = useMemo(() => tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, search)), [filter, search, tabOrders]);
+  const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, search)), [filter, search, tabCatering]);
+  const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
+  const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
+  const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
+  const activeView = tab === "live";
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    writeStoredBoolean(operationsPanelStorageKey, operationsOpen);
+  }, [operationsOpen]);
 
   useEffect(() => {
     writeSessionDateRange(dateRange);
@@ -117,22 +142,134 @@ export function OwnerOrderManagementFlow() {
     return () => controller.abort();
   }, [dateRange]);
 
-  async function updateOrder(orderId: string, status: OrderStatus) {
+  const updateOrder = useCallback(async (orderId: string, status: OrderStatus, note?: string) => {
     const response = await fetch("/api/owner/orders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, status }),
+      body: JSON.stringify({ orderId, status, note }),
     });
     if (!response.ok) {
       toast.error("Order status could not be updated.");
-      return;
+      return false;
     }
     setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order));
     toast.success(orderStatusToast(status));
+    return true;
+  }, []);
+
+  const focusOrder = useCallback((order: ActiveOpsOrder) => {
+    setTab("live");
+    setFilter("all");
+    setSearch(order.displayId ?? order.id);
+    setHighlightedOrderIds((current) => new Set(current).add(order.id));
+    window.setTimeout(() => {
+      setHighlightedOrderIds((current) => {
+        const next = new Set(current);
+        next.delete(order.id);
+        return next;
+      });
+    }, 9000);
+  }, []);
+
+  const rejectOrder = useCallback(async (order: ActiveOpsOrder) => {
+    const firstConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id}?`, {
+      title: "Reject order",
+      content: "This will remove the order from Active Orders after the final confirmation.",
+      confirmText: "Continue",
+      confirmVariant: "danger",
+      tone: "warning",
+    });
+    if (!firstConfirm) return false;
+    const reason = await alert.prompt("Enter the rejection reason.", {
+      title: "Reject reason",
+      inputLabel: "Reason",
+      placeholder: "Example: Item unavailable",
+      confirmText: "Review rejection",
+      tone: "warning",
+    });
+    const note = reason?.trim();
+    if (!note) return false;
+    const finalConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id} for: ${note}?`, {
+      title: "Final confirmation",
+      confirmText: "Reject order",
+      confirmVariant: "danger",
+      tone: "danger",
+    });
+    if (!finalConfirm) return false;
+    return updateOrder(order.id, "rejected", note);
+  }, [alert, updateOrder]);
+
+  async function rejectKitchenOrder(order: ActiveOpsOrder) {
+    if (!order.kitchenOrder) return rejectOrder(order);
+    const firstConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id}?`, {
+      title: "Reject kitchen ticket",
+      content: "This keeps the action deliberate and records the kitchen ticket as cancelled.",
+      confirmText: "Continue",
+      confirmVariant: "danger",
+      tone: "warning",
+    });
+    if (!firstConfirm) return false;
+    const reason = await alert.prompt("Enter the rejection reason.", {
+      title: "Reject reason",
+      inputLabel: "Reason",
+      placeholder: "Example: Duplicate ticket",
+      confirmText: "Review rejection",
+      tone: "warning",
+    });
+    if (!reason?.trim()) return false;
+    const finalConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id} for: ${reason.trim()}?`, {
+      title: "Final confirmation",
+      confirmText: "Reject ticket",
+      confirmVariant: "danger",
+      tone: "danger",
+    });
+    if (!finalConfirm) return false;
+    await updateKitchenOrder(order.kitchenOrder, "cancelled");
+    return true;
   }
 
-  async function updateKitchenOrder(order: TableOrder) {
-    const status = nextKitchenStatus[order.status];
+  const notifyNewOrder = useCallback((order: ActiveOpsOrder) => {
+    const id = `owner-new-order-${order.id}`;
+    showSarvaNotification({
+      id,
+      tone: order.delay?.priority === "critical" ? "critical" : "info",
+      title: `New order ${order.displayId ?? order.id}`,
+      message: `${order.customer} · ${formatCurrency(order.total)} · ${order.itemCount} item${order.itemCount === 1 ? "" : "s"} · ${order.source}`,
+      meta: order.tableNumber ? `Table ${order.tableNumber}` : order.type,
+      duration: 12000,
+      actions: [
+        { label: "View", onClick: () => { focusOrder(order); toast.dismiss(id); } },
+        { label: "Accept", variant: "primary", onClick: () => { void updateOrder(order.id, "accepted"); toast.dismiss(id); } },
+        { label: "Reject", variant: "danger", onClick: () => { void rejectOrder(order); toast.dismiss(id); } },
+      ],
+    });
+  }, [focusOrder, rejectOrder, updateOrder]);
+
+  useEffect(() => {
+    const incoming = activeOrders.filter((order) => order.status === "new" && order.isOnline && !order.kitchenOrder);
+    const incomingIds = new Set(incoming.map((order) => order.id));
+    if (!knownNewOrders.current) {
+      knownNewOrders.current = incomingIds;
+      return;
+    }
+    incoming.forEach((order) => {
+      if (!knownNewOrders.current?.has(order.id)) {
+        notifyNewOrder(order);
+        setHighlightedOrderIds((current) => new Set(current).add(order.id));
+        window.setTimeout(() => {
+          setHighlightedOrderIds((current) => {
+            const next = new Set(current);
+            next.delete(order.id);
+            return next;
+          });
+        }, 9000);
+      }
+    });
+    knownNewOrders.current = incomingIds;
+  }, [activeOrders, notifyNewOrder]);
+
+  async function updateKitchenOrder(order: TableOrder, targetStatus?: TableOrderStatus) {
+    const status = targetStatus ?? nextKitchenStatus[order.status];
     if (!status || status === order.status) return;
     const previous = tableOrders;
     setTableOrders((current) => current.map((item) => item.id === order.id ? { ...item, status } : item));
@@ -231,18 +368,29 @@ export function OwnerOrderManagementFlow() {
                 onConvert={convertCateringInquiryToOrder}
               />
             ) : null}
-            {visibleOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onAccept={() => void updateOrder(order.id, "accepted")}
-                onReject={() => void updateOrder(order.id, "rejected")}
-                onReady={() => void updateOrder(order.id, "ready")}
-                onComplete={() => void updateOrder(order.id, "delivered")}
+            {activeView ? (
+              <ActiveOrdersGrid
+                orders={activeOrders}
+                highlightedOrderIds={highlightedOrderIds}
+                onAccept={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
+                onReject={(order) => void rejectKitchenOrder(order)}
+                onReady={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
+                onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "completed") : void updateOrder(order.id, "delivered")}
+                onView={focusOrder}
               />
-            ))}
+            ) : visibleOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onAccept={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
+                  onReject={() => void rejectKitchenOrder(order)}
+                  onReady={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
+                  onComplete={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "completed") : void updateOrder(order.id, "delivered")}
+                />
+              ))}
             {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={(order) => void updateKitchenOrder(order)} /> : null}
-            {!visibleOrders.length && !visibleCatering.length && tab !== "kot" ? <EmptyOrders /> : null}
+            {!visibleOrders.length && !visibleCatering.length && tab !== "kot" && !activeView ? <EmptyOrders /> : null}
+            {activeView && !activeOrders.length && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
             {loading ? <p className="text-sm font-bold text-slate-500">Loading canonical orders...</p> : null}
           </div>
         </main>
@@ -351,6 +499,118 @@ function DateRangePicker({ open, range, onChange, onOpenChange }: { open: boolea
         </section>
       ) : null}
     </div>
+  );
+}
+
+function ActiveOrdersGrid({
+  orders,
+  highlightedOrderIds,
+  onAccept,
+  onReject,
+  onReady,
+  onComplete,
+  onView,
+}: {
+  orders: ActiveOpsOrder[];
+  highlightedOrderIds: Set<string>;
+  onAccept: (order: ActiveOpsOrder) => void;
+  onReject: (order: ActiveOpsOrder) => void;
+  onReady: (order: ActiveOpsOrder) => void;
+  onComplete: (order: ActiveOpsOrder) => void;
+  onView: (order: ActiveOpsOrder) => void;
+}) {
+  const visible = orders.slice(0, 30);
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {visible.map((order) => (
+        <ActiveOrderCard
+          key={order.id}
+          order={order}
+          highlighted={highlightedOrderIds.has(order.id)}
+          onAccept={() => onAccept(order)}
+          onReject={() => onReject(order)}
+          onReady={() => onReady(order)}
+          onComplete={() => onComplete(order)}
+          onView={() => onView(order)}
+        />
+      ))}
+      {orders.length > visible.length ? <p className="rounded-xl border bg-white p-3 text-center text-sm font-bold text-slate-500 sm:col-span-2 xl:col-span-3 2xl:col-span-4">Showing latest {visible.length} active orders. Use search or filters for older active orders.</p> : null}
+    </section>
+  );
+}
+
+function ActiveOrderCard({
+  order,
+  highlighted,
+  onAccept,
+  onReject,
+  onReady,
+  onComplete,
+  onView,
+}: {
+  order: ActiveOpsOrder;
+  highlighted: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  onReady: () => void;
+  onComplete: () => void;
+  onView: () => void;
+}) {
+  const delayed = Boolean(order.delay?.delayed);
+  const critical = order.delay?.priority === "critical";
+  const ready = order.status === "ready";
+  const isNew = order.status === "new";
+  const preparing = order.status === "accepted" || order.status === "preparing";
+  return (
+    <article className={cn("group min-h-[13rem] rounded-xl border bg-white p-3 shadow-sm transition", isNew && "border-orange-200 bg-orange-50/30 animate-pulse", delayed && "border-red-200 bg-gradient-to-br from-red-50 to-white", ready && "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white shadow-emerald-100", critical && "ring-2 ring-red-200", highlighted && "ring-2 ring-orange-400 ring-offset-2")}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-black text-slate-950">{order.displayId ?? order.id}</h3>
+          <p className="mt-1 truncate text-xs font-bold text-slate-500">{order.customer}</p>
+        </div>
+        <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status))}>{order.status}</span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
+        <InfoChip label="Source" value={order.source} />
+        <InfoChip label="Table" value={order.tableNumber || order.type} />
+        <InfoChip label="Amount" value={formatCurrency(order.total)} strong />
+        <InfoChip label="Items" value={String(order.itemCount)} />
+        <InfoChip label="Age" value={order.age} />
+        <InfoChip label="ETA" value={order.etaLabel} />
+        <InfoChip label="Payment" value={order.paymentStatusLabel} />
+        <InfoChip label="Kitchen" value={order.kitchenStatus} />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2 text-xs font-black">
+        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1", priorityTone(order.delay?.priority))}>
+          {delayed || critical ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" />}
+          {order.priorityLabel}
+        </span>
+        {delayed ? <span className="text-red-700">{order.delay?.lateMinutes}m late</span> : <span className="text-slate-500">{order.actualTime}</span>}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {isNew ? (
+          <>
+            <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={onAccept}><CheckCircle2 className="size-4" />Accept</Button>
+            <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={onReject}><X className="size-4" />Reject</Button>
+          </>
+        ) : null}
+        {preparing ? <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={onReady}><CheckCircle2 className="size-4" />Ready</Button> : null}
+        {ready ? <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={onComplete}><CheckCircle2 className="size-4" />Done</Button> : null}
+        <Button size="sm" variant="outline" className={cn(!isNew && !preparing && !ready && "col-span-2")} onClick={onView}><Eye className="size-4" />View</Button>
+      </div>
+    </article>
+  );
+}
+
+function InfoChip({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <span className="min-w-0 rounded-lg bg-white/70 px-2 py-1.5 ring-1 ring-slate-100">
+      <span className="block text-[10px] font-black uppercase text-slate-400">{label}</span>
+      <span className={cn("block truncate", strong ? "text-sm font-black text-slate-950" : "text-xs font-bold text-slate-700")}>{value || "-"}</span>
+    </span>
   );
 }
 
@@ -521,6 +781,16 @@ function writeSessionDateRange(range: DateRange) {
   if (typeof window !== "undefined") window.sessionStorage.setItem(dateRangeSessionKey, JSON.stringify(range));
 }
 
+function readStoredBoolean(key: string, fallback: boolean) {
+  if (typeof window === "undefined") return fallback;
+  const value = window.localStorage.getItem(key);
+  return value === null ? fallback : value === "true";
+}
+
+function writeStoredBoolean(key: string, value: boolean) {
+  if (typeof window !== "undefined") window.localStorage.setItem(key, String(value));
+}
+
 function dateRangeQuery(range: DateRange) {
   const params = new URLSearchParams();
   params.set("from", range.from);
@@ -568,78 +838,87 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-function delayPriorityRank(priority: DelayPriority) {
-  if (priority === "critical") return 4;
-  if (priority === "high") return 3;
-  if (priority === "medium") return 2;
-  return 1;
-}
-
 async function readOwnerPayload<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error || fallback);
   return payload;
 }
 
-function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: number): OpsOrder[] {
+function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: number): ActiveOpsOrder[] {
   const countByPhone = new Map<string, number>();
   for (const order of orders) {
     const phone = normalizePhone(order.customer.phone);
     if (phone) countByPhone.set(phone, (countByPhone.get(phone) ?? 0) + 1);
   }
-  const customerOrders = orders.map((order, index) => ({
-    delay: getKitchenDelay({ status: order.status, createdAt: order.createdAt, prepEstimateMinutes: order.prepEstimateMinutes }),
-    id: order.id,
-    displayId: readableOrderId({
+  const customerOrders = orders.map((order, index) => {
+    const delay = getKitchenDelay({ status: order.status, createdAt: order.createdAt, prepEstimateMinutes: order.prepEstimateMinutes });
+    return {
+      delay,
       id: order.id,
-      channel: order.channel,
-      orderType: order.fulfillmentType,
+      displayId: readableOrderId({
+        id: order.id,
+        channel: order.channel,
+        orderType: order.fulfillmentType,
+        tableNumber: (order as { tableNumber?: string }).tableNumber,
+        createdAt: order.createdAt,
+        sequence: index + 1,
+      }),
+      age: relativeOrderTime(order.createdAt, now),
+      actualTime: actualOrderTime(order.createdAt),
+      source: sourceLabel(order.channel),
+      customer: order.customer.name,
+      phone: order.customer.phone,
+      email: (order.customer as { email?: string }).email,
+      address: order.customer.address,
+      previousOrderCount: countByPhone.get(normalizePhone(order.customer.phone)) ?? 0,
+      customerRating: (order.customer as { rating?: number }).rating,
+      type: order.fulfillmentType ?? "delivery",
       tableNumber: (order as { tableNumber?: string }).tableNumber,
-      createdAt: order.createdAt,
-      sequence: index + 1,
-    }),
-    age: relativeOrderTime(order.createdAt, now),
-    actualTime: actualOrderTime(order.createdAt),
-    source: sourceLabel(order.channel),
-    customer: order.customer.name,
-    phone: order.customer.phone,
-    email: (order.customer as { email?: string }).email,
-    address: order.customer.address,
-    previousOrderCount: countByPhone.get(normalizePhone(order.customer.phone)) ?? 0,
-    customerRating: (order.customer as { rating?: number }).rating,
-    type: order.fulfillmentType ?? "delivery",
-    tableNumber: (order as { tableNumber?: string }).tableNumber,
-    status: order.status,
-    itemCount: order.lines.reduce((sum, line) => sum + line.quantity, 0),
-    total: order.totals.total,
-    payment: order.payment === "cod" ? "Cash" : order.payment.toUpperCase(),
-    instructions: order.statusNote,
-    scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
-    prepSuggestion: order.scheduledFor ? prepStartSuggestion(order.scheduledFor, order.prepEstimateMinutes ?? 50) : undefined,
-  }));
-  const kotOrders = tableOrders.map((order, index) => ({
-    delay: getKitchenDelay(order, now),
-    id: order.id,
-    displayId: readableTableOrderId(order, index + 1),
-    age: relativeOrderTime(order.createdAt, now),
-    actualTime: actualOrderTime(order.createdAt),
-    source: order.source === "Delivery" ? "POS Delivery" : order.source === "Parcel" ? "POS Parcel" : "POS",
-    customer: order.customerName ?? order.guestName ?? order.tableNumber,
-    phone: order.customerPhone ?? "",
-    address: order.deliveryAddress,
-    previousOrderCount: 0,
-    type: order.orderType ?? "dine-in",
-    tableNumber: order.orderType === "dine-in" ? order.tableNumber : undefined,
-    status: order.status === "served" ? "ready" : order.status,
-    itemCount: order.lines.reduce((sum, line) => sum + line.quantity, 0),
-    total: order.total ?? order.lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
-    payment: "Pending",
-    scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
-  }));
-  return [...customerOrders, ...kotOrders].sort((first, second) => {
-    const priority = delayPriorityRank(second.delay.priority) - delayPriorityRank(first.delay.priority);
-    return priority || orderRank(first.status) - orderRank(second.status);
+      status: order.status,
+      itemCount: order.lines.reduce((sum, line) => sum + line.quantity, 0),
+      total: order.totals.total,
+      payment: order.payment === "cod" ? "Cash" : order.payment.toUpperCase(),
+      instructions: order.statusNote,
+      scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
+      prepSuggestion: order.scheduledFor ? prepStartSuggestion(order.scheduledFor, order.prepEstimateMinutes ?? 50) : undefined,
+      createdAtMs: timestampMs(order.createdAt),
+      etaLabel: `${order.prepEstimateMinutes ?? 30} min`,
+      kitchenStatus: kitchenStatusLabel(order.status),
+      paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
+      priorityLabel: priorityLabel(delay.priority),
+      isOnline: !["POS", "Catering"].includes(sourceLabel(order.channel)),
+    };
   });
+  const kotOrders = tableOrders.map((order, index) => {
+    const delay = getKitchenDelay(order, now);
+    return {
+      delay,
+      id: order.id,
+      displayId: readableTableOrderId(order, index + 1),
+      age: relativeOrderTime(order.createdAt, now),
+      actualTime: actualOrderTime(order.createdAt),
+      source: order.source === "Delivery" ? "POS Delivery" : order.source === "Parcel" ? "POS Parcel" : "POS",
+      customer: order.customerName ?? order.guestName ?? order.tableNumber,
+      phone: order.customerPhone ?? "",
+      address: order.deliveryAddress,
+      previousOrderCount: 0,
+      type: order.orderType ?? "dine-in",
+      tableNumber: order.orderType === "dine-in" ? order.tableNumber : undefined,
+      status: order.status === "served" ? "ready" : order.status,
+      itemCount: order.lines.reduce((sum, line) => sum + line.quantity, 0),
+      total: order.total ?? order.lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
+      payment: "Pending",
+      scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
+      createdAtMs: timestampMs(order.createdAt),
+      etaLabel: `${order.etaMinutes ?? 15} min`,
+      kitchenStatus: kitchenStatusLabel(order.status),
+      paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
+      priorityLabel: priorityLabel(delay.priority),
+      isOnline: order.source === "QR" || order.source === "Waiter",
+      kitchenOrder: order,
+    };
+  });
+  return [...customerOrders, ...kotOrders].sort(newestFirst);
 }
 
 function buildOrderMetrics(orders: OpsOrder[], tableOrders: TableOrder[], cateringInquiries: CateringQuote[]) {
@@ -718,7 +997,7 @@ function matchesCateringTab(quote: CateringQuote, tab: OrderTab) {
 }
 
 function toDemoOrder(order: OrderDoc): DemoOrder {
-  return {
+  const demo: DemoOrder & { tableNumber?: string } = {
     id: order.id,
     restaurantSlug: order.restaurantId,
     customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
@@ -726,10 +1005,13 @@ function toDemoOrder(order: OrderDoc): DemoOrder {
     totals: { subtotal: order.subtotal, discount: order.discount, deliveryFee: order.deliveryFee, tax: order.tax, total: order.total },
     offerCode: order.offerCode,
     payment: "upi",
-    channel: order.channel === "instagram" ? "Instagram" : order.channel === "whatsapp" ? "WhatsApp" : "Web",
+    paymentStatus: order.paymentStatus,
+    channel: orderChannelLabel(order.channel),
     status: order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
     createdAt: formatFirestoreDateTime(order.createdAt) ?? new Date().toISOString(),
     deliveryOtp: order.deliveryOtp,
+    kitchenOrderId: order.kitchenOrderId,
+    statusNote: (order as { statusNote?: string }).statusNote,
     fulfillmentType: normalizeFulfillment(order.fulfillmentType ?? order.orderType),
     scheduleMode: order.scheduleMode,
     scheduledFor: formatFirestoreDateTime(order.scheduledFor),
@@ -737,7 +1019,18 @@ function toDemoOrder(order: OrderDoc): DemoOrder {
     prepEstimateMinutes: order.prepEstimateMinutes,
     cutoffAt: formatFirestoreDateTime(order.cutoffAt),
     guestCount: order.guestCount,
+    tableNumber: order.tableNumber,
   };
+  return demo;
+}
+
+function orderChannelLabel(channel: OrderDoc["channel"]): OrderChannel {
+  if (channel === "instagram") return "Instagram";
+  if (channel === "whatsapp") return "WhatsApp";
+  if (channel === "pos") return "POS";
+  if (channel === "catering") return "Catering";
+  if (channel === "qr") return "QR";
+  return "Web";
 }
 
 function sourceLabel(channel: OrderChannel) {
@@ -746,8 +1039,54 @@ function sourceLabel(channel: OrderChannel) {
   return channel;
 }
 
-function orderRank(status: string) {
-  return ["new", "accepted", "preparing", "ready", "served", "delivered", "completed", "rejected"].indexOf(status);
+function isActiveOpsOrder(order: ActiveOpsOrder) {
+  return !["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+}
+
+function newestFirst(first: ActiveOpsOrder, second: ActiveOpsOrder) {
+  return second.createdAtMs - first.createdAtMs || statusRank(first.status) - statusRank(second.status);
+}
+
+function statusRank(status: string) {
+  const rank = ["new", "accepted", "preparing", "ready", "served", "delivered", "completed", "rejected"].indexOf(status);
+  return rank === -1 ? 99 : rank;
+}
+
+function timestampMs(value: string) {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function kitchenStatusLabel(status?: string) {
+  if (!status) return "Not sent";
+  return status.split("-").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
+}
+
+function paymentStatusLabel(status?: string) {
+  if (!status) return "Pending";
+  return kitchenStatusLabel(status);
+}
+
+function priorityLabel(priority?: DelayPriority) {
+  if (priority === "critical") return "Critical";
+  if (priority === "high") return "High priority";
+  if (priority === "medium") return "Delayed";
+  return "Normal";
+}
+
+function priorityTone(priority?: DelayPriority) {
+  if (priority === "critical") return "bg-red-100 text-red-800";
+  if (priority === "high") return "bg-orange-100 text-orange-800";
+  if (priority === "medium") return "bg-amber-100 text-amber-800";
+  return "bg-slate-100 text-slate-600";
+}
+
+function statusTone(status: string) {
+  if (status === "new") return "bg-orange-100 text-orange-700";
+  if (["accepted", "preparing"].includes(status)) return "bg-blue-100 text-blue-700";
+  if (["ready", "served"].includes(status)) return "bg-emerald-100 text-emerald-700";
+  if (["rejected", "cancelled"].includes(status)) return "bg-red-100 text-red-700";
+  return "bg-slate-100 text-slate-700";
 }
 
 function orderStatusToast(status: OrderStatus | TableOrderStatus) {

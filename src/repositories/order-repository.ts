@@ -41,6 +41,7 @@ type ActorInput = {
   userId?: string;
   role?: string;
   device?: string;
+  note?: string;
 };
 
 type PrintInput = ActorInput & {
@@ -920,6 +921,13 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+      const kitchenRef = order.kitchenOrderId ? this.db.collection("kitchenOrders").doc(order.kitchenOrderId) : null;
+      const kitchenSnapshot = kitchenRef ? await transaction.get(kitchenRef) : null;
+      const kitchen = kitchenSnapshot?.data() ?? {};
+      const linkedKitchenValid = Boolean(kitchenRef && kitchenSnapshot?.exists && [kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId));
+      const event = statusEvent(status);
+      const foodStatus = orderStatusToFoodStatus(status);
+      const note = actor.note?.trim();
       const actorPatch = status === "preparing"
         ? { preparedBy: scope.uid ?? "" }
         : status === "served"
@@ -929,18 +937,29 @@ export class OrderRepository {
             : {};
       const statusPatch = {
         status,
-        foodStatus: orderStatusToFoodStatus(status),
-        auditTimeline: FieldValue.arrayUnion(auditEvent(statusEvent(status), scope, actor, now, { status })),
-        statusHistory: FieldValue.arrayUnion({ status, foodStatus: orderStatusToFoodStatus(status), at: now, by: actor.userId ?? scope.uid, event: statusEvent(status) }),
+        foodStatus,
+        auditTimeline: FieldValue.arrayUnion(auditEvent(event, scope, actor, now, cleanRecord({ status, note }))),
+        statusHistory: FieldValue.arrayUnion(cleanRecord({ status, foodStatus, at: now, by: actor.userId ?? scope.uid, event, note })),
         updatedAt: FieldValue.serverTimestamp(),
+        ...(note ? { statusNote: note } : {}),
         ...actorPatch,
       };
       transaction.set(ref, statusPatch, { merge: true });
       transaction.set(this.db.collection("customerOrders").doc(orderId), statusPatch, { merge: true });
-      writeAudit(transaction, scope, { userId: actor.userId ?? scope.uid, role: actor.role, action: statusEvent(status), module: "orders", entityId: orderId, after: { status }, device: actor.device });
-      const notification = notificationForEvent(statusEvent(status), orderId, order.kitchenOrderId);
+      if (linkedKitchenValid && kitchenRef) {
+        transaction.set(kitchenRef, cleanRecord({
+          status: foodStatus,
+          foodStatus,
+          statusHistory: FieldValue.arrayUnion(cleanRecord({ status: foodStatus, foodStatus, at: now, by: actor.userId ?? scope.uid, event, note })),
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(note ? { statusNote: note } : {}),
+          ...actorPatch,
+        }), { merge: true });
+      }
+      writeAudit(transaction, scope, { userId: actor.userId ?? scope.uid, role: actor.role, action: event, module: "orders", entityId: orderId, after: cleanRecord({ status, kitchenOrderId: order.kitchenOrderId, note }), device: actor.device });
+      const notification = notificationForEvent(event, orderId, order.kitchenOrderId);
       if (notification) writeNotification(transaction, scope, notification);
-      nextOrder = { ...order, status };
+      nextOrder = { ...order, status, ...(note ? { statusNote: note } : {}) };
     });
     return nextOrder!;
   }
@@ -1131,6 +1150,7 @@ function statusEvent(status: OrderDoc["status"]) {
 
 function notificationForEvent(event: string, orderId?: string, kitchenOrderId?: string) {
   if (event === "reminder") return { type: "reminder", title: "Kitchen reminder", message: "Kitchen reminder sent.", priority: "high" as const, orderId, kitchenOrderId };
+  if (event === "kitchen_accepted") return { type: "new_order", title: "Order accepted", message: "Accepted order sent to kitchen and waiter.", priority: "high" as const, orderId, kitchenOrderId };
   if (event === "kitchen_ready") return { type: "ready", title: "Order ready", message: "Kitchen marked an order ready.", priority: "high" as const, orderId, kitchenOrderId };
   if (event === "completion") return { type: "completion", title: "Order completed", message: "Order completed.", priority: "normal" as const, orderId, kitchenOrderId };
   return null;

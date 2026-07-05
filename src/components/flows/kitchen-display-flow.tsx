@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge } from "@/components/ui/badge";
+import { showSarvaNotification } from "@/components/ui/app-toaster";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
@@ -197,7 +198,12 @@ export function KitchenDisplayFlow() {
     }
     if (lastDelayedToast.current === stats.delayed) return;
     lastDelayedToast.current = stats.delayed;
-    toast(`${stats.delayed} kitchen order${stats.delayed === 1 ? "" : "s"} delayed.`, { icon: "!", className: "sarva-toast sarva-toast-warning" });
+    showSarvaNotification({
+      id: "kitchen-delayed-orders",
+      tone: "warning",
+      title: `${stats.delayed} kitchen order${stats.delayed === 1 ? "" : "s"} delayed`,
+      message: "Review delayed tickets in the Kitchen Operations Center.",
+    });
     if (soundAlerts) playReadyTone();
   }, [soundAlerts, stats.delayed]);
 
@@ -239,22 +245,18 @@ export function KitchenDisplayFlow() {
       toast.dismiss(id);
       window.setTimeout(() => setHighlightedOrderId((current) => current === order.id ? null : current), 8000);
     };
-    toast.custom((item) => (
-      <div className={cn("w-[min(92vw,360px)] rounded-xl border bg-white p-3 text-left shadow-2xl", item.visible ? "animate-in slide-in-from-top-2" : "animate-out fade-out")}>
-        <button type="button" onClick={view} className="flex w-full items-start gap-3 text-left">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-600"><BellRing className="size-5" /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-black text-slate-950">New Order #{displayOrderNumber(order)}</span>
-            <span className="mt-1 block text-xs font-bold text-slate-600">{order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"} · {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
-          </span>
-        </button>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Button variant="outline" size="sm" onClick={view}>View</Button>
-          <Button size="sm" onClick={() => { void updateStatus(order, "accepted"); toast.dismiss(id); }}>Accept</Button>
-          <Button variant="outline" size="sm" onClick={() => toast.dismiss(id)}>Dismiss</Button>
-        </div>
-      </div>
-    ), { id, duration: 12000, position: window.innerWidth < 768 ? "top-center" : "top-right" });
+    showSarvaNotification({
+      id,
+      tone: "critical",
+      title: `New Order #${displayOrderNumber(order)}`,
+      message: `${order.customerName || order.guestName || order.tableNumber} · ${order.lines.length} item${order.lines.length === 1 ? "" : "s"} · ${order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}`,
+      duration: 12000,
+      actions: [
+        { label: "View", onClick: view },
+        { label: "Accept", variant: "primary", onClick: () => { void updateStatus(order, "accepted"); toast.dismiss(id); } },
+        { label: "Dismiss", onClick: () => toast.dismiss(id) },
+      ],
+    });
   }, [updateStatus]);
 
   useEffect(() => {

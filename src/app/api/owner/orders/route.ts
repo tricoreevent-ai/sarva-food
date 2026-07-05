@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     if (!body.orderId) return NextResponse.json({ error: "Order id is required." }, { status: 400 });
     const scope = tenantScope(access.session, body.restaurantId);
     const orders = new OrderRepository();
-    const actor = { userId: access.session.uid, role: access.session.role, device: cleanDevice(body.device ?? request.headers.get("user-agent") ?? "") };
+    const actor = { userId: access.session.uid, role: access.session.role, device: cleanDevice(body.device ?? request.headers.get("user-agent") ?? ""), note: cleanNote(body.note) };
     if (body.action === "payment") {
       const method = String(body.method ?? "");
       if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return NextResponse.json({ error: "Valid payment method and amount are required." }, { status: 400 });
@@ -123,6 +123,11 @@ export async function PATCH(request: NextRequest) {
 
 function cleanDevice(value: string) {
   return value.replace(/\s+/g, " ").slice(0, 160);
+}
+
+function cleanNote(value: unknown) {
+  const note = String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 240);
+  return note || undefined;
 }
 
 function orderError(error: unknown, requestId: string) {
