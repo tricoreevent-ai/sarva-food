@@ -11,14 +11,70 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Production Hardening, Consistency, Security, and Observability |
+| Current Sprint | RC Phase 1 Production Deployment Verification |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Sprint 1 production-readiness commit created locally from base `8a0315c37228918e82498ae0d7c78317d616da45`; exact final SHA reported in release handoff. |
+| Latest Git Commit | Phase 1 production deployment verification prepared from base `73a8a04c43a74f208dbaaefc83086940a0c4170a`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | Last verified hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28`; Sprint 1 redeploy pending |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not local HEAD `73a8a04c43a74f208dbaaefc83086940a0c4170a`; env still reports `development`. |
 | Build Date | 2026-07-06 |
-| Verification Status | Production hardening local smoke, typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse, push, and Hostinger redeploy remain pending/manual. |
-| Scope | Production hardening only: centralized state validation, idempotent operational writes, Firestore transaction tightening, POS recovery status, structured observability, print lifecycle status, security review, smoke automation, and documentation. |
+| Verification Status | Phase 1 production deployment validation is blocked by stale Hostinger commit, non-production hosted env, failed local production env validation, stale Googlebot-blocking robots response, and provider/manual credential checks. |
+| Scope | Validation only: Hostinger metadata/routes, production env, Firebase, SMTP, Cloudinary, Google OAuth, Razorpay, WhatsApp, and SMS readiness. No UI, API, repository, collection, or business feature change. |
+
+## RC Phase 1 Production Deployment Verification - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Scope | Production deployment validation only. No application code, UI, repository, API route, Firestore collection, or business feature was changed. |
+| Local Commit | `73a8a04c43a74f208dbaaefc83086940a0c4170a` on `release/production-nammude`. |
+| Hosted Commit | `/api/release-info` reports `83885e01585510f8c833436e964b0d76002f6516`. |
+| Deployment Status | Blocked. Hostinger is not serving local HEAD and `deploymentEnvironment` is still `development`. |
+| Environment Validation | Failed locally. Missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`, and `DATABASE_ALERT_EMAIL`; `NEXT_PUBLIC_APP_URL` is not HTTPS locally. |
+| Provider Validation | Route reachability checked where possible, but real SMTP, Cloudinary upload/signature, Google OAuth sign-in, Razorpay order/verify/webhook/refund, WhatsApp send/webhook, and SMS provider validation require production credentials/provider consoles and authenticated browser smoke. |
+| Production Result | Phase 1 cannot be signed off until Hostinger env is corrected, latest commit is redeployed, cache is cleared, `/api/release-info` reports `73a8a04c43a74f208dbaaefc83086940a0c4170a`, robots is rechecked, and provider smoke passes. |
+
+### Phase 1 Validation Matrix
+
+| Area | Status | Evidence / Next Action |
+| --- | --- | --- |
+| Hostinger | Blocked | Hosted release metadata serves `83885e01585510f8c833436e964b0d76002f6516`, not `73a8a04c43a74f208dbaaefc83086940a0c4170a`; redeploy current branch and clear cache. |
+| Environment variables | Failed local validation | `cmd /c npm run validate:prod-env` failed for missing production app env, Firebase VAPID, Firebase Admin credentials, database alert email, and HTTPS app URL. |
+| Firebase Admin credentials | Failed local validation / manual hosted check required | `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, and `FIREBASE_ADMIN_PRIVATE_KEY` are missing locally; verify real Hostinger values and Admin diagnostics after redeploy. |
+| Firebase Client configuration | Partial / manual hosted check required | Public Firebase vars are present locally except `NEXT_PUBLIC_FIREBASE_VAPID_KEY`; verify hosted client config, VAPID, authorized domains, and rules/index deploy. |
+| SMTP | Env present locally / send smoke manual | Local validator did not flag SMTP vars, but OTP, owner credential, order, and outage email sends require real provider smoke. |
+| Cloudinary | Route reachable / upload smoke manual | `/api/cloudinary/signature` returns expected wrong-method `405`; verify real signature and upload flow with production credentials. |
+| Google OAuth | Env present locally / browser smoke manual | Public/server OAuth ids are configured locally; verify hosted authorized domains and sign-in. |
+| Razorpay | Route reachable / provider smoke manual | `/api/payments/razorpay/order` returns expected wrong-method `405`; verify order, checkout, signature verify, webhook, refund, and settlement with Razorpay dashboard. |
+| WhatsApp | Routes reachable / provider smoke manual | `/api/whatsapp/send` returns expected wrong-method `405`; `/api/whatsapp/webhook` returns expected unauthenticated `403`; verify Meta token, phone id, webhook verify token, send, and webhook logging. |
+| SMS | Provider/manual gated | No production SMS provider smoke can be completed from this workspace; select/configure provider before launch. |
+
+### Hosted Route Checks
+
+| Route / Check | Result |
+| --- | --- |
+| `/api/release-info` | Fail for release signoff: commit `83885e01585510f8c833436e964b0d76002f6516`, env `development`. |
+| `/` | 200 OK with no-store and security headers. |
+| `/restaurants` | 200 OK with no-store and security headers. |
+| `/checkout` | 200 OK with no-store and security headers. |
+| `/owner/login` | 200 OK. |
+| `/admin/login` | 200 OK. |
+| `/owner/dashboard` | Expected 307 redirect to owner login. |
+| `/owner/kitchen` | Expected 307 redirect to owner login. |
+| `/owner/pos` | Expected 307 redirect to owner login. |
+| `/api/owner/orders` | Expected unauthenticated 403. |
+| `/api/owner/kitchen` | Expected unauthenticated 403. |
+| `/api/customer/orders` | Expected unauthenticated 403. |
+| `/robots.txt` | Fail for release signoff: hosted body still blocks Googlebot; recheck after Hostinger redeploy/cache clear. |
+| `/sitemap.xml` | 200 OK, XML content type. |
+| `/manifest.json` | 200 OK, JSON content type. |
+
+### Phase 1 Manual Gates
+
+| Gate | Required Before Signoff |
+| --- | --- |
+| Hostinger | Set production env, restart/redeploy, clear cache, and verify `/api/release-info` serves `73a8a04c43a74f208dbaaefc83086940a0c4170a` with `deploymentEnvironment: production`. |
+| Firebase | Verify Admin SDK credentials, client config, VAPID key, authorized domains, Firestore rules, and indexes in the target project. |
+| Providers | Smoke SMTP, Cloudinary, Google OAuth, Razorpay, WhatsApp, and SMS only with real production/sandbox provider credentials. |
+| Browser / Device | Run authenticated owner/customer/admin/POS/Kitchen/QR checks after the corrected deployment. |
 
 ## UI/UX Optimization Sprint - 2026-07-06
 
