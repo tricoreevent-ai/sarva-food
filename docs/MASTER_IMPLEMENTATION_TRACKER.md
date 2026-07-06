@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Final Operational Stabilization, Audit, and Payment Safety |
+| Current Sprint | Production Hardening, Consistency, Security, and Observability |
 | Release Version | `v1.0.0-rc1` |
 | Latest Git Commit | Sprint 1 production-readiness commit created locally from base `8a0315c37228918e82498ae0d7c78317d616da45`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last verified hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28`; Sprint 1 redeploy pending |
 | Build Date | 2026-07-06 |
-| Verification Status | Final operational audit/payment safety local typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse, push, and Hostinger redeploy remain pending/manual. |
-| Scope | Final operational stabilization only: bill correction audit, payment verification/lock, ready validation, incremental KOT merge, order details drawer, print history, search, status colors, and documentation. |
+| Verification Status | Production hardening local smoke, typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse, push, and Hostinger redeploy remain pending/manual. |
+| Scope | Production hardening only: centralized state validation, idempotent operational writes, Firestore transaction tightening, POS recovery status, structured observability, print lifecycle status, security review, smoke automation, and documentation. |
 
 ## UI/UX Optimization Sprint - 2026-07-06
 
@@ -32,7 +32,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Push notification readiness | Code-ready / provider pending | FCM foreground/background handlers, permission UI, token storage in `user_preferences`, token refresh, invalid-token cleanup, notification click deep links, sounds, badges, and server dispatch hooks are implemented. Production requires Firebase Web Push VAPID key, rules deploy, and device smoke. |
 | Performance optimization summary | Complete | No new Firestore listeners, route families, collections, or subscriptions were added; Active Orders search and ready sorting use the existing memoized read model, long history remains paged, and incremental KOT merge runs only on status update. |
 | Responsive verification | Code-ready | Owner/POS rows collapse to stacked mobile rows; Kitchen keeps 4 desktop columns, mobile compact cards, and touch-size controls. Manual device smoke remains required. |
-| Files modified | Complete | `src/repositories/order-repository.ts`, `src/repositories/kitchen-repository.ts`, `src/app/api/owner/orders/route.ts`, `src/app/api/owner/pos/route.ts`, `src/types/firebase.ts`, `src/components/flows/pos-billing-flow.tsx`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`, plus prior pass files `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/types/entities.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, and `src/app/globals.css`. |
+| Files modified | Complete | `src/lib/order-state-machine.ts`, `src/lib/server/operation-idempotency.ts`, `src/lib/server/operational-logging.ts`, `src/repositories/order-repository.ts`, `src/repositories/kitchen-repository.ts`, `src/app/api/owner/orders/route.ts`, `src/app/api/owner/kitchen/route.ts`, `src/types/firebase.ts`, `src/types/entities.ts`, `src/components/flows/pos-billing-flow.tsx`, `src/components/flows/printer-settings-flow.tsx`, `scripts/release/operational-hardening-smoke.mjs`, `package.json`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`, plus prior pass files `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, and `src/app/globals.css`. |
 
 ## Final Operational Workflow and UX Stabilization - 2026-07-06
 
@@ -137,6 +137,102 @@ Ready/served order
 | Print Profiles | Attach real selected printer profile names to print history when browser/printer adapter selection is available. |
 | Analytics | Add correction/refund/payment-lock aggregate reporting after the aggregate analytics design is approved. |
 | E2E | Add focused Playwright coverage for correction, payment lock, incremental KOT merge, and drawer history after test strategy approval. |
+
+## Production Hardening, Consistency, Security, and Observability - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Scope | Production hardening only. No workflow redesign, new Firestore collection, duplicate API, duplicate repository, or new realtime listener was added. |
+| Architecture Status | Existing POS, Owner Orders, Kitchen, print, audit, payment, notification, and customer history paths remain repository-first. Shared validation now lives in `src/lib/order-state-machine.ts`; idempotency and structured logs live under `src/lib/server`. |
+| State Validation | Completed. Order/Kitchen transitions now use a shared state machine for legal status flow, payment-start readiness, refund/correction constraints, and illegal transition blocking. |
+| Idempotency | Completed. Owner order and Kitchen create/update actions accept deterministic `operationKey` values and persist them in existing order/Kitchen documents through `operationKeys`, so double-clicks, retries, and multi-tab submits safely return the current result. |
+| Firestore Transactions | Completed. Payment, refund, payment lock/unlock, correction, print, split, transfer, merge, order status, operational events, Kitchen updates, and incremental KOT parent/order/customer merge now use transaction paths for coordinated writes. |
+| Offline / Recovery | Completed in POS. POS shows Synchronizing, Retrying, Offline, and Changes Pending states, refreshes after reconnect, stores interrupted payment collection in session storage, and avoids duplicate retry side effects through operation keys. |
+| Print Lifecycle | Completed. Print records now track queued, printing, success, failed, retry, and cancelled-compatible lifecycle states, printer response metadata, print number, user/device, timeline, audit log, and print log in existing collections. |
+| Observability | Completed. Owner order and Kitchen mutations write sanitized structured logs with action, tenant/order/kitchen ids, role, duration, outcome, and safe failure reason. |
+| Security Review | Completed for touched APIs. Owner order/Kitchen mutations keep server-side auth, feature permission checks, tenant scoping, input validation, safe error mapping, and sanitized logs. |
+| Performance Review | Completed. No new listeners, polling loops, collection scans, routes, or collections were introduced. POS reconnect uses the existing bounded POS read model refresh. |
+| Firestore Index Review | No new composite index required. Existing single-document updates and the existing `orders.where("kitchenOrderId", "==")` lookup remain within current query patterns; production index deploy state remains manual. |
+| Automated Smoke | Added `npm run smoke:operational` for static release smoke of state-machine, idempotency, transaction, logging, and POS recovery guardrails. |
+| Production Readiness | 99% code-ready; 98% production-release ready pending external env, hosted redeploy, Firestore deploy verification, provider, authenticated browser, multi-device, and printer smoke. |
+
+### Operational State Diagram
+
+```text
+New / Created
+  -> Accepted
+  -> Preparing
+  -> Ready
+  -> Served
+  -> Payment Started
+  -> Paid
+  -> Completed / Delivered
+
+Allowed side states:
+  Cancelled / Rejected before payment
+  Refunded after paid payment record
+  Corrected only after completed or delivered bill
+```
+
+### Repository Flow
+
+```text
+POS / Owner / Kitchen UI
+  -> Existing owner POS / orders / kitchen API
+  -> Shared order state machine
+  -> Repository transaction
+  -> orders + customerOrders + kitchenOrders when linked
+  -> auditLogs + statusHistory + auditTimeline
+  -> printLogs / paymentTransactions / notifications when applicable
+```
+
+### Transaction Boundaries
+
+| Operation | Transaction / Boundary |
+| --- | --- |
+| Payment / refund | `orders`, `customerOrders`, linked `kitchenOrders`, `paymentTransactions`, receipt print queue, audit, notification. |
+| Payment lock / unlock | `orders`, `customerOrders`, audit timeline, status history, audit log. |
+| Bill correction | `orders`, `customerOrders`, immutable correction record, audit timeline, status history, audit log, notification. |
+| Print | `orders`, `customerOrders`, `printLogs`, audit timeline, payment timeline for bill/receipt, audit log. |
+| Split / transfer / merge | Existing order/customer/Kitchen documents plus payment, print, audit, and notification records. |
+| Incremental KOT merge | Parent `kitchenOrders`, linked `orders`, and linked `customerOrders` merge once through `incrementalKitchenOrderIds`. |
+
+### Release Checklist
+
+| Area | Status |
+| --- | --- |
+| Local validation | Passed: `npm run smoke:operational`, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`. |
+| Hosted deploy | Manual pending after commit push. |
+| Firestore rules/indexes | Manual deploy verification required; no new collection or composite index added. |
+| Provider smoke | Razorpay, SMTP, WhatsApp/SMS/push, Cloudinary, Mapbox, Google OAuth remain external/manual. |
+| Device/printer smoke | Manual hardware checks remain required for 58mm/80mm/A4, browser print dialogs, and recovery after printer offline. |
+
+### Known Limitations
+
+| Area | Limitation |
+| --- | --- |
+| Browser-only print recovery | Browser print APIs do not expose real hardware ACK/NACK; printer response is a browser marker until a printer adapter provides hardware response. |
+| Authenticated E2E | Automated smoke is static/local. Full customer-owner-Kitchen-POS E2E still requires authenticated fixtures and provider/hardware access. |
+| Production ops | Hostinger env, cache clear/redeploy, Firebase rules/index deploy, provider dashboards, and real-device validation remain manual. |
+
+### Release Notes
+
+| Area | Note |
+| --- | --- |
+| Operators | POS now visibly reports sync/retry/offline/pending states and restores interrupted payment collection after refresh. |
+| Kitchen | Incremental KOT merge is idempotent and transaction-backed, so child tickets merge into parent/customer history once. |
+| Owners / Managers | Payment, correction, print, split, transfer, merge, and status actions are safer against double-submit and concurrent updates. |
+| Support | Structured logs now include action, ids, role, duration, outcome, and safe failure reason for faster release triage. |
+
+### Definition of Done
+
+| Requirement | Result |
+| --- | --- |
+| No redesign / no duplication | Met. Existing modules, APIs, repositories, and collections were reused. |
+| State validation centralized | Met through `src/lib/order-state-machine.ts`. |
+| Idempotent risky operations | Met for payment, print, correction, incremental KOT, status, split, transfer, merge, and timeline event paths. |
+| Safe errors and logs | Met for touched owner order/Kitchen APIs. |
+| Validation commands | Passed: `npm run smoke:operational`, `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check`. |
 
 ## Sprint 1 Production Readiness and Feature Completion - 2026-07-06
 

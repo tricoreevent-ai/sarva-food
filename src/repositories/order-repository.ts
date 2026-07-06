@@ -3,6 +3,16 @@ import "server-only";
 import { FieldValue, type Transaction } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
 import { parseFirestoreDateMillis } from "@/lib/firestore-date";
+import {
+  assertCanCorrectBill,
+  assertCanRecordPayment,
+  assertCanRefund,
+  assertCanStartPayment,
+  assertLegalOrderTransition,
+  orderStatusToFoodStatus,
+  statusEventForTransition,
+} from "@/lib/order-state-machine";
+import { hasOperationKey } from "@/lib/server/operation-idempotency";
 import { dispatchPendingTenantPushNotifications } from "@/lib/server/push-notifications";
 import { resolveTenantId } from "@/lib/tenant";
 import type { MenuDoc, OfferDoc, OrderDoc, OrderLineDoc, PaymentStatus, RestaurantDoc } from "@/types/firebase";
@@ -34,6 +44,7 @@ type PaymentInput = {
   failureReason?: string;
   capturedAt?: Date;
   reason?: string;
+  operationKey?: string;
 };
 
 type PaymentMethod = PaymentInput["method"];
@@ -44,6 +55,7 @@ type ActorInput = {
   device?: string;
   ip?: string;
   note?: string;
+  operationKey?: string;
 };
 
 type PrintInput = ActorInput & {
@@ -419,6 +431,11 @@ export class OrderRepository {
       if (kitchenRef && !kitchenSnapshot?.exists) throw new Error("Kitchen ticket not found.");
       const kitchen = kitchenSnapshot?.data() ?? {};
       if (kitchenRef && ![kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
+      if (hasOperationKey(order, input.operationKey)) {
+        nextStatus = order.paymentStatus ?? "pending";
+        return;
+      }
+      assertCanRecordPayment(order);
       const previousPaid = paidAmount(order);
       const amount = money(input.amount);
       if (order.paymentStatus === "paid" || previousPaid + 0.01 >= Number(order.total ?? 0)) throw new Error("Payment has already been collected.");
@@ -445,6 +462,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(...audit),
         statusHistory: FieldValue.arrayUnion(...timeline.map((entry) => ({ event: String(entry.type), paymentStatus: nextStatus, at: now, by: input.cashierId ?? scope.uid }))),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, paymentPatch, { merge: true });
       transaction.set(customerOrderRef, paymentPatch, { merge: true });
@@ -509,6 +527,11 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+      if (hasOperationKey(order, input.operationKey)) {
+        nextStatus = order.paymentStatus ?? "pending";
+        return;
+      }
+      assertCanRefund(order);
       const previousPaid = paidAmount(order);
       const refundAmount = Math.min(previousPaid, money(input.amount));
       if (refundAmount <= 0) throw new Error("A valid refund amount is required.");
@@ -531,6 +554,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion({ event: "refund", paymentStatus: nextStatus, at: now, by: input.cashierId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -573,7 +597,8 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       assertOrderTenant(order, scope);
-      if (!["ready", "served"].includes(String(order.foodStatus ?? order.status))) throw new Error("Kitchen still preparing.");
+      if (hasOperationKey(order, input.operationKey)) return;
+      assertCanStartPayment(order);
       const lock = cleanRecord({
         locked: true,
         startedAt: now,
@@ -592,6 +617,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion(cleanRecord({ event: "payment_started", paymentStatus: order.paymentStatus ?? "pending", at: now, by: input.userId ?? scope.uid })),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -612,6 +638,7 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       assertOrderTenant(order, scope);
+      if (hasOperationKey(order, input.operationKey)) return;
       const lock = cleanRecord({
         locked: false,
         unlockedAt: now,
@@ -629,6 +656,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion(cleanRecord({ event: "payment_unlock", paymentStatus: order.paymentStatus ?? "pending", at: now, by: input.userId ?? scope.uid, reason })),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -650,7 +678,11 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       assertOrderTenant(order, scope);
-      if (!["completed", "delivered"].includes(order.status)) throw new Error("Only completed bills can be corrected.");
+      if (hasOperationKey(order, input.operationKey)) {
+        nextOrder = order;
+        return;
+      }
+      assertCanCorrectBill(order);
       const before = correctionSnapshot(order);
       const after = correctionSnapshot({
         ...order,
@@ -692,6 +724,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion(cleanRecord({ event: "bill_correction", at: now, by: input.userId ?? scope.uid, reason, correctionVersion: version })),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -713,6 +746,7 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+      if (hasOperationKey(order, input.operationKey)) return;
       const type = input.status === "authorized" ? "payment_authorized" : "payment_failed";
       const amount = money(input.amount);
       const details = {
@@ -731,6 +765,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion({ event: type, paymentStatus: order.paymentStatus ?? "pending", at: now, by: input.cashierId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -772,33 +807,68 @@ export class OrderRepository {
   async recordPrint(scope: TenantScope, input: PrintInput) {
     const { orderId, type } = input;
     const ref = this.db.collection("orders").doc(orderId);
-    const snapshot = await ref.get();
-    if (!snapshot.exists) throw new Error("Order not found.");
-    const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
-    if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
     const now = new Date();
-    const printNumber = Number(order.printedCount ?? 0) + 1;
-    const event = type === "receipt" ? "receipt_printed" : type === "bill" ? "bill_printed" : "kot_printed";
-    const printDetails = cleanRecord({ printType: type, printNumber, reason: input.note, printer: "browser-print" });
-    const paymentTimeline = type === "bill" || type === "receipt" ? [paymentEvent(event, scope, input, now, printDetails)] : [];
-    const audit = auditEvent(event, scope, input, now, printDetails);
-    const patch = {
-      printedCount: FieldValue.increment(1),
-      lastPrintedAt: FieldValue.serverTimestamp(),
-      ...(paymentTimeline.length ? { paymentTimeline: FieldValue.arrayUnion(...paymentTimeline) } : {}),
-      auditTimeline: FieldValue.arrayUnion(audit),
-      statusHistory: FieldValue.arrayUnion({ status: order.status, at: now, by: input.userId ?? scope.uid, event }),
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-    const auditRef = this.db.collection("auditLogs").doc();
-    const printLogRef = this.db.collection("printLogs").doc();
-    await Promise.all([
-      ref.set(patch, { merge: true }),
-      this.db.collection("customerOrders").doc(orderId).set(patch, { merge: true }),
-      printLogRef.set(cleanRecord({ id: printLogRef.id, tenantId: scope.tenantId, restaurantId: scope.tenantId, orderId, type, status: "printed", printedBy: input.userId ?? scope.uid ?? "", device: input.device, printer: "browser-print", reason: input.note, printNumber, createdAt: FieldValue.serverTimestamp() })),
-      auditRef.set(cleanRecord({ id: auditRef.id, tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: input.userId ?? scope.uid ?? "", role: input.role, action: event, module: "orders", entityId: orderId, after: audit, device: input.device, createdAt: FieldValue.serverTimestamp() })),
-    ]);
-    return { ...order, printedCount: printNumber };
+    let nextOrder: OrderDoc | null = null;
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) throw new Error("Order not found.");
+      const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+      assertOrderTenant(order, scope);
+      if (hasOperationKey(order, input.operationKey)) {
+        nextOrder = order;
+        return;
+      }
+      const printNumber = Number(order.printedCount ?? 0) + 1;
+      const event = type === "receipt" ? "receipt_printed" : type === "bill" ? "bill_printed" : "kot_printed";
+      const printLifecycle = [
+        printLifecycleEvent("queued", scope, input, now, printNumber),
+        printLifecycleEvent("printing", scope, input, now, printNumber),
+        printLifecycleEvent("success", scope, input, now, printNumber),
+      ];
+      const printerResponse = cleanRecord({ status: "success", printer: "browser-print", at: now, printNumber });
+      const printDetails = cleanRecord({ printType: type, printNumber, reason: input.note, printer: "browser-print", printStatus: "success", printerResponse });
+      const paymentTimeline = type === "bill" || type === "receipt" ? [paymentEvent(event, scope, input, now, printDetails)] : [];
+      const audit = auditEvent(event, scope, input, now, printDetails);
+      const patch = {
+        printedCount: FieldValue.increment(1),
+        lastPrintedAt: FieldValue.serverTimestamp(),
+        lastPrintStatus: "success",
+        lastPrinterResponse: printerResponse,
+        printLifecycle: FieldValue.arrayUnion(...printLifecycle),
+        ...(paymentTimeline.length ? { paymentTimeline: FieldValue.arrayUnion(...paymentTimeline) } : {}),
+        auditTimeline: FieldValue.arrayUnion(audit),
+        statusHistory: FieldValue.arrayUnion({ status: order.status, at: now, by: input.userId ?? scope.uid, event, printStatus: "success" }),
+        updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
+      };
+      const printLogRef = this.db.collection("printLogs").doc();
+      transaction.set(ref, patch, { merge: true });
+      transaction.set(this.db.collection("customerOrders").doc(orderId), patch, { merge: true });
+      transaction.set(printLogRef, cleanRecord({
+        id: printLogRef.id,
+        tenantId: scope.tenantId,
+        restaurantId: scope.tenantId,
+        orderId,
+        referenceId: orderId,
+        type,
+        status: "success",
+        printedBy: input.userId ?? scope.uid ?? "",
+        userId: input.userId ?? scope.uid ?? "",
+        user: input.userId ?? scope.uid ?? "",
+        device: input.device,
+        printer: "browser-print",
+        printerProfileId: "browser-print",
+        printerResponse,
+        reason: input.note,
+        printNumber,
+        lifecycle: printLifecycle,
+        timestamp: now.toISOString(),
+        createdAt: FieldValue.serverTimestamp(),
+      }));
+      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: event, module: "orders", entityId: orderId, after: audit, device: input.device });
+      nextOrder = { ...order, printedCount: printNumber } as OrderDoc;
+    });
+    return nextOrder!;
   }
 
   async recordOperationalEvent(scope: TenantScope, input: OperationalEventInput) {
@@ -810,11 +880,13 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+      if (hasOperationKey(order, input.operationKey)) return;
       const entry = auditEvent(input.event, scope, input, now, { amount: input.amount, method: input.method, note: input.note });
       const patch = {
         auditTimeline: FieldValue.arrayUnion(entry),
         statusHistory: FieldValue.arrayUnion({ event: input.event, at: now, by: input.userId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(ref, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -841,6 +913,10 @@ export class OrderRepository {
       if (kitchenRef && !kitchenSnapshot?.exists) throw new Error("Kitchen ticket not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       assertOrderTenant(order, scope);
+      if (hasOperationKey(order, input.operationKey)) {
+        nextStatus = order.paymentStatus ?? "pending";
+        return;
+      }
       const kitchen = kitchenSnapshot?.data() ?? {};
       if (kitchenRef && ![kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
       const previousPaid = paidAmount(order);
@@ -884,6 +960,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion({ event: "split_bill", paymentStatus: nextStatus, at: now, by: input.userId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       };
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -952,6 +1029,10 @@ export class OrderRepository {
       if (kitchenRef && !kitchenSnapshot?.exists) throw new Error("Kitchen ticket not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       assertOrderTenant(order, scope);
+      if (hasOperationKey(order, input.operationKey)) {
+        nextOrder = order;
+        return;
+      }
       const kitchen = kitchenSnapshot?.data() ?? {};
       if (kitchenRef && ![kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
       const tableNumber = input.tableNumber.trim();
@@ -963,6 +1044,7 @@ export class OrderRepository {
         auditTimeline: FieldValue.arrayUnion(entry),
         statusHistory: FieldValue.arrayUnion({ event: "transfer_table", fromTable: order.tableNumber, toTable: tableNumber, at: now, by: input.userId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       });
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
@@ -988,6 +1070,10 @@ export class OrderRepository {
       if (missing) throw new Error("Order not found.");
       const [target, ...sources] = orderSnapshots.map((snapshot) => dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {}));
       [target, ...sources].forEach((order) => assertOrderTenant(order, scope));
+      if (hasOperationKey(target, input.operationKey)) {
+        nextOrder = target;
+        return;
+      }
       const targetKitchenId = input.kitchenOrderId || target.kitchenOrderId;
       const sourceKitchenIds = Array.from(new Set([
         ...sources.map((order) => order.kitchenOrderId).filter(isString),
@@ -1035,6 +1121,7 @@ export class OrderRepository {
         ...(sourceSplits.length ? { splitBills: FieldValue.arrayUnion(...sourceSplits) } : {}),
         statusHistory: FieldValue.arrayUnion({ event: "merge_tables", sourceOrderIds: sourceIds, at: now, by: input.userId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
       });
       transaction.set(targetRef, targetPatch, { merge: true });
       transaction.set(this.db.collection("customerOrders").doc(target.id), targetPatch, { merge: true });
@@ -1113,11 +1200,16 @@ export class OrderRepository {
       if (!snapshot.exists) throw new Error("Order not found.");
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+      if (hasOperationKey(order, actor.operationKey)) {
+        nextOrder = order;
+        return;
+      }
+      assertLegalOrderTransition(order, status);
       const kitchenRef = order.kitchenOrderId ? this.db.collection("kitchenOrders").doc(order.kitchenOrderId) : null;
       const kitchenSnapshot = kitchenRef ? await transaction.get(kitchenRef) : null;
       const kitchen = kitchenSnapshot?.data() ?? {};
       const linkedKitchenValid = Boolean(kitchenRef && kitchenSnapshot?.exists && [kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId));
-      const event = statusEvent(status);
+      const event = statusEventForTransition(status);
       const foodStatus = orderStatusToFoodStatus(status);
       const note = actor.note?.trim();
       const actorPatch = status === "preparing"
@@ -1134,6 +1226,7 @@ export class OrderRepository {
         statusHistory: FieldValue.arrayUnion(cleanRecord({ status, foodStatus, at: now, by: actor.userId ?? scope.uid, event, note })),
         updatedAt: FieldValue.serverTimestamp(),
         ...(note ? { statusNote: note } : {}),
+        ...operationPatch(actor.operationKey),
         ...actorPatch,
       };
       transaction.set(ref, statusPatch, { merge: true });
@@ -1178,17 +1271,6 @@ function withOrderConsistency(order: OrderDoc): OrderDoc {
   };
 }
 
-function orderStatusToFoodStatus(status: OrderDoc["status"]) {
-  if (status === "draft") return "new";
-  if (status === "accepted") return "accepted";
-  if (status === "preparing") return "preparing";
-  if (status === "ready" || status === "picked-up") return "ready";
-  if (status === "served" || status === "delivered") return "served";
-  if (status === "completed") return "completed";
-  if (status === "cancelled" || status === "rejected") return "cancelled";
-  return "new";
-}
-
 function money(value?: number) {
   return Number.isFinite(value) ? Math.max(0, Math.round((value as number) * 100) / 100) : 0;
 }
@@ -1200,6 +1282,10 @@ function posDraftId(scope: TenantScope) {
 function paidAmount(order: OrderDoc) {
   const value = (order as OrderDoc & { paidAmount?: number }).paidAmount;
   return Number.isFinite(value) ? Number(value) : order.paymentStatus === "paid" ? Number(order.total ?? 0) : 0;
+}
+
+function operationPatch(key?: string) {
+  return key ? { operationKeys: FieldValue.arrayUnion(key) } : {};
 }
 
 function paymentStatusFromPaid(total: number, paid: number): PaymentStatus {
@@ -1339,6 +1425,21 @@ function paymentEvent(type: string, scope: TenantScope, input: ActorInput & { am
   });
 }
 
+function printLifecycleEvent(status: "queued" | "printing" | "success" | "failed" | "retry" | "cancelled", scope: TenantScope, input: PrintInput, at: Date, printNumber: number, extra: Record<string, unknown> = {}) {
+  return cleanRecord({
+    status,
+    at,
+    orderId: input.orderId,
+    printType: input.type,
+    printNumber,
+    user: input.userId ?? scope.uid ?? "",
+    role: input.role ?? "",
+    device: input.device ?? "",
+    printer: "browser-print",
+    ...extra,
+  });
+}
+
 function auditEvent(type: string, scope: TenantScope, input: ActorInput, at: Date, extra: Record<string, unknown> = {}) {
   return cleanRecord({
     type,
@@ -1421,13 +1522,6 @@ function notificationSound(type: string) {
 
 function logPushDispatchError(error: unknown) {
   console.error("[push-notifications] dispatch failed", { reason: error instanceof Error ? error.name : typeof error });
-}
-
-function statusEvent(status: OrderDoc["status"]) {
-  if (status === "accepted") return "kitchen_accepted";
-  if (status === "ready") return "kitchen_ready";
-  if (status === "completed" || status === "delivered") return "completion";
-  return "order_status";
 }
 
 function notificationForEvent(event: string, orderId?: string, kitchenOrderId?: string) {

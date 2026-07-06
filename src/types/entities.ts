@@ -1061,13 +1061,16 @@ export type PrintTemplate = {
 
 export type PrintLog = {
   id: string;
-  type: "bill" | "kot" | "test";
-  status: "printed" | "failed" | "reprint" | "queued";
+  type: "bill" | "kot" | "receipt" | "test";
+  status: "queued" | "printing" | "success" | "failed" | "retry" | "cancelled" | "printed" | "reprint";
   timestamp: string;
   user: string;
   branchId: string;
   printerProfileId: string;
   referenceId: string;
+  lifecycle?: Array<Record<string, unknown>>;
+  printerResponse?: Record<string, unknown>;
+  printNumber?: number;
 };
 
 export type RestaurantBranch = {

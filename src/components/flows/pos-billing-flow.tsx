@@ -27,6 +27,7 @@ import { normalizePhone } from "@/services/restaurant-ops-service";
 
 const posTabs = ["menu", "custom", "combos"] as const;
 const heldOrdersKey = "sarva-pos-held-orders:v1";
+const paymentDraftKey = "sarva-pos-payment-draft:v1";
 
 type HeldPosOrder = {
   id: string;
@@ -38,6 +39,7 @@ type HeldPosOrder = {
 type BillCopy = "Customer Copy" | "Cashier Copy" | "Kitchen Copy" | "Duplicate Copy";
 const billCopyOptions: BillCopy[] = ["Customer Copy", "Cashier Copy", "Kitchen Copy", "Duplicate Copy"];
 type PaymentMethod = "cash" | "upi" | "card" | "credit";
+type SyncStatus = "online" | "offline" | "syncing" | "pending" | "retrying";
 type TimelineEntry = Record<string, unknown>;
 type SplitBillRecord = {
   id?: string;
@@ -205,6 +207,8 @@ export function PosBillingFlow() {
   const [correctionTarget, setCorrectionTarget] = useState<ExtendedDemoOrder | null>(null);
   const [paymentDraft, setPaymentDraft] = useState<PaymentDraft | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => (typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "online"));
+  const [pendingChanges, setPendingChanges] = useState(0);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
     menuCategories: [],
@@ -254,20 +258,28 @@ export function PosBillingFlow() {
   }, [heldOrders]);
 
   const refreshPosReadModel = useCallback(async (options: { signal?: AbortSignal; applyDraft?: boolean } = {}) => {
-    const response = await fetch("/api/owner/pos", { cache: "no-store", signal: options.signal });
-    const payload = await readPosPayload<PosPayload>(response, "POS data could not be loaded.");
-    setReadModel((current) => ({
-      ...current,
-      menuItems: payload.data?.menu ?? [],
-      orders: payload.data?.orders ?? [],
-      tables: payload.data?.tables ?? [],
-      loyaltyCustomers: payload.data?.customers ?? [],
-      tableOrders: payload.data?.kitchen ?? [],
-      staffMembers: payload.data?.staff ?? [],
-    }));
-    if (options.applyDraft === false) return;
-    if (payload.data?.draft?.lines?.length) setPosBill(payload.data.draft);
-    else resetPosBill();
+    setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "syncing");
+    try {
+      const response = await fetch("/api/owner/pos", { cache: "no-store", signal: options.signal });
+      const payload = await readPosPayload<PosPayload>(response, "POS data could not be loaded.");
+      setReadModel((current) => ({
+        ...current,
+        menuItems: payload.data?.menu ?? [],
+        orders: payload.data?.orders ?? [],
+        tables: payload.data?.tables ?? [],
+        loyaltyCustomers: payload.data?.customers ?? [],
+        tableOrders: payload.data?.kitchen ?? [],
+        staffMembers: payload.data?.staff ?? [],
+      }));
+      setPendingChanges(0);
+      setSyncStatus("online");
+      if (options.applyDraft === false) return;
+      if (payload.data?.draft?.lines?.length) setPosBill(payload.data.draft);
+      else resetPosBill();
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "retrying");
+      throw error;
+    }
   }, [resetPosBill, setPosBill]);
 
   useEffect(() => {
@@ -305,6 +317,47 @@ export function PosBillingFlow() {
       window.removeEventListener("sarva-pos-open-customers", openCustomers);
     };
   }, []);
+
+  useEffect(() => {
+    const onOnline = () => {
+      setSyncStatus("syncing");
+      toast.success("Back online. Synchronizing POS.");
+      void refreshPosReadModel({ applyDraft: false }).catch(() => {
+        setSyncStatus("retrying");
+        toast.error("Sync failed. Retry from Active Orders.");
+      });
+    };
+    const onOffline = () => {
+      setSyncStatus("offline");
+      toast.error("Offline. Changes pending until reconnect.");
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [refreshPosReadModel]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        const saved = window.sessionStorage.getItem(paymentDraftKey);
+        if (saved) setPaymentDraft(JSON.parse(saved) as PaymentDraft);
+      } catch {
+        window.sessionStorage.removeItem(paymentDraftKey);
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  useEffect(() => {
+    if (!paymentDraft) {
+      window.sessionStorage.removeItem(paymentDraftKey);
+      return;
+    }
+    window.sessionStorage.setItem(paymentDraftKey, JSON.stringify(paymentDraft));
+  }, [paymentDraft]);
 
   const menu = useMemo(
     () => menuItems.filter((item) => item.restaurantSlug === restaurantId && !item.soldOut),
@@ -446,6 +499,8 @@ export function PosBillingFlow() {
       await persistDraft(nextBill, extra);
     } catch (error) {
       console.error("[pos] draft save failed", { reason: error instanceof Error ? error.name : typeof error });
+      setPendingChanges((count) => count + 1);
+      setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "pending");
       toast.error("POS draft could not be saved.");
     }
   }
@@ -556,10 +611,11 @@ export function PosBillingFlow() {
         toast.success("Kitchen already has the latest items.");
         return activeKitchenOrder;
       }
+      const operationKey = clientOperationKey(["incremental-kot", bill.linkedKitchenOrderId, lines.map((line) => [line.itemId ?? line.name, line.quantity])]);
       const response = await fetch("/api/owner/kitchen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...kitchenPayload, lines, parentKitchenOrderId: bill.linkedKitchenOrderId, status: "new", priority: "rush" }),
+        body: JSON.stringify({ ...kitchenPayload, id: `inc-${operationKey}`, operationKey, lines, parentKitchenOrderId: bill.linkedKitchenOrderId, status: "new", priority: "rush" }),
       });
       const result = await readPosPayload<{ data?: TableOrder }>(response, "Incremental KOT could not be created.");
       if (!result.data) throw new Error("Incremental KOT could not be created.");
@@ -572,7 +628,7 @@ export function PosBillingFlow() {
     const response = await fetch("/api/owner/kitchen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(kitchenPayload),
+      body: JSON.stringify({ ...kitchenPayload, operationKey: clientOperationKey(["kot", bill.invoiceNumber, tableNumber, bill.lines.map((line) => [line.itemId, line.quantity]), totals.total]) }),
     });
     const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen ticket could not be created.");
     if (!result.data) throw new Error("Kitchen ticket could not be created.");
@@ -609,14 +665,14 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "payment", orderId, kitchenOrderId: linkedKitchenOrderId, amount: totals.total, method: bill.payment === "cod" ? "credit" : bill.payment }),
+        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["checkout-payment", orderId, linkedKitchenOrderId, totals.total, bill.payment]), orderId, kitchenOrderId: linkedKitchenOrderId, amount: totals.total, method: bill.payment === "cod" ? "credit" : bill.payment }),
       });
       await readPosPayload(response, "Payment could not be recorded.");
     } else if (linkedKitchenOrderId) {
       const response = await fetch("/api/owner/kitchen", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: linkedKitchenOrderId, paymentStatus: "paid" }),
+        body: JSON.stringify({ id: linkedKitchenOrderId, operationKey: clientOperationKey(["kitchen-payment", linkedKitchenOrderId, "paid"]), paymentStatus: "paid" }),
       });
       const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen payment status could not be updated.");
       if (result.data) setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((order) => order.id === result.data!.id ? result.data! : order) }));
@@ -802,7 +858,7 @@ export function PosBillingFlow() {
 
   async function logPrint(target: "bill" | "kot", duplicate = false) {
     const referenceId = target === "bill" ? bill.invoiceNumber || billContext.invoiceNumber : bill.linkedKitchenOrderId || kotContext.kotNumber;
-    const status: PrintLog["status"] = duplicate ? "reprint" : billingPrinter?.status === "offline" ? "queued" : "printed";
+    const status: PrintLog["status"] = duplicate ? "retry" : billingPrinter?.status === "offline" ? "queued" : "success";
     await fetch("/api/owner/printers", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -893,7 +949,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "payment_started", orderId: canonical.id, kitchenOrderId, amount: draft.amount, method: draft.method }),
+        body: JSON.stringify({ action: "payment_started", operationKey: clientOperationKey(["payment-start", canonical.id, draft.order.id, draft.amount, draft.method]), orderId: canonical.id, kitchenOrderId, amount: draft.amount, method: draft.method }),
       });
       await readPosPayload(response, "Payment verification could not be saved.");
       setPaymentDraft({ ...draft, stage: "collect" });
@@ -917,7 +973,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "payment_unlock", orderId: canonical.id, kitchenOrderId, reason }),
+        body: JSON.stringify({ action: "payment_unlock", operationKey: clientOperationKey(["payment-unlock", canonical.id, reason]), orderId: canonical.id, kitchenOrderId, reason }),
       });
       await readPosPayload(response, "Payment lock could not be released.");
       setPaymentDraft({ ...draft, unlockReason: "" });
@@ -947,7 +1003,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "payment", orderId: canonical.id, kitchenOrderId, amount, method: draft.method }),
+        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["payment", canonical.id, draft.order.id, amount, draft.method]), orderId: canonical.id, kitchenOrderId, amount, method: draft.method }),
       });
       const result = await readPosPayload<{ data?: { paymentStatus?: "pending" | "partial" | "paid" }; paymentStatus?: "pending" | "partial" | "paid" }>(response, "Payment could not be recorded.");
       const paymentStatus = result.data?.paymentStatus ?? result.paymentStatus ?? (amount + 0.01 < Number(draft.order.total ?? 0) ? "partial" : "paid");
@@ -975,6 +1031,7 @@ export function PosBillingFlow() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "bill_correction",
+          operationKey: clientOperationKey(["bill-correction", order.id, payload.reason, payload.total, payload.lines.map((line) => [line.menuItemId ?? line.itemId ?? line.name, line.price, line.quantity])]),
           orderId: order.id,
           reason: payload.reason,
           correction: {
@@ -1003,7 +1060,7 @@ export function PosBillingFlow() {
       await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "print", orderId: canonical.id, type, note: order.printedCount ? `${type} reprint` : `${type} print` }),
+        body: JSON.stringify({ action: "print", operationKey: clientOperationKey(["print", canonical.id, type, order.printedCount ?? 0]), orderId: canonical.id, type, note: order.printedCount ? `${type} reprint` : `${type} print` }),
       }).catch(() => undefined);
     }
     openKitchenOrder(order);
@@ -1018,7 +1075,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/kitchen", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: order.id, priority: "rush", reminderAt: new Date().toISOString(), reminderBy: authUser.name || authUser.id }),
+        body: JSON.stringify({ id: order.id, operationKey: clientOperationKey(["kitchen-reminder", order.id]), priority: "rush", reminderAt: new Date().toISOString(), reminderBy: authUser.name || authUser.id }),
       });
       const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen reminder could not be sent.");
       updatedKitchen = result.data;
@@ -1028,7 +1085,7 @@ export function PosBillingFlow() {
       await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "event", event: "reminder", orderId: canonical.id, kitchenOrderId, note: "Kitchen reminder sent" }),
+        body: JSON.stringify({ action: "event", operationKey: clientOperationKey(["order-event", canonical.id, "reminder", kitchenOrderId]), event: "reminder", orderId: canonical.id, kitchenOrderId, note: "Kitchen reminder sent" }),
       }).catch(() => undefined);
     }
     setReadModel((current) => ({ ...current, tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, ...(updatedKitchen ?? {}), priority: "rush" } : item) }));
@@ -1042,7 +1099,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/kitchen", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: order.id, status }),
+        body: JSON.stringify({ id: order.id, operationKey: clientOperationKey(["kitchen-status", order.id, status]), status }),
       });
       const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
       updatedKitchen = result.data;
@@ -1051,7 +1108,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId: canonical.id, kitchenOrderId: (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id, status }),
+        body: JSON.stringify({ operationKey: clientOperationKey(["order-status", canonical.id, status]), orderId: canonical.id, kitchenOrderId: (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id, status }),
       });
       await readPosPayload(response, "Order status could not be updated.");
     }
@@ -1061,7 +1118,7 @@ export function PosBillingFlow() {
       await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "event", event, orderId: canonical.id, kitchenOrderId }),
+        body: JSON.stringify({ action: "event", operationKey: clientOperationKey(["order-event", canonical.id, event, kitchenOrderId]), event, orderId: canonical.id, kitchenOrderId }),
       }).catch(() => undefined);
     }
     setReadModel((current) => ({
@@ -1086,6 +1143,7 @@ export function PosBillingFlow() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "split_bill",
+          operationKey: clientOperationKey(["split-bill", canonical.id, splits.map((split) => [split.amount, split.method, split.customerName])]),
           orderId: canonical.id,
           kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
           splits,
@@ -1116,6 +1174,7 @@ export function PosBillingFlow() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "transfer_table",
+          operationKey: clientOperationKey(["transfer-table", canonical.id, tableNumber, waiterName]),
           orderId: canonical.id,
           kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
           tableNumber,
@@ -1154,6 +1213,7 @@ export function PosBillingFlow() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "merge_tables",
+          operationKey: clientOperationKey(["merge-tables", canonical.id, sourceOrderIds, tableNumber]),
           orderId: canonical.id,
           kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
           sourceOrderIds,
@@ -1300,6 +1360,11 @@ export function PosBillingFlow() {
         onCustomers={() => setPanel("customers")}
       />
       <div className="flex min-w-0 flex-1 flex-col">
+        <PosSyncBanner
+          status={syncStatus}
+          pendingChanges={pendingChanges}
+          onRetry={() => void refreshPosReadModel({ applyDraft: false }).catch(() => setSyncStatus("retrying"))}
+        />
         <main className="grid min-h-0 flex-1 gap-4 p-3 md:p-4 xl:grid-cols-[minmax(0,1fr)_430px]">
           {panel === "held" ? (
             <HeldOrdersPanel orders={heldOrders} onResume={resumeHeldOrder} onDelete={setHeldDeleteTarget} />
@@ -1521,6 +1586,24 @@ export function PosBillingFlow() {
         ) : null}
         {activeKitchenOrder ? <span className="sr-only">Active kitchen ticket {activeKitchenOrder.id}</span> : null}
       </div>
+    </div>
+  );
+}
+
+function PosSyncBanner({ status, pendingChanges, onRetry }: { status: SyncStatus; pendingChanges: number; onRetry: () => void }) {
+  if (status === "online" && pendingChanges <= 0) return null;
+  const tone = status === "offline" ? "border-amber-200 bg-amber-50 text-amber-900" : status === "retrying" || status === "pending" ? "border-blue-200 bg-blue-50 text-blue-900" : "border-emerald-200 bg-emerald-50 text-emerald-900";
+  const label = status === "offline" ? "Offline" : status === "retrying" ? "Retrying" : status === "pending" ? "Changes Pending" : "Synchronizing";
+  const detail = pendingChanges > 0 ? `${pendingChanges} pending change${pendingChanges === 1 ? "" : "s"}` : "Refreshing live order state";
+  return (
+    <div className={cn("flex min-h-11 items-center justify-between gap-3 border-b px-3 text-sm font-bold", tone)}>
+      <span>{label} · {detail}</span>
+      {status === "retrying" || status === "pending" ? (
+        <Button size="sm" variant="outline" className="h-8 bg-white/80" onClick={onRetry}>
+          <Loader2 className={cn("size-4", status === "retrying" && "animate-spin")} />
+          Retry
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -2911,6 +2994,16 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function clientOperationKey(parts: unknown[]) {
+  const text = JSON.stringify(parts);
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `pos-${(hash >>> 0).toString(36)}`;
+}
+
 async function readPosPayload<T>(response: Response, fallback: string) {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(toSafePosError(payload.error, fallback));
@@ -2924,6 +3017,8 @@ function toSafePosError(reason: string | undefined, fallback: string) {
   if (text.includes("no longer active") || text.includes("pos draft not found")) return "This order is no longer active. Please refresh.";
   if (text.includes("kitchen ticket not found")) return "Kitchen ticket not found.";
   if (text.includes("kitchen still preparing")) return "Kitchen still preparing.";
+  if (text.includes("currently being modified")) return "Order currently being modified. Refresh and retry.";
+  if (text.includes("state change") || text.includes("transition")) return "That order state changed on another device. Refresh and retry.";
   if (text.includes("already been collected")) return "Payment has already been collected.";
   if (text.includes("completed bills")) return "Only completed bills can be corrected.";
   if (text.includes("correction reason")) return "Correction reason is required.";

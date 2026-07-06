@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { OrderRepository, type OperationalEvent } from "@/repositories/order-repository";
 import { tenantScope } from "@/repositories/shared";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
+import { operationKey as makeOperationKey } from "@/lib/server/operation-idempotency";
+import { logOperationalEvent, logOperationalFailure } from "@/lib/server/operational-logging";
 import type { OrderStatus } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,7 @@ const timelineEvents = new Set(["order_created", "item_added", "item_removed", "
 type PaymentMethod = "cash" | "upi" | "card" | "credit";
 type OrderPatchBody = {
   action?: string;
+  operationKey?: string;
   orderId?: string;
   status?: OrderStatus;
   restaurantId?: string;
@@ -67,6 +70,8 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const requestId = requestIdFor();
+  const startedAt = Date.now();
+  let context: Record<string, unknown> = { requestId };
   try {
     const access = await requireOwnerFeature(request, "orders", "update");
     if (access.error) return access.error;
@@ -74,19 +79,26 @@ export async function PATCH(request: NextRequest) {
     if (!body.orderId) return NextResponse.json({ error: "Order id is required." }, { status: 400 });
     const scope = tenantScope(access.session, body.restaurantId);
     const orders = new OrderRepository();
-    const actor = { userId: access.session.uid, role: access.session.role, device: cleanDevice(body.device ?? request.headers.get("user-agent") ?? ""), ip: clientIp(request), note: cleanNote(body.note) };
+    const action = body.action ?? body.status ?? "status";
+    const opKey = cleanOperationKey(body.operationKey) ?? makeOperationKey([scope.tenantId, body.orderId, action, body.status, body.amount, body.method, body.type, body.event, body.reason, body.tableNumber, body.sourceOrderIds, body.splits, body.correction]);
+    context = { requestId, action, tenantId: scope.tenantId, restaurantId: scope.tenantId, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, role: access.session.role };
+    const send = (data: unknown) => {
+      logOperationalEvent("owner.orders.patch", { ...context, outcome: "ok", durationMs: Date.now() - startedAt });
+      return NextResponse.json({ data });
+    };
+    const actor = { userId: access.session.uid, role: access.session.role, device: cleanDevice(body.device ?? request.headers.get("user-agent") ?? ""), ip: clientIp(request), note: cleanNote(body.note), operationKey: opKey };
     if (body.action === "payment_started") {
       const method = String(body.method ?? "");
       if (method && !paymentMethods.has(method)) return NextResponse.json({ error: "Valid payment method is required." }, { status: 400 });
       const data = await orders.startPaymentLock(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number.isFinite(Number(body.amount)) ? Number(body.amount) : undefined, method: paymentMethods.has(method) ? method as PaymentMethod : undefined });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "payment_unlock") {
       if (!canUnlockPayment(access.session.role)) return NextResponse.json({ error: "Only owner can unlock payment changes." }, { status: 403 });
       const reason = cleanNote(body.reason ?? body.note);
       if (!reason) return NextResponse.json({ error: "Unlock reason is required." }, { status: 400 });
       const data = await orders.unlockPayment(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, reason });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "bill_correction") {
       if (!canCorrectBill(access.session.role, access.session.permissions)) return NextResponse.json({ error: "Only owner or manager can correct completed bills." }, { status: 403 });
@@ -105,29 +117,29 @@ export async function PATCH(request: NextRequest) {
         deliveryFee: numberOrUndefined(body.correction?.deliveryFee ?? body.correction?.packingCharge),
         total: numberOrUndefined(body.correction?.total),
       });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "payment") {
       const method = String(body.method ?? "");
       if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return NextResponse.json({ error: "Valid payment method and amount are required." }, { status: 400 });
       const data = await orders.recordPayment(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as "cash" | "upi" | "card" | "credit", reference: body.reference, cashierId: access.session.uid });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "refund") {
       const method = String(body.method ?? "");
       if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return NextResponse.json({ error: "Valid refund method and amount are required." }, { status: 400 });
       const data = await orders.recordRefund(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as "cash" | "upi" | "card" | "credit", reference: body.reference, cashierId: access.session.uid });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "print") {
       const type = printTypes.has(String(body.type)) ? body.type as "bill" | "kot" | "receipt" : "bill";
       const data = await orders.recordPrint(scope, { ...actor, orderId: body.orderId, type });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "event") {
       if (!body.event || !timelineEvents.has(body.event)) return NextResponse.json({ error: "Valid operational event is required." }, { status: 400 });
       const data = await orders.recordOperationalEvent(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, event: body.event as OperationalEvent, amount: body.amount, method: body.method, note: body.note });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "split_bill") {
       const splits = (body.splits ?? [])
@@ -140,25 +152,25 @@ export async function PATCH(request: NextRequest) {
         kitchenOrderId: body.kitchenOrderId,
         splits: splits.map((split) => ({ ...split, method: split.method as PaymentMethod })),
       });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "transfer_table") {
       const tableNumber = body.tableNumber?.trim();
       if (!tableNumber) return NextResponse.json({ error: "Target table is required." }, { status: 400 });
       const data = await orders.transferTable(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, tableNumber, waiterName: body.waiterName });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (body.action === "merge_tables") {
       const sourceOrderIds = Array.isArray(body.sourceOrderIds) ? body.sourceOrderIds.filter(Boolean) : [];
       if (!sourceOrderIds.length) return NextResponse.json({ error: "At least one source order is required." }, { status: 400 });
       const data = await orders.mergeTables(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, sourceOrderIds, sourceKitchenOrderIds: body.sourceKitchenOrderIds, tableNumber: body.tableNumber });
-      return NextResponse.json({ data });
+      return send(data);
     }
     if (!body.status || !statuses.has(body.status)) return NextResponse.json({ error: "Valid order status is required." }, { status: 400 });
     const data = await orders.updateStatus(scope, body.orderId, body.status, actor);
-    return NextResponse.json({ data });
+    return send(data);
   } catch (error) {
-    return orderError(error, requestId);
+    return orderError(error, requestId, context, Date.now() - startedAt);
   }
 }
 
@@ -175,6 +187,11 @@ function cleanNote(value: unknown) {
   return note || undefined;
 }
 
+function cleanOperationKey(value: unknown) {
+  const key = String(value ?? "").replace(/[^a-zA-Z0-9:_.-]/g, "").slice(0, 120);
+  return key || undefined;
+}
+
 function numberOrUndefined(value: unknown) {
   const next = Number(value);
   return Number.isFinite(next) ? next : undefined;
@@ -189,13 +206,15 @@ function canUnlockPayment(role: string) {
   return ["owner", "admin", "super_admin"].includes(role);
 }
 
-function orderError(error: unknown, requestId: string) {
-  console.error("[owner-orders-api] request failed", { requestId, message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+function orderError(error: unknown, requestId: string, context: Record<string, unknown>, durationMs: number) {
+  logOperationalFailure("owner.orders.patch", error, { ...context, durationMs });
   const message = error instanceof Error ? error.message : "";
   if (/Order not found|no longer active/i.test(message)) return NextResponse.json({ error: "This order is no longer active. Please refresh.", requestId }, { status: 404 });
   if (/Kitchen ticket not found/i.test(message)) return NextResponse.json({ error: "Kitchen ticket not found.", requestId }, { status: 404 });
   if (/Kitchen still preparing/i.test(message)) return NextResponse.json({ error: "Kitchen still preparing.", requestId }, { status: 409 });
+  if (/currently being modified/i.test(message)) return NextResponse.json({ error: "Order currently being modified. Refresh and retry.", requestId }, { status: 409 });
   if (/already been collected|already paid/i.test(message)) return NextResponse.json({ error: "Payment has already been collected.", requestId }, { status: 409 });
+  if (/invalid .*transition|cannot move back|cancelled orders|refunded orders|without refund/i.test(message)) return NextResponse.json({ error: "That order state change is no longer valid. Refresh and retry.", requestId }, { status: 409 });
   if (/split bill|balance due|source order|target table|required|completed bills|correction|unlock reason/i.test(message)) return NextResponse.json({ error: message, requestId }, { status: 400 });
   if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return NextResponse.json({ error: "Unable to contact server. Please retry.", requestId }, { status: 503 });
   return NextResponse.json({ error: `Unexpected error. Reference ID ${requestId}`, requestId }, { status: 500 });

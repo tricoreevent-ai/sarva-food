@@ -333,6 +333,7 @@ export type OrderStatus =
 
 export type OrderChannel = "web" | "instagram" | "whatsapp" | "pos" | "catering" | "qr";
 export type PaymentStatus = "pending" | "authorized" | "partial" | "paid" | "failed" | "refunded";
+export type PrintLifecycleStatus = "queued" | "printing" | "success" | "failed" | "retry" | "cancelled" | "printed" | "reprint";
 
 export type OrderLineDoc = {
   menuItemId: string;
@@ -371,6 +372,10 @@ export type OrderDoc = TenantScopedDoc & {
   lastCorrectionAt?: FirestoreDate;
   lastCorrectionReason?: string;
   paymentLock?: Record<string, unknown>;
+  operationKeys?: string[];
+  printLifecycle?: Array<Record<string, unknown>>;
+  lastPrintStatus?: PrintLifecycleStatus;
+  lastPrinterResponse?: Record<string, unknown>;
   statusHistory?: Array<{ status?: OrderStatus; foodStatus?: KitchenOrderStatus; paymentStatus?: PaymentStatus; event?: string; at: FirestoreDate; by?: string }>;
   preparedBy?: string;
   servedBy?: string;
@@ -438,6 +443,10 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   receiptId?: string;
   printedCount?: number;
   lastPrintedAt?: FirestoreDate;
+  operationKeys?: string[];
+  parentKitchenOrderId?: string;
+  incrementalKitchenOrderIds?: string[];
+  auditTimeline?: Array<Record<string, unknown>>;
   statusHistory?: Array<{ status: KitchenOrderStatus; at: FirestoreDate; by?: string }>;
 };
 
@@ -817,10 +826,13 @@ export type PrintLogDoc = TenantScopedDoc & {
   branchId: string;
   printerProfileId: string;
   referenceId: string;
-  type: "bill" | "kot" | "test";
-  status: "printed" | "failed" | "reprint" | "queued";
+  type: "bill" | "kot" | "receipt" | "test";
+  status: PrintLifecycleStatus;
   userId: string;
   duplicate: boolean;
+  lifecycle?: Array<Record<string, unknown>>;
+  printerResponse?: Record<string, unknown>;
+  printNumber?: number;
 };
 
 export type ReceiptDoc = TenantScopedDoc & {

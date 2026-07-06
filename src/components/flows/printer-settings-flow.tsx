@@ -173,7 +173,7 @@ export function PrinterSettingsFlow() {
             {settings.printLogs?.map((log) => (
               <div key={log.id} className="grid gap-2 rounded-md border p-3 text-sm sm:grid-cols-[1fr_auto]">
                 <div><p className="font-bold">{log.referenceId} · {log.type}</p><p className="text-muted-foreground">{log.timestamp} · {log.user} · {log.printerProfileId}</p></div>
-                <Badge variant={log.status === "printed" ? "success" : "warning"}>{log.status}</Badge>
+                <Badge variant={log.status === "printed" || log.status === "success" ? "success" : "warning"}>{log.status}</Badge>
               </div>
             ))}
           </div>
