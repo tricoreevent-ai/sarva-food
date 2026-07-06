@@ -13,11 +13,11 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | Release Candidate hosted validation |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Release branch includes hosted verification docs after functional commit `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Latest Git Commit | `6823c15e5a7906decf179e329b7bee1f9617dd28` |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | Current hosted functional deployment: `https://violet-squid-380447.hostingersite.com` at `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Hostinger Deployment | Current hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28` |
 | Build Date | 2026-07-06 |
-| Verification Status | Git push/auth restored; hosted release metadata serves latest commit; route health checks passed; full browser/provider/hardware smoke remains manual |
+| Verification Status | Enterprise Hardening sprint remains blocked: branch and Hostinger metadata are aligned, but Hostinger env still reports development, local production env validation fails, Firestore deployment review remains manual, and full browser/provider/hardware smoke remains manual. |
 | Scope | Release engineering only: hosted validation, documentation, and release tagging |
 
 ## Enterprise Project Dashboard
@@ -27,12 +27,12 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Field | Status |
 | --- | --- |
 | Overall Completion | 99% code-ready; 98% production-release ready pending manual env correction, rules, provider, hardware, and authenticated browser smoke validation. |
-| Current Commit SHA | Release branch contains docs-only verification commits after `4a9f05870d63c4c5301311af3751834399ab1f7c` |
-| Production SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` currently served on Hostinger |
-| Hostinger SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` verified by `/api/release-info` |
-| Validation Status | Local validation and hosted route health checks passed; full authenticated browser/provider/hardware smoke remains manual. |
+| Current Commit SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28`; working tree contains release-closure documentation updates only. |
+| Production SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28` currently served on Hostinger |
+| Hostinger SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28` verified by `/api/release-info` |
+| Validation Status | Local typecheck, lint, build, and diff check passed; hosted metadata matches branch head; full authenticated browser/provider/hardware smoke and production env readiness remain blocked/manual. |
 | Last Updated | 2026-07-06 |
-| Next Sprint | Production smoke: fix Hostinger `NEXT_PUBLIC_APP_ENV`, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
+| Next Sprint | Do not start Enterprise Hardening until latest code is pushed, Hostinger serves branch head, production smoke passes, and no P0/P1 bugs remain. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
 | Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
 
@@ -2047,10 +2047,10 @@ Known risks:
 | Release Version | `v1.0.0-rc1` |
 | Deployment Date | 2026-07-06 |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
-| Commit SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
-| Git Status | `release/production-nammude` synchronized with `origin/release/production-nammude`; `git push` returned `Everything up-to-date`; `v1.0.0-rc1` tag pushed. |
+| Commit SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28` |
+| Git Status | `release/production-nammude` synchronized with `origin/release/production-nammude` at `6823c15e5a7906decf179e329b7bee1f9617dd28`; `v1.0.0-rc1` tag pushed. |
 | Release Metadata | `/api/release-info` returns current branch, current commit SHA, build timestamp, public app URL, and application version. |
-| Deployment Status | Hostinger is serving the latest functional app commit `4a9f05870d63c4c5301311af3751834399ab1f7c` with dynamic no-store headers on app routes. Later documentation-only commits may not be reflected in hosted metadata until the next redeploy. |
+| Deployment Status | Hostinger is serving branch head `6823c15e5a7906decf179e329b7bee1f9617dd28`; deployment is not production-complete because env still reports `development` and full production smoke is manual pending. |
 | Rollback Version | Previous validated Hostinger SHA: `35017398773ba04efbdc3ab37d250cfa547c0675`. |
 | Final Production Readiness | 98% pending authenticated browser smoke, Hostinger env correction, provider checks, hardware checks, and Firebase rules/index validation. |
 
@@ -2095,5 +2095,140 @@ Known issues:
 | Issue | Severity | Owner | Next Action |
 | --- | --- | --- | --- |
 | Hosted `/api/release-info` reports `deploymentEnvironment: development`. | P0 config | Manual | Set Hostinger `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart, and recheck `/api/release-info`. |
-| Hosted `/api/release-info` still reports functional app commit `4a9f05870d63c4c5301311af3751834399ab1f7c` after the docs/tag commit. | P1 deployment metadata | Manual | If exact branch-head metadata is required, trigger a Hostinger redeploy after env correction and verify the newest branch SHA. |
 | Full end-to-end smoke could not be completed from CLI because it requires authenticated owner/customer sessions, real provider credentials, browser audio, and printer hardware. | P0 manual | Manual | Run production smoke checklist on target devices and report confirmed bugs only. |
+
+## Release Closure Readiness Verification - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Scope | Release closure verification only. No Enterprise Hardening phase, application code, API, repository, UI, or business logic change was started. |
+| Current Branch | `release/production-nammude` |
+| Local Commit | `6823c15e5a7906decf179e329b7bee1f9617dd28` |
+| Remote Commit | `6823c15e5a7906decf179e329b7bee1f9617dd28` |
+| Production Commit | `6823c15e5a7906decf179e329b7bee1f9617dd28` |
+| Ahead / Behind | `0 / 0` against `origin/release/production-nammude`; working tree has release-closure documentation updates only. |
+| Enterprise Hardening | Blocked until production env, Firestore deploy review, manual smoke, provider checks, and hardware checks are complete. |
+
+Validation results:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warning only. |
+| `cmd /c npm run validate:prod-env` | Failed: missing `NEXT_PUBLIC_APP_ENV`, Firebase Admin values, `DATABASE_ALERT_EMAIL`; `NEXT_PUBLIC_APP_URL` must use `https://`. |
+
+Deployment readiness:
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Production env variables | Blocked | Local production env validation fails and hosted metadata reports `deploymentEnvironment: development`. |
+| Release notes updated | Completed | `RELEASE_NOTES.md` documents `v1.0.0-rc1`, validation, open gates, and rollback. |
+| Changelog updated | Completed | `docs/changelog.md` includes the 2026-07-06 release closure entry. |
+| Tracker updated | Completed | This release closure section records current branch, commits, validation, blockers, and manual checklists. |
+| Firestore rules ready | Pending | `firestore.rules` exists, but newer support collections still require manual rules review before deploy. |
+| Firestore indexes ready | Pending | `firestore.indexes.json` exists, but production index deploy/readiness remains manual. |
+| Production build generated | Completed | `.next` build artifacts generated by `npm run build`. |
+
+Release route validation:
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| `/api/release-info` | PASS with config issue | Hosted metadata reports commit `6823c15e5a7906decf179e329b7bee1f9617dd28` and HTTPS app URL, but `deploymentEnvironment` is still `development`. |
+| `/robots.txt` | FAIL hosted / PASS local build | Local `src/app/robots.ts` and generated `.next` route allow public crawling while disallowing private app areas; hosted response still serves stale Googlebot-blocking content and must be rechecked after Hostinger restart/cache clear. |
+| `/sitemap.xml` | PASS | Hosted route returns 200 with XML content type. |
+| `/manifest.json` | PASS | Hosted route returns 200 and local manifest JSON parses successfully. |
+| PWA registration | PASS local review | `PwaRegistrar` registers `/sw.js` in production and removes service-worker listeners on cleanup. |
+| QR URL generation | PASS local review | QR URL helpers reject localhost/127.0.0.1 configured origins and fall back to the HTTPS public app URL. |
+| Localhost / HTTP references | PASS with accepted dev/script refs | Targeted release-file scan found only local-dev, release-script, or guarded fallback references; no confirmed production hardcoded URL issue in the reviewed files. |
+
+Production environment variable report:
+
+| Variable | Status | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_APP_ENV` | FAIL | Missing locally; hosted `/api/release-info` reports `deploymentEnvironment: development`. |
+| `NEXT_PUBLIC_APP_URL` | FAIL | Present locally but does not use `https://`. |
+| `NEXT_PUBLIC_USE_FIREBASE` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | PASS | Set. |
+| `FIREBASE_ADMIN_PROJECT_ID` | FAIL | Missing locally. |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` | FAIL | Missing locally. |
+| `FIREBASE_ADMIN_PRIVATE_KEY` | FAIL | Missing locally. |
+| `SMTP_HOST` | PASS | Set. |
+| `SMTP_PORT` | PASS | Set. |
+| `SMTP_SECURE` | PASS | Set. |
+| `SMTP_USER` | PASS | Set. |
+| `SMTP_PASS` | PASS | Set. |
+| `SMTP_FROM` | PASS | Set. |
+| `DATABASE_ALERT_EMAIL` | FAIL | Missing locally. |
+| `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | PASS | Set. |
+| `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` | PASS | Set. |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | PASS | Set. |
+| `CLOUDINARY_CLOUD_NAME` | PASS | Set. |
+| `CLOUDINARY_API_KEY` | PASS | Set. |
+| `CLOUDINARY_API_SECRET` | PASS | Set. |
+| `GOOGLE_OAUTH_CLIENT_ID` | PASS | Set. |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | PASS | Set. |
+
+Firestore deployment readiness:
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Core rules coverage | MANUAL VERIFICATION REQUIRED | Core operational matches exist for `orders`, `customerOrders`, `kitchenOrders`, `paymentTransactions`, `notifications`, `printLogs`, `restaurants`, `menus`, `menuItems`, `offers`, `customers`, `restaurantTables`, and related collections. |
+| Support collection rules | FAIL | Static scan did not find explicit matches for `masterMenuTemplates`, `phoneVerificationSessions`, `emailOtps`, `modulePasswordOtps`, `paymentIntents`, `paymentWebhooks`, `whatsappEvents`, `whatsappWebhooks`, `communicationHistory`, `communicationSettings`, `supportIssues`, or `user_preferences`. Some are server-only, but production rules review is required before release signoff. |
+| Core indexes coverage | MANUAL VERIFICATION REQUIRED | Local `firestore.indexes.json` includes core indexes for `orders`, `customerOrders`, `kitchenOrders`, `restaurants`, `menus`, `menuItems`, `customers`, `offers`, `accountingEntries`, `inventory`, `paymentTransactions`, `printLogs`, `notifications`, and related operational queries. |
+| Support collection indexes | MANUAL VERIFICATION REQUIRED | Support collection reads are mostly document reads or single-field queries, but target Firebase index deployment state is unverified. |
+| Deployment required | MANUAL VERIFICATION REQUIRED | Do not mark complete until target Firebase rules and indexes are reviewed, deployed if needed, and protected flows are smoke-tested. |
+
+Production smoke test checklist:
+
+| Area | Status | Required Verification |
+| --- | --- | --- |
+| Customer ordering | MANUAL VERIFICATION REQUIRED | Discovery, restaurant detail, menu, cart, checkout, order success, recent orders, tracking, and customer error states. |
+| QR ordering | MANUAL VERIFICATION REQUIRED | QR scan, signed session, device binding, OTP/phone verification, table order, waiter request, timeout, and replacement device flow. |
+| Owner dashboard | MANUAL VERIFICATION REQUIRED | Login, dashboard metrics, active orders, notifications, protected view switch, and owner session continuity. |
+| Kitchen dashboard | MANUAL VERIFICATION REQUIRED | Realtime intake, status lifecycle, sound, KOT preview/print/reprint, filters, drawer, history, tablet/mobile/TV layout. |
+| Waiter workflow | MANUAL VERIFICATION REQUIRED | Table actions, QR handoff, active orders, service requests, and shared POS/Kitchen read model. |
+| Authentication | MANUAL VERIFICATION REQUIRED | Customer email/Google, owner login, admin login, forgot password, OTP, authorized domains, and role separation. |
+| Notifications | MANUAL VERIFICATION REQUIRED | New order, accepted, rejected, ready, completed, payment, split/transfer/merge, read/unread filters, and stale alert suppression. |
+| Payments | MANUAL VERIFICATION REQUIRED | If enabled: Razorpay order, checkout, verify, webhook, failed payment, full refund, partial refund, and dashboard reconciliation. |
+| Analytics | MANUAL VERIFICATION REQUIRED | Owner/admin analytics, reports, payment history export, order counts, revenue, and no high-volume query failures. |
+| Printing | MANUAL VERIFICATION REQUIRED | Bill, receipt, KOT, split receipt, duplicate copy, print history, reprint, 58mm/80mm/A4 hardware output. |
+| Image uploads | MANUAL VERIFICATION REQUIRED | Cloudinary signature, upload widget, menu/profile image display, image fallback, and provider quota state. |
+
+Operational verification checklist:
+
+| Area | Status | Required Verification |
+| --- | --- | --- |
+| Firebase | MANUAL VERIFICATION REQUIRED | Admin SDK diagnostics, client project config, authorized domains, and auth provider health. |
+| Firestore | MANUAL VERIFICATION REQUIRED | Rules, indexes, protected reads/writes, tenant isolation, and no permission/index errors. |
+| Storage | MANUAL VERIFICATION REQUIRED | Cloudinary credentials, upload/signature route, image transformations, and fallback rendering. |
+| Email | MANUAL VERIFICATION REQUIRED | SMTP auth and sends for OTP, owner credentials, order notifications, and outage alerts. |
+| Environment Variables | FAIL | Production-equivalent validation fails locally and hosted env reports development. |
+| Domain | MANUAL VERIFICATION REQUIRED | Final custom domain, Hostinger domain, app URL, redirects, and auth domain alignment. |
+| SSL | MANUAL VERIFICATION REQUIRED | HTTPS cert, no mixed content, final `NEXT_PUBLIC_APP_URL`, and secure provider callbacks. |
+| Cache | MANUAL VERIFICATION REQUIRED | Hostinger cache clear, service worker freshness, no stale release metadata, and public no-store routes. |
+| Health endpoint | MANUAL VERIFICATION REQUIRED | `/api/release-info` after env correction plus key public/protected route checks. |
+| Logging | MANUAL VERIFICATION REQUIRED | Server/client logs sanitized, no secrets or stack traces exposed to users. |
+| Monitoring | MANUAL VERIFICATION REQUIRED | Provider dashboards, Firebase Console, Razorpay dashboard, Cloudinary quota, and future health dashboard scope. |
+
+Manual deployment checklist:
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| GitHub Push | Completed | Remote branch matches local HEAD `6823c15e5a7906decf179e329b7bee1f9617dd28`. |
+| Hostinger Deploy | Completed metadata / Pending release signoff | Hostinger serves `6823c15e5a7906decf179e329b7bee1f9617dd28`; env is still not production. |
+| Restart Application | Pending | Restart after env correction. |
+| Clear Cache | Pending | Clear Hostinger/application cache after env correction/restart. |
+| Firestore Rules | Pending | Review and deploy target Firebase rules. |
+| Firestore Indexes | Pending | Review and deploy target Firebase indexes. |
+| Authorized Domains | Pending | Confirm Hostinger/final custom domains in Firebase/Google auth. |
+| Environment Variables | Blocked | Set real production env values and rerun validation. |
+| Production Smoke Tests | Blocked | Requires authenticated sessions, real providers, browser/device checks, and printer hardware. |
+| Rollback Verification | Pending | Confirm rollback to previous validated SHA `35017398773ba04efbdc3ab37d250cfa547c0675`. |
+| Health Check | Pending | Recheck `/api/release-info`, public routes, protected redirects, and owner/customer/admin smoke after env correction. |

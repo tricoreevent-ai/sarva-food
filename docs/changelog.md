@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-06
+
+- Completed release-closure verification for `v1.0.0-rc1` at commit `6823c15e5a7906decf179e329b7bee1f9617dd28`.
+- Confirmed local, remote, and hosted release metadata are aligned on `release/production-nammude`.
+- Re-ran local validation: typecheck, lint, production build, and `git diff --check` passed; build retains the known Firebase/protobuf dynamic dependency warning.
+- Recorded hosted `/robots.txt` as a remaining cache/deployment gate because the hosted response still blocks Googlebot while the local build route is correct.
+- Confirmed Enterprise Hardening remains blocked until production env validation, Firestore rules/index deployment review, authenticated browser smoke, provider checks, and hardware/printer checks pass.
+- Added release gate, production smoke, and operational verification checklists without changing application code.
+
 ## 2026-07-05
 
 - Completed multi-tenant Razorpay server integration through existing owner settings, payment routes, order repository payment/audit/notification timelines, webhook verification, refund support, checkout handoff, and payment history export.
