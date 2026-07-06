@@ -1,5 +1,120 @@
 # Performance Audit
 
+## RC Performance Phase 1 Baseline - 2026-07-06
+
+Scope: enterprise performance audit and analyzer tooling only. No UI, API, repository, Firestore collection, schema, or business workflow change was made.
+
+### Tooling
+
+| Item | Result |
+| --- | --- |
+| Bundle analyzer | Added `@next/bundle-analyzer` and wired it in `next.config.ts` behind `ANALYZE=true`. |
+| Analyzer command | Use `npm run analyze`; reports are written to `.next/analyze/client.html`, `.next/analyze/nodejs.html`, and `.next/analyze/edge.html`. |
+| Normal build behavior | Unchanged unless `ANALYZE=true` is set. |
+| Audit artifacts | Temporary parsed JSON lives under `tmp/` and is not committed. |
+
+### Hosted Lighthouse Baseline
+
+Measured against `https://violet-squid-380447.hostingersite.com` on 2026-07-06. This is a stale production baseline because Hostinger currently reports commit `83885e01585510f8c833436e964b0d76002f6516` and `deploymentEnvironment: development`.
+
+| Metric | Mobile | Desktop |
+| --- | ---: | ---: |
+| Performance score | 10 | 52 |
+| First Contentful Paint | 3.3 s | 1.6 s |
+| Largest Contentful Paint | 12.8 s | 2.8 s |
+| Cumulative Layout Shift | 0.863 | 0.357 |
+| Total Blocking Time | 1,900 ms | 100 ms |
+| Time to Interactive | 12.9 s | 2.8 s |
+| Speed Index | 7.6 s | 4.2 s |
+| Main-thread work | 6.4 s | 2.9 s |
+| JS bootup time | 4.0 s | 2.0 s |
+| Unused JS savings | 529 KiB | 526 KiB |
+
+Primary Lighthouse issues: mobile LCP, mobile CLS, mobile TBT, main-thread work, JS bootup, unused JavaScript, and missing preconnect for required external origins. Image audits passed on the hosted home route.
+
+### Largest Client Assets
+
+| Asset | Parsed | Gzip | Notes |
+| --- | ---: | ---: | --- |
+| `static/chunks/c36f3faa...js` | 1704.4 KB | 459.9 KB | Mapbox runtime chunk. |
+| `static/chunks/6848...js` | 771.6 KB | 212.5 KB | Stack handler route chunk. |
+| `static/chunks/3112...js` | 576.2 KB | 144.9 KB | Shared layout/account/auth/profile chunk. |
+| `static/chunks/2170a4aa...js` | 398.6 KB | 135.3 KB | Owner menu and Admin Menu Library. |
+| `static/chunks/02df5fe5...js` | 238.5 KB | 70.5 KB | Shared public/customer layout chunk. |
+| `static/css/0b798427...css` | 178.4 KB | 26.9 KB | Main compiled CSS. |
+| `static/css/4dba93c7...css` | 40.0 KB | 5.5 KB | Secondary compiled CSS. |
+
+### Largest Package Hotspots
+
+| Package | Parsed | Gzip | Finding |
+| --- | ---: | ---: | --- |
+| `@stackframe/stack` | 5991.5 KB | 1455.8 KB | Large auth/handler footprint and duplicate versions in lockfile. |
+| `mapbox-gl` | 3408.0 KB | 919.7 KB | Heavy map runtime; keep off non-map critical paths. |
+| `@stackframe/stack-ui` | 3044.7 KB | 936.4 KB | Large UI/auth footprint and duplicate versions in lockfile. |
+| `next` | 2425.4 KB | 826.7 KB | Framework/runtime aggregation. |
+| `react-hot-toast` | 1215.3 KB | 478.6 KB | Shared toast dependency appears broadly. |
+| `lucide-react` | 1031.8 KB | 556.5 KB | Many icon modules imported across client routes. |
+| `rrweb` | 928.8 KB | 293.0 KB | Monitoring/session replay style footprint; verify production need. |
+| `framer-motion` | 876.6 KB | 287.1 KB | Animation dependency across public and owner flows. |
+| `xlsx` | 796.3 KB | 270.5 KB | Import/export flows; should remain action-scoped. |
+| `@firebase/firestore` | 476.9 KB | 140.9 KB | Client Firestore footprint. |
+
+Duplicate lockfile candidates include `@stackframe/*`, multiple `@radix-ui/*` packages, `qrcode`, `google-gax`/Google Cloud packages, and tooling versions of `eslint`/`next`. Treat the analyzer package aggregation as directional because shared chunks and nested package paths can be counted in more than one place.
+
+### Route Client JS
+
+| Route | Chunks | Parsed | Gzip | Readiness |
+| --- | ---: | ---: | ---: | --- |
+| `/` | 18 | 807.8 KB | 251.3 KB | Heavy for customer landing. |
+| `/restaurants` | 17 | 783.0 KB | 242.8 KB | Heavy shared customer shell. |
+| `/restaurant/[slug]` | 21 | 915.4 KB | 281.7 KB | Route code plus shared customer chunks. |
+| `/checkout` | 22 | 860.0 KB | 270.4 KB | Heavy but expected to be interactive. |
+| `/orders` | 16 | 783.5 KB | 243.5 KB | Heavy shared customer shell. |
+| `/profile` | 22 | 1404.6 KB | 402.5 KB | Highest customer/account route. |
+| `/owner` | 19 | 928.5 KB | 292.5 KB | Heavy owner entry. |
+| `/owner/dashboard` | 1 | 0.5 KB | 0.3 KB | Very light route shell. |
+| `/owner/orders` | 15 | 735.0 KB | 228.1 KB | Moderate-heavy operational route. |
+| `/owner/pos` | 6 | 70.6 KB | 24.8 KB | Good isolation. |
+| `/owner/kitchen` | 6 | 128.0 KB | 38.0 KB | Good isolation. |
+| `/owner/menu` | 23 | 1391.1 KB | 443.3 KB | Highest owner route. |
+| `/admin` | 6 | 209.5 KB | 69.4 KB | Reasonable admin shell. |
+
+### Source Hotspots
+
+| Area | Evidence | Candidate Action |
+| --- | --- | --- |
+| Global providers | `src/app/layout.tsx` mounts theme, alert, Mapbox, PWA, push, auth bridge, Firestore hydrator, sync, toaster, and analytics for every route. | Audit which providers can be route-scoped without changing behavior. |
+| Mapbox CSS/runtime | `src/app/layout.tsx` imports `mapbox-gl/dist/mapbox-gl.css`; map component imports `react-map-gl/mapbox`. | Keep Mapbox runtime and CSS out of non-map routes if Next CSS constraints allow a safe route boundary. |
+| External fonts | `themes/shared-typography.css` imports Google Fonts. | Migrate to `next/font` with the same families/weights. |
+| Runtime `<img>` | `src/components/state/page-state.tsx` and `src/app/admin/cms/page.tsx`; print-window QR HTML is intentionally raw. | Replace React runtime images with `next/image` where dimensions are known. |
+| Client component count | `175` files contain `use client`. | Prioritize customer shell, profile, owner menu, and restaurant detail for server/client boundary review. |
+| Realtime/timers | Existing `onSnapshot`, `EventSource`, and `setInterval` usage is concentrated in Firestore services, Kitchen, POS, topbar notifications, and carousel/timer UI. | Preserve cleanup patterns; do not add listeners during optimization. |
+
+### Phase 2 Optimization Queue
+
+| Priority | Work | Expected Impact | Risk |
+| --- | --- | --- | --- |
+| P0 | Redeploy current commit with production env before comparing scores. | Accurate production baseline. | Manual Hostinger access. |
+| P0 | Route-scope global providers that are not required on every page. | Lower shared JS on customer public routes. | Medium; must preserve auth/PWA/offline behavior. |
+| P0 | Convert CSS Google Fonts import to `next/font`. | Better FCP/LCP and fewer external render dependencies. | Low if family/weights match. |
+| P1 | Dynamically import `xlsx` only when import/export actions are used. | Smaller owner menu/Admin library initial JS. | Medium; import/export smoke required. |
+| P1 | Audit Stack handler usage and duplicate `@stackframe/*` versions. | Large bundle and duplicate dependency reduction. | Medium-high; auth must not regress. |
+| P1 | Verify Mapbox is not loaded on non-map routes; lazy-load map widgets. | Large JS reduction for public/customer routes. | Medium; map smoke required. |
+| P1 | Reduce broad Framer Motion usage or switch to route-local lazy motion. | Lower shared JS and bootup work. | Medium; animation/accessibility smoke required. |
+| P2 | Review icon imports and package optimizer behavior. | Smaller route chunks. | Low-medium. |
+| P2 | Split profile and owner menu flows along existing tabs/actions. | Lower initial route JS. | Medium; no UX redesign. |
+| P2 | Review main CSS size and Tailwind output. | Lower CSS transfer/parse. | Medium; visual regression checks required. |
+
+### Validation Notes
+
+| Check | Result |
+| --- | --- |
+| Bundle analyzer reports | Generated under `.next/analyze/`. |
+| Lighthouse mobile/desktop | Completed against hosted stale deployment. |
+| Route bundle matrix | Completed for requested routes. |
+| UI changes | None. |
+| Business/API/schema changes | None. |
+
 ## Primary Goals
 
 - Keep customer ordering fast on mobile.

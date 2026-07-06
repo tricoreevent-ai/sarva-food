@@ -11,14 +11,73 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC Phase 1 Production Deployment Verification |
+| Current Sprint | RC Performance Phase 1 Enterprise Performance Audit |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Phase 1 production deployment verification prepared from base `73a8a04c43a74f208dbaaefc83086940a0c4170a`; exact final SHA reported in release handoff. |
+| Latest Git Commit | Performance Phase 1 audit prepared from base `fe069b609009b8a042f58d1143407998407f3c64`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not local HEAD `73a8a04c43a74f208dbaaefc83086940a0c4170a`; env still reports `development`. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not current release branch HEAD; env still reports `development`. Lighthouse baseline was measured against this stale hosted deployment. |
 | Build Date | 2026-07-06 |
-| Verification Status | Phase 1 production deployment validation is blocked by stale Hostinger commit, non-production hosted env, failed local production env validation, stale Googlebot-blocking robots response, and provider/manual credential checks. |
-| Scope | Validation only: Hostinger metadata/routes, production env, Firebase, SMTP, Cloudinary, Google OAuth, Razorpay, WhatsApp, and SMS readiness. No UI, API, repository, collection, or business feature change. |
+| Verification Status | Performance analyzer tooling, local bundle analysis, requested route bundle matrix, and hosted Lighthouse desktop/mobile audit completed; `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed with the existing Firebase/protobuf warning. |
+| Scope | Performance audit/tooling only: bundle analyzer setup, bundle/CSS/package/duplicate/route analysis, hosted Lighthouse baseline, and optimization queue. No UI, API, repository, collection, schema, or business feature change. |
+
+## RC Performance Phase 1 Enterprise Performance Audit - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Scope | Audit/tooling only. No UI/UX redesign, feature removal, business logic change, API duplication, repository creation, Firestore collection change, or schema change. |
+| Analyzer | Added `@next/bundle-analyzer` and gated it in `next.config.ts` behind `ANALYZE=true`; added `npm run analyze` wrapper for future reports. |
+| Analyzer Reports | Generated locally under `.next/analyze/client.html`, `.next/analyze/nodejs.html`, and `.next/analyze/edge.html`; parsed audit notes are documented in `docs/performance-audit.md`. |
+| Hosted Lighthouse | Mobile score `10`, desktop score `52` on `https://violet-squid-380447.hostingersite.com`; this is a stale-deploy baseline because Hostinger serves `83885e01585510f8c833436e964b0d76002f6516` with env `development`. |
+| Main Lighthouse Risks | Mobile LCP `12.8s`, CLS `0.863`, TBT `1900ms`, TTI `12.9s`, Speed Index `7.6s`, main-thread work `6.4s`, JS bootup `4.0s`, and unused JS savings about `529 KiB`. |
+| Largest Client Chunk | Mapbox chunk `static/chunks/c36f3faa...js` at `1704.4 KB` parsed / `459.9 KB` gzip. |
+| Largest Shared Customer Chunk | `static/chunks/02df5fe5...js` at `238.5 KB` parsed / `70.5 KB` gzip, used across public/customer pages. |
+| Heaviest Route | `/profile` at `1404.6 KB` parsed / `402.5 KB` gzip and `/owner/menu` at `1391.1 KB` parsed / `443.3 KB` gzip. |
+| Best Isolated Operational Routes | `/owner/pos` at `70.6 KB` parsed / `24.8 KB` gzip and `/owner/kitchen` at `128.0 KB` parsed / `38.0 KB` gzip. |
+| Package Hotspots | `@stackframe/*`, `mapbox-gl`, `react-hot-toast`, `lucide-react`, `rrweb`, `framer-motion`, `xlsx`, `@firebase/firestore`, and `firebase`. |
+| Duplicate Candidates | Lockfile scan found duplicate-version candidates for `@stackframe/*`, several `@radix-ui/*` packages, `qrcode`, Google Cloud dependencies, and tooling-only packages; treat as directional until dependency tree review. |
+| Source Hotspots | Global providers in `src/app/layout.tsx`, global `mapbox-gl` CSS import, Google Fonts CSS import in `themes/shared-typography.css`, 175 client-marked files, and runtime React `<img>` in `page-state` and Admin CMS preview. |
+| Validation | `npm run typecheck` passed; `npm run lint` passed; `npm run build` passed with existing Firebase/protobuf dynamic dependency warning; `git diff --check` passed with Git line-ending normalization warnings only; `node --check scripts/release/run-bundle-analysis.mjs` passed. |
+
+### Phase 1 Route Bundle Matrix
+
+| Route | Chunks | Parsed JS | Gzip JS | Finding |
+| --- | ---: | ---: | ---: | --- |
+| `/` | 18 | `807.8 KB` | `251.3 KB` | Heavy for customer landing. |
+| `/restaurants` | 17 | `783.0 KB` | `242.8 KB` | Heavy shared customer shell. |
+| `/restaurant/[slug]` | 21 | `915.4 KB` | `281.7 KB` | Restaurant detail route plus shared chunks. |
+| `/checkout` | 22 | `860.0 KB` | `270.4 KB` | High but expected to stay interactive. |
+| `/orders` | 16 | `783.5 KB` | `243.5 KB` | Heavy shared customer shell. |
+| `/profile` | 22 | `1404.6 KB` | `402.5 KB` | Highest customer/account route. |
+| `/owner` | 19 | `928.5 KB` | `292.5 KB` | Heavy owner entry. |
+| `/owner/dashboard` | 1 | `0.5 KB` | `0.3 KB` | Very light route shell. |
+| `/owner/orders` | 15 | `735.0 KB` | `228.1 KB` | Moderate-heavy operational route. |
+| `/owner/pos` | 6 | `70.6 KB` | `24.8 KB` | Good isolation. |
+| `/owner/kitchen` | 6 | `128.0 KB` | `38.0 KB` | Good isolation. |
+| `/owner/menu` | 23 | `1391.1 KB` | `443.3 KB` | Highest owner route. |
+| `/admin` | 6 | `209.5 KB` | `69.4 KB` | Reasonable admin shell. |
+
+### Phase 2 Optimization Queue
+
+| Priority | Work | Notes |
+| --- | --- | --- |
+| P0 | Redeploy current branch with production env and rerun Lighthouse. | Current hosted measurements are stale and env reports `development`. |
+| P0 | Route-scope global providers only where safe. | Preserve PWA, auth, offline, push, toast, and analytics behavior. |
+| P0 | Replace CSS Google Fonts import with `next/font`. | Keep the same Inter and Plus Jakarta Sans families/weights. |
+| P1 | Dynamically import `xlsx` for import/export actions. | Owner Menu and Admin Menu Library smoke required. |
+| P1 | Audit `@stackframe/*` usage and duplicate versions. | Auth and handler routes must not regress. |
+| P1 | Keep Mapbox runtime/CSS off non-map critical routes if safe. | Map widgets and location flows need browser smoke. |
+| P1 | Reduce broad `framer-motion` initial usage or use route-local lazy motion. | Preserve existing animations/accessibility; no redesign. |
+| P2 | Review icon import/package optimizer behavior. | Keep lucide icons; reduce route chunk weight only if safe. |
+| P2 | Split profile and owner menu code by existing tab/action boundaries. | No UI redesign or workflow change. |
+| P2 | Review main CSS output. | Requires visual regression checks. |
+
+### Performance Manual Gates
+
+| Gate | Required Before Performance Signoff |
+| --- | --- |
+| Hostinger | Correct env to production, redeploy current branch, clear cache, and rerun Lighthouse on the current commit. |
+| Browser Smoke | Recheck customer landing, restaurants, restaurant detail, checkout, orders, profile, owner, POS, Kitchen, menu, and admin after any optimization. |
+| Provider/Device | Keep provider, auth, maps, PWA, push, and printer behavior unchanged during performance work. |
 
 ## RC Phase 1 Production Deployment Verification - 2026-07-06
 
