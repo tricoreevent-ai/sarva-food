@@ -115,6 +115,35 @@ service cloud.firestore {
         );
     }
 
+    function userHasRestaurant(restaurantId) {
+      return isAdmin()
+        || (
+          isOperationalRole()
+          && restaurantId is string
+          && (
+            ("restaurantIds" in currentUser() && restaurantId in currentUser().restaurantIds)
+            || ("tenantIds" in currentUser() && restaurantId in currentUser().tenantIds)
+            || ("tenantId" in currentUser() && currentUser().tenantId == restaurantId)
+          )
+        );
+    }
+
+    function canManageOrdersFor(tenantId) {
+      return isAdmin()
+        || (
+          userHasTenant(tenantId)
+          && currentUser().role in ["owner", "manager", "cashier", "waiter", "chef", "kitchen-manager", "delivery-staff"]
+        );
+    }
+
+    function canManageKitchenFor(tenantId) {
+      return isAdmin()
+        || (
+          userHasTenant(tenantId)
+          && currentUser().role in ["owner", "manager", "cashier", "waiter", "chef", "kitchen-manager"]
+        );
+    }
+
     function employeeRole(role) {
       return role in [
         "manager",
@@ -272,11 +301,11 @@ service cloud.firestore {
         && validOrderCreate()
         && (
           ownsUser(request.resource.data.customerId)
-          || userHasTenant(request.resource.data.tenantId)
+          || canManageOrdersFor(request.resource.data.tenantId)
         );
       allow read: if ownsUser(resource.data.customerId) || tenantScopedRead() || isAdmin();
       allow update: if isAdmin()
-        || (tenantScopedUpdate() && orderStatusOnlyUpdate())
+        || (tenantScopedUpdate() && canManageOrdersFor(resource.data.tenantId) && orderStatusOnlyUpdate())
         || (
           ownsUser(resource.data.customerId)
           && request.resource.data.status == "cancelled"
@@ -432,14 +461,14 @@ service cloud.firestore {
         && validOrderCreate()
         && (
           ownsUser(request.resource.data.customerId)
-          || userHasTenant(request.resource.data.tenantId)
+          || canManageOrdersFor(request.resource.data.tenantId)
         );
       allow read: if ownsUser(resource.data.customerId)
         || tenantScopedRead()
         || isAdmin()
         || (hasRole("delivery") && exists(/databases/$(database)/documents/deliveries/$(orderId)));
       allow update: if isAdmin()
-        || (tenantScopedUpdate() && orderStatusOnlyUpdate())
+        || (tenantScopedUpdate() && canManageOrdersFor(resource.data.tenantId) && orderStatusOnlyUpdate())
         || (
           ownsUser(resource.data.customerId)
           && request.resource.data.status == "cancelled"
@@ -458,10 +487,12 @@ service cloud.firestore {
     match /kitchenOrders/{id} {
       allow read: if tenantScopedRead();
       allow create: if tenantScopedCreate()
+        && canManageKitchenFor(request.resource.data.tenantId)
         && request.resource.data.status in ["new", "preparing"]
         && request.resource.data.lines.size() > 0
         && request.resource.data.lines.size() <= 50;
       allow update: if tenantScopedUpdate()
+        && canManageKitchenFor(resource.data.tenantId)
         && request.resource.data.status in ["new", "preparing", "ready", "served", "completed", "cancelled"];
       allow delete: if isAdmin();
     }
@@ -727,6 +758,72 @@ service cloud.firestore {
       allow read: if tenantScopedRead();
       allow create: if tenantScopedCreate();
       allow update, delete: if tenantScopedUpdate();
+    }
+
+    match /masterMenuTemplates/{id} {
+      allow read: if isAdmin() || isOperationalRole();
+      allow write: if isAdmin();
+    }
+
+    match /communicationSettings/{id} {
+      allow read: if isAdmin()
+        || (hasTenant(resource.data) && userHasTenant(resource.data.tenantId))
+        || userHasTenant(id);
+      allow create: if isAdmin()
+        || (hasTenant(request.resource.data) && canManagePeopleFor(request.resource.data.tenantId));
+      allow update, delete: if isAdmin()
+        || (hasTenant(resource.data) && canManagePeopleFor(resource.data.tenantId));
+    }
+
+    match /communicationHistory/{id} {
+      allow read: if tenantScopedRead();
+      allow create: if tenantScopedCreate();
+      allow update, delete: if isAdmin();
+    }
+
+    match /supportIssues/{id} {
+      allow create: if signedIn()
+        && (
+          ("customerId" in request.resource.data && ownsUser(request.resource.data.customerId))
+          || ("restaurantId" in request.resource.data && userHasRestaurant(request.resource.data.restaurantId))
+          || isAdmin()
+        );
+      allow read, update: if isAdmin()
+        || ("customerId" in resource.data && ownsUser(resource.data.customerId))
+        || ("restaurantId" in resource.data && userHasRestaurant(resource.data.restaurantId));
+      allow delete: if isAdmin();
+    }
+
+    match /user_preferences/{userId} {
+      allow read, write: if ownsUser(userId) || isAdmin();
+    }
+
+    match /phoneVerificationSessions/{id} {
+      allow read, write: if false;
+    }
+
+    match /emailOtps/{id} {
+      allow read, write: if false;
+    }
+
+    match /modulePasswordOtps/{id} {
+      allow read, write: if false;
+    }
+
+    match /paymentIntents/{id} {
+      allow read, write: if false;
+    }
+
+    match /paymentWebhooks/{id} {
+      allow read, write: if false;
+    }
+
+    match /whatsappEvents/{id} {
+      allow read, write: if false;
+    }
+
+    match /whatsappWebhooks/{id} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

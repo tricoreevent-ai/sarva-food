@@ -15,6 +15,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 
 ### Completed
 
+- Sprint 1 production-readiness code pass from base `8a0315c37228918e82498ae0d7c78317d616da45`: FCM push, explicit Firestore support rules, owner API mutation hardening, monitoring, and targeted performance cleanup.
 - Owner Operations Center V2 active orders stabilization.
 - Kitchen Operations Center and Kitchen History readiness.
 - Razorpay server integration, webhook handling, refunds, and owner settings support.
@@ -32,6 +33,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 
 ### Mandatory Gates Still Open
 
+- Firebase Web Push VAPID key must be configured before production push smoke.
 - `NEXT_PUBLIC_APP_ENV` must be `production`; hosted metadata currently reports `development`.
 - `NEXT_PUBLIC_APP_URL` must use `https://` in production-equivalent env validation.
 - Firebase Admin variables must be configured with real production values.

@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { dispatchPendingTenantPushNotifications } from "@/lib/server/push-notifications";
 import {
   getRazorpayRuntimeForProviderOrder,
   paymentMethod,
@@ -272,6 +273,10 @@ async function recordRazorpayWebhookOperationalEvent(scope: TenantScope, order: 
       message,
       priority: input.priority,
       orderId: order?.id,
+      link: order?.id ? `/owner/pos?orderId=${encodeURIComponent(order.id)}` : "/owner/pos",
+      sound: "pos-alert",
+      pushStatus: "pending",
+      pushAttempts: 0,
       audience: ["owner", "manager", "cashier"],
       readBy: [],
       createdAt: FieldValue.serverTimestamp(),
@@ -284,6 +289,9 @@ async function recordRazorpayWebhookOperationalEvent(scope: TenantScope, order: 
     );
   }
   await Promise.all(writes);
+  await dispatchPendingTenantPushNotifications(scope).catch((error) => {
+    console.error("[razorpay-webhook] push dispatch failed", { reason: error instanceof Error ? error.name : typeof error });
+  });
 }
 
 async function recordUnmatchedWebhookEvent(event: RazorpayWebhookEvent, providerOrderId: string, providerEntityId?: string) {

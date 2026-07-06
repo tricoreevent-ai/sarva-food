@@ -9,6 +9,7 @@ import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/ma
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { DashboardCard } from "@/components/owner/dashboard-card";
+import { PushPermissionPanel } from "@/components/pwa/push-permission-panel";
 import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
 import { LoyaltyRulesPanel } from "@/components/owner/loyalty-rules-panel";
 import { Button } from "@/components/ui/button";
@@ -607,6 +608,7 @@ export function OwnerSettingsFlow() {
         <TabsContent value="notifications">
           <DashboardCard title="Notification & Sound">
             <div className="space-y-4">
+              <PushPermissionPanel surface="owner" />
               {(Object.keys(soundLabels) as SoundTarget[]).map((target) => {
                 const prefs = soundPrefs[target];
                 return (

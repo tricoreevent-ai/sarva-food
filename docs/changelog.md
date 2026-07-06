@@ -2,6 +2,8 @@
 
 ## 2026-07-06
 
+- Completed Sprint 1 production-readiness code pass from base `8a0315c37228918e82498ae0d7c78317d616da45`: FCM foreground/background push, deep links, token management, invalid-token cleanup, app badges, push sounds, Firestore rule coverage, owner API mutation hardening, monitoring, and targeted POS/Kitchen listener reduction.
+- Added `NEXT_PUBLIC_FIREBASE_VAPID_KEY` to production environment references; production push remains manual-provider gated until VAPID, rules deploy, hosted redeploy, and device smoke pass.
 - Completed release-closure verification for `v1.0.0-rc1` at commit `6823c15e5a7906decf179e329b7bee1f9617dd28`.
 - Confirmed local, remote, and hosted release metadata are aligned on `release/production-nammude`.
 - Re-ran local validation: typecheck, lint, production build, and `git diff --check` passed; build retains the known Firebase/protobuf dynamic dependency warning.

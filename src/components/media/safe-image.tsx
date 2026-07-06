@@ -47,6 +47,7 @@ function normalizeImageSrc(src: SafeImageProps["src"], fallbackSrc: string): Ima
   try {
     const url = new URL(src);
     if (!["https:", "http:", "blob:", "data:"].includes(url.protocol)) return fallbackSrc;
+    if (process.env.NODE_ENV === "production" && url.protocol === "http:") return fallbackSrc;
     if (isKnownMissingSeedCloudinaryAsset(url)) return fallbackSrc;
     return src;
   } catch {

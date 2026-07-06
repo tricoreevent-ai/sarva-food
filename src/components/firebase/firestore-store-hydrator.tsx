@@ -33,6 +33,9 @@ export function FirestoreStoreHydrator() {
   const adminSurface = pathname.startsWith("/admin");
   const loginSurface = pathname === "/admin/login" || pathname === "/owner/login";
   const ownerSurface = (pathname === "/owner" || pathname.startsWith("/owner/") || pathname.startsWith("/pos")) && !loginSurface;
+  const ownerDashboardSurface = pathname === "/owner" || pathname.startsWith("/owner/dashboard");
+  const ownerInventorySurface = ownerDashboardSurface || pathname.startsWith("/owner/inventory") || pathname.startsWith("/owner/reports");
+  const ownerLoyaltySurface = ownerDashboardSurface || pathname.startsWith("/owner/loyalty") || pathname.startsWith("/owner/customers");
   const publicSurface = !adminSurface && !loginSurface && !ownerSurface;
   const publicDiscoverySurface = publicSurface && (pathname === "/" || pathname === "/restaurants" || pathname === "/offers");
   const publicCmsSurface = publicSurface;
@@ -105,45 +108,53 @@ export function FirestoreStoreHydrator() {
             })
             .catch(() => undefined);
         }),
-        listenInventory((items) => {
-          useAppStore.setState({
-            inventoryItems: items.map((item) => ({
-              id: item.id,
-              name: String(item.itemName ?? item.name ?? item.id),
-              category: String(item.category ?? ""),
-              branchId: String(item.branchId ?? ""),
-              currentStock: Number(item.currentStock ?? item.quantity ?? 0),
-              unit: String(item.unit ?? ""),
-              reorderLevel: Number(item.reorderLevel ?? item.reorderAt ?? 0),
-              supplier: typeof item.supplier === "string" ? item.supplier : typeof item.supplierId === "string" ? item.supplierId : undefined,
-            } satisfies InventoryItem)),
-          });
-        }),
-        listenLoyaltyCustomers((items) => {
-          useAppStore.setState({
-            loyaltyCustomers: items.map((item) => ({
-              id: item.id,
-              name: String(item.name ?? item.id),
-              phone: String(item.phone ?? ""),
-              email: typeof item.email === "string" ? item.email : undefined,
-              points: Number(item.points ?? item.loyaltyPoints ?? 0),
-              tier: (typeof item.tier === "string" ? item.tier : "Regular") as LoyaltyCustomer["tier"],
-              lifetimeValue: Number(item.lifetimeValue ?? 0),
-              totalOrders: Number(item.totalOrders ?? 0),
-              lastOrderAt: typeof item.lastOrderAt === "string" ? item.lastOrderAt : undefined,
-              orderFrequency: `${Number(item.totalOrders ?? 0)} orders`,
-              inactiveRisk: Boolean(item.inactiveRisk ?? false),
-            } satisfies LoyaltyCustomer)),
-          });
-        }),
       );
+      if (ownerInventorySurface) {
+        unsubscribers.push(
+          listenInventory((items) => {
+            useAppStore.setState({
+              inventoryItems: items.map((item) => ({
+                id: item.id,
+                name: String(item.itemName ?? item.name ?? item.id),
+                category: String(item.category ?? ""),
+                branchId: String(item.branchId ?? ""),
+                currentStock: Number(item.currentStock ?? item.quantity ?? 0),
+                unit: String(item.unit ?? ""),
+                reorderLevel: Number(item.reorderLevel ?? item.reorderAt ?? 0),
+                supplier: typeof item.supplier === "string" ? item.supplier : typeof item.supplierId === "string" ? item.supplierId : undefined,
+              } satisfies InventoryItem)),
+            });
+          }),
+        );
+      }
+      if (ownerLoyaltySurface) {
+        unsubscribers.push(
+          listenLoyaltyCustomers((items) => {
+            useAppStore.setState({
+              loyaltyCustomers: items.map((item) => ({
+                id: item.id,
+                name: String(item.name ?? item.id),
+                phone: String(item.phone ?? ""),
+                email: typeof item.email === "string" ? item.email : undefined,
+                points: Number(item.points ?? item.loyaltyPoints ?? 0),
+                tier: (typeof item.tier === "string" ? item.tier : "Regular") as LoyaltyCustomer["tier"],
+                lifetimeValue: Number(item.lifetimeValue ?? 0),
+                totalOrders: Number(item.totalOrders ?? 0),
+                lastOrderAt: typeof item.lastOrderAt === "string" ? item.lastOrderAt : undefined,
+                orderFrequency: `${Number(item.totalOrders ?? 0)} orders`,
+                inactiveRisk: Boolean(item.inactiveRisk ?? false),
+              } satisfies LoyaltyCustomer)),
+            });
+          }),
+        );
+      }
     }
 
     return () => {
       active = false;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [adminSurface, loginSurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
+  }, [adminSurface, loginSurface, ownerInventorySurface, ownerLoyaltySurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
 
   return null;
 }

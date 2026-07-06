@@ -16,6 +16,7 @@ const required = [
   "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
   "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
   "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "NEXT_PUBLIC_FIREBASE_VAPID_KEY",
   "NEXT_PUBLIC_FIREBASE_APP_ID",
   "FIREBASE_ADMIN_PROJECT_ID",
   "FIREBASE_ADMIN_CLIENT_EMAIL",
@@ -77,6 +78,10 @@ if (process.env.SMTP_PASS) {
 
 if (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && /\s/.test(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)) {
   invalid.push("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN must not contain spaces or line breaks.");
+}
+
+if (process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY && /\s/.test(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY)) {
+  invalid.push("NEXT_PUBLIC_FIREBASE_VAPID_KEY must not contain spaces or line breaks.");
 }
 
 const normalizedPrivateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);

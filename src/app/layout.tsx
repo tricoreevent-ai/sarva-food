@@ -6,6 +6,7 @@ import { FirestoreStoreHydrator } from "@/components/firebase/firestore-store-hy
 import { AnalyticsProvider } from "@/components/monitoring/analytics-provider";
 import { SyncCenterScope } from "@/components/offline/sync-center-scope";
 import { PwaRegistrar } from "@/components/pwa/pwa-registrar";
+import { PushNotificationProvider } from "@/components/pwa/push-notification-provider";
 import { AlertProvider } from "@/components/ui/AlertProvider";
 import { AppToaster } from "@/components/ui/app-toaster";
 import { I18nProvider } from "@/lib/i18n";
@@ -230,6 +231,7 @@ export default async function RootLayout({
             <AlertProvider>
               <MapboxProvider>
                 <PwaRegistrar />
+                <PushNotificationProvider />
                 <AuthSessionBridge />
                 <FirestoreStoreHydrator />
                 <SyncCenterScope />

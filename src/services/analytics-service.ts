@@ -4,7 +4,10 @@ export type AnalyticsEvent =
   | "checkout_started"
   | "order_created"
   | "order_failed"
+  | "api_request"
+  | "client_error"
   | "payment_failed"
+  | "push_notification"
   | "route_performance"
   | "web_vital"
   | "whatsapp_cta_clicked";
@@ -23,6 +26,10 @@ export type AnalyticsPayload = {
   metricRating?: "good" | "needs-improvement" | "poor";
   navigationType?: string;
   error?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  ok?: boolean;
 };
 
 export async function trackAnalyticsEvent(
@@ -42,7 +49,7 @@ export async function trackAnalyticsEvent(
   return { event, payload, queued: true };
 }
 
-export async function captureException(error: unknown, context?: Record<string, string>) {
+export async function captureException(error: unknown, context?: Record<string, string | number | boolean | undefined>) {
   const message = error instanceof Error ? error.message : String(error);
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 

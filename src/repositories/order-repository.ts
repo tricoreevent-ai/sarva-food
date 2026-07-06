@@ -3,6 +3,7 @@ import "server-only";
 import { FieldValue, type Transaction } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
 import { parseFirestoreDateMillis } from "@/lib/firestore-date";
+import { dispatchPendingTenantPushNotifications } from "@/lib/server/push-notifications";
 import { resolveTenantId } from "@/lib/tenant";
 import type { MenuDoc, OfferDoc, OrderDoc, OrderLineDoc, PaymentStatus, RestaurantDoc } from "@/types/firebase";
 import { CustomerRepository } from "@/repositories/customer-repository";
@@ -121,6 +122,7 @@ export class OrderRepository {
 
   async create(order: OrderDoc, address?: Record<string, unknown>) {
     const normalizedOrder = withOrderConsistency(order);
+    const scope = { tenantId: normalizedOrder.tenantId || resolveTenantId(normalizedOrder.restaurantId) };
     await this.db.runTransaction(async (transaction) => {
       const customer = await this.customers.prepareOrderUpsert(transaction, normalizedOrder);
       const now = new Date();
@@ -135,8 +137,17 @@ export class OrderRepository {
         transaction.set(this.db.collection("menus").doc(line.menuItemId), patch, { merge: true });
         transaction.set(this.db.collection("menuItems").doc(line.menuItemId), patch, { merge: true });
       }
+      writeNotification(transaction, scope, {
+        type: "new_order",
+        title: "New online order",
+        message: `${normalizedOrder.customerName || "Customer"} placed an order for ₹${money(normalizedOrder.total)}.`,
+        priority: "high",
+        orderId: normalizedOrder.id,
+        kitchenOrderId: normalizedOrder.kitchenOrderId,
+      });
       if (address) transaction.set(this.db.collection("customerAddresses").doc(String(address.id)), address, { merge: true });
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return normalizedOrder;
   }
 
@@ -356,6 +367,7 @@ export class OrderRepository {
       });
       transaction.delete(draftRef);
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return placed!;
   }
 
@@ -449,6 +461,7 @@ export class OrderRepository {
         kitchenOrderId: input.kitchenOrderId,
       });
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     const updated = await orderRef.get();
     return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}), paymentStatus: nextStatus };
   }
@@ -514,6 +527,7 @@ export class OrderRepository {
       writeAudit(transaction, scope, { userId: input.cashierId ?? scope.uid, role: input.role, action: "refund", entityId: input.orderId, after: audit, device: input.device });
       writeNotification(transaction, scope, { type: "payment", title: "Refund recorded", message: `Refund of ₹${refundAmount} recorded.`, priority: "high", orderId: input.orderId, kitchenOrderId: input.kitchenOrderId });
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     const updated = await orderRef.get();
     return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}), paymentStatus: nextStatus };
   }
@@ -579,6 +593,7 @@ export class OrderRepository {
         kitchenOrderId: input.kitchenOrderId,
       });
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     const updated = await orderRef.get();
     return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}) };
   }
@@ -634,6 +649,7 @@ export class OrderRepository {
       const notification = notificationForEvent(input.event, input.orderId, input.kitchenOrderId);
       if (notification) writeNotification(transaction, scope, notification);
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return { ok: true };
   }
 
@@ -743,6 +759,7 @@ export class OrderRepository {
         kitchenOrderId: input.kitchenOrderId,
       });
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     const updated = await orderRef.get();
     return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}), paymentStatus: nextStatus };
   }
@@ -781,6 +798,7 @@ export class OrderRepository {
       writeNotification(transaction, scope, { type: "order_update", title: "Table transferred", message: `${order.tableNumber || "Order"} moved to ${tableNumber}.`, priority: "normal", orderId: input.orderId, kitchenOrderId: input.kitchenOrderId });
       nextOrder = { ...order, tableNumber, waiterName: input.waiterName?.trim() || order.waiterName };
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return nextOrder!;
   }
 
@@ -886,6 +904,7 @@ export class OrderRepository {
       writeNotification(transaction, scope, { type: "order_update", title: "Tables merged", message: `${sourceIds.length + 1} orders merged into ${tableNumber || target.id}.`, priority: "normal", orderId: target.id, kitchenOrderId: targetKitchenId });
       nextOrder = { ...target, lines, subtotal, discount, tax, deliveryFee, total, paymentStatus, tableNumber };
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return nextOrder!;
   }
 
@@ -961,6 +980,7 @@ export class OrderRepository {
       if (notification) writeNotification(transaction, scope, notification);
       nextOrder = { ...order, status, ...(note ? { statusNote: note } : {}) };
     });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return nextOrder!;
   }
 }
@@ -1135,10 +1155,31 @@ function writeNotification(transaction: Transaction, scope: TenantScope, input: 
     priority: input.priority,
     orderId: input.orderId,
     kitchenOrderId: input.kitchenOrderId,
+    link: notificationLink(input),
+    sound: notificationSound(input.type),
+    pushStatus: "pending",
+    pushAttempts: 0,
     audience: ["owner", "manager", "cashier", "waiter", "kitchen"],
     readBy: [],
     createdAt: FieldValue.serverTimestamp(),
   }));
+}
+
+function notificationLink(input: { type: string; orderId?: string; kitchenOrderId?: string }) {
+  if (input.type === "ready" || input.kitchenOrderId) return "/owner/kitchen";
+  if (input.type === "payment") return "/owner/pos";
+  return input.orderId ? `/owner/orders?orderId=${encodeURIComponent(input.orderId)}` : "/owner/orders";
+}
+
+function notificationSound(type: string) {
+  if (type === "ready") return "kitchen-alert";
+  if (type === "payment") return "pos-alert";
+  if (type === "new_order") return "loud-alarm";
+  return "bell";
+}
+
+function logPushDispatchError(error: unknown) {
+  console.error("[push-notifications] dispatch failed", { reason: error instanceof Error ? error.name : typeof error });
 }
 
 function statusEvent(status: OrderDoc["status"]) {

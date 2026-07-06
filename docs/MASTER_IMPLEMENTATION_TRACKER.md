@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Release Candidate hosted validation |
+| Current Sprint | Sprint 1 production readiness and feature completion |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | `6823c15e5a7906decf179e329b7bee1f9617dd28` |
+| Latest Git Commit | Sprint 1 production-readiness commit created locally from base `8a0315c37228918e82498ae0d7c78317d616da45`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | Current hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28` |
+| Hostinger Deployment | Last verified hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28`; Sprint 1 redeploy pending |
 | Build Date | 2026-07-06 |
-| Verification Status | Enterprise Hardening sprint remains blocked: branch and Hostinger metadata are aligned, but Hostinger env still reports development, local production env validation fails, Firestore deployment review remains manual, and full browser/provider/hardware smoke remains manual. |
-| Scope | Release engineering only: hosted validation, documentation, and release tagging |
+| Verification Status | Sprint 1 local typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse and Hostinger redeploy remain manual. |
+| Scope | Production readiness only: push notifications, performance, security, monitoring, Firestore rules, documentation, and validation |
 
 ## UI/UX Optimization Sprint - 2026-07-06
 
@@ -29,10 +29,24 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Shared SarvaNotification | Complete | Existing `SarvaNotification` remains the single toast component; new-order and waiter-ready alerts reuse it with native-style motion and reduced-motion support. |
 | Order number consistency | Complete in touched surfaces | Shared display helper now returns `#0000` style numbers and print/bill/KOT/search/owner/POS/kitchen touched surfaces avoid displaying Firestore document IDs. |
 | Waiter notification workflow | Complete | Kitchen `ready` status triggers a top-right `Order Ready` notification with order number, table/type, and View action without adding listeners. |
-| Push notification readiness | NOT READY | Service worker and in-app/email notification paths exist; FCM foreground/background handlers, permission/token UI, token storage, push subscription storage, and server push trigger are not implemented. |
+| Push notification readiness | Code-ready / provider pending | FCM foreground/background handlers, permission UI, token storage in `user_preferences`, token refresh, invalid-token cleanup, notification click deep links, sounds, badges, and server dispatch hooks are implemented. Production requires Firebase Web Push VAPID key, rules deploy, and device smoke. |
 | Performance optimization summary | Complete | No new Firestore listeners, APIs, repositories, payment flows, or subscriptions were added; dropdowns/accordions remain lazy-rendered and active lists cap visible rows. |
 | Responsive verification | Code-ready | Owner/POS rows collapse to stacked mobile rows; Kitchen keeps 4 desktop columns, mobile compact cards, and touch-size controls. Manual device smoke remains required. |
 | Files modified | Complete | `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/types/entities.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/flows/pos-billing-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, `src/app/api/owner/pos/route.ts`, `src/app/globals.css`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+
+## Sprint 1 Production Readiness and Feature Completion - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Scope | Production readiness only. No completed UI was redesigned and no completed Owner, Kitchen, POS, Waiter, QR Ordering, Dashboard, Analytics, or Printing business flow was rewritten. |
+| Firebase Cloud Messaging | Code-ready. Added foreground message handling, background service-worker notifications, click/deep-link routing, app badges, foreground sounds, owner notification permission control, multi-device token storage in existing `user_preferences`, token refresh, invalid-token cleanup, and server dispatch from existing notification writes. |
+| Performance | Code-ready. FCM and monitoring are idle/deferred, POS/Kitchen routes avoid unrelated inventory/loyalty listeners, insecure production image URLs fall back safely, API slow/failure events are monitored, and service-worker static-only cache behavior remains Hostinger-compatible. |
+| Security | Code-ready pending deploy. Firestore rules now explicitly cover approved support collections, keep OTP/payment/webhook collections server-only, restrict `user_preferences` to the signed-in user, tighten direct order/Kitchen write roles, and owner feature APIs now apply same-origin mutation checks plus rate limiting. |
+| Production Monitoring | Code-ready. Client errors, unhandled rejections, slow/failing API calls, long tasks, route performance, web vitals, push delivery status, and route-level error boundaries now use the existing analytics/Sentry path. |
+| Printing Verification | Code paths preserved. Bill, KOT, receipt, GST invoice, thermal, PDF export, and A4 printing paths were not redesigned; real hardware verification remains manual. |
+| Known Limitations | Firebase Web Push VAPID key must be configured; Firestore rules/indexes must be deployed; Lighthouse, authenticated browser, Android/iPhone/tablet/desktop, offline, provider, and printer hardware smoke remain manual in this workspace. |
+| Verification | `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed. Build retains the known Firebase/protobuf dynamic dependency warning. |
+| Production Readiness | 96% code-ready; production release remains blocked by manual env, VAPID/provider, Firestore deploy, hosted redeploy, Lighthouse, device, offline, and printer checks. |
 
 ## Enterprise Project Dashboard
 
@@ -41,7 +55,7 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Field | Status |
 | --- | --- |
 | Overall Completion | 99% code-ready; 98% production-release ready pending manual env correction, rules, provider, hardware, and authenticated browser smoke validation. |
-| Current Commit SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28`; working tree contains release-closure documentation updates only. |
+| Current Commit SHA | Sprint 1 production-readiness commit created locally from base `8a0315c37228918e82498ae0d7c78317d616da45`; exact final SHA reported in release handoff. |
 | Production SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28` currently served on Hostinger |
 | Hostinger SHA | `6823c15e5a7906decf179e329b7bee1f9617dd28` verified by `/api/release-info` |
 | Validation Status | Local typecheck, lint, build, and diff check passed; hosted metadata matches branch head; full authenticated browser/provider/hardware smoke and production env readiness remain blocked/manual. |
@@ -82,7 +96,7 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Inventory | 80% | Implemented | Future | Recipe/BOM auto-deduction remains future roadmap. |
 | Offers/Marketing | 94% | Implemented | Manual | WhatsApp/Meta provider hardening remains gated. |
 | CRM | 90% | Implemented | Manual | Live CRM/customer workflow smoke remains. |
-| Notifications | 70% | Partial | Manual + Future | Email paths exist; SMS/push/WhatsApp provider adapters gated. |
+| Notifications | 88% | Push code-ready | Manual + Codex | Email and in-app paths exist; FCM push is code-ready pending VAPID/device smoke; SMS/WhatsApp provider adapters remain gated. |
 | Analytics | 75% | Implemented/Partial | Future | Aggregate analytics strategy remains future work. |
 | QR Ordering | 97% | Stabilized | Manual | Device/OTP/table lifecycle smoke remains. |
 | Printing | 96% | Stabilized | Manual | Real paper/printer checks remain. |
@@ -536,7 +550,7 @@ Feature flags are documented control points for future implementation and rollou
 | Feature | Suggested Flag / Setting | Current State | Source of Truth | Rollout Notes |
 | --- | --- | --- | --- | --- |
 | QR Ordering | `qrOrdering.enabled` in `restaurantSettings` | Implemented | Owner QR settings and table repository | Keep enabled per restaurant/table; preserve signed token validation. |
-| Push Notifications | `notifications.push.enabled` | Placeholder | Future notification settings | Requires VAPID/provider decision, service worker subscription storage, opt-in UI. |
+| Push Notifications | `notifications.push.enabled` | FCM code-ready / provider pending | Existing service worker, owner notification settings, `user_preferences` token storage | Requires Firebase Web Push VAPID key, production rules deploy, and real-device opt-in/background smoke. |
 | Offline Mode | `offline.ownerPos.enabled` | Implemented for owner/POS scope | Existing offline queue/sync scope | Keep scoped to owner/POS unless a separate customer offline design is approved. |
 | Bill Printing | `printing.enabled` and printer profile settings | Implemented | Printer profiles, receipt templates, print engine | Disable by printer profile or UI action, not by deleting print engine paths. |
 | Payments | `payments.razorpay.enabled` | Partially implemented | Env keys and payment settings | Must remain off/limited until live keys and webhook validation pass. |
@@ -679,7 +693,7 @@ Task review result: no application feature work is approved by this documentatio
 | WA-002 | P2 | Define WhatsApp template approval and fallback policy. | WA-001; Meta template approval. | Low | Not started | Template names, fallback to browser handoff, and failure handling are documented. | Template review, fallback smoke, communication settings review. | Manual + Codex |
 | SMS-001 | P2 | Select and document SMS gateway requirements. | Provider decision; budget; compliance. | Low | Not started | Provider, sender id, OTP/transactional rules, and env needs are documented. | Provider checklist and env checklist reviewed. | Manual |
 | SMS-002 | P2 | Implement future SMS channel adapter. | SMS-001; notification architecture. | Medium | Placeholder | SMS tests and order notifications use configured provider adapter. | Provider test send, failure handling, no secret leakage. | Manual + Codex |
-| PUSH-001 | P3 | Implement future browser push notification subscriptions. | VAPID/provider decision; notification architecture; service worker review. | High | Placeholder | Customers/staff can opt in; subscriptions are stored and removable. | Permission flow, subscription storage, unsubscribe, server send test. | Codex |
+| PUSH-001 | P2 | Browser push notification subscriptions. | Firebase Web Push VAPID key; notification architecture; service worker review. | High | Code-ready / manual smoke pending | Customers/staff can opt in; tokens are stored per device and removable; server dispatch cleans invalid tokens. | Configure VAPID key, deploy rules, device permission flow, foreground/background notification, click deep link, unsubscribe, server send test. | Manual + Codex |
 | META-001 | P3 | Harden Meta/Instagram OAuth and publishing. | Meta app review/access; marketing settings. | High | Placeholder/partial | Admin Meta page can connect, refresh tokens, and publish approved campaigns. | OAuth, token refresh, publish, error-state validation. | Manual + Codex |
 | DEL-001 | P3 | Implement future delivery partner GPS tracking. | Delivery app/provider decision; maps settings; privacy policy review. | High | Framework | Live locations are scoped securely and visible only to eligible views. | Permission flow, throttling, map rendering, privacy review. | Codex |
 | INV-001 | P3 | Add future recipe/BOM auto-deduction from inventory. | Final inventory accounting rules; owner recipe data model review. | High | Placeholder | Completed orders decrement mapped ingredients and write auditable movements. | Unit tests, order completion smoke, inventory transaction audit. | Codex |
@@ -830,7 +844,7 @@ Active tasks:
 | SMS-001 | P2 | Not started | Manual | SMS gateway requirements. |
 | SMS-002 | P2 | Placeholder | Manual + Codex | Future SMS channel adapter. |
 | PERF-001 | P2 | Not started | Codex | Large component/code split audit. |
-| PUSH-001 | P3 | Placeholder | Codex | Browser push notifications. |
+| PUSH-001 | P2 | Code-ready / manual smoke pending | Manual + Codex | Browser push notifications require VAPID, rules deploy, and device smoke. |
 | META-001 | P3 | Placeholder/partial | Manual + Codex | Meta/Instagram OAuth/publishing. |
 | DEL-001 | P3 | Framework | Codex | Delivery GPS tracking. |
 | INV-001 | P3 | Placeholder | Codex | Recipe/BOM auto-deduction. |
@@ -2169,6 +2183,7 @@ Production environment variable report:
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | PASS | Set. |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | PASS | Set. |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | PASS | Set. |
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | MANUAL REQUIRED | Required for production browser push registration. |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | PASS | Set. |
 | `FIREBASE_ADMIN_PROJECT_ID` | FAIL | Missing locally. |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | FAIL | Missing locally. |
@@ -2194,7 +2209,7 @@ Firestore deployment readiness:
 | Area | Status | Notes |
 | --- | --- | --- |
 | Core rules coverage | MANUAL VERIFICATION REQUIRED | Core operational matches exist for `orders`, `customerOrders`, `kitchenOrders`, `paymentTransactions`, `notifications`, `printLogs`, `restaurants`, `menus`, `menuItems`, `offers`, `customers`, `restaurantTables`, and related collections. |
-| Support collection rules | FAIL | Static scan did not find explicit matches for `masterMenuTemplates`, `phoneVerificationSessions`, `emailOtps`, `modulePasswordOtps`, `paymentIntents`, `paymentWebhooks`, `whatsappEvents`, `whatsappWebhooks`, `communicationHistory`, `communicationSettings`, `supportIssues`, or `user_preferences`. Some are server-only, but production rules review is required before release signoff. |
+| Support collection rules | CODE READY / MANUAL DEPLOY REQUIRED | Local rules now explicitly cover `masterMenuTemplates`, `communicationHistory`, `communicationSettings`, `supportIssues`, and `user_preferences`, while OTP/payment/WhatsApp webhook support collections remain server-only. Deploy and smoke-test in target Firebase before release signoff. |
 | Core indexes coverage | MANUAL VERIFICATION REQUIRED | Local `firestore.indexes.json` includes core indexes for `orders`, `customerOrders`, `kitchenOrders`, `restaurants`, `menus`, `menuItems`, `customers`, `offers`, `accountingEntries`, `inventory`, `paymentTransactions`, `printLogs`, `notifications`, and related operational queries. |
 | Support collection indexes | MANUAL VERIFICATION REQUIRED | Support collection reads are mostly document reads or single-field queries, but target Firebase index deployment state is unverified. |
 | Deployment required | MANUAL VERIFICATION REQUIRED | Do not mark complete until target Firebase rules and indexes are reviewed, deployed if needed, and protected flows are smoke-tested. |

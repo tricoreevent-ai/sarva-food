@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { captureException, trackAnalyticsEvent } from "@/services/analytics-service";
 
 let customerVitalsStarted = false;
+let clientMonitoringStarted = false;
 
 export function AnalyticsProvider() {
   const pathname = usePathname();
@@ -31,7 +32,24 @@ export function AnalyticsProvider() {
     return observeCustomerVitals(pathname);
   }, [pathname]);
 
+  useEffect(() => {
+    if (clientMonitoringStarted) return;
+    clientMonitoringStarted = true;
+    return installClientMonitoring();
+  }, []);
+
   return null;
+}
+
+function installClientMonitoring() {
+  const cleanupFetch = monitorFetch();
+  const cleanupErrors = monitorErrors();
+  const cleanupLongTasks = monitorLongTasks();
+  return () => {
+    cleanupFetch();
+    cleanupErrors();
+    cleanupLongTasks();
+  };
 }
 
 function isCustomerRoute(pathname: string) {
@@ -111,6 +129,84 @@ function observeCustomerVitals(route: string) {
     };
   } catch {
     return () => observers.forEach((observer) => observer.disconnect());
+  }
+}
+
+function monitorFetch() {
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const startedAt = performance.now();
+    const response = await originalFetch(input, init).catch((error) => {
+      const request = requestInfo(input, init);
+      void captureException(error, { path: request.path, method: request.method });
+      throw error;
+    });
+    const request = requestInfo(input, init);
+    const durationMs = Math.round(performance.now() - startedAt);
+    if (request.path.startsWith("/api/") && (!response.ok || durationMs > 2500)) {
+      void trackAnalyticsEvent("api_request", {
+        path: request.path,
+        method: request.method,
+        status: response.status,
+        ok: response.ok,
+        durationMs,
+        source: "web",
+      }).catch((error) => captureException(error, { path: request.path }));
+    }
+    return response;
+  };
+  return () => {
+    window.fetch = originalFetch;
+  };
+}
+
+function monitorErrors() {
+  const onError = (event: ErrorEvent) => {
+    void trackAnalyticsEvent("client_error", {
+      error: String(event.message || "client error").slice(0, 160),
+      path: location.pathname,
+      source: "web",
+    }).catch(() => undefined);
+    void captureException(event.error || event.message, { path: location.pathname });
+  };
+  const onUnhandled = (event: PromiseRejectionEvent) => {
+    void captureException(event.reason, { path: location.pathname, unhandled: true });
+  };
+  window.addEventListener("error", onError);
+  window.addEventListener("unhandledrejection", onUnhandled);
+  return () => {
+    window.removeEventListener("error", onError);
+    window.removeEventListener("unhandledrejection", onUnhandled);
+  };
+}
+
+function monitorLongTasks() {
+  try {
+    const observer = new PerformanceObserver((list) => {
+      const worst = list.getEntries().reduce((max, entry) => Math.max(max, entry.duration), 0);
+      if (worst > 120) {
+        void trackAnalyticsEvent("route_performance", {
+          route: location.pathname,
+          durationMs: Math.round(worst),
+          source: "web",
+        }).catch(() => undefined);
+      }
+    });
+    observer.observe({ type: "longtask", buffered: true });
+    return () => observer.disconnect();
+  } catch {
+    return () => undefined;
+  }
+}
+
+function requestInfo(input: RequestInfo | URL, init?: RequestInit) {
+  const method = init?.method || (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET");
+  const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+  try {
+    const url = new URL(rawUrl, location.origin);
+    return { method: method.toUpperCase(), path: url.origin === location.origin ? `${url.pathname}${url.search}` : url.hostname };
+  } catch {
+    return { method: method.toUpperCase(), path: String(rawUrl).slice(0, 160) };
   }
 }
 
