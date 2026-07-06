@@ -13,9 +13,9 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | Release Candidate hosted validation |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Latest Git Commit | Release branch includes hosted verification docs after functional commit `4a9f05870d63c4c5301311af3751834399ab1f7c` |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | Current hosted deployment: `https://violet-squid-380447.hostingersite.com` at `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Hostinger Deployment | Current hosted functional deployment: `https://violet-squid-380447.hostingersite.com` at `4a9f05870d63c4c5301311af3751834399ab1f7c` |
 | Build Date | 2026-07-06 |
 | Verification Status | Git push/auth restored; hosted release metadata serves latest commit; route health checks passed; full browser/provider/hardware smoke remains manual |
 | Scope | Release engineering only: hosted validation, documentation, and release tagging |
@@ -27,7 +27,7 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 | Field | Status |
 | --- | --- |
 | Overall Completion | 99% code-ready; 98% production-release ready pending manual env correction, rules, provider, hardware, and authenticated browser smoke validation. |
-| Current Commit SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Current Commit SHA | Release branch contains docs-only verification commits after `4a9f05870d63c4c5301311af3751834399ab1f7c` |
 | Production SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` currently served on Hostinger |
 | Hostinger SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` verified by `/api/release-info` |
 | Validation Status | Local validation and hosted route health checks passed; full authenticated browser/provider/hardware smoke remains manual. |
@@ -2048,9 +2048,9 @@ Known risks:
 | Deployment Date | 2026-07-06 |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
 | Commit SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
-| Git Status | `release/production-nammude` synchronized with `origin/release/production-nammude`; `git push` returned `Everything up-to-date`. |
+| Git Status | `release/production-nammude` synchronized with `origin/release/production-nammude`; `git push` returned `Everything up-to-date`; `v1.0.0-rc1` tag pushed. |
 | Release Metadata | `/api/release-info` returns current branch, current commit SHA, build timestamp, public app URL, and application version. |
-| Deployment Status | Hostinger is serving the latest commit with dynamic no-store headers on app routes. |
+| Deployment Status | Hostinger is serving the latest functional app commit `4a9f05870d63c4c5301311af3751834399ab1f7c` with dynamic no-store headers on app routes. Later documentation-only commits may not be reflected in hosted metadata until the next redeploy. |
 | Rollback Version | Previous validated Hostinger SHA: `35017398773ba04efbdc3ab37d250cfa547c0675`. |
 | Final Production Readiness | 98% pending authenticated browser smoke, Hostinger env correction, provider checks, hardware checks, and Firebase rules/index validation. |
 
@@ -2095,4 +2095,5 @@ Known issues:
 | Issue | Severity | Owner | Next Action |
 | --- | --- | --- | --- |
 | Hosted `/api/release-info` reports `deploymentEnvironment: development`. | P0 config | Manual | Set Hostinger `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart, and recheck `/api/release-info`. |
+| Hosted `/api/release-info` still reports functional app commit `4a9f05870d63c4c5301311af3751834399ab1f7c` after the docs/tag commit. | P1 deployment metadata | Manual | If exact branch-head metadata is required, trigger a Hostinger redeploy after env correction and verify the newest branch SHA. |
 | Full end-to-end smoke could not be completed from CLI because it requires authenticated owner/customer sessions, real provider credentials, browser audio, and printer hardware. | P0 manual | Manual | Run production smoke checklist on target devices and report confirmed bugs only. |
