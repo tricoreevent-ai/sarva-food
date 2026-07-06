@@ -201,6 +201,31 @@ export function KitchenDisplayFlow() {
     if (soundAlerts) playReadyTone();
   }, [soundAlerts, stats.delayed]);
 
+  const serveReadyToastOrder = useCallback(async (order: TableOrder) => {
+    if (busyOrders.current.has(order.id)) return;
+    busyOrders.current.add(order.id);
+    setBusyOrderId(order.id);
+    const previousOrder = orders.find((item) => item.id === order.id) ?? order;
+    setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: "served" } : item));
+    try {
+      const response = await fetch("/api/owner/kitchen", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: order.id, status: "served" }),
+      });
+      const payload = await readKitchenPayload<{ data?: TableOrder }>(response, "Kitchen status could not be updated.");
+      if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
+      toast.success(kitchenActionToast(order, "served"));
+    } catch (error) {
+      console.error("[kitchen] ready toast serve failed", { orderId: order.id, reason: error instanceof Error ? error.name : typeof error });
+      setOrders((current) => current.map((item) => item.id === order.id ? previousOrder : item));
+      toast.error("Kitchen status could not be updated.");
+    } finally {
+      busyOrders.current.delete(order.id);
+      setBusyOrderId(null);
+    }
+  }, [orders]);
+
   const updateStatus = useCallback(async (order: TableOrder, status: TableOrderStatus, options: { silent?: boolean } = {}) => {
     if (busyOrders.current.has(order.id)) return;
     busyOrders.current.add(order.id);
@@ -217,14 +242,20 @@ export function KitchenDisplayFlow() {
       if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
       if (!options.silent) toast.success(kitchenActionToast(order, status));
       if (status === "ready") {
+        const toastId = `waiter-ready-${order.id}`;
         showSarvaNotification({
-          id: `waiter-ready-${order.id}`,
+          id: toastId,
           tone: "success",
           title: "Order Ready",
           message: `${displayOrderNumber(order)} · ${order.tableNumber || readableKitchenOrderType(order.orderType ?? "dine-in")}`,
           meta: "Ready for Service",
-          duration: 7000,
-          actions: [{ label: "View", variant: "primary", onClick: () => { setSelectedOrderId(order.id); toast.dismiss(`waiter-ready-${order.id}`); } }],
+          duration: Infinity,
+          actions: [
+            { label: "Open", variant: "primary", onClick: () => { setSelectedOrderId(order.id); toast.dismiss(toastId); } },
+            { label: "Serve", variant: "secondary", onClick: () => { void serveReadyToastOrder(order); toast.dismiss(toastId); } },
+            { label: "Collect", variant: "secondary", onClick: () => { window.location.assign("/owner/pos?panel=active"); toast.dismiss(toastId); } },
+            { label: "Dismiss", variant: "secondary", onClick: () => toast.dismiss(toastId) },
+          ],
         });
       }
       return true;
@@ -238,7 +269,7 @@ export function KitchenDisplayFlow() {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, [orders]);
+  }, [orders, serveReadyToastOrder]);
 
   const showNewOrderNotification = useCallback((order: TableOrder) => {
     const id = `new-order-${order.id}`;
@@ -1237,6 +1268,7 @@ function KitchenConfirmDialog({
 
 function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted?: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onOpen: () => void; onCancel: () => void }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [itemsOpen, setItemsOpen] = useState(false);
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
   const delay = getKitchenDelay(order, now);
@@ -1245,9 +1277,11 @@ function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPr
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const final = isCompleted(order.status);
   const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
+  const visibleLines = itemsOpen ? order.lines : order.lines.slice(0, 4);
+  const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
   return (
     <Card className={cn("cursor-pointer border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/55 kitchen-ready-pulse", delay.priority === "critical" && "ring-2 ring-red-300", highlighted && "ring-2 ring-orange-400")} onClick={onOpen}>
-      <CardContent className="space-y-2.5 p-2.5">
+      <CardContent className="space-y-1.5 p-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-xl font-black text-slate-950">{displayOrderNumber(order)}</p>
@@ -1258,20 +1292,25 @@ function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPr
             <Badge variant={delay.priority === "critical" || delay.priority === "high" ? "destructive" : delayed ? "warning" : "secondary"}>{priorityLabel(order, delay)}</Badge>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-1.5 text-xs font-black">
+        <div className="grid grid-cols-3 gap-1 text-xs font-black">
           <span className="rounded-md bg-slate-50 px-2 py-1 text-slate-700">ETA {order.etaMinutes ?? 12}m</span>
           <span className={cn("rounded-md px-2 py-1", delayed ? "bg-red-100 text-red-700" : "bg-slate-50 text-slate-700")}>{ageMinutes}m</span>
           <span className="truncate rounded-md bg-slate-50 px-2 py-1 text-slate-700">{order.source}</span>
         </div>
         {delayed ? <DelayWarning delay={delay} compact /> : null}
-        <div className="space-y-1.5">
-          {order.lines.map((line, index) => (
-            <div key={`${line.itemId}-${index}`} className="rounded-md bg-slate-50 px-2 py-1.5 text-sm">
+        <div className="space-y-1">
+          {visibleLines.map((line, index) => (
+            <div key={`${line.itemId}-${index}`} className="rounded-md bg-slate-50 px-2 py-1 text-sm">
               <p className="truncate font-black text-slate-950">{line.quantity}x {line.name}</p>
               {line.modifiers?.length ? <p className="truncate text-[11px] font-bold text-orange-600">{line.modifiers.join(", ")}</p> : null}
               {line.allergyNote ? <p className="truncate text-[11px] font-black text-red-600">Allergy: {line.allergyNote}</p> : null}
             </div>
           ))}
+          {hiddenCount ? (
+            <button type="button" className="text-xs font-black text-orange-600" onClick={(event) => { event.stopPropagation(); setItemsOpen((value) => !value); }}>
+              {itemsOpen ? "Hide items" : `+${hiddenCount} more`}
+            </button>
+          ) : null}
         </div>
         <button
           type="button"

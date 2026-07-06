@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRightLeft, CheckCircle2, ChefHat, ClipboardList, Download, Eye, FileDown, GitMerge, Grid2X2, Loader2, MapPin, MessageCircle, MoreHorizontal, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
@@ -15,6 +16,7 @@ import { RestaurantBill, KotTicket } from "@/components/printing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePublicCategories } from "@/hooks/use-public-data";
+import { useOperationalView } from "@/hooks/use-operational-view";
 import { useAppStore } from "@/lib/app-store";
 import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemplate, defaultKotTemplate, renderReceiptLines, type BillContext } from "@/lib/print-engine";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
@@ -177,6 +179,8 @@ export function PosBillingFlow() {
   const setPosBill = useAppStore((state) => state.setPosBill);
   const resetPosBill = useAppStore((state) => state.resetPosBill);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  const operational = useOperationalView(true);
+  const waiterView = operational.session?.viewMode === "waiter" || authUser.role === "waiter";
   const branch = useMemo(
     () => configuredBranch ?? createFallbackBranch(ownerBusinessProfile, authUser.id, restaurantId),
     [authUser.id, configuredBranch, ownerBusinessProfile, restaurantId],
@@ -366,7 +370,6 @@ export function PosBillingFlow() {
     .map((order) => normalizeTableName(order.tableNumber))), [activeOperationalOrders, bill.linkedKitchenOrderId]);
   const activeKotCount = activeOperationalOrders.filter((order) => order.hasKitchenTicket !== false && ["new", "accepted", "preparing", "ready"].includes(order.status)).length;
   const activeOrderCount = activeOperationalOrders.length;
-  const pastOrderCount = orders.filter((order) => ["delivered", "completed", "cancelled", "rejected"].includes(order.status) && isToday(order.createdAt)).length;
   const lastInvalidTableWarning = useRef("");
 
   const persistDraft = useCallback(async (nextBill: PosBill, extra: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }> = {}) => {
@@ -1148,7 +1151,7 @@ export function PosBillingFlow() {
         activeOrders={activeOrderCount}
         kotTickets={activeKotCount}
         heldOrders={heldOrders.length}
-        pastOrders={pastOrderCount}
+        showKitchenQueue={!waiterView}
         onNewOrder={requestNewOrder}
         onActiveOrders={() => setPanel("active")}
         onHeldOrders={() => setPanel("held")}
@@ -1177,9 +1180,11 @@ export function PosBillingFlow() {
               onTimeline={(order) => setTimelineTarget(order)}
               onPaymentHistory={(order) => setPaymentHistoryTarget(order)}
               onReminder={(order) => void remindKitchen(order)}
+              onServe={(order) => void updateActiveOrderStatus(order, "served")}
               onComplete={(order) => void updateActiveOrderStatus(order, "completed")}
               onCancel={(order) => void updateActiveOrderStatus(order, "cancelled")}
               activeAction={activeAction}
+              waiterView={waiterView}
             />
           ) : panel === "past" ? (
             <PastOrdersPanel orders={orders} />
@@ -2530,6 +2535,29 @@ function isToday(value?: string) {
   return date.toDateString() === now.toDateString();
 }
 
+function matchesPosHistoryRange(value: string | undefined, range: "today" | "yesterday" | "week" | "month" | "custom", customFrom: string, customTo: string) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return false;
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (range === "today") return date >= start;
+  if (range === "yesterday") {
+    const from = new Date(start);
+    from.setDate(from.getDate() - 1);
+    return date >= from && date < start;
+  }
+  if (range === "week") {
+    const from = new Date(start);
+    from.setDate(from.getDate() - 6);
+    return date >= from;
+  }
+  if (range === "month") return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth();
+  const from = customFrom ? new Date(`${customFrom}T00:00:00`) : null;
+  const to = customTo ? new Date(`${customTo}T23:59:59.999`) : null;
+  return (!from || date >= from) && (!to || date <= to);
+}
+
 function HeldOrdersPanel({
   orders,
   onResume,
@@ -2599,9 +2627,11 @@ function ActiveOrdersPanel({
   onTimeline,
   onPaymentHistory,
   onReminder,
+  onServe,
   onComplete,
   onCancel,
   activeAction,
+  waiterView = false,
 }: {
   orders: DemoOrder[];
   kitchenOrders: OperationalOrder[];
@@ -2619,12 +2649,20 @@ function ActiveOrdersPanel({
   onTimeline: (order: OperationalOrder) => void;
   onPaymentHistory: (order: OperationalOrder) => void;
   onReminder: (order: TableOrder) => void;
+  onServe: (order: TableOrder) => void;
   onComplete: (order: TableOrder) => void;
   onCancel: (order: TableOrder) => void;
   activeAction?: string | null;
+  waiterView?: boolean;
 }) {
-  const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">("operations");
-  const activeKitchenOrders = kitchenOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status));
+  const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "operations");
+  const activeKitchenOrders = useMemo(
+    () => kitchenOrders
+      .filter((order) => !["completed", "cancelled", "billed"].includes(order.status))
+      .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
+      .slice(0, 30),
+    [kitchenOrders],
+  );
   const readyOrders = activeKitchenOrders.filter((order) => order.status === "ready");
   const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
   const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
@@ -2638,34 +2676,42 @@ function ActiveOrdersPanel({
     return acc;
   }, {});
   const views = [
-    ["operations", "Operations"],
-    ["waiter", "Waiter"],
-    ["cashier", "Cashier"],
-    ["manager", "Manager"],
+    ["operations", "Operations", Grid2X2],
+    ["waiter", "Waiter", Utensils],
+    ["cashier", "Cashier", ReceiptText],
+    ["manager", "Manager", UsersRound],
   ] as const;
 
+  useEffect(() => {
+    if (!waiterView) return;
+    const id = window.setTimeout(() => setView("waiter"), 0);
+    return () => window.clearTimeout(id);
+  }, [waiterView]);
+
   return (
-    <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <h2 className="text-2xl font-black text-slate-950">Active Orders</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Live waiter, POS, QR, parcel, and delivery operations.</p>
+          <div className="flex rounded-xl border border-slate-200 bg-white/85 p-1 shadow-sm">
+            {views.map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setView(key)}
+                className={cn("flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-black transition", view === key ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50")}
+                aria-label={label}
+                title={label}
+              >
+                <Icon className="size-4" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <Button onClick={onOpenNew}>New Order</Button>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {views.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setView(key)}
-            className={cn("h-10 rounded-xl border px-4 text-sm font-black", view === key ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600")}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
         {view === "operations" ? (
           <>
             <OperationalMetric label="Active orders" value={String(activeKitchenOrders.length)} />
@@ -2704,68 +2750,292 @@ function ActiveOrdersPanel({
           {Object.entries(kitchenLoad).map(([status, count]) => <OperationalMetric key={status} label={status} value={String(count)} />)}
         </div>
       ) : null}
-      <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="hidden grid-cols-[110px_minmax(150px,1fr)_100px_minmax(170px,1fr)_105px_130px_124px] gap-3 border-b bg-slate-50 px-3 py-2 text-[11px] font-black uppercase text-slate-500 xl:grid">
-          <span>Order</span>
-          <span>Kitchen</span>
-          <span>ETA</span>
-          <span>Items</span>
-          <span>Payment</span>
-          <span>Type / Table</span>
-          <span>Actions</span>
+      {view === "waiter" ? (
+        <ReadyToServePanel
+          orders={readyOrders}
+          onOpen={onOpen}
+          onPrintBill={onPrintBill}
+          onCollectPayment={onCollectPayment}
+          onServe={onServe}
+          onTimeline={onTimeline}
+          onPaymentHistory={onPaymentHistory}
+        />
+      ) : (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="hidden grid-cols-[112px_minmax(145px,1fr)_82px_92px_108px_128px_132px] gap-2 border-b bg-slate-50/90 px-3 py-2 text-[10px] font-black uppercase text-slate-500 xl:grid">
+            <span>Order</span>
+            <span>Status</span>
+            <span>ETA</span>
+            <span>Items</span>
+            <span>Payment</span>
+            <span>Table / Waiter</span>
+            <span>Actions</span>
+          </div>
+          {activeKitchenOrders.length ? (
+            <div className="divide-y divide-slate-100">
+              {activeKitchenOrders.map((order, index) => (
+                <ActiveOrderRow
+                  key={order.id}
+                  index={index}
+                  order={order}
+                  canMerge={activeKitchenOrders.length >= 2}
+                  busy={activeAction ?? ""}
+                  onOpen={onOpen}
+                  onPrintBill={onPrintBill}
+                  onPrintReceipt={onPrintReceipt}
+                  onPrintKot={onPrintKot}
+                  onCollectPayment={onCollectPayment}
+                  onSplit={onSplit}
+                  onTransfer={onTransfer}
+                  onMerge={onMerge}
+                  onTimeline={onTimeline}
+                  onPaymentHistory={onPaymentHistory}
+                  onReminder={onReminder}
+                  onServe={onServe}
+                  onComplete={onComplete}
+                  onCancel={onCancel}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center text-sm font-semibold text-slate-500">
+              No active orders right now.
+            </div>
+          )}
         </div>
-        {activeKitchenOrders.length ? (
-          <div className="divide-y divide-slate-100">
-            {activeKitchenOrders.map((order, index) => (
-              <article key={order.id} className={cn("grid gap-3 px-3 py-2.5 xl:grid-cols-[110px_minmax(150px,1fr)_100px_minmax(170px,1fr)_105px_130px_124px] xl:items-center", isDelayedTableOrder(order) && "bg-red-50/60 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/60 kitchen-ready-pulse")}>
-                <div className="min-w-0">
-                  <h3 className="truncate text-base font-black text-slate-950">{readableTableOrderId(order, index + 1)}</h3>
-                  <p className="truncate text-xs font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"} · {actualOrderTime(order.createdAt)}</p>
-                </div>
-                <ActiveInfoRow label="Kitchen" value={order.status} />
-                <ActiveInfoRow label="ETA" value={`${order.etaMinutes ?? 12} min`} />
-                <ActiveInfoRow label="Items" value={`${order.lines.reduce((sum, line) => sum + line.quantity, 0)} items`} subvalue={posCompactItems(order.lines)} />
-                <ActiveInfoRow label="Payment" value={paymentLabel(order.paymentStatus)} />
-                <ActiveInfoRow label="Type / Table" value={order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in")} subvalue={readablePosOrderType(order.orderType ?? "dine-in")} />
-                <div className="flex items-center gap-2 xl:justify-end">
-                  <Button size="sm" variant="outline" className="min-h-9" onClick={() => onOpen(order)}>Open</Button>
-                  <PosActiveOrderMenu
-                    canMerge={activeKitchenOrders.length >= 2}
-                    busy={activeAction ?? ""}
-                    order={order}
-                    onOpen={onOpen}
-                    onPrintBill={onPrintBill}
-                    onPrintReceipt={onPrintReceipt}
-                    onPrintKot={onPrintKot}
-                    onCollectPayment={onCollectPayment}
-                    onSplit={onSplit}
-                    onTransfer={onTransfer}
-                    onMerge={onMerge}
-                    onTimeline={onTimeline}
-                    onPaymentHistory={onPaymentHistory}
-                    onReminder={onReminder}
-                    onComplete={onComplete}
-                    onCancel={onCancel}
-                  />
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="p-10 text-center text-sm font-semibold text-slate-500">
-            No active orders right now.
-          </div>
-        )}
-      </div>
+      )}
     </section>
   );
 }
 
-function ActiveInfoRow({ label, value, subvalue }: { label: string; value: string; subvalue?: string }) {
+function ActiveOrderRow({
+  order,
+  index,
+  canMerge,
+  busy,
+  onOpen,
+  onPrintBill,
+  onPrintReceipt,
+  onPrintKot,
+  onCollectPayment,
+  onSplit,
+  onTransfer,
+  onMerge,
+  onTimeline,
+  onPaymentHistory,
+  onReminder,
+  onServe,
+  onComplete,
+  onCancel,
+}: {
+  order: OperationalOrder;
+  index: number;
+  canMerge: boolean;
+  busy: string;
+  onOpen: (order: TableOrder) => void;
+  onPrintBill: (order: TableOrder) => void;
+  onPrintReceipt: (order: TableOrder) => void;
+  onPrintKot: (order: TableOrder) => void;
+  onCollectPayment: (order: TableOrder) => void;
+  onSplit: (order: OperationalOrder) => void;
+  onTransfer: (order: OperationalOrder) => void;
+  onMerge: (order: OperationalOrder) => void;
+  onTimeline: (order: OperationalOrder) => void;
+  onPaymentHistory: (order: OperationalOrder) => void;
+  onReminder: (order: TableOrder) => void;
+  onServe: (order: TableOrder) => void;
+  onComplete: (order: TableOrder) => void;
+  onCancel: (order: TableOrder) => void;
+}) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const delayed = isDelayedTableOrder(order);
+  const table = order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in");
+  const waiter = order.waiterName || order.assignedStaffName || "Unassigned";
+  return (
+    <article className={cn("grid gap-2 px-3 py-2 transition xl:grid-cols-[112px_minmax(145px,1fr)_82px_92px_108px_128px_132px] xl:items-center", delayed && "bg-red-50/70 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/70 kitchen-ready-pulse")}>
+      <button type="button" className="min-w-0 text-left" onClick={() => setDetailsOpen((value) => !value)} aria-expanded={detailsOpen}>
+        <h3 className="truncate text-base font-black text-slate-950">{readableTableOrderId(order, index + 1)}</h3>
+        <p className="truncate text-xs font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"} · {actualOrderTime(order.createdAt)}</p>
+      </button>
+      <div className="min-w-0 rounded-lg bg-slate-50 px-2.5 py-1.5 xl:bg-transparent xl:px-0 xl:py-0">
+        <p className="text-[10px] font-black uppercase text-slate-400 xl:hidden">Status</p>
+        <div className="flex items-center justify-between gap-2">
+          <span className={cn("truncate text-sm font-black capitalize", delayed ? "text-red-700" : order.status === "ready" ? "text-emerald-700" : "text-slate-800")}>{order.status}</span>
+          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+            <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${statusStepPercent(order.status)}%` }} />
+          </span>
+        </div>
+      </div>
+      <ActiveInfoRow label="ETA" value={`${order.etaMinutes ?? 12} min`} />
+      <ActiveInfoRow label="Items" value={`${itemCount} item${itemCount === 1 ? "" : "s"}`} subvalue={posCompactItems(order.lines)} />
+      <ActiveInfoRow label="Payment" value={paymentLabel(order.paymentStatus)} tone={paymentInfoTone(order.paymentStatus)} />
+      <ActiveInfoRow label="Table / Waiter" value={table} subvalue={waiter} />
+      <div className="flex items-center gap-2 xl:justify-end">
+        <Button size="sm" variant="outline" className="min-h-9" onClick={() => onOpen(order)}>
+          <Eye className="size-4" />
+          Open
+        </Button>
+        <PosActiveOrderMenu
+          canMerge={canMerge}
+          busy={busy}
+          order={order}
+          onOpen={onOpen}
+          onPrintBill={onPrintBill}
+          onPrintReceipt={onPrintReceipt}
+          onPrintKot={onPrintKot}
+          onCollectPayment={onCollectPayment}
+          onSplit={onSplit}
+          onTransfer={onTransfer}
+          onMerge={onMerge}
+          onTimeline={onTimeline}
+          onPaymentHistory={onPaymentHistory}
+          onReminder={onReminder}
+          onServe={onServe}
+          onComplete={onComplete}
+          onCancel={onCancel}
+        />
+      </div>
+      {detailsOpen ? (
+        <div className="rounded-lg border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-600 xl:col-span-7">
+          <div className="grid gap-2 sm:grid-cols-4">
+            <span><strong className="text-slate-950">Type:</strong> {readablePosOrderType(order.orderType ?? "dine-in")}</span>
+            <span><strong className="text-slate-950">Waiter:</strong> {waiter}</span>
+            <span><strong className="text-slate-950">Payment:</strong> {paymentLabel(order.paymentStatus)}</span>
+            <span><strong className="text-slate-950">Created:</strong> {actualOrderTime(order.createdAt)}</span>
+          </div>
+          <p className="mt-2 truncate"><strong className="text-slate-950">Items:</strong> {order.lines.map((line) => `${line.quantity}x ${line.name}`).join(", ")}</p>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function ReadyToServePanel({
+  orders,
+  onOpen,
+  onPrintBill,
+  onCollectPayment,
+  onServe,
+  onTimeline,
+  onPaymentHistory,
+}: {
+  orders: OperationalOrder[];
+  onOpen: (order: TableOrder) => void;
+  onPrintBill: (order: TableOrder) => void;
+  onCollectPayment: (order: TableOrder) => void;
+  onServe: (order: TableOrder) => void;
+  onTimeline: (order: OperationalOrder) => void;
+  onPaymentHistory: (order: OperationalOrder) => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-3 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-black text-emerald-900">Ready To Serve</h3>
+          <p className="text-xs font-bold text-emerald-700">Kitchen-ready orders for waiter action.</p>
+        </div>
+        <Badge variant="success">{orders.length} ready</Badge>
+      </div>
+      <div className="grid gap-2">
+        {orders.map((order, index) => (
+          <ReadyOrderAccordion
+            key={order.id}
+            index={index}
+            now={now}
+            order={order}
+            onOpen={onOpen}
+            onPrintBill={onPrintBill}
+            onCollectPayment={onCollectPayment}
+            onServe={onServe}
+            onTimeline={onTimeline}
+            onPaymentHistory={onPaymentHistory}
+          />
+        ))}
+        {!orders.length ? (
+          <div className="rounded-xl border border-dashed border-emerald-200 bg-white/75 p-8 text-center text-sm font-bold text-slate-500">
+            No ready orders for waiter service.
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ReadyOrderAccordion({
+  order,
+  index,
+  now,
+  onOpen,
+  onPrintBill,
+  onCollectPayment,
+  onServe,
+  onTimeline,
+  onPaymentHistory,
+}: {
+  order: OperationalOrder;
+  index: number;
+  now: number;
+  onOpen: (order: TableOrder) => void;
+  onPrintBill: (order: TableOrder) => void;
+  onCollectPayment: (order: TableOrder) => void;
+  onServe: (order: TableOrder) => void;
+  onTimeline: (order: OperationalOrder) => void;
+  onPaymentHistory: (order: OperationalOrder) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const created = Date.parse(order.createdAt);
+  const elapsed = Number.isFinite(created) ? Math.max(0, Math.round((now - created) / 60000)) : 0;
+  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  return (
+    <article className="overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm kitchen-ready-pulse">
+      <button type="button" className="grid w-full gap-2 p-3 text-left sm:grid-cols-[120px_minmax(0,1fr)_100px_120px] sm:items-center" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <span className="text-lg font-black text-slate-950">{readableTableOrderId(order, index + 1)}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-black text-emerald-700">{order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in")}</span>
+          <span className="block truncate text-xs font-semibold text-slate-500">{itemCount} item{itemCount === 1 ? "" : "s"} · ETA {order.etaMinutes ?? 12} min · {elapsed}m</span>
+        </span>
+        <Badge variant="success">Ready</Badge>
+        <span className="flex items-center justify-between gap-2 text-xs font-black text-slate-500">
+          {paymentLabel(order.paymentStatus)}
+          <Clock3 className={cn("size-4 transition", open && "rotate-180")} />
+        </span>
+      </button>
+      <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+        <div className="overflow-hidden">
+          <div className="space-y-3 border-t border-emerald-100 bg-emerald-50/40 p-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {order.lines.map((line, lineIndex) => (
+                <p key={`${line.itemId}-${lineIndex}`} className="truncate rounded-lg bg-white px-3 py-2 text-sm font-black text-slate-800">{line.quantity}x {line.name}</p>
+              ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              <Button size="sm" onClick={() => onServe(order)}><Utensils className="size-4" />Serve</Button>
+              <Button size="sm" variant="outline" onClick={() => onOpen(order)}><Eye className="size-4" />Open</Button>
+              <Button size="sm" variant="outline" onClick={() => onCollectPayment(order)}><CircleDollarSign className="size-4" />Collect</Button>
+              <Button size="sm" variant="outline" onClick={() => onOpen(order)}><PlusCircle className="size-4" />Add</Button>
+              <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}><ReceiptText className="size-4" />Bill</Button>
+              <Button size="sm" variant="outline" onClick={() => onTimeline(order)}><Clock3 className="size-4" />Timeline</Button>
+              <Button size="sm" variant="outline" className="sm:col-span-3 lg:col-span-6" onClick={() => onPaymentHistory(order)}><History className="size-4" />History</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ActiveInfoRow({ label, value, subvalue, tone }: { label: string; value: string; subvalue?: string; tone?: string }) {
   return (
     <div className="min-w-0 xl:bg-transparent xl:px-0 xl:py-0 rounded-lg bg-slate-50 px-3 py-2">
       <p className="text-[11px] font-black uppercase text-slate-400 xl:hidden">{label}</p>
-      <p className="truncate text-sm font-black text-slate-800">{value}</p>
+      <p className={cn("truncate text-sm font-black text-slate-800", tone)}>{value}</p>
       {subvalue ? <p className="truncate text-xs font-semibold text-slate-500">{subvalue}</p> : null}
     </div>
   );
@@ -2786,6 +3056,7 @@ function PosActiveOrderMenu({
   onTimeline,
   onPaymentHistory,
   onReminder,
+  onServe,
   onComplete,
   onCancel,
 }: {
@@ -2803,74 +3074,134 @@ function PosActiveOrderMenu({
   onTimeline: (order: OperationalOrder) => void;
   onPaymentHistory: (order: OperationalOrder) => void;
   onReminder: (order: TableOrder) => void;
+  onServe: (order: TableOrder) => void;
   onComplete: (order: TableOrder) => void;
   onCancel: (order: TableOrder) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number; width: number; mobile: boolean }>({ top: 0, left: 0, width: 248, mobile: false });
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
   const act = (fn: () => void) => () => {
     close();
     fn();
   };
   const actions = [
-    { label: "Edit", onClick: () => onOpen(order) },
-    { label: "Add Items", onClick: () => onOpen(order) },
-    { label: "Split Bill", onClick: () => onSplit(order), disabled: busy === `split:${order.id}` },
-    { label: "Merge Table", onClick: () => onMerge(order), disabled: !canMerge || busy === `merge:${order.id}` },
-    { label: "Transfer Table", onClick: () => onTransfer(order), disabled: busy === `transfer:${order.id}` },
-    { label: "Print Bill", onClick: () => onPrintBill(order) },
-    { label: "Print Receipt", onClick: () => onPrintReceipt(order) },
-    { label: "Print KOT", onClick: () => onPrintKot(order) },
-    { label: "Timeline", onClick: () => onTimeline(order) },
-    { label: "Kitchen Details", onClick: () => onOpen(order) },
-    { label: "Reminder", onClick: () => onReminder(order) },
-    { label: "Payment", onClick: () => onCollectPayment(order), disabled: busy === `payment:${order.id}` },
-    { label: "History", onClick: () => onPaymentHistory(order) },
-    { label: "Communication", onClick: () => onOpen(order) },
-    { label: "Refund", onClick: () => onPaymentHistory(order) },
-    { label: "Cancel", onClick: () => onCancel(order), danger: true },
-    { label: "Complete", onClick: () => onComplete(order) },
-  ];
+    { label: "Open", icon: Eye, onClick: () => onOpen(order) },
+    { label: "Kitchen", icon: ChefHat, onClick: () => onOpen(order) },
+    { label: "Print Bill", icon: ReceiptText, onClick: () => onPrintBill(order) },
+    { label: "Print Receipt", icon: Printer, onClick: () => onPrintReceipt(order) },
+    { label: "Print KOT", icon: ClipboardList, onClick: () => onPrintKot(order) },
+    { label: "Add Items", icon: PlusCircle, onClick: () => onOpen(order) },
+    { label: "Collect Payment", icon: CircleDollarSign, onClick: () => onCollectPayment(order), disabled: busy === `payment:${order.id}` },
+    { label: "Serve", icon: Utensils, onClick: () => onServe(order), disabled: order.status !== "ready" },
+    { label: "Split Bill", icon: Scissors, onClick: () => onSplit(order), disabled: busy === `split:${order.id}` },
+    { label: "Merge Table", icon: GitMerge, onClick: () => onMerge(order), disabled: !canMerge || busy === `merge:${order.id}` },
+    { label: "Transfer Table", icon: ArrowRightLeft, onClick: () => onTransfer(order), disabled: busy === `transfer:${order.id}` },
+    { label: "Timeline", icon: Clock3, onClick: () => onTimeline(order) },
+    { label: "History", icon: History, onClick: () => onPaymentHistory(order) },
+    { label: "Reminder", icon: BellRing, onClick: () => onReminder(order) },
+    { label: "Complete", icon: CheckCircle2, onClick: () => onComplete(order) },
+    { label: "Cancel", icon: XCircle, onClick: () => onCancel(order), danger: true },
+  ] satisfies Array<{ label: string; icon: LucideIcon; onClick: () => void; disabled?: boolean; danger?: boolean }>;
+
+  const updatePosition = useCallback(() => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mobile = window.innerWidth < 640;
+    const width = Math.min(248, window.innerWidth - 24);
+    const height = Math.min(420, window.innerHeight - 32);
+    const left = Math.min(Math.max(12, rect.right - width), window.innerWidth - width - 12);
+    const below = rect.bottom + 8;
+    const top = below + height > window.innerHeight ? Math.max(12, rect.top - height - 8) : below;
+    setPosition({ top, left, width, mobile });
+  }, []);
+
+  const toggle = () => {
+    updatePosition();
+    setOpen((value) => !value);
+  };
 
   useEffect(() => {
     if (!open) return;
+    updatePosition();
     const onPointer = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!ref.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
+    const onReposition = () => updatePosition();
     window.addEventListener("pointerdown", onPointer);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
     return () => {
       window.removeEventListener("pointerdown", onPointer);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
-  }, [open]);
+  }, [open, updatePosition]);
 
   return (
     <div ref={ref} className="relative">
-      <Button size="sm" variant="outline" className="min-h-9" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}>
+      <Button size="sm" variant="outline" className="min-h-9" onClick={toggle} aria-haspopup="menu" aria-expanded={open}>
         <MoreHorizontal className="size-4" />
         More
       </Button>
-      {open ? (
-        <div role="menu" className="absolute right-0 z-40 mt-2 max-h-80 w-48 overflow-y-auto rounded-xl border bg-white p-1 shadow-2xl">
-          {actions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              role="menuitem"
-              disabled={action.disabled}
-              className={cn("flex min-h-9 w-full items-center rounded-lg px-3 text-left text-xs font-black hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45", action.danger ? "text-red-600" : "text-slate-700")}
-              onClick={act(action.onClick)}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+      {open ? createPortal(
+        position.mobile ? (
+          <div className="fixed inset-0 z-[90] bg-slate-950/35 sm:hidden" role="presentation" onClick={close}>
+            <div ref={menuRef} role="menu" className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl border bg-white p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+              <div className="mb-2 h-1.5 w-12 rounded-full bg-slate-200 mx-auto" />
+              <p className="px-2 pb-2 text-sm font-black text-slate-900">{readableTableOrderId(order)}</p>
+              <ActionMenuButtons actions={actions} act={act} />
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={menuRef}
+            role="menu"
+            className="fixed z-[90] max-h-[min(420px,calc(100vh-2rem))] overflow-y-auto rounded-xl border bg-white p-1.5 shadow-2xl"
+            style={{ top: position.top, left: position.left, width: position.width }}
+          >
+            <ActionMenuButtons actions={actions} act={act} />
+          </div>
+        ),
+        document.body,
       ) : null}
+    </div>
+  );
+}
+
+function ActionMenuButtons({
+  actions,
+  act,
+}: {
+  actions: Array<{ label: string; icon: LucideIcon; onClick: () => void; disabled?: boolean; danger?: boolean }>;
+  act: (fn: () => void) => () => void;
+}) {
+  return (
+    <div className="grid gap-1">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <button
+            key={action.label}
+            type="button"
+            role="menuitem"
+            disabled={action.disabled}
+            className={cn("flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-xs font-black hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45", action.danger ? "text-red-600" : "text-slate-700")}
+            onClick={act(action.onClick)}
+          >
+            <Icon className="size-4 shrink-0" />
+            <span className="truncate">{action.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -2880,9 +3211,24 @@ function posCompactItems(lines: TableOrder["lines"]) {
   return `${summary}${lines.length > 2 ? ` +${lines.length - 2}` : ""}`;
 }
 
+function statusStepPercent(status: TableOrder["status"]) {
+  if (status === "ready" || status === "served") return 82;
+  if (status === "preparing") return 58;
+  if (status === "accepted") return 34;
+  if (status === "completed" || status === "billed") return 100;
+  return 18;
+}
+
+function paymentInfoTone(status?: TableOrder["paymentStatus"]) {
+  if (status === "paid") return "text-emerald-700";
+  if (status === "partial" || status === "authorized") return "text-amber-700";
+  if (status === "refunded") return "text-blue-700";
+  return "text-slate-900";
+}
+
 function OperationalMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+    <div className="rounded-xl border border-slate-200 bg-white/75 px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
       <p className="text-[11px] font-black uppercase text-slate-400">{label}</p>
       <p className="mt-1 text-lg font-black text-slate-950">{value}</p>
     </div>
@@ -2891,11 +3237,17 @@ function OperationalMetric({ label, value }: { label: string; value: string }) {
 
 function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
   const [search, setSearch] = useState("");
+  const [range, setRange] = useState<"today" | "yesterday" | "week" | "month" | "custom">("week");
+  const [status, setStatus] = useState<"all" | DemoOrder["status"]>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [page, setPage] = useState(1);
-  const [since] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const historyStatuses = new Set<DemoOrder["status"]>(["completed", "delivered", "cancelled", "rejected"]);
   const rows = [
     ...orders
-      .filter((order) => Date.parse(order.createdAt) >= since)
+      .filter((order) => historyStatuses.has(order.status))
+      .filter((order) => matchesPosHistoryRange(order.createdAt, range, customFrom, customTo))
+      .filter((order) => status === "all" || order.status === status)
       .map((order, index) => ({
         id: readableOrderId({ id: order.id, invoiceNumber: order.invoiceNumber, orderNumber: order.orderNumber, displayOrderNumber: order.displayOrderNumber, billNumber: order.billNumber, channel: order.channel, orderType: order.fulfillmentType, createdAt: order.createdAt, sequence: index + 1 }),
         customer: order.customer.name,
@@ -2935,18 +3287,36 @@ function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
     <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-950">Past Orders</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Default view: last 7 days.</p>
+          <h2 className="text-2xl font-black text-slate-950">Order History</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Completed, cancelled, and billed orders in one history view.</p>
         </div>
         <Button variant="outline" onClick={exportRows}>
           <Download className="size-4" />
           Export
         </Button>
       </div>
-      <label className="relative mt-4 block max-w-md">
-        <Search className="absolute left-3 top-3 size-4 text-slate-400" />
-        <input className="h-10 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm font-semibold outline-none focus:border-emerald-500" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search by order no, customer, source..." />
-      </label>
+      <div className="mt-4 grid gap-2 lg:grid-cols-[minmax(220px,1fr)_160px_160px_160px_160px]">
+        <label className="relative">
+          <Search className="absolute left-3 top-3 size-4 text-slate-400" />
+          <input className="h-10 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm font-semibold outline-none focus:border-emerald-500" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search order, customer, source..." />
+        </label>
+        <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black" value={range} onChange={(event) => { setRange(event.target.value as typeof range); setPage(1); }} aria-label="Date range">
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="custom">Custom</option>
+        </select>
+        <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black" value={status} onChange={(event) => { setStatus(event.target.value as typeof status); setPage(1); }} aria-label="Order status">
+          <option value="all">All status</option>
+          <option value="completed">Completed</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <input className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold disabled:bg-slate-50" type="date" value={customFrom} onChange={(event) => { setCustomFrom(event.target.value); setPage(1); }} disabled={range !== "custom"} aria-label="Custom from date" />
+        <input className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold disabled:bg-slate-50" type="date" value={customTo} onChange={(event) => { setCustomTo(event.target.value); setPage(1); }} disabled={range !== "custom"} aria-label="Custom to date" />
+      </div>
       <div className="mt-4 hidden overflow-hidden rounded-2xl border border-slate-200 md:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">

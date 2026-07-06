@@ -16,7 +16,7 @@ const viewFeatures: Record<OperationalView, OwnerFeatureKey[]> = {
   manager: ["overview", "orders", "kitchen", "pos", "menu", "tables", "customers", "marketing", "reports", "inventory", "employees", "settings", "auditLogs"],
   cashier: ["overview", "orders", "pos", "menu", "tables", "customers", "reports"],
   kitchen: ["overview", "orders", "kitchen", "menu", "inventory"],
-  waiter: ["overview", "orders", "kitchen", "pos", "tables", "customers"],
+  waiter: ["overview", "orders", "pos", "tables", "customers"],
   delivery: ["overview", "orders"],
 };
 

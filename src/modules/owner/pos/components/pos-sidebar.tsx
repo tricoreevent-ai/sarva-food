@@ -12,7 +12,7 @@ type PosSidebarProps = {
   activeOrders: number;
   kotTickets: number;
   heldOrders: number;
-  pastOrders: number;
+  showKitchenQueue?: boolean;
   onNewOrder: () => void;
   onActiveOrders: () => void;
   onHeldOrders: () => void;
@@ -25,7 +25,7 @@ export function PosSidebar({
   activeOrders,
   kotTickets,
   heldOrders,
-  pastOrders,
+  showKitchenQueue = true,
   onNewOrder,
   onActiveOrders,
   onHeldOrders,
@@ -58,16 +58,18 @@ export function PosSidebar({
         </button>
         <NavButton active={activePanel === "active"} label="Active Orders" icon={ClipboardList} badge={activeOrders} onClick={onActiveOrders} />
         <NavButton active={activePanel === "held"} label="Hold Orders" icon={Clock} badge={heldOrders} onClick={onHeldOrders} />
-        <NavButton active={activePanel === "past"} label="Past Orders" icon={ReceiptText} badge={pastOrders} onClick={onPastOrders} />
+        <NavButton active={activePanel === "past"} label="Order History" icon={ReceiptText} onClick={onPastOrders} />
         <NavButton active={activePanel === "customers"} label="Customers" icon={UserSearch} onClick={onCustomers} />
-        <Link
-          href="/owner/kitchen"
-          className="flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-        >
-          <Utensils className="size-5" />
-          <span className="flex-1">Kitchen Queue</span>
-          {kotTickets ? <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-white">{kotTickets}</span> : null}
-        </Link>
+        {showKitchenQueue ? (
+          <Link
+            href="/owner/kitchen"
+            className="flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            <Utensils className="size-5" />
+            <span className="flex-1">Kitchen Queue</span>
+            {kotTickets ? <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-white">{kotTickets}</span> : null}
+          </Link>
+        ) : null}
         <Link
           href="/owner/settings"
           className="flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"

@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Sprint 1 production readiness and feature completion |
+| Current Sprint | Final Operational Workflow and UX Stabilization |
 | Release Version | `v1.0.0-rc1` |
 | Latest Git Commit | Sprint 1 production-readiness commit created locally from base `8a0315c37228918e82498ae0d7c78317d616da45`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last verified hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28`; Sprint 1 redeploy pending |
 | Build Date | 2026-07-06 |
-| Verification Status | Sprint 1 local typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse and Hostinger redeploy remain manual. |
-| Scope | Production readiness only: push notifications, performance, security, monitoring, Firestore rules, documentation, and validation |
+| Verification Status | Final operational workflow local typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse and Hostinger redeploy remain manual. |
+| Scope | Final operational workflow and UX stabilization only: Active Orders, waiter-ready flow, Kitchen density, notification behavior, navigation cleanup, and history filters. |
 
 ## UI/UX Optimization Sprint - 2026-07-06
 
@@ -33,6 +33,22 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Performance optimization summary | Complete | No new Firestore listeners, APIs, repositories, payment flows, or subscriptions were added; dropdowns/accordions remain lazy-rendered and active lists cap visible rows. |
 | Responsive verification | Code-ready | Owner/POS rows collapse to stacked mobile rows; Kitchen keeps 4 desktop columns, mobile compact cards, and touch-size controls. Manual device smoke remains required. |
 | Files modified | Complete | `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/types/entities.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/flows/pos-billing-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, `src/app/api/owner/pos/route.ts`, `src/app/globals.css`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+
+## Final Operational Workflow and UX Stabilization - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Scope | Targeted UX/workflow patch only. Existing POS, Kitchen, owner orders, repositories, APIs, Firestore collections, realtime listeners, print engine, timeline, audit, and incremental KOT logic were preserved. |
+| Active Orders | Complete. Active Orders now has a compact header with segmented Operations/Waiter/Cashier/Manager controls, no descriptive subtitle, compact rows, status progress, waiter/table/payment/item summary, expandable details, and a 30-order active cap. |
+| More Menu | Complete. Active Order More actions now render through a fixed portal with edge repositioning, high z-index, desktop/tablet contextual menu, mobile bottom sheet, Escape/outside close, and icons for open, kitchen, print bill, print receipt, print KOT, add items, collect payment, serve, split, merge, transfer, timeline, history, reminder, complete, and cancel. |
+| Payment / Incremental KOT | Verified code path. Continue payment uses the existing owner orders payment action and does not call the Kitchen send path. Existing `incrementalLines` remains the only add-items-after-ready Kitchen generation path, so only newly added quantities create a rush incremental KOT. |
+| Waiter Ready Flow | Complete. Waiter View opens into Ready To Serve, removes Kitchen Queue navigation, hides broader Kitchen feature navigation for waiter operational view, and shows ready orders as compact green accordions with table/order/ETA/elapsed/payment plus Serve, Open, Collect, Add, Bill, Timeline, and History actions. |
+| Notifications | Complete. Kitchen ready status now triggers a persistent green SarvaNotification with Open, Serve, Collect, and Dismiss actions; duplicate ready notifications reuse the same toast id. Persistent SarvaNotification cards no longer render invalid progress timing. |
+| Kitchen Density | Complete. Desktop Kitchen cards keep customer/payment/waiter/station/timeline inside Details, reduce padding and item spacing, cap visible items with a small `+n more` expander, and preserve the four-column board and existing SSE cleanup. |
+| Navigation / History | Complete. POS Past Orders is renamed to Order History, the Past Orders badge is removed, Waiter View no longer shows Kitchen Queue, and Order History now has Today, Yesterday, Week, Month, Custom date range, search, and status filters. |
+| Known Limitation | Completed-bill correction with immutable before/after audit and manager approval is not implemented because the existing owner orders API has no billing-adjustment action; this remains a separate backend/repository task if required for release. |
+| Verification | `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed. Build retains the known Firebase/protobuf dynamic dependency warning. |
+| Production Readiness | 98% production-release ready pending Hostinger env correction/redeploy, authenticated browser smoke, provider checks, Firebase rules/indexes, and printer/device validation. |
 
 ## Sprint 1 Production Readiness and Feature Completion - 2026-07-06
 

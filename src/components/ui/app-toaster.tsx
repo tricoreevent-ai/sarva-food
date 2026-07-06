@@ -37,6 +37,7 @@ export function SarvaNotification({
   onClose,
 }: SarvaNotificationProps) {
   const Icon = tone === "success" ? CheckCircle2 : tone === "error" ? XCircle : tone === "info" ? Info : AlertTriangle;
+  const progressDuration = duration ?? toneDuration(tone);
   const close = () => {
     onClose?.();
     if (id) toast.dismiss(id);
@@ -66,7 +67,7 @@ export function SarvaNotification({
           ))}
         </div>
       ) : null}
-      <span className={cn("sarva-toast-progress group-hover:[animation-play-state:paused]", toneClasses(tone).bar)} style={{ animationDuration: `${duration ?? toneDuration(tone)}ms` }} />
+      {Number.isFinite(progressDuration) ? <span className={cn("sarva-toast-progress group-hover:[animation-play-state:paused]", toneClasses(tone).bar)} style={{ animationDuration: `${progressDuration}ms` }} /> : null}
     </div>
   );
 }

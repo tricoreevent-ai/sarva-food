@@ -110,7 +110,7 @@ export const posNav: NavItem[] = [
   { label: "New Order", href: "/owner/pos", icon: ReceiptText },
   { label: "Active Orders", href: "/owner/pos?panel=active", icon: ClipboardList },
   { label: "Hold Orders", href: "/owner/pos?panel=held", icon: CalendarClock },
-  { label: "Past Orders", href: "/owner/pos?panel=past", icon: FileText },
+  { label: "Order History", href: "/owner/pos?panel=past", icon: FileText },
   { label: "Customers", href: "/owner/pos?panel=customers", icon: Users },
 ];
 
