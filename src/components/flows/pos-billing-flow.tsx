@@ -53,6 +53,30 @@ type SplitBillRecord = {
   at?: unknown;
 };
 
+type BillCorrectionRecord = {
+  version?: number;
+  label?: string;
+  at?: unknown;
+  reason?: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  diff?: Record<string, unknown>;
+  user?: string;
+  role?: string;
+  terminal?: string;
+};
+
+type PaymentLockRecord = {
+  locked?: boolean;
+  startedAt?: unknown;
+  by?: string;
+  role?: string;
+  method?: PaymentMethod;
+  amount?: number;
+  reason?: string;
+  unlockedAt?: unknown;
+};
+
 type OperationalOrder = TableOrder & {
   canonicalOrderId?: string;
   canonicalStatus?: DemoOrder["status"];
@@ -61,6 +85,8 @@ type OperationalOrder = TableOrder & {
   auditTimeline?: TimelineEntry[];
   statusHistory?: TimelineEntry[];
   splitBills?: SplitBillRecord[];
+  corrections?: BillCorrectionRecord[];
+  paymentLock?: PaymentLockRecord;
   paidAmount?: number;
   mergedOrderIds?: string[];
   mergedIntoOrderId?: string;
@@ -71,6 +97,8 @@ type ExtendedDemoOrder = DemoOrder & {
   auditTimeline?: TimelineEntry[];
   statusHistory?: TimelineEntry[];
   splitBills?: SplitBillRecord[];
+  corrections?: BillCorrectionRecord[];
+  paymentLock?: PaymentLockRecord;
   paidAmount?: number;
   mergedOrderIds?: string[];
   mergedIntoOrderId?: string;
@@ -101,6 +129,23 @@ type SplitBillPayload = {
   percent?: number;
   receipt: boolean;
   note?: string;
+};
+
+type PaymentDraft = {
+  order: OperationalOrder;
+  amount: number;
+  method: PaymentMethod;
+  stage: "verify" | "collect";
+  unlockReason: string;
+};
+
+type BillCorrectionPayload = {
+  lines: Array<{ itemId?: string; menuItemId?: string; name: string; price: number; quantity: number; notes?: string }>;
+  discount: number;
+  tax: number;
+  deliveryFee: number;
+  total: number;
+  reason: string;
 };
 
 type PosReadModel = {
@@ -156,6 +201,9 @@ export function PosBillingFlow() {
   const [mergeTarget, setMergeTarget] = useState<OperationalOrder | null>(null);
   const [timelineTarget, setTimelineTarget] = useState<OperationalOrder | null>(null);
   const [paymentHistoryTarget, setPaymentHistoryTarget] = useState<OperationalOrder | null>(null);
+  const [detailsTarget, setDetailsTarget] = useState<OperationalOrder | null>(null);
+  const [correctionTarget, setCorrectionTarget] = useState<ExtendedDemoOrder | null>(null);
+  const [paymentDraft, setPaymentDraft] = useState<PaymentDraft | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
@@ -181,6 +229,9 @@ export function PosBillingFlow() {
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
   const operational = useOperationalView(true);
   const waiterView = operational.session?.viewMode === "waiter" || authUser.role === "waiter";
+  const currentRole = operational.session?.role ?? authUser.role;
+  const canUnlockPayment = ["owner", "admin", "super_admin"].includes(currentRole);
+  const canCorrectBills = ["owner", "manager", "admin", "super_admin"].includes(currentRole);
   const branch = useMemo(
     () => configuredBranch ?? createFallbackBranch(ownerBusinessProfile, authUser.id, restaurantId),
     [authUser.id, configuredBranch, ownerBusinessProfile, restaurantId],
@@ -802,6 +853,10 @@ export function PosBillingFlow() {
   }
 
   function openKitchenOrder(order: TableOrder) {
+    if ((order as OperationalOrder).paymentLock?.locked) {
+      toast.error("Payment started. Unlock with reason before editing this bill.");
+      return;
+    }
     setPosBill(tableOrderToBill(order, bill));
     setPanel("new");
     setWizardStep(3);
@@ -815,42 +870,128 @@ export function PosBillingFlow() {
   }
 
   async function collectActivePayment(order: TableOrder) {
-    const canonical = canonicalForKitchenOrder(order);
+    const active = order as OperationalOrder;
+    const canonical = canonicalForKitchenOrder(order) as ExtendedDemoOrder | undefined;
     if (!canonical) {
       toast.error("Open and save this order before collecting payment.");
       return;
     }
-    const amountText = window.prompt("Payment amount", String(order.total ?? 0));
-    if (!amountText) return;
-    const amount = Number(amountText);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Enter a valid payment amount.");
+    if (!["ready", "served"].includes(order.status)) {
+      toast.error("Kitchen still preparing.");
       return;
     }
-    const methodText = window.prompt("Payment method: cash, upi, card, credit", "cash")?.trim().toLowerCase();
-    if (!methodText || !["cash", "upi", "card", "credit"].includes(methodText)) {
-      toast.error("Choose cash, upi, card, or credit.");
-      return;
-    }
-    const kitchenOrderId = (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id;
-    setActiveAction(`payment:${order.id}`);
+    const amount = orderBalanceDue(canonical, active) || Number(order.total ?? canonical.totals.total ?? 0);
+    setPaymentDraft({ order: active, amount: moneyRound(amount), method: "cash", stage: "verify", unlockReason: "" });
+  }
+
+  async function startPaymentCollection(draft: PaymentDraft) {
+    const canonical = canonicalForKitchenOrder(draft.order);
+    if (!canonical) return toast.error("Open and save this order before collecting payment.");
+    const kitchenOrderId = draft.order.hasKitchenTicket === false ? undefined : draft.order.id;
+    setActiveAction(`payment-lock:${draft.order.id}`);
     try {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "payment", orderId: canonical.id, kitchenOrderId, amount, method: methodText }),
+        body: JSON.stringify({ action: "payment_started", orderId: canonical.id, kitchenOrderId, amount: draft.amount, method: draft.method }),
+      });
+      await readPosPayload(response, "Payment verification could not be saved.");
+      setPaymentDraft({ ...draft, stage: "collect" });
+      await refreshPosReadModel({ applyDraft: false });
+      toast.success("Payment verified. Collect amount now.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Payment verification could not be saved.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function unlockPaymentDraft(draft: PaymentDraft) {
+    const canonical = canonicalForKitchenOrder(draft.order);
+    const reason = draft.unlockReason.trim();
+    if (!canonical) return toast.error("Open and save this order before unlocking payment.");
+    if (!reason) return toast.error("Unlock reason is required.");
+    const kitchenOrderId = draft.order.hasKitchenTicket === false ? undefined : draft.order.id;
+    setActiveAction(`payment-unlock:${draft.order.id}`);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "payment_unlock", orderId: canonical.id, kitchenOrderId, reason }),
+      });
+      await readPosPayload(response, "Payment lock could not be released.");
+      setPaymentDraft({ ...draft, unlockReason: "" });
+      await refreshPosReadModel({ applyDraft: false });
+      toast.success("Payment lock released with audit reason.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Payment lock could not be released.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function recordPaymentDraft(draft: PaymentDraft) {
+    const canonical = canonicalForKitchenOrder(draft.order);
+    if (!canonical) {
+      toast.error("Open and save this order before collecting payment.");
+      return;
+    }
+    const amount = Number(draft.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid payment amount.");
+      return;
+    }
+    const kitchenOrderId = draft.order.hasKitchenTicket === false ? undefined : draft.order.id;
+    setActiveAction(`payment:${draft.order.id}`);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "payment", orderId: canonical.id, kitchenOrderId, amount, method: draft.method }),
       });
       const result = await readPosPayload<{ data?: { paymentStatus?: "pending" | "partial" | "paid" }; paymentStatus?: "pending" | "partial" | "paid" }>(response, "Payment could not be recorded.");
-      const paymentStatus = result.data?.paymentStatus ?? result.paymentStatus ?? (amount + 0.01 < Number(order.total ?? 0) ? "partial" : "paid");
+      const paymentStatus = result.data?.paymentStatus ?? result.paymentStatus ?? (amount + 0.01 < Number(draft.order.total ?? 0) ? "partial" : "paid");
       await refreshPosReadModel({ applyDraft: false });
       setReadModel((current) => ({
         ...current,
-        tableOrders: current.tableOrders.map((item) => item.id === order.id ? { ...item, paymentStatus } : item),
+        tableOrders: current.tableOrders.map((item) => item.id === draft.order.id ? { ...item, paymentStatus } : item),
         orders: current.orders.map((item) => item.id === canonical.id ? { ...item, splitPayment: paymentStatus === "partial" || item.splitPayment } : item),
       }));
+      setPaymentDraft(null);
       toast.success(paymentStatus === "partial" ? "Partial payment recorded." : "Payment recorded.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment could not be recorded.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function submitBillCorrection(order: ExtendedDemoOrder, payload: BillCorrectionPayload) {
+    if (!payload.reason.trim()) return toast.error("Correction reason is required.");
+    setActiveAction(`correction:${order.id}`);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "bill_correction",
+          orderId: order.id,
+          reason: payload.reason,
+          correction: {
+            lines: payload.lines,
+            discount: payload.discount,
+            tax: payload.tax,
+            deliveryFee: payload.deliveryFee,
+            total: payload.total,
+          },
+        }),
+      });
+      await readPosPayload(response, "Bill correction could not be saved.");
+      await refreshPosReadModel({ applyDraft: false });
+      setCorrectionTarget(null);
+      toast.success("Bill correction saved with audit history.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bill correction could not be saved.");
     } finally {
       setActiveAction(null);
     }
@@ -862,7 +1003,7 @@ export function PosBillingFlow() {
       await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "print", orderId: canonical.id, type }),
+        body: JSON.stringify({ action: "print", orderId: canonical.id, type, note: order.printedCount ? `${type} reprint` : `${type} print` }),
       }).catch(() => undefined);
     }
     openKitchenOrder(order);
@@ -1169,7 +1310,8 @@ export function PosBillingFlow() {
               tables={tables}
               staff={staffMembers}
               onOpenNew={requestNewOrder}
-              onOpen={openKitchenOrder}
+              onOpen={(order) => setDetailsTarget(order as OperationalOrder)}
+              onAddItems={openKitchenOrder}
               onPrintBill={(order) => void recordActivePrint(order, "bill")}
               onPrintReceipt={(order) => void recordActivePrint(order, "receipt")}
               onPrintKot={(order) => void recordActivePrint(order, "kot")}
@@ -1187,7 +1329,7 @@ export function PosBillingFlow() {
               waiterView={waiterView}
             />
           ) : panel === "past" ? (
-            <PastOrdersPanel orders={orders} />
+            <PastOrdersPanel orders={orders} canCorrect={canCorrectBills} onOpen={(order) => setDetailsTarget(orderToOperationalOrder(order))} onCorrect={(order) => setCorrectionTarget(order as ExtendedDemoOrder)} />
           ) : panel === "customers" ? (
             <CustomersPanel customers={loyaltyCustomers} onSelect={(customer) => {
               handleCustomer({ id: customer.id, name: customer.name, phone: customer.phone });
@@ -1342,6 +1484,39 @@ export function PosBillingFlow() {
             canonical={canonicalForKitchenOrder(paymentHistoryTarget) as ExtendedDemoOrder | undefined}
             printLogs={printerSettings.printLogs ?? []}
             onClose={() => setPaymentHistoryTarget(null)}
+          />
+        ) : null}
+        {detailsTarget ? (
+          <OrderDetailsDrawer
+            order={detailsTarget}
+            canonical={canonicalForKitchenOrder(detailsTarget) as ExtendedDemoOrder | undefined}
+            printLogs={printerSettings.printLogs ?? []}
+            onClose={() => setDetailsTarget(null)}
+            onAddItems={() => openKitchenOrder(detailsTarget)}
+            onCollectPayment={() => void collectActivePayment(detailsTarget)}
+            onPrintBill={() => void recordActivePrint(detailsTarget, "bill")}
+            onTimeline={() => setTimelineTarget(detailsTarget)}
+            onPaymentHistory={() => setPaymentHistoryTarget(detailsTarget)}
+          />
+        ) : null}
+        {correctionTarget ? (
+          <BillCorrectionDrawer
+            order={correctionTarget}
+            busy={activeAction === `correction:${correctionTarget.id}`}
+            onClose={() => setCorrectionTarget(null)}
+            onSubmit={(payload) => void submitBillCorrection(correctionTarget, payload)}
+          />
+        ) : null}
+        {paymentDraft ? (
+          <PaymentSafetyDialog
+            draft={paymentDraft}
+            busy={Boolean(activeAction?.startsWith("payment"))}
+            canUnlock={canUnlockPayment}
+            onChange={setPaymentDraft}
+            onClose={() => setPaymentDraft(null)}
+            onContinue={() => void startPaymentCollection(paymentDraft)}
+            onUnlock={() => void unlockPaymentDraft(paymentDraft)}
+            onRecord={() => void recordPaymentDraft(paymentDraft)}
           />
         ) : null}
         {activeKitchenOrder ? <span className="sr-only">Active kitchen ticket {activeKitchenOrder.id}</span> : null}
@@ -2102,19 +2277,256 @@ function PaymentHistoryDialog({ order, canonical, printLogs, onClose }: { order:
   );
 }
 
+function OrderDetailsDrawer({
+  order,
+  canonical,
+  printLogs,
+  onClose,
+  onAddItems,
+  onCollectPayment,
+  onPrintBill,
+  onTimeline,
+  onPaymentHistory,
+}: {
+  order: OperationalOrder;
+  canonical?: ExtendedDemoOrder;
+  printLogs: PrintLog[];
+  onClose: () => void;
+  onAddItems: () => void;
+  onCollectPayment: () => void;
+  onPrintBill: () => void;
+  onTimeline: () => void;
+  onPaymentHistory: () => void;
+}) {
+  const entries = timelineEntries(canonical, order);
+  const corrections = canonical?.corrections ?? order.corrections ?? [];
+  const prints = printHistoryEntries(canonical, order, printLogs);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[75] bg-slate-950/35">
+      <aside role="dialog" aria-modal="true" aria-labelledby="order-details-title" className="ml-auto flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+          <div>
+            <h2 id="order-details-title" className="text-xl font-black text-slate-950">{readableTableOrderId(order)}</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in")} · {paymentLabel(order.paymentStatus)} · {formatCurrency(Number(order.total ?? canonical?.totals.total ?? 0))}</p>
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close details" onClick={onClose}><X className="size-4" /></Button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DrawerBlock title="Customer" rows={[order.customerName || order.guestName || canonical?.customer.name || "Walk-in", order.customerPhone || canonical?.customer.phone || "No phone"]} />
+            <DrawerBlock title="Kitchen" rows={[`Status: ${order.status}`, `ETA: ${order.etaMinutes ?? 12} min`, `Priority: ${order.priority ?? "normal"}`]} />
+            <DrawerBlock title="Payment" rows={[`Status: ${paymentLabel(order.paymentStatus)}`, `Paid: ${formatCurrency(orderPaidAmount(canonical, order))}`, `Balance: ${formatCurrency(orderBalanceDue(canonical, order))}`]} />
+            <DrawerBlock title="Notes" rows={[canonical?.statusNote || (order as OperationalOrder & { notes?: string }).notes || "No notes recorded"]} />
+          </div>
+          <section className="mt-4 rounded-xl border border-slate-200 p-4">
+            <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Items</h3>
+            <div className="grid gap-2">
+              {order.lines.map((line, index) => (
+                <div key={`${line.itemId}-${index}`} className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold">
+                  <span className="truncate">{line.name}</span>
+                  <span>{line.quantity}x</span>
+                  <span>{formatCurrency(line.price * line.quantity)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="mt-4 rounded-xl border border-slate-200 p-4">
+            <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Timeline</h3>
+            <TimelineList entries={entries.slice(-12)} empty="No timeline events recorded." compact />
+          </section>
+          <section className="mt-4 rounded-xl border border-slate-200 p-4">
+            <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Corrections</h3>
+            {corrections.length ? corrections.map((item, index) => (
+              <div key={`${item.version ?? index}`} className="mb-2 rounded-lg bg-purple-50 px-3 py-2 text-sm font-semibold text-purple-900">
+                Correction #{item.version ?? index + 1} · {item.reason || "No reason"} · {formatTimelineTime(item.at)}
+              </div>
+            )) : <p className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm font-semibold text-slate-500">Original bill only. No corrections.</p>}
+          </section>
+          <section className="mt-4 rounded-xl border border-slate-200 p-4">
+            <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Print History</h3>
+            <TimelineList entries={prints} empty="No print history recorded." compact />
+          </section>
+        </div>
+        <div className="grid gap-2 border-t border-slate-100 p-4 sm:grid-cols-5">
+          <Button variant="outline" onClick={onAddItems}><PlusCircle className="size-4" />Add</Button>
+          <Button variant="outline" onClick={onPrintBill}><ReceiptText className="size-4" />Bill</Button>
+          <Button onClick={onCollectPayment}><CircleDollarSign className="size-4" />Collect</Button>
+          <Button variant="outline" onClick={onTimeline}><Clock3 className="size-4" />Timeline</Button>
+          <Button variant="outline" onClick={onPaymentHistory}><History className="size-4" />History</Button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function DrawerBlock({ title, rows }: { title: string; rows: Array<string | number | undefined> }) {
+  return (
+    <section className="rounded-xl border border-slate-200 p-4">
+      <h3 className="text-xs font-black uppercase text-slate-400">{title}</h3>
+      <div className="mt-2 grid gap-1 text-sm font-semibold text-slate-700">
+        {rows.filter(Boolean).map((row, index) => <p key={`${title}-${index}`} className="truncate">{row}</p>)}
+      </div>
+    </section>
+  );
+}
+
+function PaymentSafetyDialog({
+  draft,
+  busy,
+  canUnlock,
+  onChange,
+  onClose,
+  onContinue,
+  onUnlock,
+  onRecord,
+}: {
+  draft: PaymentDraft;
+  busy: boolean;
+  canUnlock: boolean;
+  onChange: (draft: PaymentDraft) => void;
+  onClose: () => void;
+  onContinue: () => void;
+  onUnlock: () => void;
+  onRecord: () => void;
+}) {
+  const itemCount = draft.order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  return (
+    <PosDialogFrame title={draft.stage === "verify" ? "Verify Before Collecting Payment" : "Collect Payment"} subtitle={`${readableTableOrderId(draft.order)} · ${draft.order.tableNumber || readablePosOrderType(draft.order.orderType ?? "dine-in")}`} onClose={onClose}>
+      <div className="grid gap-4 p-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <span>Customer: {draft.order.customerName || draft.order.guestName || "Walk-in"}</span>
+            <span>Items: {itemCount}</span>
+            <span>Grand total: {formatCurrency(Number(draft.order.total ?? 0))}</span>
+            <span>Kitchen: {draft.order.status}</span>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
+            Amount
+            <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm font-black text-slate-900" type="number" min="1" step="1" value={draft.amount} disabled={draft.stage === "verify"} onChange={(event) => onChange({ ...draft, amount: Number(event.target.value) })} />
+          </label>
+          <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
+            Payment Method
+            <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-900" value={draft.method} disabled={draft.stage === "collect"} onChange={(event) => onChange({ ...draft, method: event.target.value as PaymentMethod })}>
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="card">Card</option>
+              <option value="credit">Credit</option>
+            </select>
+          </label>
+        </div>
+        {draft.stage === "collect" && canUnlock ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <label className="grid gap-1 text-xs font-black uppercase text-amber-700">
+              Unlock reason
+              <input className="h-10 rounded-lg border border-amber-200 px-3 text-sm font-semibold text-slate-900" value={draft.unlockReason} onChange={(event) => onChange({ ...draft, unlockReason: event.target.value })} placeholder="Required before editing locked bill" />
+            </label>
+            <Button className="mt-2" variant="outline" disabled={busy || !draft.unlockReason.trim()} onClick={onUnlock}>Unlock with audit</Button>
+          </div>
+        ) : null}
+      </div>
+      <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]">
+        <p className="text-xs font-semibold text-slate-500">{draft.stage === "verify" ? "Confirm order, table, items, total, and method before opening payment." : "Payment lock is active. Kitchen will not reopen."}</p>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button disabled={busy} onClick={draft.stage === "verify" ? onContinue : onRecord}>{busy ? <Loader2 className="size-4 animate-spin" /> : <CircleDollarSign className="size-4" />}{draft.stage === "verify" ? "Continue" : "Record Payment"}</Button>
+      </div>
+    </PosDialogFrame>
+  );
+}
+
+function BillCorrectionDrawer({ order, busy, onClose, onSubmit }: { order: ExtendedDemoOrder; busy?: boolean; onClose: () => void; onSubmit: (payload: BillCorrectionPayload) => void }) {
+  const [lines, setLines] = useState(() => order.lines.map((line) => ({ ...line })));
+  const [discount, setDiscount] = useState(order.totals.discount);
+  const [tax, setTax] = useState(order.totals.tax);
+  const [deliveryFee, setDeliveryFee] = useState(order.totals.deliveryFee);
+  const [reason, setReason] = useState("");
+  const subtotal = moneyRound(lines.reduce((sum, line) => sum + Number(line.price ?? 0) * Number(line.quantity ?? 0), 0));
+  const total = moneyRound(subtotal - Number(discount ?? 0) + Number(tax ?? 0) + Number(deliveryFee ?? 0));
+  const diff = moneyRound(total - order.totals.total);
+  const disabled = busy || !reason.trim() || !lines.length;
+  function updateLine(index: number, patch: Partial<(typeof lines)[number]>) {
+    setLines((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, ...patch } : line));
+  }
+  return (
+    <div className="fixed inset-0 z-[76] bg-slate-950/35">
+      <aside role="dialog" aria-modal="true" aria-labelledby="bill-correction-title" className="ml-auto flex h-full w-full max-w-3xl flex-col bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+          <div>
+            <h2 id="bill-correction-title" className="text-xl font-black text-slate-950">Correct Bill</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{readableOrderId(order)} · original {formatCurrency(order.totals.total)} · new {formatCurrency(total)}</p>
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close correction" onClick={onClose}><X className="size-4" /></Button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid gap-2">
+            {lines.map((line, index) => (
+              <div key={`${line.itemId}-${index}`} className="grid gap-2 rounded-xl border border-slate-200 p-3 sm:grid-cols-[1fr_100px_100px]">
+                <input className="h-10 rounded-lg border px-3 text-sm font-semibold" value={line.name} onChange={(event) => updateLine(index, { name: event.target.value })} aria-label={`Item ${index + 1}`} />
+                <input className="h-10 rounded-lg border px-3 text-sm font-semibold" type="number" min="0" value={line.quantity} onChange={(event) => updateLine(index, { quantity: Number(event.target.value) })} aria-label={`Quantity ${index + 1}`} />
+                <input className="h-10 rounded-lg border px-3 text-sm font-semibold" type="number" min="0" value={line.price} onChange={(event) => updateLine(index, { price: Number(event.target.value) })} aria-label={`Price ${index + 1}`} />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <NumberField label="Discount" value={discount} onChange={setDiscount} />
+            <NumberField label="Tax" value={tax} onChange={setTax} />
+            <NumberField label="Packing" value={deliveryFee} onChange={setDeliveryFee} />
+            <div className="rounded-xl border border-slate-200 p-3">
+              <p className="text-xs font-black uppercase text-slate-400">Grand Total Diff</p>
+              <p className={cn("mt-1 text-lg font-black", diff >= 0 ? "text-emerald-700" : "text-red-700")}>{diff >= 0 ? "+" : ""}{formatCurrency(diff)}</p>
+            </div>
+          </div>
+          <label className="mt-4 grid gap-1 text-xs font-black uppercase text-slate-400">
+            Mandatory correction reason
+            <textarea className="min-h-24 rounded-xl border border-slate-200 p-3 text-sm font-semibold text-slate-900" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Manager-approved reason for immutable bill correction" />
+          </label>
+          <section className="mt-4 rounded-xl border border-purple-200 bg-purple-50 p-4">
+            <h3 className="text-sm font-black uppercase text-purple-700">Preview Difference</h3>
+            <p className="mt-2 text-sm font-semibold text-purple-900">Original {formatCurrency(order.totals.total)} → New {formatCurrency(total)} · Correction #{(order.corrections?.length ?? 0) + 1}</p>
+          </section>
+        </div>
+        <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]">
+          <p className="text-xs font-semibold text-slate-500">History is never overwritten. This creates a new immutable correction version.</p>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button disabled={disabled} onClick={() => onSubmit({ lines, discount, tax, deliveryFee, total, reason })}>{busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}Confirm Correction</Button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
+      {label}
+      <input className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-900" type="number" min="0" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+    </label>
+  );
+}
+
 function TimelineList({ entries, empty, compact = false }: { entries: TimelineEntry[]; empty: string; compact?: boolean }) {
   return entries.length ? (
     <div className="grid gap-2">
       {entries.map((entry, index) => (
         <div key={`${timelineLabel(entry)}-${index}`} className={cn("rounded-xl border border-slate-200", compact ? "p-3" : "p-4")}>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+            <div className="flex min-w-0 gap-3">
+              <span className={cn("mt-1 size-3 rounded-full", orderStatusTone(timelineStatusKey(entry), String(entry.paymentStatus ?? "")).dot)} />
+              <div className="min-w-0">
               <p className="font-black text-slate-950">{timelineLabel(entry)}</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">{formatTimelineTime(entryTimeValue(entry))}</p>
+              {index > 0 ? <p className="mt-1 text-[11px] font-bold text-slate-400">+{timelineDuration(entries[index - 1], entry)}</p> : null}
+              </div>
             </div>
             {Number.isFinite(Number(entry.amount)) ? <Badge variant="secondary">{formatCurrency(Number(entry.amount))}</Badge> : null}
           </div>
-          {entry.method || entry.role || entry.user || entry.device ? <p className="mt-2 text-xs font-semibold text-slate-500">{[entry.method ? String(entry.method).toUpperCase() : "", entry.role, entry.user, entry.device].filter(Boolean).join(" · ")}</p> : null}
+          {entry.method || entry.role || entry.user || entry.device || entry.reason || entry.printNumber ? <p className="mt-2 text-xs font-semibold text-slate-500">{[entry.method ? String(entry.method).toUpperCase() : "", entry.role, entry.user, entry.device, entry.printNumber ? `Print #${entry.printNumber}` : "", entry.reason].filter(Boolean).join(" · ")}</p> : null}
         </div>
       ))}
     </div>
@@ -2172,7 +2584,10 @@ function printHistoryEntries(canonical: ExtendedDemoOrder | undefined, order: Op
       const entry = log as PrintLog & { orderId?: string; referenceId?: string };
       return entry.orderId === canonicalId || entry.referenceId === canonicalId || entry.referenceId === order.id;
     })
-    .map((log) => ({ type: `${log.type || "print"}_${log.status || "logged"}`, timestamp: log.timestamp, user: log.user, device: (log as PrintLog & { printerProfileId?: string }).printerProfileId }));
+    .map((log) => {
+      const entry = log as PrintLog & { printerProfileId?: string; printer?: string; printNumber?: number; reason?: string; createdAt?: unknown; printedBy?: string };
+      return { type: `${entry.type || "print"}_${entry.status || "logged"}`, timestamp: entry.timestamp ?? entry.createdAt, user: entry.user ?? entry.printedBy, device: entry.printer ?? entry.printerProfileId, printNumber: entry.printNumber, reason: entry.reason };
+    });
   return dedupeTimeline([...printEvents, ...logEvents]).sort((first, second) => timelineMillis(first) - timelineMillis(second));
 }
 
@@ -2256,6 +2671,27 @@ function dedupeTimeline(entries: TimelineEntry[]) {
 function timelineLabel(entry: TimelineEntry) {
   const raw = String(entry.type ?? entry.event ?? entry.status ?? "event");
   return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function timelineStatusKey(entry: TimelineEntry) {
+  const raw = String(entry.status ?? entry.foodStatus ?? entry.type ?? entry.event ?? "").toLowerCase();
+  if (raw.includes("paid") || raw.includes("payment_completed")) return "paid";
+  if (raw.includes("bill") || raw.includes("payment_started")) return "billing";
+  if (raw.includes("accepted")) return "accepted";
+  if (raw.includes("preparing")) return "preparing";
+  if (raw.includes("ready")) return "ready";
+  if (raw.includes("served")) return "served";
+  if (raw.includes("cancel") || raw.includes("reject")) return "cancelled";
+  return raw || "new";
+}
+
+function timelineDuration(previous: TimelineEntry, current: TimelineEntry) {
+  const diff = timelineMillis(current) - timelineMillis(previous);
+  if (!Number.isFinite(diff) || diff <= 0) return "0m";
+  const minutes = Math.round(diff / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
 }
 
 function entryTimeValue(entry: TimelineEntry) {
@@ -2348,6 +2784,8 @@ function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]
       auditTimeline: (canonical as ExtendedDemoOrder | undefined)?.auditTimeline,
       statusHistory: (canonical as ExtendedDemoOrder | undefined)?.statusHistory,
       splitBills: (canonical as ExtendedDemoOrder | undefined)?.splitBills,
+      corrections: (canonical as ExtendedDemoOrder | undefined)?.corrections,
+      paymentLock: (canonical as ExtendedDemoOrder | undefined)?.paymentLock,
       paidAmount: (canonical as ExtendedDemoOrder | undefined)?.paidAmount,
       mergedOrderIds: (canonical as ExtendedDemoOrder | undefined)?.mergedOrderIds,
     } satisfies OperationalOrder;
@@ -2388,6 +2826,8 @@ function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
     auditTimeline: (order as ExtendedDemoOrder).auditTimeline,
     statusHistory: (order as ExtendedDemoOrder).statusHistory,
     splitBills: (order as ExtendedDemoOrder).splitBills,
+    corrections: (order as ExtendedDemoOrder).corrections,
+    paymentLock: (order as ExtendedDemoOrder).paymentLock,
     paidAmount: (order as ExtendedDemoOrder).paidAmount,
     mergedOrderIds: (order as ExtendedDemoOrder).mergedOrderIds,
     mergedIntoOrderId: (order as ExtendedDemoOrder).mergedIntoOrderId,
@@ -2443,6 +2883,22 @@ function isDelayedTableOrder(order: TableOrder) {
   return Number.isFinite(created) && Date.now() - created > eta * 60_000;
 }
 
+function readySinceMillis(order: OperationalOrder) {
+  const entries = [...safeTimeline(order.statusHistory), ...safeTimeline(order.auditTimeline)];
+  const ready = entries
+    .filter((entry) => String(entry.status ?? entry.foodStatus ?? entry.event ?? entry.type ?? "").toLowerCase().includes("ready"))
+    .map(timelineMillis)
+    .filter(Boolean)
+    .sort((first, second) => first - second)[0];
+  return ready || Date.parse(order.createdAt) || 0;
+}
+
+function serveSlaLabel(minutes: number) {
+  if (minutes < 5) return "On time";
+  if (minutes < 10) return "Watch";
+  return "Late";
+}
+
 function withBillCopy(context: BillContext, copy: BillCopy): BillContext {
   return { ...context, copyLabel: copy, duplicate: copy === "Duplicate Copy" };
 }
@@ -2467,7 +2923,12 @@ function toSafePosError(reason: string | undefined, fallback: string) {
   if (/(firebase|firestore|repository|stack|admin|permission-denied|internal)/.test(text)) return fallback;
   if (text.includes("no longer active") || text.includes("pos draft not found")) return "This order is no longer active. Please refresh.";
   if (text.includes("kitchen ticket not found")) return "Kitchen ticket not found.";
+  if (text.includes("kitchen still preparing")) return "Kitchen still preparing.";
   if (text.includes("already been collected")) return "Payment has already been collected.";
+  if (text.includes("completed bills")) return "Only completed bills can be corrected.";
+  if (text.includes("correction reason")) return "Correction reason is required.";
+  if (text.includes("unlock reason")) return "Unlock reason is required.";
+  if (text.includes("only owner")) return "Only owner can unlock payment changes.";
   if (text.includes("split bill")) return "Split bill could not be recorded. Check the split amounts and retry.";
   if (text.includes("balance due")) return "Split amount exceeds the balance due.";
   if (text.includes("target table")) return "Choose a target table before transferring.";
@@ -2617,6 +3078,7 @@ function ActiveOrdersPanel({
   staff,
   onOpenNew,
   onOpen,
+  onAddItems,
   onPrintBill,
   onPrintReceipt,
   onPrintKot,
@@ -2639,6 +3101,7 @@ function ActiveOrdersPanel({
   staff: StaffMember[];
   onOpenNew: () => void;
   onOpen: (order: TableOrder) => void;
+  onAddItems: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
   onPrintReceipt: (order: TableOrder) => void;
   onPrintKot: (order: TableOrder) => void;
@@ -2656,14 +3119,21 @@ function ActiveOrdersPanel({
   waiterView?: boolean;
 }) {
   const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "operations");
+  const [search, setSearch] = useState("");
   const activeKitchenOrders = useMemo(
-    () => kitchenOrders
+    () => {
+      const value = search.trim().toLowerCase();
+      return kitchenOrders
       .filter((order) => !["completed", "cancelled", "billed"].includes(order.status))
+      .filter((order) => !value || activeOrderSearchText(order).includes(value))
       .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
-      .slice(0, 30),
-    [kitchenOrders],
+      .slice(0, 30);
+    },
+    [kitchenOrders, search],
   );
-  const readyOrders = activeKitchenOrders.filter((order) => order.status === "ready");
+  const readyOrders = activeKitchenOrders
+    .filter((order) => order.status === "ready")
+    .sort((first, second) => readySinceMillis(first) - readySinceMillis(second));
   const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
   const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
   const completedToday = orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length;
@@ -2711,6 +3181,16 @@ function ActiveOrdersPanel({
         </div>
         <Button onClick={onOpenNew}>New Order</Button>
       </div>
+      <label className="relative mt-3 block max-w-xl">
+        <Search className="absolute left-3 top-3 size-4 text-slate-400" />
+        <input
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search order, table, customer, phone, item, waiter, vehicle..."
+          aria-label="Search active orders"
+        />
+      </label>
       <div className="mt-3 grid gap-2 md:grid-cols-4">
         {view === "operations" ? (
           <>
@@ -2754,6 +3234,7 @@ function ActiveOrdersPanel({
         <ReadyToServePanel
           orders={readyOrders}
           onOpen={onOpen}
+          onAddItems={onAddItems}
           onPrintBill={onPrintBill}
           onCollectPayment={onCollectPayment}
           onServe={onServe}
@@ -2781,6 +3262,7 @@ function ActiveOrdersPanel({
                   canMerge={activeKitchenOrders.length >= 2}
                   busy={activeAction ?? ""}
                   onOpen={onOpen}
+                  onAddItems={onAddItems}
                   onPrintBill={onPrintBill}
                   onPrintReceipt={onPrintReceipt}
                   onPrintKot={onPrintKot}
@@ -2814,6 +3296,7 @@ function ActiveOrderRow({
   canMerge,
   busy,
   onOpen,
+  onAddItems,
   onPrintBill,
   onPrintReceipt,
   onPrintKot,
@@ -2833,6 +3316,7 @@ function ActiveOrderRow({
   canMerge: boolean;
   busy: string;
   onOpen: (order: TableOrder) => void;
+  onAddItems: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
   onPrintReceipt: (order: TableOrder) => void;
   onPrintKot: (order: TableOrder) => void;
@@ -2861,9 +3345,9 @@ function ActiveOrderRow({
       <div className="min-w-0 rounded-lg bg-slate-50 px-2.5 py-1.5 xl:bg-transparent xl:px-0 xl:py-0">
         <p className="text-[10px] font-black uppercase text-slate-400 xl:hidden">Status</p>
         <div className="flex items-center justify-between gap-2">
-          <span className={cn("truncate text-sm font-black capitalize", delayed ? "text-red-700" : order.status === "ready" ? "text-emerald-700" : "text-slate-800")}>{order.status}</span>
+          <span className={cn("truncate rounded-full px-2 py-1 text-xs font-black capitalize", orderStatusTone(order.status, order.paymentStatus).chip)}>{order.status}</span>
           <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
-            <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${statusStepPercent(order.status)}%` }} />
+            <span className={cn("block h-full rounded-full", orderStatusTone(order.status, order.paymentStatus).bar)} style={{ width: `${statusStepPercent(order.status)}%` }} />
           </span>
         </div>
       </div>
@@ -2881,6 +3365,7 @@ function ActiveOrderRow({
           busy={busy}
           order={order}
           onOpen={onOpen}
+          onAddItems={onAddItems}
           onPrintBill={onPrintBill}
           onPrintReceipt={onPrintReceipt}
           onPrintKot={onPrintKot}
@@ -2914,6 +3399,7 @@ function ActiveOrderRow({
 function ReadyToServePanel({
   orders,
   onOpen,
+  onAddItems,
   onPrintBill,
   onCollectPayment,
   onServe,
@@ -2922,6 +3408,7 @@ function ReadyToServePanel({
 }: {
   orders: OperationalOrder[];
   onOpen: (order: TableOrder) => void;
+  onAddItems: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
   onCollectPayment: (order: TableOrder) => void;
   onServe: (order: TableOrder) => void;
@@ -2951,6 +3438,7 @@ function ReadyToServePanel({
             now={now}
             order={order}
             onOpen={onOpen}
+            onAddItems={onAddItems}
             onPrintBill={onPrintBill}
             onCollectPayment={onCollectPayment}
             onServe={onServe}
@@ -2973,6 +3461,7 @@ function ReadyOrderAccordion({
   index,
   now,
   onOpen,
+  onAddItems,
   onPrintBill,
   onCollectPayment,
   onServe,
@@ -2983,6 +3472,7 @@ function ReadyOrderAccordion({
   index: number;
   now: number;
   onOpen: (order: TableOrder) => void;
+  onAddItems: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
   onCollectPayment: (order: TableOrder) => void;
   onServe: (order: TableOrder) => void;
@@ -2990,20 +3480,21 @@ function ReadyOrderAccordion({
   onPaymentHistory: (order: OperationalOrder) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const created = Date.parse(order.createdAt);
-  const elapsed = Number.isFinite(created) ? Math.max(0, Math.round((now - created) / 60000)) : 0;
+  const readyAt = readySinceMillis(order) || Date.parse(order.createdAt);
+  const elapsed = Number.isFinite(readyAt) ? Math.max(0, Math.round((now - readyAt) / 60000)) : 0;
+  const readySeconds = Number.isFinite(readyAt) ? Math.max(0, Math.round((now - readyAt) / 1000)) : 0;
   const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
   return (
-    <article className="overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm kitchen-ready-pulse">
+    <article className={cn("overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm", readySeconds < 60 ? "animate-pulse ring-2 ring-emerald-300" : "kitchen-ready-pulse")}>
       <button type="button" className="grid w-full gap-2 p-3 text-left sm:grid-cols-[120px_minmax(0,1fr)_100px_120px] sm:items-center" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
         <span className="text-lg font-black text-slate-950">{readableTableOrderId(order, index + 1)}</span>
         <span className="min-w-0">
           <span className="block truncate text-sm font-black text-emerald-700">{order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in")}</span>
-          <span className="block truncate text-xs font-semibold text-slate-500">{itemCount} item{itemCount === 1 ? "" : "s"} · ETA {order.etaMinutes ?? 12} min · {elapsed}m</span>
+          <span className="block truncate text-xs font-semibold text-slate-500">{itemCount} item{itemCount === 1 ? "" : "s"} · Ready since {elapsed}m · SLA {serveSlaLabel(elapsed)}</span>
         </span>
-        <Badge variant="success">Ready</Badge>
+        <Badge variant={order.priority === "rush" ? "destructive" : "success"}>{order.priority === "rush" ? "Priority" : "Ready"}</Badge>
         <span className="flex items-center justify-between gap-2 text-xs font-black text-slate-500">
-          {paymentLabel(order.paymentStatus)}
+          {order.paymentStatus === "paid" ? "Paid" : "Payment pending"}
           <Clock3 className={cn("size-4 transition", open && "rotate-180")} />
         </span>
       </button>
@@ -3019,7 +3510,7 @@ function ReadyOrderAccordion({
               <Button size="sm" onClick={() => onServe(order)}><Utensils className="size-4" />Serve</Button>
               <Button size="sm" variant="outline" onClick={() => onOpen(order)}><Eye className="size-4" />Open</Button>
               <Button size="sm" variant="outline" onClick={() => onCollectPayment(order)}><CircleDollarSign className="size-4" />Collect</Button>
-              <Button size="sm" variant="outline" onClick={() => onOpen(order)}><PlusCircle className="size-4" />Add</Button>
+              <Button size="sm" variant="outline" onClick={() => onAddItems(order)}><PlusCircle className="size-4" />Add</Button>
               <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}><ReceiptText className="size-4" />Bill</Button>
               <Button size="sm" variant="outline" onClick={() => onTimeline(order)}><Clock3 className="size-4" />Timeline</Button>
               <Button size="sm" variant="outline" className="sm:col-span-3 lg:col-span-6" onClick={() => onPaymentHistory(order)}><History className="size-4" />History</Button>
@@ -3046,6 +3537,7 @@ function PosActiveOrderMenu({
   canMerge,
   busy,
   onOpen,
+  onAddItems,
   onPrintBill,
   onPrintReceipt,
   onPrintKot,
@@ -3064,6 +3556,7 @@ function PosActiveOrderMenu({
   canMerge: boolean;
   busy: string;
   onOpen: (order: TableOrder) => void;
+  onAddItems: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
   onPrintReceipt: (order: TableOrder) => void;
   onPrintKot: (order: TableOrder) => void;
@@ -3093,7 +3586,7 @@ function PosActiveOrderMenu({
     { label: "Print Bill", icon: ReceiptText, onClick: () => onPrintBill(order) },
     { label: "Print Receipt", icon: Printer, onClick: () => onPrintReceipt(order) },
     { label: "Print KOT", icon: ClipboardList, onClick: () => onPrintKot(order) },
-    { label: "Add Items", icon: PlusCircle, onClick: () => onOpen(order) },
+    { label: "Add Items", icon: PlusCircle, onClick: () => onAddItems(order) },
     { label: "Collect Payment", icon: CircleDollarSign, onClick: () => onCollectPayment(order), disabled: busy === `payment:${order.id}` },
     { label: "Serve", icon: Utensils, onClick: () => onServe(order), disabled: order.status !== "ready" },
     { label: "Split Bill", icon: Scissors, onClick: () => onSplit(order), disabled: busy === `split:${order.id}` },
@@ -3226,6 +3719,45 @@ function paymentInfoTone(status?: TableOrder["paymentStatus"]) {
   return "text-slate-900";
 }
 
+function orderStatusTone(status?: string, payment?: string) {
+  if (payment === "paid") return { chip: "bg-emerald-900 text-white", bar: "bg-emerald-900", dot: "bg-emerald-900" };
+  if (status === "new") return { chip: "bg-blue-50 text-blue-700", bar: "bg-blue-500", dot: "bg-blue-500" };
+  if (status === "accepted") return { chip: "bg-orange-50 text-orange-700", bar: "bg-orange-500", dot: "bg-orange-500" };
+  if (status === "preparing") return { chip: "bg-yellow-50 text-yellow-800", bar: "bg-yellow-500", dot: "bg-yellow-500" };
+  if (status === "ready") return { chip: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-500", dot: "bg-emerald-500" };
+  if (status === "served") return { chip: "bg-teal-50 text-teal-700", bar: "bg-teal-500", dot: "bg-teal-500" };
+  if (status === "billing" || status === "billed") return { chip: "bg-purple-50 text-purple-700", bar: "bg-purple-500", dot: "bg-purple-500" };
+  if (status === "cancelled" || status === "rejected") return { chip: "bg-red-50 text-red-700", bar: "bg-red-500", dot: "bg-red-500" };
+  return { chip: "bg-slate-100 text-slate-700", bar: "bg-slate-400", dot: "bg-slate-400" };
+}
+
+function activeOrderSearchText(order: OperationalOrder) {
+  const raw = order as OperationalOrder & {
+    deliveryPartnerName?: string;
+    vehicleNumber?: string;
+    qrTableCode?: string;
+  };
+  return [
+    readableTableOrderId(order),
+    order.orderNumber,
+    order.displayOrderNumber,
+    order.invoiceNumber,
+    order.billNumber,
+    order.tableNumber,
+    order.customerName,
+    order.guestName,
+    order.customerPhone,
+    order.waiterName,
+    order.assignedStaffName,
+    raw.deliveryPartnerName,
+    raw.vehicleNumber,
+    raw.qrTableCode,
+    order.source,
+    order.orderType,
+    ...order.lines.map((line) => `${line.name} ${line.itemId}`),
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
 function OperationalMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white/75 px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
@@ -3235,7 +3767,7 @@ function OperationalMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
+function PastOrdersPanel({ orders, canCorrect, onOpen, onCorrect }: { orders: DemoOrder[]; canCorrect: boolean; onOpen: (order: DemoOrder) => void; onCorrect: (order: DemoOrder) => void }) {
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<"today" | "yesterday" | "week" | "month" | "custom">("week");
   const [status, setStatus] = useState<"all" | DemoOrder["status"]>("all");
@@ -3259,6 +3791,7 @@ function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
         gst: order.totals.tax,
         discount: order.totals.discount,
         status: order.status,
+        order,
       })),
   ];
   const filtered = rows.filter((row) => {
@@ -3321,7 +3854,7 @@ function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              {["Order No", "Customer", "Amount", "Payment", "Time", "Waiter", "Source", "GST", "Discount", "Status"].map((head) => <th key={head} className="px-3 py-3 font-black">{head}</th>)}
+              {["Order No", "Customer", "Amount", "Payment", "Time", "Waiter", "Source", "GST", "Discount", "Status", "Actions"].map((head) => <th key={head} className="px-3 py-3 font-black">{head}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -3337,6 +3870,12 @@ function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
                 <td className="px-3 py-3">{formatCurrency(row.gst)}</td>
                 <td className="px-3 py-3">{formatCurrency(row.discount)}</td>
                 <td className="px-3 py-3"><Badge variant="success">{row.status}</Badge></td>
+                <td className="px-3 py-3">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => onOpen(row.order)}><Eye className="size-4" />Open</Button>
+                    <Button size="sm" variant="outline" disabled={!canCorrect} onClick={() => onCorrect(row.order)}><ReceiptText className="size-4" />Correct</Button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -3351,6 +3890,10 @@ function PastOrdersPanel({ orders }: { orders: DemoOrder[] }) {
                 <p className="text-xs font-semibold text-slate-500">{row.time} • {row.status}</p>
               </div>
               <p className="font-black">{formatCurrency(row.amount)}</p>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={() => onOpen(row.order)}><Eye className="size-4" />Open</Button>
+              <Button size="sm" variant="outline" disabled={!canCorrect} onClick={() => onCorrect(row.order)}><ReceiptText className="size-4" />Correct</Button>
             </div>
           </article>
         ))}

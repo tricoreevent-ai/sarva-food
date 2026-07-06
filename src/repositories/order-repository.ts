@@ -42,6 +42,7 @@ type ActorInput = {
   userId?: string;
   role?: string;
   device?: string;
+  ip?: string;
   note?: string;
 };
 
@@ -64,7 +65,10 @@ export type OperationalEvent =
   | "completion"
   | "split_bill"
   | "transfer_table"
-  | "merge_tables";
+  | "merge_tables"
+  | "payment_started"
+  | "payment_unlock"
+  | "bill_correction";
 
 type OperationalEventInput = ActorInput & {
   orderId: string;
@@ -105,6 +109,34 @@ type MergeTablesInput = ActorInput & {
   sourceOrderIds: string[];
   sourceKitchenOrderIds?: string[];
   tableNumber?: string;
+};
+
+type CorrectionLineInput = {
+  itemId?: string;
+  menuItemId?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  notes?: string;
+};
+
+type BillCorrectionInput = ActorInput & {
+  orderId: string;
+  reason: string;
+  lines: CorrectionLineInput[];
+  discount?: number;
+  tax?: number;
+  packingCharge?: number;
+  deliveryFee?: number;
+  total?: number;
+};
+
+type PaymentLockInput = ActorInput & {
+  orderId: string;
+  kitchenOrderId?: string;
+  amount?: number;
+  method?: PaymentMethod;
+  reason?: string;
 };
 
 export class OrderRepository {
@@ -532,6 +564,145 @@ export class OrderRepository {
     return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}), paymentStatus: nextStatus };
   }
 
+  async startPaymentLock(scope: TenantScope, input: PaymentLockInput) {
+    const orderRef = this.db.collection("orders").doc(input.orderId);
+    const customerOrderRef = this.db.collection("customerOrders").doc(input.orderId);
+    const now = new Date();
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) throw new Error("Order not found.");
+      const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+      assertOrderTenant(order, scope);
+      if (!["ready", "served"].includes(String(order.foodStatus ?? order.status))) throw new Error("Kitchen still preparing.");
+      const lock = cleanRecord({
+        locked: true,
+        startedAt: now,
+        by: input.userId ?? scope.uid ?? "",
+        role: input.role,
+        device: input.device,
+        ip: input.ip,
+        method: input.method,
+        amount: input.amount,
+      });
+      const entry = paymentEvent("payment_started", scope, input, now, { balanceDue: Math.max(0, money(Number(order.total ?? 0) - paidAmount(order))), lock });
+      const audit = auditEvent("payment_started", scope, input, now, { orderId: input.orderId, lock });
+      const patch = {
+        paymentLock: lock,
+        paymentTimeline: FieldValue.arrayUnion(entry),
+        auditTimeline: FieldValue.arrayUnion(audit),
+        statusHistory: FieldValue.arrayUnion(cleanRecord({ event: "payment_started", paymentStatus: order.paymentStatus ?? "pending", at: now, by: input.userId ?? scope.uid })),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.set(orderRef, patch, { merge: true });
+      transaction.set(customerOrderRef, patch, { merge: true });
+      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "payment_started", entityId: input.orderId, after: audit, device: input.device });
+    });
+    const updated = await orderRef.get();
+    return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}) };
+  }
+
+  async unlockPayment(scope: TenantScope, input: PaymentLockInput) {
+    const orderRef = this.db.collection("orders").doc(input.orderId);
+    const customerOrderRef = this.db.collection("customerOrders").doc(input.orderId);
+    const reason = input.reason?.trim();
+    if (!reason) throw new Error("Unlock reason is required.");
+    const now = new Date();
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) throw new Error("Order not found.");
+      const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+      assertOrderTenant(order, scope);
+      const lock = cleanRecord({
+        locked: false,
+        unlockedAt: now,
+        unlockedBy: input.userId ?? scope.uid ?? "",
+        role: input.role,
+        reason,
+        device: input.device,
+        ip: input.ip,
+      });
+      const entry = paymentEvent("payment_unlock", scope, input, now, { reason, lock });
+      const audit = auditEvent("payment_unlock", scope, input, now, { reason, orderId: input.orderId, lock });
+      const patch = {
+        paymentLock: lock,
+        paymentTimeline: FieldValue.arrayUnion(entry),
+        auditTimeline: FieldValue.arrayUnion(audit),
+        statusHistory: FieldValue.arrayUnion(cleanRecord({ event: "payment_unlock", paymentStatus: order.paymentStatus ?? "pending", at: now, by: input.userId ?? scope.uid, reason })),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.set(orderRef, patch, { merge: true });
+      transaction.set(customerOrderRef, patch, { merge: true });
+      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "payment_unlock", entityId: input.orderId, after: audit, device: input.device });
+    });
+    const updated = await orderRef.get();
+    return { order: dataWithId<OrderDoc>(updated.id, updated.data() ?? {}) };
+  }
+
+  async recordBillCorrection(scope: TenantScope, input: BillCorrectionInput) {
+    const orderRef = this.db.collection("orders").doc(input.orderId);
+    const customerOrderRef = this.db.collection("customerOrders").doc(input.orderId);
+    const reason = input.reason?.trim();
+    if (!reason) throw new Error("Correction reason is required.");
+    const now = new Date();
+    let nextOrder: OrderDoc | null = null;
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) throw new Error("Order not found.");
+      const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+      assertOrderTenant(order, scope);
+      if (!["completed", "delivered"].includes(order.status)) throw new Error("Only completed bills can be corrected.");
+      const before = correctionSnapshot(order);
+      const after = correctionSnapshot({
+        ...order,
+        lines: normalizeCorrectionLines(input.lines),
+        discount: money(input.discount ?? order.discount),
+        tax: money(input.tax ?? order.tax),
+        deliveryFee: money(input.deliveryFee ?? order.deliveryFee),
+        total: money(input.total ?? order.total),
+      } as OrderDoc);
+      const existing = correctionHistory(order);
+      const version = existing.length + 1;
+      const diff = correctionDiff(before, after);
+      const record = cleanRecord({
+        version,
+        label: `Correction #${version}`,
+        at: now,
+        reason,
+        orderNumber: order.invoiceNumber ?? order.id,
+        user: input.userId ?? scope.uid ?? "",
+        role: input.role ?? "",
+        terminal: input.device ?? "",
+        ip: input.ip,
+        before,
+        after,
+        diff,
+      });
+      const audit = auditEvent("bill_correction", scope, input, now, record);
+      const patch = {
+        lines: after.lines,
+        subtotal: after.subtotal,
+        discount: after.discount,
+        tax: after.tax,
+        deliveryFee: after.deliveryFee,
+        total: after.total,
+        corrections: FieldValue.arrayUnion(record),
+        correctionVersion: version,
+        lastCorrectionAt: now,
+        lastCorrectionReason: reason,
+        auditTimeline: FieldValue.arrayUnion(audit),
+        statusHistory: FieldValue.arrayUnion(cleanRecord({ event: "bill_correction", at: now, by: input.userId ?? scope.uid, reason, correctionVersion: version })),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      transaction.set(orderRef, patch, { merge: true });
+      transaction.set(customerOrderRef, patch, { merge: true });
+      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "bill_correction", entityId: input.orderId, after: record, device: input.device });
+      writeNotification(transaction, scope, { type: "order_update", title: "Bill corrected", message: `Correction #${version} saved for ${order.invoiceNumber ?? order.id}.`, priority: "normal", orderId: input.orderId, kitchenOrderId: order.kitchenOrderId });
+      nextOrder = { ...order, ...(patch as unknown as Partial<OrderDoc>), corrections: [...existing, record] } as OrderDoc;
+    });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
+    return nextOrder!;
+  }
+
   async recordGatewayPaymentEvent(scope: TenantScope, input: PaymentInput & { status: "authorized" | "failed" }) {
     const orderRef = this.db.collection("orders").doc(input.orderId);
     const customerOrderRef = this.db.collection("customerOrders").doc(input.orderId);
@@ -606,9 +777,11 @@ export class OrderRepository {
     const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
     if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
     const now = new Date();
+    const printNumber = Number(order.printedCount ?? 0) + 1;
     const event = type === "receipt" ? "receipt_printed" : type === "bill" ? "bill_printed" : "kot_printed";
-    const paymentTimeline = type === "bill" || type === "receipt" ? [paymentEvent(event, scope, input, now)] : [];
-    const audit = auditEvent(event, scope, input, now, { printType: type });
+    const printDetails = cleanRecord({ printType: type, printNumber, reason: input.note, printer: "browser-print" });
+    const paymentTimeline = type === "bill" || type === "receipt" ? [paymentEvent(event, scope, input, now, printDetails)] : [];
+    const audit = auditEvent(event, scope, input, now, printDetails);
     const patch = {
       printedCount: FieldValue.increment(1),
       lastPrintedAt: FieldValue.serverTimestamp(),
@@ -622,10 +795,10 @@ export class OrderRepository {
     await Promise.all([
       ref.set(patch, { merge: true }),
       this.db.collection("customerOrders").doc(orderId).set(patch, { merge: true }),
-      printLogRef.set(cleanRecord({ id: printLogRef.id, tenantId: scope.tenantId, restaurantId: scope.tenantId, orderId, type, status: "printed", printedBy: input.userId ?? scope.uid ?? "", device: input.device, createdAt: FieldValue.serverTimestamp() })),
+      printLogRef.set(cleanRecord({ id: printLogRef.id, tenantId: scope.tenantId, restaurantId: scope.tenantId, orderId, type, status: "printed", printedBy: input.userId ?? scope.uid ?? "", device: input.device, printer: "browser-print", reason: input.note, printNumber, createdAt: FieldValue.serverTimestamp() })),
       auditRef.set(cleanRecord({ id: auditRef.id, tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: input.userId ?? scope.uid ?? "", role: input.role, action: event, module: "orders", entityId: orderId, after: audit, device: input.device, createdAt: FieldValue.serverTimestamp() })),
     ]);
-    return { ...order, printedCount: Number(order.printedCount ?? 0) + 1 };
+    return { ...order, printedCount: printNumber };
   }
 
   async recordOperationalEvent(scope: TenantScope, input: OperationalEventInput) {
@@ -1056,6 +1229,72 @@ function splitBillsOf(order: OrderDoc | null) {
   return Array.isArray(value) ? value : [];
 }
 
+function correctionHistory(order: OrderDoc | null) {
+  if (!order) return [];
+  const value = (order as OrderDoc & { corrections?: unknown[] }).corrections;
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeCorrectionLines(lines: CorrectionLineInput[]): OrderLineDoc[] {
+  return lines
+    .map((line, index) => ({
+      menuItemId: String(line.menuItemId ?? line.itemId ?? `manual-${index + 1}`),
+      name: String(line.name ?? "").trim(),
+      price: money(Number(line.price ?? 0)),
+      quantity: Math.max(0, Math.floor(Number(line.quantity ?? 0))),
+      notes: line.notes?.trim(),
+    }))
+    .filter((line) => line.name && line.quantity > 0);
+}
+
+function correctionSnapshot(order: Pick<OrderDoc, "lines" | "discount" | "tax" | "deliveryFee" | "total">) {
+  const lines = (order.lines ?? []).map((line) => ({
+    menuItemId: line.menuItemId,
+    name: line.name,
+    price: money(Number(line.price ?? 0)),
+    quantity: Number(line.quantity ?? 0),
+    total: money(Number(line.price ?? 0) * Number(line.quantity ?? 0)),
+  }));
+  const subtotal = money(lines.reduce((sum, line) => sum + line.total, 0));
+  return {
+    lines,
+    subtotal,
+    discount: money(Number(order.discount ?? 0)),
+    tax: money(Number(order.tax ?? 0)),
+    deliveryFee: money(Number(order.deliveryFee ?? 0)),
+    total: money(Number(order.total ?? subtotal)),
+  };
+}
+
+function correctionDiff(before: ReturnType<typeof correctionSnapshot>, after: ReturnType<typeof correctionSnapshot>) {
+  const prior = new Map(before.lines.map((line) => [line.menuItemId || line.name, line]));
+  const next = new Map(after.lines.map((line) => [line.menuItemId || line.name, line]));
+  const added = after.lines.filter((line) => !prior.has(line.menuItemId || line.name));
+  const removed = before.lines.filter((line) => !next.has(line.menuItemId || line.name));
+  const quantityChanges = after.lines
+    .map((line) => {
+      const old = prior.get(line.menuItemId || line.name);
+      return old && old.quantity !== line.quantity ? { item: line.name, before: old.quantity, after: line.quantity } : null;
+    })
+    .filter(Boolean);
+  const priceChanges = after.lines
+    .map((line) => {
+      const old = prior.get(line.menuItemId || line.name);
+      return old && old.price !== line.price ? { item: line.name, before: old.price, after: line.price } : null;
+    })
+    .filter(Boolean);
+  return {
+    itemsAdded: added,
+    itemsRemoved: removed,
+    quantityChanges,
+    priceChanges,
+    taxChange: money(after.tax - before.tax),
+    discountChange: money(after.discount - before.discount),
+    packingChange: money(after.deliveryFee - before.deliveryFee),
+    grandTotalDifference: money(after.total - before.total),
+  };
+}
+
 function mergeOrderLines(orders: OrderDoc[]) {
   const lines = new Map<string, OrderLineDoc>();
   for (const order of orders) {
@@ -1095,6 +1334,7 @@ function paymentEvent(type: string, scope: TenantScope, input: ActorInput & { am
     amount: input.amount,
     method: input.method,
     device: input.device ?? "",
+    ip: input.ip,
     ...extra,
   });
 }
@@ -1106,6 +1346,7 @@ function auditEvent(type: string, scope: TenantScope, input: ActorInput, at: Dat
     user: input.userId ?? scope.uid ?? "",
     role: input.role ?? "",
     device: input.device ?? "",
+    ip: input.ip,
     restaurant: scope.tenantId,
     ...extra,
   });

@@ -99,6 +99,8 @@ function orderDocToOperationalDemoOrder(order: OrderDoc) {
     auditTimeline: (order as OrderDoc & { auditTimeline?: unknown[] }).auditTimeline ?? [],
     statusHistory: order.statusHistory ?? [],
     splitBills: (order as OrderDoc & { splitBills?: unknown[] }).splitBills ?? [],
+    corrections: (order as OrderDoc & { corrections?: unknown[] }).corrections ?? [],
+    paymentLock: (order as OrderDoc & { paymentLock?: unknown }).paymentLock,
     paidAmount: (order as OrderDoc & { paidAmount?: number }).paidAmount,
     mergedOrderIds: (order as OrderDoc & { mergedOrderIds?: string[] }).mergedOrderIds ?? [],
     mergedIntoOrderId: (order as OrderDoc & { mergedIntoOrderId?: string }).mergedIntoOrderId,

@@ -366,6 +366,11 @@ export type OrderDoc = TenantScopedDoc & {
   paidAmount?: number;
   paymentTimeline?: Array<Record<string, unknown>>;
   auditTimeline?: Array<Record<string, unknown>>;
+  corrections?: Array<Record<string, unknown>>;
+  correctionVersion?: number;
+  lastCorrectionAt?: FirestoreDate;
+  lastCorrectionReason?: string;
+  paymentLock?: Record<string, unknown>;
   statusHistory?: Array<{ status?: OrderStatus; foodStatus?: KitchenOrderStatus; paymentStatus?: PaymentStatus; event?: string; at: FirestoreDate; by?: string }>;
   preparedBy?: string;
   servedBy?: string;

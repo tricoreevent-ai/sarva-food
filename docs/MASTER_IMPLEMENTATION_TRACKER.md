@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Final Operational Workflow and UX Stabilization |
+| Current Sprint | Final Operational Stabilization, Audit, and Payment Safety |
 | Release Version | `v1.0.0-rc1` |
 | Latest Git Commit | Sprint 1 production-readiness commit created locally from base `8a0315c37228918e82498ae0d7c78317d616da45`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | Last verified hosted deployment: `https://violet-squid-380447.hostingersite.com` at `6823c15e5a7906decf179e329b7bee1f9617dd28`; Sprint 1 redeploy pending |
 | Build Date | 2026-07-06 |
-| Verification Status | Final operational workflow local typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse and Hostinger redeploy remain manual. |
-| Scope | Final operational workflow and UX stabilization only: Active Orders, waiter-ready flow, Kitchen density, notification behavior, navigation cleanup, and history filters. |
+| Verification Status | Final operational audit/payment safety local typecheck, lint, build, and diff check passed; authenticated browser/provider/device/printer/Lighthouse, push, and Hostinger redeploy remain pending/manual. |
+| Scope | Final operational stabilization only: bill correction audit, payment verification/lock, ready validation, incremental KOT merge, order details drawer, print history, search, status colors, and documentation. |
 
 ## UI/UX Optimization Sprint - 2026-07-06
 
@@ -30,9 +30,9 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Order number consistency | Complete in touched surfaces | Shared display helper now returns `#0000` style numbers and print/bill/KOT/search/owner/POS/kitchen touched surfaces avoid displaying Firestore document IDs. |
 | Waiter notification workflow | Complete | Kitchen `ready` status triggers a top-right `Order Ready` notification with order number, table/type, and View action without adding listeners. |
 | Push notification readiness | Code-ready / provider pending | FCM foreground/background handlers, permission UI, token storage in `user_preferences`, token refresh, invalid-token cleanup, notification click deep links, sounds, badges, and server dispatch hooks are implemented. Production requires Firebase Web Push VAPID key, rules deploy, and device smoke. |
-| Performance optimization summary | Complete | No new Firestore listeners, APIs, repositories, payment flows, or subscriptions were added; dropdowns/accordions remain lazy-rendered and active lists cap visible rows. |
+| Performance optimization summary | Complete | No new Firestore listeners, route families, collections, or subscriptions were added; Active Orders search and ready sorting use the existing memoized read model, long history remains paged, and incremental KOT merge runs only on status update. |
 | Responsive verification | Code-ready | Owner/POS rows collapse to stacked mobile rows; Kitchen keeps 4 desktop columns, mobile compact cards, and touch-size controls. Manual device smoke remains required. |
-| Files modified | Complete | `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/types/entities.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/flows/pos-billing-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, `src/app/api/owner/pos/route.ts`, `src/app/globals.css`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+| Files modified | Complete | `src/repositories/order-repository.ts`, `src/repositories/kitchen-repository.ts`, `src/app/api/owner/orders/route.ts`, `src/app/api/owner/pos/route.ts`, `src/types/firebase.ts`, `src/components/flows/pos-billing-flow.tsx`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`, plus prior pass files `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/types/entities.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, and `src/app/globals.css`. |
 
 ## Final Operational Workflow and UX Stabilization - 2026-07-06
 
@@ -46,9 +46,97 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Notifications | Complete. Kitchen ready status now triggers a persistent green SarvaNotification with Open, Serve, Collect, and Dismiss actions; duplicate ready notifications reuse the same toast id. Persistent SarvaNotification cards no longer render invalid progress timing. |
 | Kitchen Density | Complete. Desktop Kitchen cards keep customer/payment/waiter/station/timeline inside Details, reduce padding and item spacing, cap visible items with a small `+n more` expander, and preserve the four-column board and existing SSE cleanup. |
 | Navigation / History | Complete. POS Past Orders is renamed to Order History, the Past Orders badge is removed, Waiter View no longer shows Kitchen Queue, and Order History now has Today, Yesterday, Week, Month, Custom date range, search, and status filters. |
-| Known Limitation | Completed-bill correction with immutable before/after audit and manager approval is not implemented because the existing owner orders API has no billing-adjustment action; this remains a separate backend/repository task if required for release. |
+| Known Limitation | Completed-bill correction is now implemented through the existing owner orders API/repository with immutable correction versions; production smoke with authenticated owner/manager sessions remains manual. |
 | Verification | `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed. Build retains the known Firebase/protobuf dynamic dependency warning. |
 | Production Readiness | 98% production-release ready pending Hostinger env correction/redeploy, authenticated browser smoke, provider checks, Firebase rules/indexes, and printer/device validation. |
+
+## Final Operational Stabilization, Audit, and Payment Safety - 2026-07-06
+
+### Completed Features
+
+| Area | Result |
+| --- | --- |
+| Bill Correction | Completed. Owner/manager-only completed bill correction now uses the existing owner orders API and `OrderRepository`, requires a reason, stores immutable correction versions, captures before/after/diff snapshots, and mirrors corrected totals to `orders` and `customerOrders` without adding collections. |
+| Audit Flow | Completed. Correction, payment start, payment unlock, payment complete, print, split, merge, transfer, and incremental KOT merge events write existing audit timeline/status history/audit log records with user, role, device/terminal, IP when available, timestamp, reason, and operational metadata. |
+| Payment Safety | Completed. Active payment now opens a verify step before collection, writes a payment-start lock, validates Kitchen readiness, and never calls Kitchen send/reopen paths. |
+| Payment Lock | Completed. Once payment starts, POS edit reopening is blocked; owner-only unlock requires a reason and writes `payment_unlock` history before edits are allowed. |
+| Incremental KOT Merge | Completed. Add-items-after-ready still sends only newly added lines as rush incremental KOT; when the child KOT reaches `ready`, the Kitchen repository merges those lines once into the parent ticket and linked canonical/customer order with audit history. |
+| Order Details Drawer | Completed. Active Order Open now uses a right-side drawer with summary, customer, items, kitchen/payment/audit timeline, corrections, print history, notes, and actions. |
+| Print History | Completed. Bill/KOT/receipt print records now include print number, reason, user, device, and browser printer marker in the existing `printLogs` and timeline paths. |
+| Active Order Search | Completed. Active Orders now search order number, invoice/bill number, table, customer, phone, item, waiter/staff, source/type, delivery partner, vehicle, and QR table fields against the existing memoized read model. |
+| Status Colors | Completed in touched POS surfaces. New blue, Accepted orange, Preparing yellow, Ready green, Served teal, Billing purple, Paid dark green, and Cancelled red are standardized through a shared POS status tone helper used by rows and timeline entries. |
+| Waiter Ready Panel | Completed. Ready orders sort longest-waiting first, show ready since/SLA/payment pending/priority, blink for the first minute, then fall back to pulse, and retain Serve/Open/Collect/Add/Bill/Timeline/History actions. |
+
+### Validation
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with existing Firebase/protobuf dynamic dependency warning. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+### Workflow Diagram
+
+```text
+Active/Past Order
+  -> Open Details Drawer
+  -> Inspect summary, items, timeline, payments, corrections, prints
+  -> Add Items / Print / Collect / Correct based on role and order state
+```
+
+### Audit Flow
+
+```text
+Operational action
+  -> Existing owner/kitchen API
+  -> Repository transaction
+  -> order auditTimeline + statusHistory
+  -> auditLogs record
+  -> optional notification / printLog / paymentTransaction
+```
+
+### Correction Flow
+
+```text
+Order History
+  -> Open completed order
+  -> Correct Bill
+  -> Mandatory reason
+  -> Preview original -> corrected totals and item changes
+  -> Confirm
+  -> Correction #n stored immutably with before/after/diff
+```
+
+### Payment Lock Flow
+
+```text
+Ready/served order
+  -> Collect
+  -> Verify order/table/customer/items/total/method
+  -> payment_started lock
+  -> Record payment
+  -> payment_completed or partial_payment
+  -> Owner unlock with reason only if edits are needed
+```
+
+### Known Limitations
+
+| Area | Limitation |
+| --- | --- |
+| Production Smoke | Authenticated owner/manager/waiter/cashier browser smoke remains manual. |
+| Hardware | Real 58mm/80mm/A4 print output, KOT reprint, and browser print behavior remain device/printer dependent. |
+| Permissions UI | Bill-correction permission is enforced by role/API and optional permission string; a dedicated owner settings toggle remains future enhancement. |
+| Provider Gates | Razorpay, SMTP, WhatsApp/SMS/push, Firebase rules/index deploy, and Hostinger env/redeploy remain external/manual. |
+
+### Future Enhancements
+
+| Area | Future Work |
+| --- | --- |
+| Correction UX | Add a richer line-add/remove editor and manager approval queue if restaurant policy requires multi-step approval. |
+| Print Profiles | Attach real selected printer profile names to print history when browser/printer adapter selection is available. |
+| Analytics | Add correction/refund/payment-lock aggregate reporting after the aggregate analytics design is approved. |
+| E2E | Add focused Playwright coverage for correction, payment lock, incremental KOT merge, and drawer history after test strategy approval. |
 
 ## Sprint 1 Production Readiness and Feature Completion - 2026-07-06
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
-import type { KitchenOrderDoc, KitchenOrderStatus } from "@/types/firebase";
+import type { KitchenOrderDoc, KitchenOrderStatus, OrderDoc, OrderLineDoc } from "@/types/firebase";
 import { dataWithId, dateMs, readTenantDocs, type TenantScope } from "@/repositories/shared";
 
 const statusFlow: KitchenOrderStatus[] = ["new", "accepted", "preparing", "ready", "served", "completed"];
@@ -87,6 +87,9 @@ export class KitchenRepository {
       updatedAt: FieldValue.serverTimestamp(),
     }).filter(([, value]) => typeof value !== "undefined"));
     await this.db.collection("kitchenOrders").doc(id).set(next, { merge: true });
+    if (patch.status === "ready" && (current as Partial<KitchenOrderDoc> & { parentKitchenOrderId?: string }).parentKitchenOrderId) {
+      await this.mergeIncrementalIntoParent(scope, id, current);
+    }
     const snapshot = await this.db.collection("kitchenOrders").doc(id).get();
     return dataWithId<KitchenOrderDoc>(id, snapshot.data() ?? {});
   }
@@ -102,6 +105,90 @@ export class KitchenRepository {
     if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen order is outside the active restaurant.");
     return order;
   }
+
+  private async mergeIncrementalIntoParent(scope: TenantScope, childId: string, child: Partial<KitchenOrderDoc>) {
+    const parentId = String((child as Partial<KitchenOrderDoc> & { parentKitchenOrderId?: string }).parentKitchenOrderId ?? "");
+    if (!parentId) return;
+    const parentRef = this.db.collection("kitchenOrders").doc(parentId);
+    const parentSnapshot = await parentRef.get();
+    if (!parentSnapshot.exists) return;
+    const parent = dataWithId<KitchenOrderDoc>(parentSnapshot.id, parentSnapshot.data() ?? {});
+    if (![parent.tenantId, parent.restaurantId].includes(scope.tenantId)) return;
+    const mergedIds = Array.isArray((parent as KitchenOrderDoc & { incrementalKitchenOrderIds?: string[] }).incrementalKitchenOrderIds)
+      ? (parent as KitchenOrderDoc & { incrementalKitchenOrderIds?: string[] }).incrementalKitchenOrderIds ?? []
+      : [];
+    if (mergedIds.includes(childId)) return;
+    const childLines = Array.isArray(child.lines) ? child.lines : [];
+    const parentLines = mergeKitchenLines(parent.lines ?? [], childLines);
+    const subtotal = parentLines.reduce((sum, line) => sum + Number(line.price ?? 0) * Number(line.quantity ?? 0), 0);
+    const parentPatch = {
+      lines: parentLines,
+      subtotal,
+      total: subtotal + Number(parent.tax ?? 0),
+      incrementalKitchenOrderIds: FieldValue.arrayUnion(childId),
+      statusHistory: FieldValue.arrayUnion({ event: "incremental_kot_merged", status: "ready", childKitchenOrderId: childId, at: new Date().toISOString() }),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    await parentRef.set(parentPatch, { merge: true });
+    const orderSnapshot = await this.db.collection("orders").where("kitchenOrderId", "==", parentId).limit(1).get();
+    const orderDoc = orderSnapshot.docs.find((doc) => {
+      const data = doc.data() as Partial<OrderDoc>;
+      return [data.tenantId, data.restaurantId].includes(scope.tenantId);
+    });
+    if (!orderDoc) return;
+    const order = dataWithId<OrderDoc>(orderDoc.id, orderDoc.data() ?? {});
+    const orderLines = mergeOrderLines(order.lines ?? [], childLines);
+    const orderSubtotal = orderLines.reduce((sum, line) => sum + Number(line.price ?? 0) * Number(line.quantity ?? 0), 0);
+    const total = orderSubtotal - Number(order.discount ?? 0) + Number(order.tax ?? 0) + Number(order.deliveryFee ?? 0);
+    const audit = {
+      type: "incremental_kot_merged",
+      timestamp: new Date(),
+      user: scope.uid ?? "",
+      role: "kitchen",
+      device: "kitchen-ready",
+      restaurant: scope.tenantId,
+      childKitchenOrderId: childId,
+      parentKitchenOrderId: parentId,
+      lines: childLines.map((line) => ({ name: line.name, quantity: line.quantity })),
+    };
+    const orderPatch = {
+      lines: orderLines,
+      subtotal: orderSubtotal,
+      total,
+      auditTimeline: FieldValue.arrayUnion(audit),
+      statusHistory: FieldValue.arrayUnion({ event: "incremental_kot_merged", at: new Date(), by: scope.uid ?? "", childKitchenOrderId: childId }),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    await Promise.all([
+      this.db.collection("orders").doc(order.id).set(orderPatch, { merge: true }),
+      this.db.collection("customerOrders").doc(order.id).set(orderPatch, { merge: true }),
+    ]);
+  }
+}
+
+function mergeKitchenLines(parent: KitchenOrderDoc["lines"], child: KitchenOrderDoc["lines"]) {
+  const lines = new Map<string, KitchenOrderDoc["lines"][number]>();
+  for (const line of [...parent, ...child]) {
+    const item = line as KitchenOrderDoc["lines"][number] & { itemId?: string };
+    const key = String(item.itemId ?? line.menuItemId ?? line.name);
+    const existing = lines.get(key);
+    lines.set(key, existing ? { ...existing, quantity: Number(existing.quantity ?? 0) + Number(line.quantity ?? 0) } : { ...line, quantity: Number(line.quantity ?? 0) });
+  }
+  return Array.from(lines.values()).filter((line) => Number(line.quantity ?? 0) > 0);
+}
+
+function mergeOrderLines(parent: OrderLineDoc[], child: KitchenOrderDoc["lines"]) {
+  const lines = new Map<string, OrderLineDoc>();
+  for (const line of parent) lines.set(line.menuItemId || line.name, { ...line, quantity: Number(line.quantity ?? 0) });
+  for (const line of child) {
+    const item = line as KitchenOrderDoc["lines"][number] & { itemId?: string };
+    const key = String(line.menuItemId ?? item.itemId ?? line.name);
+    const existing = lines.get(key);
+    lines.set(key, existing
+      ? { ...existing, quantity: Number(existing.quantity ?? 0) + Number(line.quantity ?? 0) }
+      : { menuItemId: key, name: String(line.name ?? "Item"), price: Number(line.price ?? 0), quantity: Number(line.quantity ?? 0), notes: line.notes });
+  }
+  return Array.from(lines.values()).filter((line) => Number(line.quantity ?? 0) > 0);
 }
 
 function isValidStatusTransition(current: KitchenOrderStatus, next: KitchenOrderStatus) {
