@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-05
+Last updated: 2026-07-06
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Final production readiness cleanup |
-| Release Version | `0.1.0` |
-| Latest Git Commit | RC3 final commit recorded in the release handoff report. |
+| Current Sprint | Release Candidate hosted validation |
+| Release Version | `v1.0.0-rc1` |
+| Latest Git Commit | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | Last validated production deployment: `https://violet-squid-380447.hostingersite.com` at `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Build Date | 2026-07-05 |
-| Verification Status | Final cleanup typecheck, lint, build, and diff checks passed; production env/rules/deployment remain blocked |
-| Scope | Code cleanup only: guarded owner API bootstraps, response validation, abort cleanup, and release summary documentation |
+| Hostinger Deployment | Current hosted deployment: `https://violet-squid-380447.hostingersite.com` at `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Build Date | 2026-07-06 |
+| Verification Status | Git push/auth restored; hosted release metadata serves latest commit; route health checks passed; full browser/provider/hardware smoke remains manual |
+| Scope | Release engineering only: hosted validation, documentation, and release tagging |
 
 ## Enterprise Project Dashboard
 
@@ -26,13 +26,13 @@ This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived 
 
 | Field | Status |
 | --- | --- |
-| Overall Completion | 99% code-ready; 98% production-release ready pending manual env, rules, deployment, provider, hardware, and browser smoke validation. |
-| Current Commit SHA | RC3 final commit recorded in the release handoff report. |
-| Production SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last validated on Hostinger |
-| Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` last verified deployment |
-| Validation Status | Final production readiness cleanup validation passed; hosted redeploy validation remains manual. |
-| Last Updated | 2026-07-05 |
-| Next Sprint | Production smoke: Hostinger env/cache/redeploy, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
+| Overall Completion | 99% code-ready; 98% production-release ready pending manual env correction, rules, provider, hardware, and authenticated browser smoke validation. |
+| Current Commit SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Production SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` currently served on Hostinger |
+| Hostinger SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` verified by `/api/release-info` |
+| Validation Status | Local validation and hosted route health checks passed; full authenticated browser/provider/hardware smoke remains manual. |
+| Last Updated | 2026-07-06 |
+| Next Sprint | Production smoke: fix Hostinger `NEXT_PUBLIC_APP_ENV`, manual browser/device/printer smoke, provider readiness checks, and confirmed bug fixes only. |
 | Estimated Remaining Work | 2-4 days manual/provider validation for release confidence; future roadmap work remains out of release scope. |
 | Priority Owner | Manual for production access tasks; Codex only for confirmed bugs discovered during testing. |
 
@@ -2039,3 +2039,60 @@ Known risks:
 | New-order alert visibility depends on the owner screen being loaded and refreshed through existing API reads; no new listener was added by design. | Manual | Smoke with production order flow and decide if future realtime owner-order alerts are required. |
 | Linked Kitchen update only mirrors when the order already has a kitchen ticket id; unmatched orders still update safely without throwing. | Manual + Codex if bug found | Verify production accept/Kitchen handoff and patch only if a real unmatched-ticket bug is confirmed. |
 | Browser animation, audio, and print behavior remain device/browser dependent. | Manual | Test on target restaurant devices after redeploy. |
+
+## RC Hosted Deployment Verification - 2026-07-06
+
+| Field | Result |
+| --- | --- |
+| Release Version | `v1.0.0-rc1` |
+| Deployment Date | 2026-07-06 |
+| Production URL | `https://violet-squid-380447.hostingersite.com` |
+| Commit SHA | `4a9f05870d63c4c5301311af3751834399ab1f7c` |
+| Git Status | `release/production-nammude` synchronized with `origin/release/production-nammude`; `git push` returned `Everything up-to-date`. |
+| Release Metadata | `/api/release-info` returns current branch, current commit SHA, build timestamp, public app URL, and application version. |
+| Deployment Status | Hostinger is serving the latest commit with dynamic no-store headers on app routes. |
+| Rollback Version | Previous validated Hostinger SHA: `35017398773ba04efbdc3ab37d250cfa547c0675`. |
+| Final Production Readiness | 98% pending authenticated browser smoke, Hostinger env correction, provider checks, hardware checks, and Firebase rules/index validation. |
+
+Hosted validation summary:
+
+| Check | Result |
+| --- | --- |
+| Git fetch | Passed after Git metadata permission escalation. |
+| Git push | Passed; remote already up to date. |
+| `/api/release-info` | Passed for latest SHA and public URL. Known issue: `deploymentEnvironment` currently reports `development`; set Hostinger `NEXT_PUBLIC_APP_ENV=production`. |
+| `/` | Passed 200. |
+| `/restaurants` | Passed 200. |
+| `/checkout` | Passed 200. |
+| `/order/test-health-check` | Passed 200. |
+| `/owner/dashboard` | Passed expected 307 to owner login, then 200 login page. |
+| `/owner/orders` | Passed expected 307 to owner login, then 200 login page. |
+| `/owner/kitchen` | Passed expected 307 to owner login, then 200 login page. |
+| `/owner/pos` | Passed expected 307 to owner login, then 200 login page. |
+| `/api/owner/orders` | Passed expected unauthenticated 403. |
+| `/api/owner/kitchen` | Passed expected unauthenticated 403. |
+| `/api/customer/orders` | Passed expected unauthenticated 403. |
+| `/api/payments/razorpay/order` | Passed expected GET 405; payment POST smoke remains provider/manual. |
+| `/robots.txt` | Passed 200. |
+| `/sitemap.xml` | Passed 200. |
+
+Manual smoke results still required:
+
+| Area | Required Manual Result |
+| --- | --- |
+| Owner Active Orders | New online order alert, sound, highlight, accept, staged reject, reason-required reject, and active-card updates on authenticated owner session. |
+| Kitchen Lifecycle | Customer order to owner to kitchen to preparing to ready to served/completed with realtime updates and existing KOT print path. |
+| POS Channels | Dine-in, parcel, delivery, QR orders, and online orders through real operator workflow. |
+| Printers | Kitchen printer, owner printer, customer receipt, no duplicate prints, and no missing tickets. |
+| Notifications | New order, accepted, ready, completed, rejected; no duplicate or missing notifications. |
+| Responsive Active Orders | Desktop, tablet, and mobile layout with latest-first ordering and 30-card cap. |
+| Delivery Panel | Collapse state persists after refresh. |
+| Provider | Razorpay order/checkout/verify/webhook/refund and SMTP/WhatsApp provider checks with real credentials. |
+| Firebase | Firestore rules/indexes and authorized domains verified in production project. |
+
+Known issues:
+
+| Issue | Severity | Owner | Next Action |
+| --- | --- | --- | --- |
+| Hosted `/api/release-info` reports `deploymentEnvironment: development`. | P0 config | Manual | Set Hostinger `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart, and recheck `/api/release-info`. |
+| Full end-to-end smoke could not be completed from CLI because it requires authenticated owner/customer sessions, real provider credentials, browser audio, and printer hardware. | P0 manual | Manual | Run production smoke checklist on target devices and report confirmed bugs only. |
