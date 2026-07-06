@@ -895,7 +895,7 @@ function SearchResultsPanel({ results, query, mobile = false, onNavigate }: { re
   ) : (
     <div className="p-6 text-center">
       <p className="font-black text-slate-950">No matching results</p>
-      <p className="mt-1 text-sm text-slate-500">Try order ID, table number, phone, customer or menu item.</p>
+      <p className="mt-1 text-sm text-slate-500">Try order number, table number, phone, customer or menu item.</p>
     </div>
   );
 
@@ -1000,7 +1000,7 @@ function buildSearchResults(input: {
 
   input.orders.forEach((order) => {
     const id = readableOrderId(order);
-    const haystack = `${id} ${order.id} ${order.customer.name} ${order.customer.phone} ${order.channel} ${order.fulfillmentType ?? ""} ${order.lines.map((line) => line.name).join(" ")}`.toLowerCase();
+    const haystack = `${id} ${order.customer.name} ${order.customer.phone} ${order.channel} ${order.fulfillmentType ?? ""} ${order.lines.map((line) => line.name).join(" ")}`.toLowerCase();
     if (haystack.includes(term)) {
       results.push({
         id: `order-${order.id}`,
@@ -1016,7 +1016,7 @@ function buildSearchResults(input: {
   input.tableOrders.forEach((order) => {
     const id = readableTableOrderId(order);
     const total = order.total ?? order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-    const haystack = `${id} ${order.id} ${order.tableNumber} ${order.customerName ?? ""} ${order.customerPhone ?? ""} ${order.waiterName ?? ""} ${order.lines.map((line) => line.name).join(" ")}`.toLowerCase();
+    const haystack = `${id} ${order.tableNumber} ${order.customerName ?? ""} ${order.customerPhone ?? ""} ${order.waiterName ?? ""} ${order.lines.map((line) => line.name).join(" ")}`.toLowerCase();
     if (haystack.includes(term)) {
       results.push({
         id: `table-order-${order.id}`,

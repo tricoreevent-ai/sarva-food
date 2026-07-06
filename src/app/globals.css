@@ -747,6 +747,10 @@ textarea::selection,
   width: 100%;
 }
 
+.sarva-notification-card {
+  animation: sarva-notification-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1.1);
+}
+
 @keyframes sarva-toast-progress {
   from {
     transform: scaleX(1);
@@ -757,8 +761,33 @@ textarea::selection,
   }
 }
 
+@keyframes sarva-notification-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(18px, -10px, 0) scale(0.98);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translate3d(-2px, 0, 0) scale(1.01);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 .kitchen-delay-pulse {
   animation: kitchen-delay-pulse 2.2s ease-in-out infinite;
+}
+
+.kitchen-new-order-pulse {
+  animation: kitchen-new-order-pulse 2.4s ease-in-out infinite;
+}
+
+.kitchen-ready-pulse {
+  animation: kitchen-ready-pulse 2.8s ease-in-out infinite;
 }
 
 @keyframes kitchen-delay-pulse {
@@ -772,9 +801,34 @@ textarea::selection,
   }
 }
 
+@keyframes kitchen-new-order-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(249 115 22 / 0.14);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgb(249 115 22 / 0.08);
+  }
+}
+
+@keyframes kitchen-ready-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(16 185 129 / 0.14);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgb(16 185 129 / 0.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sarva-toast-progress,
-  .kitchen-delay-pulse {
+  .sarva-notification-card,
+  .kitchen-delay-pulse,
+  .kitchen-new-order-pulse,
+  .kitchen-ready-pulse {
     animation: none;
   }
 }

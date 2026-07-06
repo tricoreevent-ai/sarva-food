@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
@@ -14,6 +14,7 @@ import {
   Globe2,
   IndianRupee,
   Mail,
+  MoreHorizontal,
   PackageCheck,
   Phone,
   ReceiptText,
@@ -25,7 +26,6 @@ import {
   Truck,
   Utensils,
   Users,
-  X,
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { OrderCard, type OpsOrder } from "@/components/orders/order-card";
@@ -52,6 +52,7 @@ type DateRange = { preset: DatePreset; from: string; to: string };
 type ActiveOpsOrder = OpsOrder & {
   createdAtMs: number;
   etaLabel: string;
+  itemSummary: string;
   kitchenStatus: string;
   paymentStatusLabel: string;
   priorityLabel: string;
@@ -172,7 +173,7 @@ export function OwnerOrderManagementFlow() {
   }, []);
 
   const rejectOrder = useCallback(async (order: ActiveOpsOrder) => {
-    const firstConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id}?`, {
+    const firstConfirm = await alert.confirm(`Reject ${order.displayId ?? "this order"}?`, {
       title: "Reject order",
       content: "This will remove the order from Active Orders after the final confirmation.",
       confirmText: "Continue",
@@ -189,7 +190,7 @@ export function OwnerOrderManagementFlow() {
     });
     const note = reason?.trim();
     if (!note) return false;
-    const finalConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id} for: ${note}?`, {
+    const finalConfirm = await alert.confirm(`Reject ${order.displayId ?? "this order"} for: ${note}?`, {
       title: "Final confirmation",
       confirmText: "Reject order",
       confirmVariant: "danger",
@@ -201,7 +202,7 @@ export function OwnerOrderManagementFlow() {
 
   async function rejectKitchenOrder(order: ActiveOpsOrder) {
     if (!order.kitchenOrder) return rejectOrder(order);
-    const firstConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id}?`, {
+    const firstConfirm = await alert.confirm(`Reject ${order.displayId ?? "this order"}?`, {
       title: "Reject kitchen ticket",
       content: "This keeps the action deliberate and records the kitchen ticket as cancelled.",
       confirmText: "Continue",
@@ -217,7 +218,7 @@ export function OwnerOrderManagementFlow() {
       tone: "warning",
     });
     if (!reason?.trim()) return false;
-    const finalConfirm = await alert.confirm(`Reject ${order.displayId ?? order.id} for: ${reason.trim()}?`, {
+    const finalConfirm = await alert.confirm(`Reject ${order.displayId ?? "this order"} for: ${reason.trim()}?`, {
       title: "Final confirmation",
       confirmText: "Reject ticket",
       confirmVariant: "danger",
@@ -233,9 +234,9 @@ export function OwnerOrderManagementFlow() {
     showSarvaNotification({
       id,
       tone: order.delay?.priority === "critical" ? "critical" : "info",
-      title: `New order ${order.displayId ?? order.id}`,
-      message: `${order.customer} · ${formatCurrency(order.total)} · ${order.itemCount} item${order.itemCount === 1 ? "" : "s"} · ${order.source}`,
-      meta: order.tableNumber ? `Table ${order.tableNumber}` : order.type,
+      title: "New Order",
+      message: `${order.displayId ?? "Order"} · ${order.itemCount} item${order.itemCount === 1 ? "" : "s"} · ${formatCurrency(order.total)} · ${order.type}`,
+      meta: `${order.etaLabel} ETA${order.tableNumber ? ` · ${order.tableNumber}` : ""}`,
       duration: 12000,
       actions: [
         { label: "View", onClick: () => { focusOrder(order); toast.dismiss(id); } },
@@ -521,20 +522,32 @@ function ActiveOrdersGrid({
 }) {
   const visible = orders.slice(0, 30);
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      {visible.map((order) => (
-        <ActiveOrderCard
-          key={order.id}
-          order={order}
-          highlighted={highlightedOrderIds.has(order.id)}
-          onAccept={() => onAccept(order)}
-          onReject={() => onReject(order)}
-          onReady={() => onReady(order)}
-          onComplete={() => onComplete(order)}
-          onView={() => onView(order)}
-        />
-      ))}
-      {orders.length > visible.length ? <p className="rounded-xl border bg-white p-3 text-center text-sm font-bold text-slate-500 sm:col-span-2 xl:col-span-3 2xl:col-span-4">Showing latest {visible.length} active orders. Use search or filters for older active orders.</p> : null}
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="hidden grid-cols-[110px_minmax(150px,1fr)_110px_minmax(180px,1.2fr)_110px_145px_120px_124px] gap-3 border-b bg-slate-50 px-3 py-2 text-[11px] font-black uppercase text-slate-500 xl:grid">
+        <span>Order</span>
+        <span>Kitchen</span>
+        <span>ETA</span>
+        <span>Items</span>
+        <span>Payment</span>
+        <span>Type / Table</span>
+        <span>Placed</span>
+        <span>Actions</span>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {visible.map((order) => (
+          <ActiveOrderCard
+            key={order.id}
+            order={order}
+            highlighted={highlightedOrderIds.has(order.id)}
+            onAccept={() => onAccept(order)}
+            onReject={() => onReject(order)}
+            onReady={() => onReady(order)}
+            onComplete={() => onComplete(order)}
+            onView={() => onView(order)}
+          />
+        ))}
+      </div>
+      {orders.length > visible.length ? <p className="border-t bg-slate-50 p-3 text-center text-sm font-bold text-slate-500">Showing latest {visible.length} active orders. Use search or filters for older active orders.</p> : null}
     </section>
   );
 }
@@ -562,55 +575,140 @@ function ActiveOrderCard({
   const isNew = order.status === "new";
   const preparing = order.status === "accepted" || order.status === "preparing";
   return (
-    <article className={cn("group min-h-[13rem] rounded-xl border bg-white p-3 shadow-sm transition", isNew && "border-orange-200 bg-orange-50/30 animate-pulse", delayed && "border-red-200 bg-gradient-to-br from-red-50 to-white", ready && "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white shadow-emerald-100", critical && "ring-2 ring-red-200", highlighted && "ring-2 ring-orange-400 ring-offset-2")}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-black text-slate-950">{order.displayId ?? order.id}</h3>
-          <p className="mt-1 truncate text-xs font-bold text-slate-500">{order.customer}</p>
-        </div>
+    <article className={cn("grid gap-3 px-3 py-2.5 transition xl:grid-cols-[110px_minmax(150px,1fr)_110px_minmax(180px,1.2fr)_110px_145px_120px_124px] xl:items-center", isNew && "border-l-4 border-orange-500 bg-orange-50/45 kitchen-new-order-pulse", delayed && "bg-gradient-to-r from-red-50 to-white", ready && "bg-gradient-to-r from-emerald-50 to-white kitchen-ready-pulse", critical && "ring-1 ring-inset ring-red-300", highlighted && "ring-2 ring-inset ring-orange-400")}>
+      <div className="min-w-0">
+        <p className="truncate text-base font-black text-slate-950">{order.displayId ?? "Order"}</p>
+        <p className="truncate text-xs font-bold text-slate-500">{order.customer}</p>
+      </div>
+      <OrderCell label="Kitchen" value={order.kitchenStatus} strong>
         <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status))}>{order.status}</span>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
-        <InfoChip label="Source" value={order.source} />
-        <InfoChip label="Table" value={order.tableNumber || order.type} />
-        <InfoChip label="Amount" value={formatCurrency(order.total)} strong />
-        <InfoChip label="Items" value={String(order.itemCount)} />
-        <InfoChip label="Age" value={order.age} />
-        <InfoChip label="ETA" value={order.etaLabel} />
-        <InfoChip label="Payment" value={order.paymentStatusLabel} />
-        <InfoChip label="Kitchen" value={order.kitchenStatus} />
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-2 text-xs font-black">
-        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1", priorityTone(order.delay?.priority))}>
+      </OrderCell>
+      <OrderCell label="ETA" value={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel} tone={delayed ? "danger" : ready ? "success" : "default"}>
+        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black", priorityTone(order.delay?.priority))}>
           {delayed || critical ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" />}
           {order.priorityLabel}
         </span>
-        {delayed ? <span className="text-red-700">{order.delay?.lateMinutes}m late</span> : <span className="text-slate-500">{order.actualTime}</span>}
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {isNew ? (
-          <>
-            <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={onAccept}><CheckCircle2 className="size-4" />Accept</Button>
-            <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={onReject}><X className="size-4" />Reject</Button>
-          </>
-        ) : null}
-        {preparing ? <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={onReady}><CheckCircle2 className="size-4" />Ready</Button> : null}
-        {ready ? <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" onClick={onComplete}><CheckCircle2 className="size-4" />Done</Button> : null}
-        <Button size="sm" variant="outline" className={cn(!isNew && !preparing && !ready && "col-span-2")} onClick={onView}><Eye className="size-4" />View</Button>
+      </OrderCell>
+      <OrderCell label="Items" value={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"}`} subvalue={order.itemSummary} strong />
+      <OrderCell label="Payment" value={order.paymentStatusLabel} tone={paymentTone(order.paymentStatusLabel)} />
+      <OrderCell label="Type / Table" value={order.tableNumber || order.type} subvalue={order.source} />
+      <OrderCell label="Placed" value={order.age} subvalue={order.actualTime} />
+      <div className="flex items-center gap-2 xl:justify-end">
+        <Button size="sm" variant="outline" className="min-h-9" onClick={onView}><Eye className="size-4" />Open</Button>
+        <ActiveOrderMenu
+          isNew={isNew}
+          preparing={preparing}
+          ready={ready}
+          onAccept={onAccept}
+          onReject={onReject}
+          onReady={onReady}
+          onComplete={onComplete}
+          onView={onView}
+        />
       </div>
     </article>
   );
 }
 
-function InfoChip({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function ActiveOrderMenu({
+  isNew,
+  preparing,
+  ready,
+  onAccept,
+  onReject,
+  onReady,
+  onComplete,
+  onView,
+}: {
+  isNew: boolean;
+  preparing: boolean;
+  ready: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  onReady: () => void;
+  onComplete: () => void;
+  onView: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = () => setOpen(false);
+  const act = (fn: () => void) => () => {
+    close();
+    fn();
+  };
+  const actions = [
+    ...(isNew ? [{ label: "Accept", onClick: onAccept }, { label: "Reject", onClick: onReject, danger: true }] : []),
+    ...(preparing ? [{ label: "Mark Ready", onClick: onReady }] : []),
+    ...(ready ? [{ label: "Complete", onClick: onComplete }] : []),
+    { label: "Edit", onClick: onView },
+    { label: "Add Items", onClick: onView },
+    { label: "Split Bill", onClick: onView },
+    { label: "Merge Table", onClick: onView },
+    { label: "Transfer Table", onClick: onView },
+    { label: "Print Bill", onClick: onView },
+    { label: "Print Receipt", onClick: onView },
+    { label: "Print KOT", onClick: onView },
+    { label: "Timeline", onClick: onView },
+    { label: "Kitchen Details", onClick: onView },
+    { label: "Reminder", onClick: onView },
+    { label: "Payment", onClick: onView },
+    { label: "History", onClick: onView },
+    { label: "Communication", onClick: onView },
+    { label: "Refund", onClick: onView },
+    { label: "Cancel", onClick: onReject, danger: true },
+  ];
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <span className="min-w-0 rounded-lg bg-white/70 px-2 py-1.5 ring-1 ring-slate-100">
-      <span className="block text-[10px] font-black uppercase text-slate-400">{label}</span>
-      <span className={cn("block truncate", strong ? "text-sm font-black text-slate-950" : "text-xs font-bold text-slate-700")}>{value || "-"}</span>
-    </span>
+    <div ref={ref} className="relative">
+      <Button size="sm" variant="outline" className="min-h-9" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}>
+        <MoreHorizontal className="size-4" />
+        More
+      </Button>
+      {open ? (
+        <div role="menu" className="absolute right-0 z-40 mt-2 max-h-80 w-48 overflow-y-auto rounded-xl border bg-white p-1 shadow-2xl">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              className={cn("flex min-h-9 w-full items-center rounded-lg px-3 text-left text-xs font-black hover:bg-slate-50", action.danger ? "text-red-600" : "text-slate-700")}
+              onClick={act(action.onClick)}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function OrderCell({ label, value, subvalue, strong, tone = "default", children }: { label: string; value: string; subvalue?: string; strong?: boolean; tone?: "default" | "success" | "danger"; children?: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase text-slate-400 xl:hidden">{label}</p>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <p className={cn("truncate text-sm font-black", strong ? "text-slate-950" : tone === "success" ? "text-emerald-700" : tone === "danger" ? "text-red-700" : "text-slate-700")}>{value || "-"}</p>
+        {children}
+      </div>
+      {subvalue ? <p className="truncate text-xs font-semibold text-slate-500">{subvalue}</p> : null}
+    </div>
   );
 }
 
@@ -883,6 +981,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       prepSuggestion: order.scheduledFor ? prepStartSuggestion(order.scheduledFor, order.prepEstimateMinutes ?? 50) : undefined,
       createdAtMs: timestampMs(order.createdAt),
       etaLabel: `${order.prepEstimateMinutes ?? 30} min`,
+      itemSummary: compactItems(order.lines),
       kitchenStatus: kitchenStatusLabel(order.status),
       paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
       priorityLabel: priorityLabel(delay.priority),
@@ -911,6 +1010,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
       createdAtMs: timestampMs(order.createdAt),
       etaLabel: `${order.etaMinutes ?? 15} min`,
+      itemSummary: compactItems(order.lines),
       kitchenStatus: kitchenStatusLabel(order.status),
       paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
       priorityLabel: priorityLabel(delay.priority),
@@ -968,7 +1068,6 @@ function matchesSearch(order: OpsOrder, query: string) {
   const search = query.trim().toLowerCase();
   if (!search) return true;
   return [
-    order.id,
     order.displayId,
     order.customer,
     order.phone,
@@ -999,6 +1098,7 @@ function matchesCateringTab(quote: CateringQuote, tab: OrderTab) {
 function toDemoOrder(order: OrderDoc): DemoOrder {
   const demo: DemoOrder & { tableNumber?: string } = {
     id: order.id,
+    invoiceNumber: order.invoiceNumber,
     restaurantSlug: order.restaurantId,
     customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
     lines: order.lines.map((line) => ({ itemId: line.menuItemId, name: line.name, price: line.price, quantity: line.quantity })),
@@ -1065,6 +1165,16 @@ function kitchenStatusLabel(status?: string) {
 function paymentStatusLabel(status?: string) {
   if (!status) return "Pending";
   return kitchenStatusLabel(status);
+}
+
+function paymentTone(status: string) {
+  return /paid/i.test(status) && !/unpaid|pending/i.test(status) ? "success" : "danger";
+}
+
+function compactItems(lines: DemoOrder["lines"] | TableOrder["lines"]) {
+  const summary = lines.slice(0, 2).map((line) => `${line.quantity}x ${line.name}`).join(", ");
+  const more = lines.length > 2 ? ` +${lines.length - 2}` : "";
+  return `${summary}${more}`;
 }
 
 function priorityLabel(priority?: DelayPriority) {

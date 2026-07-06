@@ -1,4 +1,5 @@
 import { calculateRestaurantTax } from "@/lib/menu-engine";
+import { displayOrderNumber } from "@/lib/order-display";
 import { DEFAULT_BRANCH_ID } from "@/lib/tenant";
 import type { OrderLine, PaymentBreakdown, PaymentOption, PosBill, PrintTemplate, PrinterProfile, RestaurantBranch, TaxSettings } from "@/lib/types";
 
@@ -72,14 +73,15 @@ export function buildBillContext(input: {
 }): BillContext {
   const subtotal = input.bill.lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const invoiceNumber = input.bill.invoiceNumber ?? `INV-POS-${input.bill.table.replace(/[^A-Z0-9]/gi, "")}`;
+  const orderNumber = displayOrderNumber({ invoiceNumber, orderType: input.bill.orderType, tableNumber: input.bill.table });
   const splitTotal = input.bill.splitPayments?.reduce((sum, payment) => sum + payment.amount, 0) ?? 0;
   const tenderedAmount = splitTotal > 0 ? splitTotal : input.bill.tenderedAmount && input.bill.tenderedAmount > 0 ? input.bill.tenderedAmount : subtotal;
   return {
     restaurantName: input.restaurantName ?? input.branch.name,
     branch: input.branch,
     gstin: input.taxSettings.gstin,
-    invoiceNumber,
-    orderNumber: `POS-${invoiceNumber.slice(-5)}`,
+    invoiceNumber: orderNumber,
+    orderNumber,
     cashierName: input.bill.cashierName ?? "Cashier",
     waiterName: input.bill.waiterName ?? "Waiter",
     tableNumber: input.bill.table,
@@ -213,7 +215,7 @@ export function renderKotLines(context: KotContext, template: PrintTemplate) {
 
 export function buildKotContext(context: BillContext): KotContext {
   return {
-    kotNumber: `KIT-${context.orderNumber.slice(-5)}`,
+    kotNumber: context.orderNumber,
     orderNumber: context.orderNumber,
     orderType: context.orderType,
     tableNumber: context.tableNumber,

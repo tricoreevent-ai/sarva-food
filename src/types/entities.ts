@@ -596,6 +596,10 @@ export type OrderTotals = {
 
 export type DemoOrder = {
   id: string;
+  orderNumber?: string | number;
+  displayOrderNumber?: string | number;
+  invoiceNumber?: string;
+  billNumber?: string;
   restaurantSlug: string;
   customer: CustomerDetails;
   lines: OrderLine[];
@@ -913,6 +917,10 @@ export type TableOrderStatus = KitchenLifecycleStatus | "occupied" | "billed";
 
 export type TableOrder = {
   id: string;
+  orderNumber?: string | number;
+  displayOrderNumber?: string | number;
+  invoiceNumber?: string;
+  billNumber?: string;
   tableNumber: string;
   source: "QR" | "Waiter" | "POS" | "Takeaway" | "Parcel" | "Delivery";
   orderType?: PosOrderType;

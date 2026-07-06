@@ -2,6 +2,10 @@ import type { OrderChannel, PosOrderType, TableOrder } from "@/lib/types";
 
 type ReadableOrderInput = {
   id?: string;
+  orderNumber?: string | number;
+  displayOrderNumber?: string | number;
+  invoiceNumber?: string | number;
+  billNumber?: string | number;
   source?: string;
   channel?: OrderChannel | string;
   orderType?: PosOrderType | string;
@@ -13,22 +17,30 @@ type ReadableOrderInput = {
 const readablePattern = /^(DIN|PAR|WEB|SWG|ZMT|POS)-/i;
 
 export function readableOrderId(input: ReadableOrderInput) {
-  if (input.id && readablePattern.test(input.id)) return input.id.toUpperCase();
+  return displayOrderNumber(input);
+}
 
-  const date = compactOrderDate(input.createdAt);
-  const sequence = String(input.sequence ?? stableSequence(input.id ?? `${input.source ?? ""}-${input.tableNumber ?? ""}-${date}`)).padStart(3, "0");
-  const prefix = orderPrefix(input);
+export function displayOrderNumber(input: ReadableOrderInput) {
+  const explicit = input.orderNumber ?? input.displayOrderNumber ?? input.invoiceNumber ?? input.billNumber;
+  const explicitNumber = orderNumberFromValue(explicit);
+  if (explicitNumber) return explicitNumber;
 
-  if (prefix === "DIN") {
-    return `DIN-${normalizeTableNumber(input.tableNumber)}-${date}-${sequence}`;
-  }
+  const legacyNumber = input.id && readablePattern.test(input.id) ? orderNumberFromValue(input.id.match(/(\d+)$/)?.[1]) : "";
+  if (legacyNumber) return legacyNumber;
 
-  return `${prefix}-${date}-${sequence}`;
+  const seed = input.id || `${input.source ?? ""}-${input.channel ?? ""}-${input.orderType ?? ""}-${input.tableNumber ?? ""}-${compactOrderDate(input.createdAt)}`;
+  const sequence = input.sequence ?? stableSequence(seed);
+  return `#${String(sequence).padStart(4, "0").slice(-4)}`;
 }
 
 export function readableTableOrderId(order: TableOrder, sequence?: number) {
+  const extended = order as TableOrder & Pick<ReadableOrderInput, "orderNumber" | "displayOrderNumber" | "invoiceNumber" | "billNumber">;
   return readableOrderId({
     id: order.id,
+    orderNumber: extended.orderNumber,
+    displayOrderNumber: extended.displayOrderNumber,
+    invoiceNumber: extended.invoiceNumber,
+    billNumber: extended.billNumber,
     source: order.source,
     orderType: order.orderType,
     tableNumber: order.tableNumber,
@@ -62,14 +74,13 @@ export function normalizeTableNumber(value?: string) {
   return `T${digits.padStart(2, "0").slice(-2)}`;
 }
 
-function orderPrefix(input: ReadableOrderInput) {
-  const text = `${input.source ?? ""} ${input.channel ?? ""} ${input.orderType ?? ""}`.toLowerCase();
-  if (text.includes("dine-in") || text.includes("waiter") || /^t\d+/i.test(input.tableNumber ?? "")) return "DIN";
-  if (text.includes("zomato")) return "ZMT";
-  if (text.includes("swiggy")) return "SWG";
-  if (text.includes("website") || text.includes("web") || text.includes("online") || text.includes("delivery")) return "WEB";
-  if (text.includes("parcel")) return "PAR";
-  return "POS";
+function orderNumberFromValue(value?: string | number) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim();
+  if (!text) return "";
+  if (/^#\d{1,6}$/.test(text)) return `#${text.slice(1).padStart(4, "0").slice(-4)}`;
+  const trailing = text.match(/(?:^|[-_#/])0*(\d{1,6})$/)?.[1];
+  return trailing ? `#${trailing.padStart(4, "0").slice(-4)}` : "";
 }
 
 function compactOrderDate(value?: string) {

@@ -6,6 +6,7 @@ import type { KitchenOrderDoc, OrderDoc } from "@/types/firebase";
 export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
   return {
     id: order.id,
+    invoiceNumber: order.invoiceNumber,
     restaurantSlug: order.restaurantId,
     customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
     lines: (order.lines ?? []).map((line) => ({ itemId: line.menuItemId, name: line.name, price: Number(line.price ?? 0), quantity: Number(line.quantity ?? 0) })),
@@ -29,9 +30,14 @@ export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
 }
 
 export function kitchenDocToTableOrder(order: KitchenOrderDoc | Record<string, unknown>): TableOrder {
+  const raw = order as Record<string, unknown>;
   const lines = Array.isArray(order.lines) ? order.lines as Array<Record<string, unknown>> : [];
   return {
     id: str(order.id),
+    orderNumber: orderNumberValue(raw.orderNumber),
+    displayOrderNumber: orderNumberValue(raw.displayOrderNumber),
+    invoiceNumber: str(raw.invoiceNumber),
+    billNumber: str(raw.billNumber),
     tableNumber: str(order.tableNumber) || labelForOrderType(str(order.orderType)),
     source: sourceFor(str(order.source)),
     orderType: normalizePosOrderType(str(order.orderType)),
@@ -74,6 +80,11 @@ function normalizeStatusEntry(entry: unknown) {
     at,
     by: str(value.by),
   };
+}
+
+function orderNumberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return str(value);
 }
 
 export function menuDocToMenuItem(item: Record<string, unknown>): MenuItem {

@@ -43,7 +43,7 @@ export function SarvaNotification({
   };
 
   return (
-    <div className={cn("group relative w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-white p-3 text-left shadow-2xl", toneClasses(tone).shell, visible ? "animate-in slide-in-from-top-2 fade-in" : "animate-out fade-out")}>
+    <div className={cn("sarva-notification-card group relative w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-white p-3 text-left shadow-2xl", toneClasses(tone).shell, visible ? "animate-in slide-in-from-top-2 fade-in" : "animate-out fade-out")}>
       <div className="flex items-start gap-3">
         <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", toneClasses(tone).icon)}>
           <Icon className="size-5" />

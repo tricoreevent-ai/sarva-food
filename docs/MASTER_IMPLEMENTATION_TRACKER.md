@@ -20,6 +20,20 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Verification Status | Enterprise Hardening sprint remains blocked: branch and Hostinger metadata are aligned, but Hostinger env still reports development, local production env validation fails, Firestore deployment review remains manual, and full browser/provider/hardware smoke remains manual. |
 | Scope | Release engineering only: hosted validation, documentation, and release tagging |
 
+## UI/UX Optimization Sprint - 2026-07-06
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Active Orders redesign | Complete | Owner Active Orders now use compact operational rows with priority order number, kitchen status, ETA, items, payment, type/table, placed time, Open, and lazy More actions. |
+| Kitchen redesign | Complete | Kitchen cards are denser, four-column desktop board remains, mobile/tablet cards are compact, and customer/payment/waiter/station/timeline details are collapsed by default. |
+| Shared SarvaNotification | Complete | Existing `SarvaNotification` remains the single toast component; new-order and waiter-ready alerts reuse it with native-style motion and reduced-motion support. |
+| Order number consistency | Complete in touched surfaces | Shared display helper now returns `#0000` style numbers and print/bill/KOT/search/owner/POS/kitchen touched surfaces avoid displaying Firestore document IDs. |
+| Waiter notification workflow | Complete | Kitchen `ready` status triggers a top-right `Order Ready` notification with order number, table/type, and View action without adding listeners. |
+| Push notification readiness | NOT READY | Service worker and in-app/email notification paths exist; FCM foreground/background handlers, permission/token UI, token storage, push subscription storage, and server push trigger are not implemented. |
+| Performance optimization summary | Complete | No new Firestore listeners, APIs, repositories, payment flows, or subscriptions were added; dropdowns/accordions remain lazy-rendered and active lists cap visible rows. |
+| Responsive verification | Code-ready | Owner/POS rows collapse to stacked mobile rows; Kitchen keeps 4 desktop columns, mobile compact cards, and touch-size controls. Manual device smoke remains required. |
+| Files modified | Complete | `src/lib/order-display.ts`, `src/lib/print-engine.ts`, `src/lib/operational-api-mappers.ts`, `src/types/entities.ts`, `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/kitchen-display-flow.tsx`, `src/components/flows/pos-billing-flow.tsx`, `src/components/ui/app-toaster.tsx`, `src/components/layout/dashboard-topbar.tsx`, `src/app/api/owner/pos/route.ts`, `src/app/globals.css`, `docs/MASTER_IMPLEMENTATION_TRACKER.md`. |
+
 ## Enterprise Project Dashboard
 
 This file is now the single source of truth. `docs/TASK_TRACKER.md` is archived as a compatibility pointer and must not receive new task history.

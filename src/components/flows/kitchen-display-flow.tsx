@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { delaySortRank, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
+import { readableTableOrderId } from "@/lib/order-display";
 import { cn } from "@/lib/utils";
 import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 
@@ -37,13 +38,6 @@ type ConfirmAction = { title: string; description: string; confirmLabel: string;
 type CompactTabId = "new" | "accepted" | "preparing" | "ready" | "completed";
 type CompactPane = "orders" | "kitchen" | "more";
 type CompactOrderTypeFilter = NonNullable<TableOrder["orderType"]> | "all";
-type KitchenDisplayOrder = TableOrder & {
-  orderNumber?: string | number;
-  displayOrderNumber?: string | number;
-  invoiceNumber?: string;
-  billNumber?: string;
-};
-
 const desktopColumns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
   { id: "new", title: "New", tone: "red", statuses: ["new", "occupied"] },
   { id: "accepted", title: "Accepted", tone: "orange", statuses: ["accepted"] },
@@ -222,6 +216,17 @@ export function KitchenDisplayFlow() {
       const payload = await readKitchenPayload<{ data?: TableOrder }>(response, "Kitchen status could not be updated.");
       if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
       if (!options.silent) toast.success(kitchenActionToast(order, status));
+      if (status === "ready") {
+        showSarvaNotification({
+          id: `waiter-ready-${order.id}`,
+          tone: "success",
+          title: "Order Ready",
+          message: `${displayOrderNumber(order)} · ${order.tableNumber || readableKitchenOrderType(order.orderType ?? "dine-in")}`,
+          meta: "Ready for Service",
+          duration: 7000,
+          actions: [{ label: "View", variant: "primary", onClick: () => { setSelectedOrderId(order.id); toast.dismiss(`waiter-ready-${order.id}`); } }],
+        });
+      }
       return true;
     } catch (error) {
       console.error("[kitchen] status update failed", { orderId: order.id, status, reason: error instanceof Error ? error.name : typeof error });
@@ -248,8 +253,9 @@ export function KitchenDisplayFlow() {
     showSarvaNotification({
       id,
       tone: "critical",
-      title: `New Order #${displayOrderNumber(order)}`,
+      title: "New Order",
       message: `${order.customerName || order.guestName || order.tableNumber} · ${order.lines.length} item${order.lines.length === 1 ? "" : "s"} · ${order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}`,
+      meta: `${displayOrderNumber(order)} · ETA ${order.etaMinutes ?? 12} min`,
       duration: 12000,
       actions: [
         { label: "View", onClick: view },
@@ -364,7 +370,7 @@ export function KitchenDisplayFlow() {
   function requestCancel(order: TableOrder) {
     setConfirmAction({
       title: "Cancel kitchen ticket?",
-      description: `Cancel ${order.tableNumber} / ${order.id}. This keeps the ticket visible for today's audit trail.`,
+      description: `Cancel ${displayOrderNumber(order)} / ${order.tableNumber}. This keeps the ticket visible for today's audit trail.`,
       confirmLabel: "Cancel ticket",
       onConfirm: async () => {
         setConfirmAction(null);
@@ -708,7 +714,7 @@ export function KitchenOrderHistoryFlow() {
         <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
           {filtered.map((order) => (
             <button key={order.id} type="button" onClick={() => setSelectedOrderId(order.id)} className="grid w-full grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 border-b px-4 py-3 text-left text-sm hover:bg-orange-50">
-              <span className="font-black text-slate-950">#{displayOrderNumber(order)}<small className="mt-1 block font-semibold text-slate-500">{timeOnly(order.createdAt)}</small></span>
+              <span className="font-black text-slate-950">{displayOrderNumber(order)}<small className="mt-1 block font-semibold text-slate-500">{timeOnly(order.createdAt)}</small></span>
               <span className="font-bold text-slate-700">{order.tableNumber}<small className="mt-1 block truncate font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"}</small></span>
               <span><Badge variant={order.status === "cancelled" ? "destructive" : isCompleted(order.status) ? "success" : "warning"}>{statusLabel(order.status)}</Badge></span>
               <span className="font-bold text-slate-700">{paymentLabel(order.paymentStatus)}</span>
@@ -1066,7 +1072,8 @@ function QuickAction({ title, value, icon, onClick }: { title: string; value: st
 }
 
 function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onCancel: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+  const [itemsOpen, setItemsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const startX = useRef(0);
   const longPress = useRef<number | null>(null);
   const createdMs = Date.parse(order.createdAt);
@@ -1076,7 +1083,7 @@ function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrin
   const next = nextStatus[order.status];
   const final = isCompleted(order.status);
   const label = actionLabel[order.status] ?? readyActionLabel(order);
-  const visibleLines = expanded ? order.lines : order.lines.slice(0, 2);
+  const visibleLines = itemsOpen ? order.lines : order.lines.slice(0, 2);
   const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
   const priorityTone = delay.priority === "critical" ? "border-l-red-600" : delay.priority === "high" ? "border-l-red-500" : delayed ? "border-l-orange-500" : "border-l-emerald-500";
   const channel = order.source || order.orderType || "POS";
@@ -1107,7 +1114,7 @@ function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrin
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="truncate text-base font-black">Order #{displayOrderNumber(order)}</p>
+              <p className="truncate text-base font-black">Order {displayOrderNumber(order)}</p>
               <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-black uppercase", channelTone(channel))}>{channel}</span>
             </div>
             <p className="mt-1 text-sm font-bold text-slate-600">Table {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
@@ -1120,15 +1127,10 @@ function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrin
 
         {delayed ? <DelayWarning delay={delay} compact /> : null}
 
-        <div className="grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
-          <span>Table: {order.tableNumber}</span>
-          <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
-          <span>Type: {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
-          <span className="text-right">Waiting: {ageMinutes}m</span>
-          <span>Kitchen: {statusLabel(order.status)}</span>
-          <span className="text-right">Payment: {paymentLabel(order.paymentStatus)}</span>
-          <span>Priority: {priorityLabel(order, delay)}</span>
-          <span className="text-right">Items: {order.lines.length}</span>
+        <div className="grid grid-cols-3 gap-2 text-xs font-black text-slate-700">
+          <span className="rounded-lg bg-slate-50 px-2 py-1.5">ETA {order.etaMinutes ?? 12}m</span>
+          <span className="rounded-lg bg-slate-50 px-2 py-1.5">{ageMinutes}m</span>
+          <span className="truncate rounded-lg bg-slate-50 px-2 py-1.5">{priorityLabel(order, delay)}</span>
         </div>
 
         <div className="rounded-lg bg-slate-50 p-2">
@@ -1136,11 +1138,24 @@ function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrin
             <p key={`${line.itemId}-${index}`} className="truncate text-sm font-black text-slate-900">{line.name} x{line.quantity}</p>
           ))}
           {hiddenCount || order.lines.length > 2 ? (
-            <button type="button" onClick={() => setExpanded((value) => !value)} className="mt-1 text-xs font-black text-orange-600">
-              {expanded ? "Hide items" : `View items +${hiddenCount} more`}
+            <button type="button" onClick={() => setItemsOpen((value) => !value)} className="mt-1 text-xs font-black text-orange-600">
+              {itemsOpen ? "Hide items" : `View items +${hiddenCount} more`}
             </button>
           ) : null}
         </div>
+        <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-10 w-full items-center justify-between rounded-lg border px-3 text-xs font-black text-slate-600" aria-expanded={detailsOpen}>
+          Details
+          <ChevronDown className={cn("size-4 transition", detailsOpen && "rotate-180")} />
+        </button>
+        {detailsOpen ? (
+          <div className="grid gap-1 rounded-lg border bg-white p-2 text-xs font-bold text-slate-600">
+            <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
+            <span>Payment: {paymentLabel(order.paymentStatus)}</span>
+            <span>Waiter: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
+            <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
+            <span>Kitchen: {statusLabel(order.status)}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="sticky bottom-0 grid grid-cols-2 gap-2 border-t bg-white p-3">
@@ -1221,6 +1236,7 @@ function KitchenConfirmDialog({
 }
 
 function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted?: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onOpen: () => void; onCancel: () => void }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
   const delay = getKitchenDelay(order, now);
@@ -1228,38 +1244,58 @@ function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPr
   const next = nextStatus[order.status];
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const final = isCompleted(order.status);
+  const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
   return (
-    <Card className={cn("cursor-pointer border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", delay.priority === "critical" && "ring-2 ring-red-300", highlighted && "ring-2 ring-orange-400")} onClick={onOpen}>
-      <CardContent className="space-y-3 p-3">
+    <Card className={cn("cursor-pointer border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/55 kitchen-ready-pulse", delay.priority === "critical" && "ring-2 ring-red-300", highlighted && "ring-2 ring-orange-400")} onClick={onOpen}>
+      <CardContent className="space-y-2.5 p-2.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-2xl font-black text-slate-950">Order #{displayOrderNumber(order)}</p>
-            <p className="mt-1 text-sm font-black text-slate-600">{order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
+            <p className="truncate text-xl font-black text-slate-950">{displayOrderNumber(order)}</p>
+            <p className="mt-0.5 truncate text-xs font-black text-slate-600">{orderType} · {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Badge variant="outline">{order.orderType?.toUpperCase() ?? "DINE-IN"}</Badge>
+            <Badge variant={order.status === "ready" ? "success" : "outline"}>{statusLabel(order.status)}</Badge>
             <Badge variant={delay.priority === "critical" || delay.priority === "high" ? "destructive" : delayed ? "warning" : "secondary"}>{priorityLabel(order, delay)}</Badge>
           </div>
         </div>
-        {delayed ? <DelayWarning delay={delay} /> : null}
-        <div className="grid gap-1 text-xs font-bold text-slate-600">
-          <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
-          <span>ETA {order.etaMinutes}m · {ageMinutes}m waiting</span>
-          <span>{delay.elapsedLabel}</span>
-          <span>Staff: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
-          <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
-          <span>Payment: {paymentLabel(order.paymentStatus)}</span>
+        <div className="grid grid-cols-3 gap-1.5 text-xs font-black">
+          <span className="rounded-md bg-slate-50 px-2 py-1 text-slate-700">ETA {order.etaMinutes ?? 12}m</span>
+          <span className={cn("rounded-md px-2 py-1", delayed ? "bg-red-100 text-red-700" : "bg-slate-50 text-slate-700")}>{ageMinutes}m</span>
+          <span className="truncate rounded-md bg-slate-50 px-2 py-1 text-slate-700">{order.source}</span>
         </div>
-        <div className="space-y-2">
+        {delayed ? <DelayWarning delay={delay} compact /> : null}
+        <div className="space-y-1.5">
           {order.lines.map((line, index) => (
-            <div key={`${line.itemId}-${index}`} className="rounded-lg bg-slate-50 p-3 text-sm">
-              <p className="font-black text-slate-950">{line.quantity}x {line.name}</p>
-              {line.modifiers?.length ? <p className="mt-1 text-xs font-bold text-orange-600">{line.modifiers.join(", ")}</p> : null}
-              {line.notes ? <p className="mt-1 text-xs font-semibold text-slate-600">Note: {line.notes}</p> : null}
-              {line.allergyNote ? <p className="mt-1 text-xs font-black text-red-600">Allergy: {line.allergyNote}</p> : null}
+            <div key={`${line.itemId}-${index}`} className="rounded-md bg-slate-50 px-2 py-1.5 text-sm">
+              <p className="truncate font-black text-slate-950">{line.quantity}x {line.name}</p>
+              {line.modifiers?.length ? <p className="truncate text-[11px] font-bold text-orange-600">{line.modifiers.join(", ")}</p> : null}
+              {line.allergyNote ? <p className="truncate text-[11px] font-black text-red-600">Allergy: {line.allergyNote}</p> : null}
             </div>
           ))}
         </div>
+        <button
+          type="button"
+          className="flex min-h-9 w-full items-center justify-between rounded-lg border border-slate-200 px-3 text-xs font-black text-slate-600 hover:bg-slate-50"
+          onClick={(event) => {
+            event.stopPropagation();
+            setDetailsOpen((value) => !value);
+          }}
+          aria-expanded={detailsOpen}
+        >
+          Details
+          <ChevronDown className={cn("size-4 transition", detailsOpen && "rotate-180")} />
+        </button>
+        {detailsOpen ? (
+          <div className="grid gap-1.5 rounded-lg border bg-white p-2 text-xs font-bold text-slate-600" onClick={(event) => event.stopPropagation()}>
+            <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
+            <span>Payment: {paymentLabel(order.paymentStatus)}</span>
+            <span>Waiter: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
+            <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
+            <span>Elapsed: {delay.elapsedLabel}</span>
+            {order.lines.some((line) => line.notes) ? <span>Notes: {order.lines.map((line) => line.notes).filter(Boolean).join(", ")}</span> : null}
+            {order.statusHistory?.length ? <span>Timeline: {order.statusHistory.slice(-2).map((entry) => `${statusLabel((entry.status || entry.foodStatus || "completed") as TableOrderStatus)} ${entry.at ? timeOnly(entry.at) : ""}`).join(" · ")}</span> : null}
+          </div>
+        ) : null}
         <div className="grid grid-cols-[44px_44px_minmax(0,1fr)_44px] gap-2" role="group" aria-label={`Kitchen actions for ${order.tableNumber}`}>
           <Button variant="outline" className="h-11 w-11 p-0" onClick={(event) => { event.stopPropagation(); onPreview(); }} title="Preview KOT" aria-label={`Preview KOT for ${order.tableNumber}`}>
             <Eye className="size-4" />
@@ -1313,7 +1349,7 @@ function KitchenOrderDrawer({ order, now, onClose, onPrint, onPreview, onNext }:
         <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-white p-4">
           <div>
             <p className="text-xs font-black uppercase text-orange-600">Kitchen ticket</p>
-            <h2 className="mt-1 text-3xl font-black text-slate-950">Order #{displayOrderNumber(order)}</h2>
+            <h2 className="mt-1 text-3xl font-black text-slate-950">Order {displayOrderNumber(order)}</h2>
             <p className="mt-1 text-sm font-bold text-slate-600">{order.tableNumber} · {order.customerName || order.guestName || "Walk-in"} · {paymentLabel(order.paymentStatus)}</p>
           </div>
           <Button ref={closeRef} variant="ghost" size="icon" onClick={onClose} aria-label="Close order details"><XCircle className="size-5" /></Button>
@@ -1396,7 +1432,7 @@ function PrintPanel({ orders, onReprint }: { orders: TableOrder[]; onReprint: (o
       <div className="mt-4 space-y-2">
         {printed.slice(0, 4).map((order) => (
           <div key={order.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-            <span className="font-black">#{displayOrderNumber(order)}</span>
+            <span className="font-black">{displayOrderNumber(order)}</span>
             <span className="text-slate-500">{order.tableNumber}</span>
             <Button variant="ghost" size="sm" onClick={() => onReprint(order)}>Reprint</Button>
           </div>
@@ -1414,7 +1450,7 @@ function HistoryPanel({ orders }: { orders: TableOrder[] }) {
       <div className="mt-4 space-y-2">
         {orders.slice(0, 5).map((order) => (
           <div key={order.id} className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg border p-3 text-sm">
-            <span className="font-black">#{displayOrderNumber(order)}</span>
+            <span className="font-black">{displayOrderNumber(order)}</span>
             <span>{order.tableNumber}</span>
             <Badge variant={order.status === "cancelled" ? "destructive" : "success"}>{statusLabel(order.status)}</Badge>
           </div>
@@ -1470,7 +1506,6 @@ function filterKitchenOrders(
     const staff = order.assignedStaffName || order.waiterName || "";
     const matchesSearch = !search || [
       displayOrderNumber(order),
-      order.id,
       order.tableNumber,
       order.customerName,
       order.guestName,
@@ -1609,12 +1644,7 @@ function paymentLabel(value?: PaymentState | TableOrder["paymentStatus"]) {
 }
 
 function displayOrderNumber(order: TableOrder) {
-  const extended = order as KitchenDisplayOrder;
-  const explicit = extended.orderNumber ?? extended.displayOrderNumber ?? extended.invoiceNumber ?? extended.billNumber;
-  if (explicit) return String(explicit).replace(/^INV[-_]?/i, "").slice(-8);
-  const digits = order.id.replace(/\D/g, "");
-  if (digits) return digits.slice(-4).padStart(4, "0");
-  return order.id.slice(-4).toUpperCase().padStart(4, "0");
+  return readableTableOrderId(order);
 }
 
 function readableKitchenOrderType(type: NonNullable<TableOrder["orderType"]>) {

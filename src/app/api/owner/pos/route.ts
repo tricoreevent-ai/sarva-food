@@ -119,6 +119,6 @@ function orderDocToPosDraft(order: OrderDoc) {
     customerPhone: order.customerPhone,
     waiterName: order.waiterName,
     discount: Number(order.discount ?? 0),
-    invoiceNumber: order.id,
+    invoiceNumber: order.invoiceNumber,
   };
 }
