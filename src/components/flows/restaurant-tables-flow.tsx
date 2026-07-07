@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { ElementType } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { ArrowRightLeft, Ban, Brush, CalendarCheck, CheckCircle2, CircleX, Clock3, Copy, Download, Edit3, ExternalLink, Grid2X2, History, LayoutGrid, List, Plus, Printer, QrCode, ReceiptText, RefreshCcw, Search, Settings2, Smartphone, Table2, TimerReset, Trash2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

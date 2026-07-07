@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 

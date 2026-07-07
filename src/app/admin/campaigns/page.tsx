@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { Megaphone, MessageCircle, Plus, Save } from "lucide-react";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { OfferBadge } from "@/components/commerce/offer-badge";

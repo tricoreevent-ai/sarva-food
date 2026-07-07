@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, CreditCard, Database, Download, HardDrive, ImageIcon, KeyRound, Mail, MessageCircle, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, ShieldCheck, Smartphone, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";

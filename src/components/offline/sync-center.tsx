@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, CloudOff, RefreshCcw, RotateCcw, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

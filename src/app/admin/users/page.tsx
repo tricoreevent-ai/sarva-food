@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { KeyRound, ShieldCheck, UserPlus, UserX } from "lucide-react";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Italic, List, ListOrdered, Monitor, Plus, Save, Smartphone, Tablet, Trash2, Type, type LucideIcon } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";

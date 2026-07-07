@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { Archive, Copy, Download, Eye, FileJson, FileSpreadsheet, PackageOpen, RotateCcw, Search, ShieldCheck, ToggleLeft, ToggleRight, Upload } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";

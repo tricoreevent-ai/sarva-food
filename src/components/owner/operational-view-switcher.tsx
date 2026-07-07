@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Loader2, LockKeyhole, RotateCcw, X } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { operationalViewLabel, operationalViews, type OperationalView } from "@/lib/operational-access";

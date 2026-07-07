@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { CalendarClock, Eye, EyeOff, Loader2, MessageCircle, Pause, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Star, Tag, Trash2 } from "lucide-react";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { OfferBadge } from "@/components/commerce/offer-badge";

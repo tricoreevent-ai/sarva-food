@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-07
+
+- Deferred owner/admin action toast runtime behind `src/lib/client-toast.ts`, including lazy Sarva notifications for Owner Orders and Kitchen, without changing UI, APIs, repositories, schema, or business workflows.
+- Verified typecheck, lint, production build, analyzer build, and `git diff --check`; build retains the known Firebase/protobuf dynamic dependency warning.
+
 ## 2026-07-06
 
 - Completed Sprint 1 production-readiness code pass from base `8a0315c37228918e82498ae0d7c78317d616da45`: FCM foreground/background push, deep links, token management, invalid-token cleanup, app badges, push sounds, Firestore rule coverage, owner API mutation hardening, monitoring, and targeted POS/Kitchen listener reduction.

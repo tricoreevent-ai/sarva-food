@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import {
   ArrowUpRight,
   Ban,

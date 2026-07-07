@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { defaultMarketingSettings, defaultRestaurantMarketingSettings, type MarketingSettings, type RestaurantMarketingSettings, type WhatsAppTemplateKind } from "@/features/marketing/messageTemplates";
 import { useAlert } from "@/hooks/useAlert";
 import { ROUTES } from "@/lib/constants";

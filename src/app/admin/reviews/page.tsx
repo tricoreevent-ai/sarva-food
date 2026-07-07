@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { CheckCircle2, CreditCard, ImagePlus, Megaphone, MenuSquare, Palette, Route, Settings2, Store, XCircle } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import {
   AlertTriangle,
   Bell,
@@ -36,7 +36,6 @@ import { PartnerCard } from "@/components/orders/partner-card";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { showSarvaNotification } from "@/components/ui/app-toaster";
 import { useAlert } from "@/hooks/useAlert";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
@@ -231,7 +230,7 @@ export function OwnerOrderManagementFlow() {
 
   const notifyNewOrder = useCallback((order: ActiveOpsOrder) => {
     const id = `owner-new-order-${order.id}`;
-    showSarvaNotification({
+    showLazySarvaNotification({
       id,
       tone: order.delay?.priority === "critical" ? "critical" : "info",
       title: "New Order",

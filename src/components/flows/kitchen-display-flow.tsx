@@ -21,9 +21,8 @@ import {
   Volume2,
   XCircle,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { Badge } from "@/components/ui/badge";
-import { showSarvaNotification } from "@/components/ui/app-toaster";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
@@ -192,7 +191,7 @@ export function KitchenDisplayFlow() {
     }
     if (lastDelayedToast.current === stats.delayed) return;
     lastDelayedToast.current = stats.delayed;
-    showSarvaNotification({
+    showLazySarvaNotification({
       id: "kitchen-delayed-orders",
       tone: "warning",
       title: `${stats.delayed} kitchen order${stats.delayed === 1 ? "" : "s"} delayed`,
@@ -243,7 +242,7 @@ export function KitchenDisplayFlow() {
       if (!options.silent) toast.success(kitchenActionToast(order, status));
       if (status === "ready") {
         const toastId = `waiter-ready-${order.id}`;
-        showSarvaNotification({
+        showLazySarvaNotification({
           id: toastId,
           tone: "success",
           title: "Order Ready",
@@ -281,7 +280,7 @@ export function KitchenDisplayFlow() {
       toast.dismiss(id);
       window.setTimeout(() => setHighlightedOrderId((current) => current === order.id ? null : current), 8000);
     };
-    showSarvaNotification({
+    showLazySarvaNotification({
       id,
       tone: "critical",
       title: "New Order",

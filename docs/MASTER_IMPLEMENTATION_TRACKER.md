@@ -11,14 +11,27 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC Performance Phase 3 Runtime and Core Web Vitals Optimization |
+| Current Sprint | Owner Module Operational Excellence - Runtime Ownership |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Performance Phase 3 optimization prepared on top of local Phase 2 commit `442ea106e6fdc5c58ef5bf2f87f9647a0ebaf538`; exact final SHA reported in release handoff. |
+| Latest Git Commit | Owner/admin toast runtime ownership prepared on top of local Phase 3 commit `f21603788873f413dcc078b92554529b1397c5ac`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not current release branch HEAD; env still reports `development`. Lighthouse baseline was measured against this stale hosted deployment. |
 | Build Date | 2026-07-07 |
-| Verification Status | Phase 3 runtime optimization local lint, typecheck, build, analyzer build, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Runtime performance only: route skeletons, streaming/dynamic client-flow boundaries, idle runtime providers, diagnostics gating, public route toast deferral, preconnect/image priority cleanup, render containment, and large-table deferred search. No UI redesign, API, repository, collection, schema, or business feature change. |
+| Verification Status | Owner/admin toast runtime deferral local lint, typecheck, build, analyzer build, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Owner/admin runtime ownership only: action-time toast facade, lazy Sarva notification loading, and analyzer validation. No UI redesign, API, repository, collection, schema, or business feature change. |
+
+## Owner Module Operational Excellence - Runtime Ownership - 2026-07-07
+
+| Field | Result |
+| --- | --- |
+| Scope | Owner/admin runtime optimization only. Existing owner orders, Kitchen, POS, menu, settings, staff, offers, admin, support, offline sync, Cloudinary upload, WhatsApp share, APIs, repositories, Firestore collections, schema, and business workflows were preserved. |
+| Tracker Gate | First unfinished owner gate `MAN-001` remains manual because password-protected view-switch verification requires owner credentials and an authenticated browser session. |
+| Toast Runtime | Added `src/lib/client-toast.ts` as a lazy client toast facade. Owner/admin action-only toast calls now load `react-hot-toast` only when a toast action executes. |
+| Sarva Notifications | Owner Orders and Kitchen now lazy-load `showSarvaNotification` from the existing toaster module on notification display, preserving existing notification payloads/actions without adding a listener or provider. |
+| Shared Helpers | Owner/admin shared helpers for Cloudinary upload, offline sync, support inbox, loyalty rules, operational view switching, POS, tables, menu, settings, and WhatsApp share now use the lazy toast facade where safe. |
+| Analyzer Probe | Initial `react-hot-toast` is absent from checked owner/admin operational initial chunks; remaining initial toast ownership is limited to unrelated customer/auth routes. Initial `xlsx` and Mapbox probes remain absent. |
+| Validation | `npm run typecheck`, `npm run lint`, `npm run build`, `npm run analyze`, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
+| Remaining Work | Hosted browser smoke, owner password view-switch verification, provider checks, hardware/printer checks, and Hostinger production env/redeploy remain manual gates. |
 
 ## RC Performance Phase 3 Runtime and Core Web Vitals Optimization - 2026-07-07
 
@@ -29,6 +42,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Client Boundaries | Customer home, restaurant listing, restaurant menu, checkout form/summary, owner orders, owner menu, and POS now load through page-level dynamic boundaries with scoped skeleton fallbacks. |
 | Runtime Deferral | Added `IdleMount`; PWA registration, push provider, and analytics diagnostics now initialize after idle while auth/session, Firestore hydration, alerts, and toasts remain route-owned. |
 | Diagnostics | Runtime diagnostics now respect `NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS`; LCP/CLS final reporting, INP event timing, hydration warning detection, slow fetch/long-task monitoring, and development-only memory sampling are cleanup-safe. |
+| Owner/Admin Toasts | Owner/admin action-only toast imports now route through the lazy `client-toast` facade; Owner Orders and Kitchen lazy-load Sarva notifications on demand. |
 | Images / Network | Added targeted preconnects for Cloudinary/Firebase image origins and conditional Google Analytics; removed duplicate above-the-fold hero preloads from customer home and restaurant desktop carousel paths. |
 | Render Work | Added `content-visibility` and `contain` utilities for repeated restaurant cards, home cards, dish cards, and shared table scroll regions. |
 | Large Lists | Shared `AdvancedDataTable` now memoizes searchable columns and uses deferred search input to reduce synchronous table filtering/sorting work. |
@@ -64,6 +78,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Initial Mapbox probe | Passed for checked public/customer and dashboard routes. |
 | Initial `xlsx` probe | Passed for checked public/customer routes, `/owner/menu`, and `/admin/menu-library`. |
 | Initial public toast probe | Passed for `/`, `/restaurants`, `/restaurant/[slug]/menu`, and `/checkout`. |
+| Initial owner/admin toast probe | Passed for checked owner/admin operational routes; remaining initial toast chunks are customer/auth scoped. |
 
 ### Phase 3 Remaining Work
 
@@ -71,7 +86,6 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Lighthouse | Redeploy current commit with production env and rerun Lighthouse/Core Web Vitals. Hosted baseline remains stale and cannot validate Phase 3 until Hostinger serves current code. |
 | Profile | Split profile by existing tabs/actions without redesign. |
-| Owner/Admin Toasts | Move owner/admin action-only toast imports behind user actions where safe. |
 | Owner Menu | Continue splitting heavy sections/actions after import/export browser smoke. |
 | Browser Smoke | Verify skeleton CLS, route transitions, PWA/push idle startup, diagnostics flag, and first-input responsiveness on target mobile devices. |
 

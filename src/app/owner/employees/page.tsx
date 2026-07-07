@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { Calculator, CheckCircle2, Edit3, KeyRound, Power, Trash2, UserPlus, type LucideIcon } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "@/lib/client-toast";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";

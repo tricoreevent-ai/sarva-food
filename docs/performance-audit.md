@@ -12,7 +12,7 @@ Scope: runtime performance and Core Web Vitals optimization only. No UI redesign
 | Client flow boundaries | Moved customer home, restaurant listing, restaurant menu, checkout form/summary, owner orders, owner menu, and POS flows behind page-level dynamic boundaries with route-specific skeleton fallbacks. |
 | Runtime initialization | Added `IdleMount` and deferred PWA registration, push provider, and analytics diagnostics until browser idle while keeping auth/session, Firestore hydration, alerts, and toasts route-owned. |
 | Diagnostics | Existing analytics monitoring now has `NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS`; diagnostics install after idle, report final LCP/CLS, include INP event timing where supported, detect hydration warnings, and sample memory only in development. |
-| Toast ownership | Customer home favorite toasts now import `react-hot-toast` only on user action; checked public initial routes no longer include initial `react-hot-toast`. |
+| Toast ownership | Customer home, owner/admin action toasts, and Owner Orders/Kitchen Sarva notifications now load toast runtime only on user/notification action; checked public and owner/admin operational initial routes no longer include initial `react-hot-toast`. |
 | Loading architecture | Added shared route skeletons for customer, dashboard, Kitchen, and POS surfaces with stable dimensions for cards, tables, charts, and operational rows. |
 | Image/network | Added targeted preconnects for Cloudinary/Firebase image origins and Google Analytics when enabled; removed duplicate desktop hero preload on customer home and desktop restaurant carousel. |
 | Render containment | Added `content-visibility` / `contain` utilities and applied them to repeated restaurant cards, mobile home cards, dish cards, and data-table scroll regions. |
@@ -47,6 +47,7 @@ Generated from local `ANALYZE=true npm run build` on 2026-07-07.
 | Checked public routes initial Mapbox | Absent |
 | Checked public routes initial `xlsx` | Absent |
 | Checked public routes initial `react-hot-toast` | Absent for `/`, `/restaurants`, `/restaurant/[slug]/menu`, and `/checkout`. |
+| Checked owner/admin operational initial `react-hot-toast` | Absent for checked owner/admin operational routes; remaining initial toast chunks are customer/auth scoped. |
 | `/owner/menu` initial `xlsx` | Absent |
 | `/admin/menu-library` initial `xlsx` | Absent |
 | `/owner/layout` initial Mapbox / `xlsx` / toast | Absent |
@@ -67,7 +68,6 @@ Generated from local `ANALYZE=true npm run build` on 2026-07-07.
 | P0 | Redeploy current commit with production env and rerun Lighthouse/Core Web Vitals on the hosted current build. |
 | P1 | Split `/profile` by existing tabs/actions without redesigning the UI. |
 | P1 | Continue Owner Menu section/action splitting after import/export browser smoke. |
-| P1 | Move owner/admin action-only toast imports behind user actions where safe. |
 | P2 | Add focused browser/Lighthouse smoke for skeleton CLS and first input responsiveness on mobile hardware. |
 
 ### Phase 3 Validation
