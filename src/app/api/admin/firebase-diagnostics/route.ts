@@ -161,7 +161,9 @@ export async function GET(request: NextRequest) {
 }
 
 function messageFor(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown Firebase error.";
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+  const reason = error instanceof Error ? error.name : "FirebaseDiagnosticError";
+  return code ? `${reason} (${code})` : reason;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {

@@ -8,6 +8,7 @@ import { fetchOwnerMenuItems, listenMenuItems } from "@/services/advanced-menu-s
 import { listenInventory, listenLoyaltyCustomers } from "@/services/production-data-service";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
+import { RELEASE_VERSION } from "@/lib/release";
 import type { InventoryItem, LoyaltyCustomer } from "@/lib/types";
 
 declare global {
@@ -25,7 +26,7 @@ const BUILD_INFO = {
   gitCommit: process.env.NEXT_PUBLIC_BUILD_VERSION ?? process.env.NEXT_PUBLIC_GIT_COMMIT_SHA ?? process.env.NEXT_PUBLIC_COMMIT_SHA ?? "local",
   buildDate: process.env.NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP ?? process.env.NEXT_PUBLIC_BUILD_DATE ?? "local",
   environment: process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV ?? "unknown",
-  version: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.1.0",
+  version: process.env.NEXT_PUBLIC_APP_VERSION ?? RELEASE_VERSION,
 };
 
 export function FirestoreStoreHydrator() {
@@ -95,13 +96,13 @@ export function FirestoreStoreHydrator() {
         .then((items) => {
           if (active) applyOwnerMenuItems(items);
         })
-        .catch((error) => console.warn("[Nammude owner menu] server load failed", error));
+        .catch((error) => console.warn("[Nammude owner menu] server load failed", safeClientReason(error)));
 
       unsubscribers.push(
         listenMenuItems(restaurantId, (items) => {
           applyOwnerMenuItems(items);
         }, (error) => {
-          console.warn("[Nammude owner menu] Firestore listener failed; keeping server menu snapshot.", error);
+          console.warn("[Nammude owner menu] Firestore listener failed; keeping server menu snapshot.", safeClientReason(error));
           void fetchOwnerMenuItems(restaurantId)
             .then((items) => {
               if (active) applyOwnerMenuItems(items);
@@ -157,4 +158,8 @@ export function FirestoreStoreHydrator() {
   }, [adminSurface, loginSurface, ownerInventorySurface, ownerLoyaltySurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
 
   return null;
+}
+
+function safeClientReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }

@@ -25,7 +25,7 @@ export function runDataConsistencyAudit(input: AuditInput) {
 
   window.setTimeout(() => {
     void runAudit(input).catch((error) => {
-      console.warn("[Nammude data audit] audit failed.", error instanceof Error ? error.message : error);
+      console.warn("[Nammude data audit] audit failed.", error instanceof Error ? error.name : typeof error);
     });
   }, 800);
 }
@@ -34,7 +34,7 @@ async function runAudit(input: AuditInput) {
   const db = getFirebaseDb();
   const env = {
     projectId: getFirebaseApp().options.projectId ?? "unknown",
-    emulator: process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS ?? "false",
+    emulator: process.env.NEXT_PUBLIC_FIREBASE_USE_EMULATORS ?? "false",
     host: window.location.host,
   };
   const restaurantIds = unique([input.restaurantId, input.restaurantSlug]);

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { APP_NAME } from "@/lib/constants";
+import { RELEASE_BRANCH, RELEASE_MARKER, RELEASE_VERSION } from "@/lib/release";
 import { getBuildCommit } from "@/lib/server/build-info";
 import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const RELEASE_BRANCH = "release/production-nammude";
-const RELEASE_MARKER = "nammude-production-release";
-const APPLICATION_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "v1.0.0-rc1";
 
 export function GET() {
   const buildCommit = getBuildCommit();
@@ -26,7 +23,7 @@ export function GET() {
       buildCommit,
       currentCommitSha: buildCommit,
       commitSha: buildCommit,
-      applicationVersion: APPLICATION_VERSION,
+      applicationVersion: process.env.NEXT_PUBLIC_APP_VERSION || RELEASE_VERSION,
       buildTimestamp,
       deploymentEnvironment,
       publicAppUrl,

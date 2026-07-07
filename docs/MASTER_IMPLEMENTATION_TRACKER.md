@@ -11,14 +11,36 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Enterprise Production Hardening and Release Closure |
-| Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Enterprise production hardening prepared on top of local owner runtime commit `f5cf3fe5faadad5a68821a4e1a0d7e19f085e393`; exact final SHA reported in release handoff. |
+| Current Sprint | RC2 Release Certification and Manual Deployment Package |
+| Release Version | `v1.0.0-rc2` |
+| Latest Git Commit | RC2 release hardening prepared from `2d9b7c38a4c4a9c12032f3ecc87d7e0c23c582a2`; exact final SHA must be recorded after these changes are committed. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `fe069b609009b8a042f58d1143407998407f3c64`, not current release branch HEAD; env still reports `development` and `applicationVersion: 0.1.0`. |
 | Build Date | 2026-07-07 |
-| Verification Status | Enterprise hardening audit local typecheck, lint, build, operational smoke, owner route/API HTTP probe, hosted route/provider reachability probe, Firestore rules/index review, and `git diff --check` passed where workspace-verifiable. `validate:prod-env` still fails locally for missing production env values and non-HTTPS local app URL. Build retains the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Production hardening and release closure only: owner route/API verification, safe owner error responses/logs, sync-conflict redaction, release metadata correction, hosted metadata check, env validation, and manual gate documentation. No UI redesign, repository, Firestore collection, schema, or business workflow change. |
+| Verification Status | RC2 repository-side typecheck, lint, build, operational smoke, local `/api/release-info`, and `git diff --check` passed. `validate:prod-env` fails locally only for missing real production env values and non-HTTPS local app URL. Build retains the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Production release certification and repository-side closure only: release tag strategy, env matrix, production fallback cleanup, safe diagnostics, deployment package, and documentation. No UI redesign, repository, Firestore collection, schema, or business workflow change. |
+
+## RC2 Release Certification and Manual Deployment Package - 2026-07-07
+
+| Field | Result |
+| --- | --- |
+| Scope | Completed every repository-side release item that does not require Hostinger dashboard, Firebase Console, third-party provider dashboards, authenticated production browser sessions, or physical devices. |
+| Release Strategy | Existing `v1.0.0-rc1` tag points to `54ef88c27676ed9d7de8b4c8982d8266ad5918ae`; do not rewrite it. Use new `v1.0.0-rc2` tag for the final committed release candidate. |
+| Package Metadata | `package.json` and `package-lock.json` now report `1.0.0-rc.2`. |
+| Release Metadata | `/api/release-info`, client build info, owner diagnostics, `.env*` examples, release notes, and deployment docs now align on `v1.0.0-rc2`. |
+| Environment Matrix | Added `docs/production-environment-matrix.md` with Required, Optional, Development Only, Deprecated, and Build Metadata classifications. |
+| Env Validation | `scripts/release/validate-production.js` now delegates to the canonical `scripts/validate-production-env.mjs`; production validation now checks `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc2` and requires `TABLE_QR_SECRET`. |
+| Production Fallbacks | Removed current runtime `0.1.0`/rc1 fallbacks from release metadata, client build info, and owner diagnostics. Historical docs retain historical rc1 references. |
+| QR Signing | `TABLE_QR_SECRET` is now required for production QR token signing; development keeps the local fallback only outside production. |
+| Security Hardening | Customer orders/account logs, public reviews, order notification, public cache/firestore/outage diagnostics, Razorpay webhook failure records, and admin diagnostics no longer log or return raw exception messages in the touched paths. |
+| Firestore Review | `firestore.rules` includes release collections and catch-all deny; `firestore.indexes.json` includes current operational owner/customer/menu/payment/notification indexes. Firebase deployment remains manual. |
+| Provider Readiness | Provider docs now require real SMTP, Firebase, Cloudinary, Google OAuth, Mapbox, VAPID, and optional Razorpay/WhatsApp credentials before launch-specific smoke. |
+| Deployment Package | Added `docs/final-manual-deployment-package.md` with changed files, configuration, env, Firebase commands, Hostinger sequence, cache clearing, verification, rollback, browser/printer/QR/provider/Lighthouse, and certification checklists. |
+| Local Release Info Probe | Passed from `next start` on a temporary local port: `applicationVersion: v1.0.0-rc2`, `deploymentEnvironment: production`, branch `release/production-nammude`, final tag-target commit reported in release handoff, and HTTPS public app URL. |
+| Validation | Passed: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run smoke:operational`, local `/api/release-info` probe, and `git diff --check`. Build warning remains the known Firebase/protobuf dynamic dependency warning. |
+| Env Validation | `cmd /c npm run validate:prod-env` failed locally for missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and local non-HTTPS `NEXT_PUBLIC_APP_URL`; these require Hostinger/Firebase/provider values. |
+| Remaining Manual Gates | Hostinger env/redeploy/cache, Firebase rules/index deploy, authenticated browser smoke, provider console smoke, printer/device/multi-device smoke, and final release tag creation after commit. |
+| Release Readiness | Code readiness remains `99%`; production-release readiness is `84%` until manual infrastructure/provider/hardware/browser gates pass. Recommendation remains No-Go before those gates. |
 
 ## Enterprise Production Hardening and Release Closure Audit - 2026-07-07
 
@@ -28,14 +50,14 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Local Commit Audited | Started from `f5cf3fe5faadad5a68821a4e1a0d7e19f085e393`; final hardening commit reported in release handoff. |
 | Rollback SHA | `f5cf3fe5faadad5a68821a4e1a0d7e19f085e393` is the pre-hardening local owner runtime commit to roll back to if the hardening handoff is rejected. |
 | Hosted Metadata | Hostinger `/api/release-info` currently reports `fe069b609009b8a042f58d1143407998407f3c64`, `deploymentEnvironment: development`, and `applicationVersion: 0.1.0`; it is behind local release HEAD and not production-configured. |
-| Local Production Metadata | Local `next start` after build served `/api/release-info` with `deploymentEnvironment: production` and corrected `applicationVersion: v1.0.0-rc1`; final deployed commit must be verified after the handoff commit is pushed and rebuilt. |
+| Local Production Metadata | RC2 local build/start verification must confirm `/api/release-info` reports `deploymentEnvironment: production` and `applicationVersion: v1.0.0-rc2`; final deployed commit must be verified after the handoff commit is pushed and rebuilt. |
 | Owner Route Probe | Local production server verified `/owner/login` returns `200`; 25 protected owner routes redirect unauthenticated users with `307` to `/owner/login?next=...`. |
 | Owner API Probe | Local production server checked 58 owner API method/path combinations. Result: 56 expected unauthenticated `403` responses and 2 expected auth validation `400` responses; no unexpected 2xx/5xx response was found. |
 | Hosted Route Probe | Hosted unauthenticated probe found public/auth pages returning `200`, protected owner routes returning expected `307`, owner APIs returning expected `403`/`405`, provider endpoints returning expected validation/auth statuses, and no unexpected `404`/`500` in checked routes. |
 | Provider Reachability | Hosted Cloudinary signature POST returns `200`; Razorpay order/verify require auth (`401`), Razorpay webhook rejects missing signature (`400`), WhatsApp send requires auth (`401`), WhatsApp webhook rejects invalid verification token (`403`), OTP/phone/order-notification empty payloads return safe `400`. Real provider sends/uploads/payments remain manual. |
 | Firestore Review | Local `firestore.rules` now includes `masterMenuTemplates`, `communicationSettings`, `communicationHistory`, `supportIssues`, `user_preferences`, `phoneVerificationSessions`, `emailOtps`, `modulePasswordOtps`, `paymentIntents`, `paymentWebhooks`, `whatsappEvents`, and `whatsappWebhooks`; catch-all deny remains. `firestore.indexes.json` includes current operational owner indexes. Deployment remains manual. |
 | Safe Error Hardening | Owner tables, owner sync, owner profile access, owner offers access, owner POS logging, auth session verification logs, and owner offline sync conflict responses now avoid returning/logging raw exception details or full document snapshots. |
-| Release Metadata Hardening | `/api/release-info` now reports `applicationVersion` from `NEXT_PUBLIC_APP_VERSION` or falls back to `v1.0.0-rc1`, aligning the local release build with tracker release metadata. |
+| Release Metadata Hardening | `/api/release-info` now reports `applicationVersion` from `NEXT_PUBLIC_APP_VERSION` or falls back to `v1.0.0-rc2`, aligning the local release build with tracker release metadata. |
 | Tenant Validation | Owner APIs either use `requireOwnerFeature` plus `tenantScope`, direct owner session role checks plus `tenantScope`, or endpoint-specific allowed restaurant checks. Repository write/read paths continue to enforce tenant/restaurant ownership. |
 | Duplicate Request Audit | Owner fetch scan found bounded route bootstrap/action calls and the existing Kitchen SSE path; no new duplicate polling loop, duplicate Firestore listener, or duplicate owner endpoint family was introduced. |
 | Authenticated Workflow Limit | Full login-to-logout owner workflow remains manual because this workspace does not have production owner credentials, provider consoles, real devices, or printer hardware. Logout path is wired through `/api/auth/session?surface=owner` and records logout audit when a session exists. |
@@ -72,7 +94,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Hosted route probe | Passed reachability/security expectations for checked unauthenticated routes: public/auth routes 200, protected owner routes 307, owner APIs 403/405, provider routes safe validation/auth responses, and no unexpected 404/500. |
 | Hosted provider reachability | Partial only: Cloudinary signature route reachable; Razorpay/WhatsApp/OTP/order-notification routes reject unauthenticated or invalid requests safely. Real send/upload/payment/webhook smoke remains manual. |
 | Firestore rules/index review | Passed local static review: release collections have explicit allow/deny rules and operational indexes are present. Firebase project deploy/diagnostics remain manual. |
-| Local `/api/release-info` | Passed after build/start: `deploymentEnvironment: production` and `applicationVersion: v1.0.0-rc1`. |
+| Local `/api/release-info` | Passed after build/start: `deploymentEnvironment: production` and `applicationVersion: v1.0.0-rc2`. |
 | Hosted `/api/release-info` | Blocked for signoff: reports `fe069b609009b8a042f58d1143407998407f3c64`, `applicationVersion: 0.1.0`, not local hardening HEAD, and env is still `development`. |
 | `cmd /c npm run validate:prod-env` | Failed locally: missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `DATABASE_ALERT_EMAIL`; `NEXT_PUBLIC_APP_URL` must use `https://`. |
 | `git diff --check` | Passed with Git line-ending normalization warnings only. |
@@ -82,8 +104,8 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Gate | Status | Next Action |
 | --- | --- | --- |
 | GitHub / Hostinger current commit | Blocked | Push hardening HEAD, redeploy Hostinger, clear cache, and verify `/api/release-info` matches final commit. |
-| Production env | Blocked | Set `NEXT_PUBLIC_APP_ENV=production`, HTTPS `NEXT_PUBLIC_APP_URL`, Firebase Admin, VAPID, `DATABASE_ALERT_EMAIL`, and optional `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc1` in Hostinger/production. |
-| Release metadata | Blocked on redeploy | Hosted `/api/release-info` must report final hardening commit, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc1`. |
+| Production env | Blocked | Set `NEXT_PUBLIC_APP_ENV=production`, HTTPS `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc2`, Firebase Admin, VAPID, `TABLE_QR_SECRET`, and `DATABASE_ALERT_EMAIL` in Hostinger/production. |
+| Release metadata | Blocked on redeploy | Hosted `/api/release-info` must report final hardening commit, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc2`. |
 | Authenticated owner workflow | Manual | Run login to dashboard/orders/Kitchen/POS/tables/menu/inventory/accounting/settings/staff/printer/notifications/logout with real owner credentials. |
 | Providers | Manual/provider | Smoke SMTP, Razorpay, WhatsApp/SMS/push, Cloudinary, Mapbox, Google OAuth with real credentials. |
 | Hardware/device | Manual | Smoke printers, cashier tablet, Kitchen tablet/TV, mobile QR, and multi-device realtime. |

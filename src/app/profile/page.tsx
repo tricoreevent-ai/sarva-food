@@ -210,7 +210,7 @@ function ProfilePageContent() {
       setAddressMessage(message);
       toast.success(message);
     } catch (error) {
-      console.error("[customer/profile] address save failed", error);
+      console.error("[customer/profile] address save failed", { reason: safeClientReason(error) });
       setAddressMessage(friendlyProfileMessage(error, "Could not save address. Check the details and try again."));
     } finally {
       setSavingAddress(false);
@@ -238,7 +238,7 @@ function ProfilePageContent() {
       customer.retry();
       setAddressMessage("Address deleted.");
     } catch (error) {
-      console.error("[customer/profile] address delete failed", error);
+      console.error("[customer/profile] address delete failed", { reason: safeClientReason(error) });
       setAddressMessage("Could not delete address. Refresh and try again.");
     }
   }
@@ -450,7 +450,7 @@ function ProfilePageContent() {
       const message = error instanceof Error && /requires-recent-login/i.test(error.message)
         ? "For security, sign out and sign in again before changing email or password."
         : "Could not save profile. Please check the details and try again.";
-      console.error("[customer/profile] account save failed", error);
+      console.error("[customer/profile] account save failed", { reason: safeClientReason(error) });
       setAccountMessage(message);
     } finally {
       setSavingAccount(false);
@@ -1340,6 +1340,10 @@ function filterProfileCatering(inquiries: CateringQuote[], email: string, phone:
 function profileTabFromUrl(tab: string | null) {
   const allowed = new Set(["overview", "addresses", "payments", "orders", "catering", "saved", "reviews", "offers", "settings"]);
   return tab && allowed.has(tab) ? tab : "overview";
+}
+
+function safeClientReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }
 
 function friendlyProfileMessage(error: unknown, fallback: string) {

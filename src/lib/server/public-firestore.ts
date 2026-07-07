@@ -267,7 +267,12 @@ export function logPublicDataError(scope: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : undefined;
   const hint = publicDataErrorHint(message);
-  console.error(`[Nammude public API] ${scope} failed${code ? ` (${code})` : ""}: ${message}${hint ? ` ${hint}` : ""}`);
+  console.error("[Nammude public API] request failed", {
+    scope,
+    reason: error instanceof Error ? error.name : typeof error,
+    ...(code ? { code } : {}),
+    ...(hint ? { hint } : {}),
+  });
 }
 
 export function logPublicDataInfo(scope: string, message: string, details?: Record<string, unknown>) {

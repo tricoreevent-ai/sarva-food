@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       status: order.status,
     }, { status: 201 });
   } catch (error) {
-    console.error("Create order failed:", error instanceof Error ? error.message : "unknown error");
+    console.error("[orders] create failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
     return NextResponse.json({ ok: false, error: "Unable to create order right now." }, { status: 500 });
   }
 }

@@ -23,7 +23,7 @@ export function useRealtimeOrder(orderId?: string) {
           setLoading(false);
         }
       } catch (error) {
-        console.error("[realtime-order] load failed", error);
+        console.error("[realtime-order] load failed", { reason: safeClientReason(error) });
         if (active) {
           setOrder(null);
           setError("Order could not be loaded. Check your connection and try again.");
@@ -40,4 +40,8 @@ export function useRealtimeOrder(orderId?: string) {
   }, [orderId]);
 
   return { order: orderId ? order : null, loading: orderId ? loading : false, error: orderId ? error : "Order id is missing." };
+}
+
+function safeClientReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }

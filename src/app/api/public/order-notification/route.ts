@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ ok: true, emailSent: true });
   } catch (error) {
-    console.error("[Nammude order] Owner notification email failed.", error);
+    console.error("[Nammude order] Owner notification email failed.", { reason: safeReason(error) });
     return NextResponse.json({ ok: true, emailSent: false, reason: "email-send-failed" });
   }
 }
@@ -85,7 +85,7 @@ async function loadOwnerEmail(restaurantId?: string) {
     } : null;
     return sanitizeEmail(data?.ownerProfile?.businessEmail) || sanitizeEmail(data?.contact?.supportEmail);
   } catch (error) {
-    console.error("[Nammude order] Could not load owner email from restaurant profile.", error);
+    console.error("[Nammude order] Could not load owner email from restaurant profile.", { reason: safeReason(error) });
     return "";
   }
 }
@@ -185,4 +185,8 @@ function escapeHtml(value: string) {
 
 function formatCurrency(value: number) {
   return `Rs ${Math.round(Number.isFinite(value) ? value : 0)}`;
+}
+
+function safeReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }

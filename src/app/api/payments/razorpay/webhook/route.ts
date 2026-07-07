@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     await webhookRef.set({
       status: "failed",
-      error: error instanceof Error ? error.message.slice(0, 200) : "Webhook processing failed.",
+      error: error instanceof Error ? error.name : "WebhookProcessingFailed",
       processedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return NextResponse.json({ ok: true, deferred: true });

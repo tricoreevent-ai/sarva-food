@@ -1,6 +1,7 @@
 import nextEnv from "@next/env";
 
 const { loadEnvConfig } = nextEnv;
+const RELEASE_VERSION = "v1.0.0-rc2";
 
 loadEnvConfig(process.cwd(), false, {
   info: () => undefined,
@@ -10,6 +11,7 @@ loadEnvConfig(process.cwd(), false, {
 const required = [
   "NEXT_PUBLIC_APP_ENV",
   "NEXT_PUBLIC_APP_URL",
+  "NEXT_PUBLIC_APP_VERSION",
   "NEXT_PUBLIC_USE_FIREBASE",
   "NEXT_PUBLIC_FIREBASE_API_KEY",
   "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
@@ -21,6 +23,7 @@ const required = [
   "FIREBASE_ADMIN_PROJECT_ID",
   "FIREBASE_ADMIN_CLIENT_EMAIL",
   "FIREBASE_ADMIN_PRIVATE_KEY",
+  "TABLE_QR_SECRET",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_SECURE",
@@ -43,6 +46,10 @@ const invalid = [];
 
 if (process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production") {
   invalid.push("NEXT_PUBLIC_APP_ENV must be production for production deployments.");
+}
+
+if (process.env.NEXT_PUBLIC_APP_VERSION && process.env.NEXT_PUBLIC_APP_VERSION !== RELEASE_VERSION) {
+  invalid.push(`NEXT_PUBLIC_APP_VERSION must be ${RELEASE_VERSION}.`);
 }
 
 if (process.env.NEXT_PUBLIC_USE_FIREBASE && process.env.NEXT_PUBLIC_USE_FIREBASE !== "true") {
@@ -82,6 +89,14 @@ if (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && /\s/.test(process.env.NEXT_PU
 
 if (process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY && /\s/.test(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY)) {
   invalid.push("NEXT_PUBLIC_FIREBASE_VAPID_KEY must not contain spaces or line breaks.");
+}
+
+if (process.env.TABLE_QR_SECRET && process.env.TABLE_QR_SECRET.trim().length < 32) {
+  invalid.push("TABLE_QR_SECRET must be at least 32 characters.");
+}
+
+if (process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY && process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY.trim().length < 32) {
+  invalid.push("PAYMENT_SETTINGS_ENCRYPTION_KEY must be at least 32 characters when configured.");
 }
 
 const normalizedPrivateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);

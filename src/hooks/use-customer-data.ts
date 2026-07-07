@@ -48,7 +48,7 @@ export function useCustomerData(customerId?: string | null) {
       setData(payload.data);
       setStatus("success");
     } catch (error) {
-      console.error("[customer-data] load failed", error);
+      console.error("[customer-data] load failed", { reason: safeClientReason(error) });
       setStatus("error");
       setError("Could not load customer account. Check your connection and try again.");
     }
@@ -59,4 +59,8 @@ export function useCustomerData(customerId?: string | null) {
   }, [retry]);
 
   return { ...data, status, error, retry };
+}
+
+function safeClientReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }

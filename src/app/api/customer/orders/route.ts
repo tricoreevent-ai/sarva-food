@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[customer/orders] load failed", {
       requestId: crypto.randomUUID(),
-      reason: error instanceof Error ? error.message : String(error ?? "unknown"),
+      reason: error instanceof Error ? error.name : typeof error,
     });
     return NextResponse.json({ error: "Could not load your order right now." }, { status: 400 });
   }

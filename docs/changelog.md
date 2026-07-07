@@ -2,9 +2,12 @@
 
 ## 2026-07-07
 
+- Prepared `v1.0.0-rc2` as the safe release-candidate strategy instead of rewriting the existing `v1.0.0-rc1` tag; package metadata now reports `1.0.0-rc.2`.
+- Added `docs/production-environment-matrix.md` and `docs/final-manual-deployment-package.md`; aligned `.env*` examples, Hostinger docs, and production validators with the actual runtime env surface.
+- Hardened production release metadata defaults, client build info, owner diagnostics, QR signing, and selected customer/public/payment/admin diagnostics so stale `0.1.0`/rc1 fallbacks and raw exception details do not leak.
 - Completed enterprise production-hardening audit for owner route/API closure: local production route redirects, owner API unauthenticated status codes, hosted metadata, env validation, duplicate request scan, tenant validation review, and manual release blockers recorded.
 - Hardened owner table, sync, profile, offers, POS, and auth session diagnostics to avoid returning or logging raw exception details; offline sync conflicts no longer return full local/remote document snapshots.
-- Corrected release metadata so `/api/release-info` reports `applicationVersion: v1.0.0-rc1` by default, while still allowing `NEXT_PUBLIC_APP_VERSION` override.
+- Corrected release metadata so `/api/release-info` reports `applicationVersion: v1.0.0-rc2` by default, while still allowing `NEXT_PUBLIC_APP_VERSION` override.
 - Verified hosted route/provider reachability without credentials: public/auth pages load, protected owner routes redirect, owner APIs reject unauthenticated access, Cloudinary signature route is reachable, and Razorpay/WhatsApp/OTP/order notification routes safely reject invalid unauthenticated requests.
 - Reviewed Firestore rules/indexes for release collections; local rules include the support, OTP/session, payment webhook, WhatsApp event, master menu, communication, and user preference collections with catch-all deny preserved. Firebase deployment remains manual.
 - Deferred owner/admin action toast runtime behind `src/lib/client-toast.ts`, including lazy Sarva notifications for Owner Orders and Kitchen, without changing UI, APIs, repositories, schema, or business workflows.

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
           collectionName,
           exists: false,
           latencyMs: Math.round(performance.now() - start),
-          error: error instanceof Error ? error.message : "Collection check failed.",
+          error: error instanceof Error ? error.name : "CollectionCheckFailed",
         };
       }
     }),

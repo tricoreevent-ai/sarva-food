@@ -40,7 +40,7 @@ export async function getCachedPublicData<T>(
   if (existing && existing.staleUntil > now) {
     existing.inflight = refreshCacheWithDeadline(key, loader, options)
       .catch((error) => {
-        console.warn(error instanceof Error ? error.message : `Public data refresh failed for ${key}`);
+        console.warn("[Nammude public cache] refresh failed", { key, reason: safeReason(error) });
         return existing.data;
       })
       .finally(() => {
@@ -98,7 +98,7 @@ function refreshCacheWithDeadline<T>(
   let timeoutId: ReturnType<typeof setTimeout>;
   const refreshPromise = refreshCache(key, loader, options);
   refreshPromise.catch((error) => {
-    console.warn(error instanceof Error ? error.message : `Public data refresh failed for ${key}`);
+    console.warn("[Nammude public cache] refresh failed", { key, reason: safeReason(error) });
   });
   const timeout = new Promise<T>((_, reject) => {
     timeoutId = setTimeout(
@@ -110,4 +110,8 @@ function refreshCacheWithDeadline<T>(
   return Promise.race([refreshPromise, timeout]).finally(() => {
     clearTimeout(timeoutId);
   });
+}
+
+function safeReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }

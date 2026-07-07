@@ -4,7 +4,6 @@ import crypto from "crypto";
 import { resolveTenantId } from "@/lib/tenant";
 import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 
-const secret = process.env.TABLE_QR_SECRET || process.env.NEXTAUTH_SECRET || process.env.FIREBASE_ADMIN_PROJECT_ID || "nammude-table-qr-dev";
 const defaultTtlDays = 365;
 
 export type TableQrPayload = {
@@ -53,7 +52,16 @@ export function requestOrigin(headers: Headers) {
 }
 
 function sign(value: string) {
-  return crypto.createHmac("sha256", secret).update(value).digest("base64url");
+  return crypto.createHmac("sha256", tableQrSecret()).update(value).digest("base64url");
+}
+
+function tableQrSecret() {
+  const secret = process.env.TABLE_QR_SECRET || process.env.NEXTAUTH_SECRET || process.env.FIREBASE_ADMIN_PROJECT_ID;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_APP_ENV === "production") {
+    throw new Error("TABLE_QR_SECRET is required for production QR signing.");
+  }
+  return "nammude-table-qr-dev";
 }
 
 function configuredOrigin() {

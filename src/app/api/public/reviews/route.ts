@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     await persistRestaurantReviewAndStats(doc);
     return NextResponse.json({ ok: true, data: toPublicReview(doc) });
   } catch (error) {
-    console.error("[public/reviews] save failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.message : String(error ?? "unknown") });
+    console.error("[public/reviews] save failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
     return NextResponse.json({ ok: false, error: "Unable to save review right now." }, { status: 500 });
   }
 }
@@ -285,7 +285,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ ok: false, error: "Invalid review action." }, { status: 400 });
   } catch (error) {
-    console.error("[public/reviews] update failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.message : String(error ?? "unknown") });
+    console.error("[public/reviews] update failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
     return NextResponse.json({ ok: false, error: "Unable to update review right now." }, { status: 500 });
   }
 }

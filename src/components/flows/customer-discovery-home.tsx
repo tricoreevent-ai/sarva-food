@@ -193,7 +193,7 @@ export function CustomerDiscoveryHome() {
       }
       customer.retry();
     } catch (error) {
-      console.error("[customer/home] favorite update failed", error);
+      console.error("[customer/home] favorite update failed", { reason: safeClientReason(error) });
       notifyCustomerHome("error", "Could not update favorite. Please try again.");
     }
   }
@@ -554,6 +554,10 @@ export function CustomerDiscoveryHome() {
       ) : null}
     </main>
   );
+}
+
+function safeClientReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }
 
 function MobileSectionHeader({ title, href }: { title: string; href: string }) {

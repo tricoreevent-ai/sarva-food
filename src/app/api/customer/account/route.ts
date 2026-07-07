@@ -64,6 +64,6 @@ function logCustomerAccountError(action: string, error: unknown) {
   console.error("[customer/account] request failed", {
     requestId: crypto.randomUUID(),
     action,
-    reason: error instanceof Error ? error.message : String(error ?? "unknown"),
+    reason: error instanceof Error ? error.name : typeof error,
   });
 }

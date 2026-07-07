@@ -45,7 +45,7 @@ export async function notifyPublicDatabaseFailure(scope: string, error: unknown)
     const transporter = nodemailer.createTransport(smtp);
     const timestamp = new Date(now).toISOString();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "Nammude customer application";
-    const message = safeErrorMessage(error);
+    const reason = safeErrorReason(error);
 
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -58,13 +58,13 @@ export async function notifyPublicDatabaseFailure(scope: string, error: unknown)
         `Area: ${scope}`,
         `Detected at: ${timestamp}`,
         `Environment: ${process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "unknown"}`,
-        `Server detail: ${message}`,
+        `Server reason: ${reason}`,
         "",
         "This alert is throttled for 30 minutes to avoid repeated emails during the same outage.",
       ].join("\n"),
     });
   } catch (alertError) {
-    console.error("[Nammude] Database outage alert could not be sent.", alertError);
+    console.error("[Nammude] Database outage alert could not be sent.", { reason: safeErrorReason(alertError) });
   }
 }
 
@@ -116,7 +116,8 @@ function getSmtpConfig(): TransportOptions | null {
   };
 }
 
-function safeErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.replace(/\s+/g, " ").slice(0, 500) || "Unknown public data error";
+function safeErrorReason(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+  const reason = error instanceof Error ? error.name : typeof error;
+  return [reason, code].filter(Boolean).join(":") || "unknown";
 }

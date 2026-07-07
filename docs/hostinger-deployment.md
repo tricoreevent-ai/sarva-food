@@ -28,6 +28,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
 NEXT_PUBLIC_APP_NAME=Nammude
+NEXT_PUBLIC_APP_VERSION=v1.0.0-rc2
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
 
@@ -36,6 +37,7 @@ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
@@ -48,12 +50,15 @@ NEXT_PUBLIC_ENABLE_TEST_LOGIN=false
 FIREBASE_ADMIN_PROJECT_ID=
 FIREBASE_ADMIN_CLIENT_EMAIL=
 FIREBASE_ADMIN_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+TABLE_QR_SECRET=
+PAYMENT_SETTINGS_ENCRYPTION_KEY=
 GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
 
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -85,6 +90,10 @@ Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual 
 
 `DATABASE_ALERT_EMAIL` is the fallback recipient for customer-data outage notifications. Configure the same address in Admin → System Settings → Customer service alerts. The hosting value remains usable even when Firestore itself is unavailable.
 
+`TABLE_QR_SECRET` is required for production QR signing and should be a long random value of at least 32 characters. Keep it stable after printing QR codes, otherwise existing QR links may fail verification.
+
+`PAYMENT_SETTINGS_ENCRYPTION_KEY` is recommended before enabling live restaurant payment settings. Keep it stable so encrypted provider secrets remain readable after redeploys.
+
 For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
 
 For customer Google sign-in, add the same OAuth client id to `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_ID`, and add the OAuth secret to `GOOGLE_OAUTH_CLIENT_SECRET`. In Firebase Authentication, enable the Google provider and add both `violet-squid-380447.hostingersite.com` and the final custom domain under authorized domains.
@@ -115,6 +124,8 @@ Optional environment validation after setting a local production env file:
 npm run validate:prod-env
 ```
 
+The complete production environment matrix is tracked in `docs/production-environment-matrix.md`.
+
 ## Firebase Data
 
 Seed initial restaurant and master data only after the production Firebase env variables are set:
@@ -125,7 +136,7 @@ npm run firebase:seed:production
 
 ## Deployment Steps
 
-1. Commit and push the repository to GitHub on `main`.
+1. Commit and push the repository to GitHub on `release/production-nammude`.
 2. In Hostinger hPanel, choose "Deploy Your Node.js Web App".
 3. Select "Import Git repository" and continue with GitHub.
 4. Pick the `sarva-food` repository.

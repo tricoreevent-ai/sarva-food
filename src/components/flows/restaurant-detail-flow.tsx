@@ -2439,8 +2439,12 @@ async function notifyOwnerAboutOrder(payload: Record<string, unknown>) {
       console.warn("[Nammude order] Owner email notification was not sent.", body?.error || response.status);
     }
   } catch (error) {
-    console.warn("[Nammude order] Owner email notification request failed.", error);
+    console.warn("[Nammude order] Owner email notification request failed.", { reason: safeClientReason(error) });
   }
+}
+
+function safeClientReason(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
 }
 
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {

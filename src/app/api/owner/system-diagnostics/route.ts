@@ -11,6 +11,7 @@ import { TableRepository } from "@/repositories/table-repository";
 import { ownerReadRoles, tenantScope } from "@/repositories/shared";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { getBuildCommit } from "@/lib/server/build-info";
+import { RELEASE_VERSION } from "@/lib/release";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
         tenant: scope.tenantId,
         firebaseProject: adminApp().options.projectId ?? "not configured",
         environment: process.env.NODE_ENV,
-        buildVersion: process.env.NEXT_PUBLIC_BUILD_VERSION ?? "0.1.0",
+        buildVersion: process.env.NEXT_PUBLIC_BUILD_VERSION ?? RELEASE_VERSION,
         commitSha: getBuildCommit(),
         listenerStatus: "Server repositories: healthy",
         firestoreStatus: "connected",
