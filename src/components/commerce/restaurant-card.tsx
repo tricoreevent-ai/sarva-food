@@ -18,7 +18,7 @@ function RestaurantCardComponent({ restaurant }: { restaurant: Restaurant & { di
       prefetch={false}
       className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <article className="mobile-premium-card touch-lift h-full overflow-hidden rounded-lg bg-card transition-transform duration-300 group-hover:-translate-y-1">
+      <article className="mobile-premium-card touch-lift content-visibility-auto h-full overflow-hidden rounded-lg bg-card transition-transform duration-300 group-hover:-translate-y-1">
         <div className="relative aspect-[16/11] overflow-hidden bg-muted">
           <RestaurantBannerCarousel
             images={images}

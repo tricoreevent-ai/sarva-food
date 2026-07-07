@@ -1,5 +1,5 @@
-import { CustomerHomeLoading } from "@/components/state/page-state";
+import { CustomerRouteSkeleton } from "@/components/state/route-skeletons";
 
 export default function Loading() {
-  return <CustomerHomeLoading />;
+  return <CustomerRouteSkeleton variant="home" />;
 }

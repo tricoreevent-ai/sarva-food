@@ -126,6 +126,15 @@
   transform: scale(0.985);
 }
 
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 420px;
+}
+
+.render-contain {
+  contain: layout paint;
+}
+
 .shimmer {
   position: relative;
   overflow: hidden;

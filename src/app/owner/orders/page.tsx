@@ -1,9 +1,9 @@
 import dynamic from "next/dynamic";
-import { ModuleLoading } from "@/components/state/page-state";
+import { DashboardRouteSkeleton } from "@/components/state/route-skeletons";
 
 const OwnerOrderManagementFlow = dynamic(
   () => import("@/components/flows/owner-order-management-flow").then((module) => module.OwnerOrderManagementFlow),
-  { loading: () => <ModuleLoading module="owner" /> },
+  { loading: () => <DashboardRouteSkeleton app="owner" variant="orders" /> },
 );
 
 export default function OwnerOrdersPage() {

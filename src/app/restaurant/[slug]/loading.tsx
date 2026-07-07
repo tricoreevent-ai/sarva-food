@@ -1,5 +1,5 @@
-import { ModuleLoading } from "@/components/state/page-state";
+import { CustomerRouteSkeleton } from "@/components/state/route-skeletons";
 
 export default function RestaurantLoading() {
-  return <ModuleLoading module="customer" />;
+  return <CustomerRouteSkeleton variant="restaurant" />;
 }

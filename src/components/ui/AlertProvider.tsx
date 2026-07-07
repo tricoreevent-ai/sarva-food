@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertModal } from "@/components/ui/AlertModal";
-import { showSarvaNotification } from "@/components/ui/app-toaster";
 import { AlertContext } from "@/hooks/useAlert";
 import type { AlertApi, AlertOptions, AlertRequest, NativeAlertOverrideController, PromptOptions } from "@/types/alert.types";
 
@@ -136,11 +135,15 @@ function applyNativeOverrides(api: AlertApi) {
 }
 
 function showAlertToast(message: ReactNode, options: AlertOptions) {
-  showSarvaNotification({
-    tone: options.tone === "success" ? "success" : options.tone === "danger" ? "error" : options.tone === "warning" ? "warning" : "info",
-    title: options.title ?? "Notice",
-    message,
-  });
+  void import("@/components/ui/app-toaster")
+    .then(({ showSarvaNotification }) => {
+      showSarvaNotification({
+        tone: options.tone === "success" ? "success" : options.tone === "danger" ? "error" : options.tone === "warning" ? "warning" : "info",
+        title: options.title ?? "Notice",
+        message,
+      });
+    })
+    .catch(() => undefined);
 }
 
 function restoreNativeMethods() {

@@ -25,6 +25,7 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_STACK_BASE_URL: optionalUrl,
   NEXT_PUBLIC_ENABLE_TEST_LOGIN: z.enum(["true", "false"]).default("false"),
   NEXT_PUBLIC_ENABLE_DEV_LOGIN: z.enum(["true", "false"]).default("false"),
+  NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS: z.enum(["true", "false"]).default("true"),
   NEXT_PUBLIC_SENTRY_DSN: optionalUrl,
 });
 
@@ -77,6 +78,7 @@ export function getClientEnv() {
     NEXT_PUBLIC_STACK_BASE_URL: process.env.NEXT_PUBLIC_STACK_BASE_URL,
     NEXT_PUBLIC_ENABLE_TEST_LOGIN: process.env.NEXT_PUBLIC_ENABLE_TEST_LOGIN,
     NEXT_PUBLIC_ENABLE_DEV_LOGIN: process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN,
+    NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS: process.env.NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   });
 }

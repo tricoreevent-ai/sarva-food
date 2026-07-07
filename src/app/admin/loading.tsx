@@ -1,5 +1,5 @@
-import { ModuleLoading } from "@/components/state/page-state";
+import { DashboardRouteSkeleton } from "@/components/state/route-skeletons";
 
 export default function AdminLoading() {
-  return <ModuleLoading module="admin" />;
+  return <DashboardRouteSkeleton app="admin" />;
 }

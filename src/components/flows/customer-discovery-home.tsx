@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useMemo, useState } from "react";
-import toast from "react-hot-toast";
 import {
   Bell,
   ChevronRight,
@@ -187,15 +186,15 @@ export function CustomerDiscoveryHome() {
     try {
       if (alreadySaved) {
         await deleteCustomerFavoriteRestaurant(favoriteId);
-        toast.success(`${restaurant.name} removed from favorites.`);
+        notifyCustomerHome("success", `${restaurant.name} removed from favorites.`);
       } else {
         await saveCustomerFavoriteRestaurant(customerId, restaurant);
-        toast.success(`${restaurant.name} saved to favorites.`);
+        notifyCustomerHome("success", `${restaurant.name} saved to favorites.`);
       }
       customer.retry();
     } catch (error) {
       console.error("[customer/home] favorite update failed", error);
-      toast.error("Could not update favorite. Please try again.");
+      notifyCustomerHome("error", "Could not update favorite. Please try again.");
     }
   }
 
@@ -370,7 +369,8 @@ export function CustomerDiscoveryHome() {
                   src={heroImage}
                   alt="Restaurant ordering illustration"
                   fill
-                  priority
+                  loading="eager"
+                  fetchPriority="high"
                   fallbackSrc={CUSTOMER_HERO_FALLBACK_IMAGE}
                   sizes="460px"
                   className="object-cover"
@@ -581,7 +581,7 @@ function MobileRestaurantCard({
   const badge = restaurant.deliveryFee === 0 ? "Free delivery" : restaurant.isOpen ? "Open" : "Preorder";
   const images = restaurantListingImages(restaurant);
   return (
-    <article className="w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
+    <article className="content-visibility-auto w-[14.5rem] shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl md:w-auto md:rounded-xl">
       <div className="relative h-28 overflow-hidden bg-muted md:h-36">
         <Link href={`/restaurant/${restaurant.slug}`} prefetch={false} className="relative block h-full">
           <RestaurantBannerCarousel images={images} alt={restaurant.name} sizes="250px" intervalMs={5200} />
@@ -624,7 +624,7 @@ MemoMobileRestaurantCard.displayName = "MemoMobileRestaurantCard";
 
 function PopularDishCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
   return (
-    <article className="grid min-h-24 w-[18rem] shrink-0 grid-cols-[5.25rem_1fr_auto] items-center gap-3 rounded-2xl border bg-card p-2 shadow-sm md:w-auto">
+    <article className="render-contain grid min-h-24 w-[18rem] shrink-0 grid-cols-[5.25rem_1fr_auto] items-center gap-3 rounded-2xl border bg-card p-2 shadow-sm md:w-auto">
       <div className="relative size-[5.25rem] overflow-hidden rounded-xl bg-muted">
         <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="96px" className="object-cover" />
       </div>
@@ -648,6 +648,12 @@ function statusLabel(status: string, permission: string) {
   if (permission === "granted") return "GPS location active";
   if (permission === "denied") return "Using selected delivery area";
   return status || "Choose delivery location";
+}
+
+function notifyCustomerHome(kind: "success" | "error", message: string) {
+  void import("react-hot-toast").then(({ default: toast }) => {
+    toast[kind](message);
+  });
 }
 
 function resolveDirectHomepageTitle(value?: string) {

@@ -1537,8 +1537,8 @@ function HeroBannerCarousel({ images, title }: { images: string[]; title: string
           src={image}
           alt={`${title} banner ${index + 1}`}
           fill
-          priority={index === 0}
-          loading={index === 0 ? undefined : index === 1 ? "eager" : "lazy"}
+          loading={index <= 1 ? "eager" : "lazy"}
+          fetchPriority={index === 0 ? "high" : "auto"}
           fallbackSrc={IMAGE_FALLBACKS.restaurant}
           sizes="(max-width: 767px) 100vw, (max-width: 1279px) 100vw, 80vw"
           className={`object-cover opacity-0 transition-opacity duration-700 ease-out ${index === activeIndex ? "opacity-70" : ""}`}

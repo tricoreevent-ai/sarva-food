@@ -1,7 +1,11 @@
-import { Suspense } from "react";
-import { CustomerMenuFlow } from "@/components/flows/customer-menu-flow";
+import dynamic from "next/dynamic";
 import { CustomerShell } from "@/components/layout/customer-shell";
-import { InlineLoading } from "@/components/state/page-state";
+import { CustomerRouteSkeleton } from "@/components/state/route-skeletons";
+
+const CustomerMenuFlow = dynamic(
+  () => import("@/components/flows/customer-menu-flow").then((module) => module.CustomerMenuFlow),
+  { loading: () => <CustomerRouteSkeleton variant="menu" /> },
+);
 
 export default async function RestaurantMenuPage({
   params,
@@ -15,14 +19,12 @@ export default async function RestaurantMenuPage({
 
   return (
     <CustomerShell>
-      <Suspense fallback={<InlineLoading label="Loading menu" />}>
-        <CustomerMenuFlow
-          restaurantSlug={slug}
-          source={source}
-          offerCode={offer}
-          highlightItemId={item}
-        />
-      </Suspense>
+      <CustomerMenuFlow
+        restaurantSlug={slug}
+        source={source}
+        offerCode={offer}
+        highlightItemId={item}
+      />
     </CustomerShell>
   );
 }

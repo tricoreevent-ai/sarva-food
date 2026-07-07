@@ -215,6 +215,9 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossOrigin="anonymous" />
+        {googleAnalyticsId ? <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" /> : null}
         <script id="sarva-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         {process.env.NODE_ENV === "production" ? (
           <script id="sarva-chunk-recovery" dangerouslySetInnerHTML={{ __html: chunkRecoveryScript }} />

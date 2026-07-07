@@ -11,14 +11,69 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC Performance Phase 2 Enterprise Performance Optimization |
+| Current Sprint | RC Performance Phase 3 Runtime and Core Web Vitals Optimization |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Performance Phase 2 optimization prepared on top of local Phase 1 audit commit `8a0c9849a2f043ff80cfb0eb51d7e6732d72ddfc`; exact final SHA reported in release handoff. |
+| Latest Git Commit | Performance Phase 3 optimization prepared on top of local Phase 2 commit `442ea106e6fdc5c58ef5bf2f87f9647a0ebaf538`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not current release branch HEAD; env still reports `development`. Lighthouse baseline was measured against this stale hosted deployment. |
 | Build Date | 2026-07-07 |
-| Verification Status | Phase 2 performance optimization local lint, typecheck, build, analyzer build, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Performance optimization only: route-scoped runtime providers, `next/font`, Mapbox/map CSS lazy loading, dynamic `xlsx`, profile map autocomplete lazy loading, runtime image fixes, and server/client boundary cleanup. No UI redesign, API, repository, collection, schema, or business feature change. |
+| Verification Status | Phase 3 runtime optimization local lint, typecheck, build, analyzer build, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Runtime performance only: route skeletons, streaming/dynamic client-flow boundaries, idle runtime providers, diagnostics gating, public route toast deferral, preconnect/image priority cleanup, render containment, and large-table deferred search. No UI redesign, API, repository, collection, schema, or business feature change. |
+
+## RC Performance Phase 3 Runtime and Core Web Vitals Optimization - 2026-07-07
+
+| Field | Result |
+| --- | --- |
+| Scope | Runtime/Core Web Vitals optimization only. Existing UI, APIs, repositories, Firestore collections, schema, auth, payment, POS, Kitchen, owner, admin, and customer workflows were preserved. |
+| Route Streaming | Added route-level skeleton loading files for major customer, owner, Kitchen, POS, and admin routes. Full-screen splash fallbacks were replaced with layout-matching skeletons to reserve final space and reduce CLS risk. |
+| Client Boundaries | Customer home, restaurant listing, restaurant menu, checkout form/summary, owner orders, owner menu, and POS now load through page-level dynamic boundaries with scoped skeleton fallbacks. |
+| Runtime Deferral | Added `IdleMount`; PWA registration, push provider, and analytics diagnostics now initialize after idle while auth/session, Firestore hydration, alerts, and toasts remain route-owned. |
+| Diagnostics | Runtime diagnostics now respect `NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS`; LCP/CLS final reporting, INP event timing, hydration warning detection, slow fetch/long-task monitoring, and development-only memory sampling are cleanup-safe. |
+| Images / Network | Added targeted preconnects for Cloudinary/Firebase image origins and conditional Google Analytics; removed duplicate above-the-fold hero preloads from customer home and restaurant desktop carousel paths. |
+| Render Work | Added `content-visibility` and `contain` utilities for repeated restaurant cards, home cards, dish cards, and shared table scroll regions. |
+| Large Lists | Shared `AdvancedDataTable` now memoizes searchable columns and uses deferred search input to reduce synchronous table filtering/sorting work. |
+| Realtime Audit | Public customer data already uses cached fetch/in-flight dedupe, not direct realtime listeners. No realtime listener, polling loop, API route, or Firestore collection was added. |
+
+### Phase 3 Bundle Results
+
+| Entry / Route | Phase 2 Parsed | Phase 3 Parsed | Result |
+| --- | ---: | ---: | --- |
+| `app/layout` | `9.4 KB` | `9.4 KB` | Root shell stayed minimal. |
+| `/` | `951.8 KB` | `936.6 KB` | Initial home route no longer includes initial `react-hot-toast`. |
+| `/restaurants` | `938.4 KB` | `923.1 KB` | Route flow split with skeleton fallback. |
+| `/restaurant/[slug]` | `1057.4 KB` | `1053.9 KB` | Detail route skeleton boundary added; flow remains interactive-heavy. |
+| `/restaurant/[slug]/menu` | Not separately recorded in Phase 2 | `288.1 KB` | Menu flow now loads outside the initial route shell. |
+| `/checkout` | `1015.3 KB` | `1000.2 KB` | Checkout form/summary split. |
+| `/profile` | `1540.1 KB` | `1536.4 KB` | Still the largest customer route. |
+| `/owner/layout` | `225.2 KB` | `209.7 KB` | Dashboard runtime defers idle-only providers. |
+| `/admin/layout` | `225.2 KB` | `209.7 KB` | Same dashboard runtime deferral. |
+| `/owner/menu` | `992.8 KB` | `985.3 KB` | Import/export isolation preserved. |
+| `/owner/pos` | `70.6 KB` | `30.5 KB` | POS shell remains light while the flow stays client-only. |
+| `/owner/kitchen` | `128.0 KB` | `128.4 KB` | KDS isolation preserved. |
+| `/admin/menu-library` | `91.6 KB` | `91.9 KB` | Initial route still excludes `xlsx`. |
+
+### Phase 3 Validation
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run build` | Passed with the existing Firebase/protobuf dynamic dependency warning. |
+| `npm run analyze` | Passed and regenerated analyzer reports. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| Initial Mapbox probe | Passed for checked public/customer and dashboard routes. |
+| Initial `xlsx` probe | Passed for checked public/customer routes, `/owner/menu`, and `/admin/menu-library`. |
+| Initial public toast probe | Passed for `/`, `/restaurants`, `/restaurant/[slug]/menu`, and `/checkout`. |
+
+### Phase 3 Remaining Work
+
+| Area | Next Action |
+| --- | --- |
+| Lighthouse | Redeploy current commit with production env and rerun Lighthouse/Core Web Vitals. Hosted baseline remains stale and cannot validate Phase 3 until Hostinger serves current code. |
+| Profile | Split profile by existing tabs/actions without redesign. |
+| Owner/Admin Toasts | Move owner/admin action-only toast imports behind user actions where safe. |
+| Owner Menu | Continue splitting heavy sections/actions after import/export browser smoke. |
+| Browser Smoke | Verify skeleton CLS, route transitions, PWA/push idle startup, diagnostics flag, and first-input responsiveness on target mobile devices. |
 
 ## RC Performance Phase 2 Enterprise Performance Optimization - 2026-07-07
 

@@ -1,7 +1,7 @@
 import nextDynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { CustomerShell } from "@/components/layout/customer-shell";
-import { PageLoading } from "@/components/state/page-state";
+import { CustomerRouteSkeleton } from "@/components/state/route-skeletons";
 import { getPublicRestaurantDocs } from "@/lib/server/public-firestore";
 import { APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS, ROUTES } from "@/lib/constants";
 
@@ -11,7 +11,7 @@ export const fetchCache = "force-no-store";
 
 const RestaurantDetailClient = nextDynamic(
   () => import("@/components/flows/restaurant-detail-flow").then((module) => module.RestaurantDetailFlow),
-  { loading: () => <PageLoading /> },
+  { loading: () => <CustomerRouteSkeleton variant="restaurant" /> },
 );
 
 export async function generateMetadata({

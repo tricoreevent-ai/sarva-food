@@ -1,5 +1,86 @@
 # Performance Audit
 
+## RC Performance Phase 3 Runtime and Core Web Vitals Optimization - 2026-07-07
+
+Scope: runtime performance and Core Web Vitals optimization only. No UI redesign, API contract change, repository change, Firestore collection, schema migration, or business workflow change was made.
+
+### Implemented Optimizations
+
+| Area | Result |
+| --- | --- |
+| Route streaming | Added layout-matching `loading.tsx` skeletons for major customer, owner, Kitchen, POS, and admin routes so route shells can stream without full-screen splash loaders. |
+| Client flow boundaries | Moved customer home, restaurant listing, restaurant menu, checkout form/summary, owner orders, owner menu, and POS flows behind page-level dynamic boundaries with route-specific skeleton fallbacks. |
+| Runtime initialization | Added `IdleMount` and deferred PWA registration, push provider, and analytics diagnostics until browser idle while keeping auth/session, Firestore hydration, alerts, and toasts route-owned. |
+| Diagnostics | Existing analytics monitoring now has `NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS`; diagnostics install after idle, report final LCP/CLS, include INP event timing where supported, detect hydration warnings, and sample memory only in development. |
+| Toast ownership | Customer home favorite toasts now import `react-hot-toast` only on user action; checked public initial routes no longer include initial `react-hot-toast`. |
+| Loading architecture | Added shared route skeletons for customer, dashboard, Kitchen, and POS surfaces with stable dimensions for cards, tables, charts, and operational rows. |
+| Image/network | Added targeted preconnects for Cloudinary/Firebase image origins and Google Analytics when enabled; removed duplicate desktop hero preload on customer home and desktop restaurant carousel. |
+| Render containment | Added `content-visibility` / `contain` utilities and applied them to repeated restaurant cards, mobile home cards, dish cards, and data-table scroll regions. |
+| Large tables | Shared `AdvancedDataTable` now defers search input recomputation and memoizes searchable columns to reduce synchronous work on reports/admin tables. |
+
+### Phase 3 Bundle Snapshot
+
+Generated from local `ANALYZE=true npm run build` on 2026-07-07.
+
+| Route / Entry | Phase 2 Parsed | Phase 3 Parsed | Result |
+| --- | ---: | ---: | --- |
+| `app/layout` | `9.4 KB` | `9.4 KB` | Root shell stayed minimal. |
+| `/` | `951.8 KB` | `936.6 KB` | Public home initial route no longer includes initial toast. |
+| `/restaurants` | `938.4 KB` | `923.1 KB` | Dynamic route flow and skeleton boundary. |
+| `/restaurant/[slug]` | `1057.4 KB` | `1053.9 KB` | Detail route remains interactive-heavy; skeleton boundary added. |
+| `/restaurant/[slug]/menu` | `1057.4 KB` comparable family | `288.1 KB` | Menu flow moved out of initial route shell. |
+| `/checkout` | `1015.3 KB` | `1000.2 KB` | Form and summary split behind dynamic boundaries. |
+| `/orders` | `927.5 KB` | `923.9 KB` | Route skeleton added; route weight mostly unchanged. |
+| `/profile` | `1540.1 KB` | `1536.4 KB` | Still highest customer route; tab/action splitting remains. |
+| `/owner/layout` | `225.2 KB` | `209.7 KB` | Idle runtime deferral reduced initial dashboard layout. |
+| `/admin/layout` | `225.2 KB` | `209.7 KB` | Same dashboard runtime reduction. |
+| `/owner/orders` | `735.0 KB` Phase 1 | `721.6 KB` | Owner orders dynamic skeleton boundary. |
+| `/owner/menu` | `992.8 KB` | `985.3 KB` | Owner menu remains high; import/export isolation preserved. |
+| `/owner/pos` | `70.6 KB` | `30.5 KB` | POS flow remains client-only behind a light shell. |
+| `/owner/kitchen` | `128.0 KB` | `128.4 KB` | KDS isolation preserved; route skeleton added. |
+| `/admin/menu-library` | `91.6 KB` | `91.9 KB` | Initial route still excludes `xlsx`. |
+
+### Phase 3 Initial Chunk Probes
+
+| Probe | Result |
+| --- | --- |
+| Checked public routes initial Mapbox | Absent |
+| Checked public routes initial `xlsx` | Absent |
+| Checked public routes initial `react-hot-toast` | Absent for `/`, `/restaurants`, `/restaurant/[slug]/menu`, and `/checkout`. |
+| `/owner/menu` initial `xlsx` | Absent |
+| `/admin/menu-library` initial `xlsx` | Absent |
+| `/owner/layout` initial Mapbox / `xlsx` / toast | Absent |
+
+### Runtime Audit Notes
+
+| Area | Result |
+| --- | --- |
+| Public Firestore runtime | Customer public data already uses cached fetch/in-flight request dedupe through public APIs instead of direct realtime listeners. |
+| Realtime boundaries | Existing realtime/SSE remains concentrated in Kitchen, POS, Active Orders, Waiter/order views, and auth/data hooks; no new listener was added. |
+| Memory cleanup | New idle mount and diagnostics cleanup cancel idle callbacks, observers, console patching, intervals, and event listeners. |
+| Accessibility | Skeletons use `aria-busy` / route labels, keep existing focus/dialog behavior untouched, and do not remove reduced-motion handling. |
+
+### Phase 3 Remaining Opportunities
+
+| Priority | Work |
+| --- | --- |
+| P0 | Redeploy current commit with production env and rerun Lighthouse/Core Web Vitals on the hosted current build. |
+| P1 | Split `/profile` by existing tabs/actions without redesigning the UI. |
+| P1 | Continue Owner Menu section/action splitting after import/export browser smoke. |
+| P1 | Move owner/admin action-only toast imports behind user actions where safe. |
+| P2 | Add focused browser/Lighthouse smoke for skeleton CLS and first input responsiveness on mobile hardware. |
+
+### Phase 3 Validation
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run build` | Passed with the existing Firebase/protobuf dynamic dependency warning. |
+| `npm run analyze` | Passed and regenerated `.next/analyze/client.html`, `nodejs.html`, and `edge.html`. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| UI/API/schema changes | None. |
+
 ## RC Performance Phase 2 Optimization - 2026-07-07
 
 Scope: enterprise performance optimization only. No UI redesign, API change, repository change, Firestore collection, schema migration, or business workflow change was made.

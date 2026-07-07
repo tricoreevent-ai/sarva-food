@@ -1,13 +1,22 @@
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Zap } from "lucide-react";
-import { CheckoutSummary } from "@/components/commerce/checkout-summary";
-import { CheckoutForm } from "@/components/forms/checkout-form";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { ResponsibilityDisclaimer } from "@/components/legal/responsibility-disclaimer";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { parseOfferCode } from "@/lib/social-commerce";
+
+const CheckoutForm = dynamic(
+  () => import("@/components/forms/checkout-form").then((module) => module.CheckoutForm),
+  { loading: () => <Skeleton className="min-h-[34rem] rounded-lg" /> },
+);
+const CheckoutSummary = dynamic(
+  () => import("@/components/commerce/checkout-summary").then((module) => module.CheckoutSummary),
+  { loading: () => <Skeleton className="h-96 rounded-lg" /> },
+);
 
 export default async function CheckoutPage({
   searchParams,

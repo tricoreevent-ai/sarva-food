@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDownUp, ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,10 +44,11 @@ export function AdvancedDataTable<T extends object>({
   const [sortKey, setSortKey] = useState<string>(columns[0]?.key ?? "");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
+  const deferredQuery = useDeferredValue(query);
 
-  const searchableColumns = columns.filter((column) => column.searchable !== false);
+  const searchableColumns = useMemo(() => columns.filter((column) => column.searchable !== false), [columns]);
   const filteredRows = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = deferredQuery.trim().toLowerCase();
     const filtered = normalized
       ? rows.filter((row) =>
           searchableColumns.some((column) =>
@@ -66,7 +67,7 @@ export function AdvancedDataTable<T extends object>({
       }
       return String(aValue ?? "").localeCompare(String(bValue ?? "")) * modifier;
     });
-  }, [query, rows, searchableColumns, sortDirection, sortKey]);
+  }, [deferredQuery, rows, searchableColumns, sortDirection, sortKey]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
@@ -121,7 +122,7 @@ export function AdvancedDataTable<T extends object>({
           </Button>
         </div>
       </div>
-      <div className="max-h-[520px] overflow-auto">
+      <div className="render-contain max-h-[520px] overflow-auto">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow>

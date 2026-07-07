@@ -1,9 +1,9 @@
 import dynamic from "next/dynamic";
-import { ModuleLoading } from "@/components/state/page-state";
+import { DashboardRouteSkeleton } from "@/components/state/route-skeletons";
 
 const OwnerMenuManagementFlow = dynamic(
   () => import("@/components/flows/owner-menu-management-flow").then((module) => module.OwnerMenuManagementFlow),
-  { loading: () => <ModuleLoading module="owner" /> },
+  { loading: () => <DashboardRouteSkeleton app="owner" variant="menu" /> },
 );
 
 export default function OwnerMenuPage() {

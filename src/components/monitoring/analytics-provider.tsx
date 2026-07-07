@@ -6,12 +6,14 @@ import { captureException, trackAnalyticsEvent } from "@/services/analytics-serv
 
 let customerVitalsStarted = false;
 let clientMonitoringStarted = false;
+const runtimeDiagnosticsEnabled = process.env.NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS !== "false";
 
 export function AnalyticsProvider() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (!runtimeDiagnosticsEnabled) return;
     const startedAt = performance.now();
     const route = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
 
@@ -27,15 +29,24 @@ export function AnalyticsProvider() {
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    if (!runtimeDiagnosticsEnabled) return;
     if (customerVitalsStarted || !isCustomerRoute(pathname)) return;
     customerVitalsStarted = true;
     return observeCustomerVitals(pathname);
   }, [pathname]);
 
   useEffect(() => {
+    if (!runtimeDiagnosticsEnabled) return;
     if (clientMonitoringStarted) return;
     clientMonitoringStarted = true;
-    return installClientMonitoring();
+    let cleanup: (() => void) | undefined;
+    const cancel = scheduleIdle(() => {
+      cleanup = installClientMonitoring();
+    }, 1400);
+    return () => {
+      cancel();
+      cleanup?.();
+    };
   }, []);
 
   return null;
@@ -45,10 +56,12 @@ function installClientMonitoring() {
   const cleanupFetch = monitorFetch();
   const cleanupErrors = monitorErrors();
   const cleanupLongTasks = monitorLongTasks();
+  const cleanupMemory = monitorDevelopmentMemory();
   return () => {
     cleanupFetch();
     cleanupErrors();
     cleanupLongTasks();
+    cleanupMemory();
   };
 }
 
@@ -81,6 +94,9 @@ function scheduleIdle(callback: () => void, timeoutMs: number) {
 
 function observeCustomerVitals(route: string) {
   const observers: PerformanceObserver[] = [];
+  let lastLcp = 0;
+  let cls = 0;
+  let reportedFinal = false;
   const report = (metricName: string, metricValue: number, metricRating: "good" | "needs-improvement" | "poor") => {
     void trackAnalyticsEvent("web_vital", {
       route,
@@ -92,7 +108,7 @@ function observeCustomerVitals(route: string) {
     }).catch((error) => captureException(error, { route, metricName }));
   };
 
-  scheduleIdle(() => {
+  const cancelFcp = scheduleIdle(() => {
     const fcp = performance.getEntriesByName("first-contentful-paint")[0];
     if (fcp) report("FCP", fcp.startTime, rateDuration(fcp.startTime, 1800, 3000));
   }, 1200);
@@ -101,7 +117,7 @@ function observeCustomerVitals(route: string) {
     const lcpObserver = new PerformanceObserver((list) => {
       const entries = list.getEntries();
       const last = entries[entries.length - 1];
-      if (last) report("LCP", last.startTime, rateDuration(last.startTime, 2500, 4000));
+      if (last) lastLcp = last.startTime;
     });
     lcpObserver.observe({ type: "largest-contentful-paint", buffered: true });
     observers.push(lcpObserver);
@@ -110,7 +126,6 @@ function observeCustomerVitals(route: string) {
   }
 
   try {
-    let cls = 0;
     const clsObserver = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
         const layoutShift = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean };
@@ -119,17 +134,43 @@ function observeCustomerVitals(route: string) {
     });
     clsObserver.observe({ type: "layout-shift", buffered: true });
     observers.push(clsObserver);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") report("CLS", cls, cls <= 0.1 ? "good" : cls <= 0.25 ? "needs-improvement" : "poor");
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      observers.forEach((observer) => observer.disconnect());
-    };
   } catch {
-    return () => observers.forEach((observer) => observer.disconnect());
+    // CLS is unavailable in some browsers.
   }
+
+  try {
+    const eventObserver = new PerformanceObserver((list) => {
+      const worst = list.getEntries().reduce((max, entry) => {
+        const eventEntry = entry as PerformanceEntry & { interactionId?: number; processingStart?: number; startTime: number; duration: number };
+        if (!eventEntry.interactionId) return max;
+        const latency = Math.max(eventEntry.duration, (eventEntry.processingStart ?? eventEntry.startTime) - eventEntry.startTime);
+        return Math.max(max, latency);
+      }, 0);
+      if (worst > 0) report("INP", worst, rateDuration(worst, 200, 500));
+    });
+    eventObserver.observe({ type: "event", buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
+    observers.push(eventObserver);
+  } catch {
+    // Event Timing is not universally available.
+  }
+
+  const reportFinal = () => {
+    if (reportedFinal) return;
+    reportedFinal = true;
+    if (lastLcp) report("LCP", lastLcp, rateDuration(lastLcp, 2500, 4000));
+    report("CLS", cls, cls <= 0.1 ? "good" : cls <= 0.25 ? "needs-improvement" : "poor");
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") reportFinal();
+  };
+  window.addEventListener("pagehide", reportFinal);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  return () => {
+    cancelFcp();
+    window.removeEventListener("pagehide", reportFinal);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    observers.forEach((observer) => observer.disconnect());
+  };
 }
 
 function monitorFetch() {
@@ -161,6 +202,7 @@ function monitorFetch() {
 }
 
 function monitorErrors() {
+  const originalConsoleError = console.error;
   const onError = (event: ErrorEvent) => {
     void trackAnalyticsEvent("client_error", {
       error: String(event.message || "client error").slice(0, 160),
@@ -174,9 +216,21 @@ function monitorErrors() {
   };
   window.addEventListener("error", onError);
   window.addEventListener("unhandledrejection", onUnhandled);
+  console.error = (...args: unknown[]) => {
+    const text = args.map((item) => typeof item === "string" ? item : "").join(" ");
+    if (/hydration|did not match|server rendered html/i.test(text)) {
+      void trackAnalyticsEvent("client_error", {
+        error: "hydration warning",
+        path: location.pathname,
+        source: "web",
+      }).catch(() => undefined);
+    }
+    originalConsoleError(...args);
+  };
   return () => {
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onUnhandled);
+    console.error = originalConsoleError;
   };
 }
 
@@ -197,6 +251,20 @@ function monitorLongTasks() {
   } catch {
     return () => undefined;
   }
+}
+
+function monitorDevelopmentMemory() {
+  if (process.env.NODE_ENV === "production") return () => undefined;
+  const perf = performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } };
+  if (!perf.memory) return () => undefined;
+  const id = window.setInterval(() => {
+    const usedMb = Math.round(perf.memory!.usedJSHeapSize / 1024 / 1024);
+    const limitMb = Math.round(perf.memory!.jsHeapSizeLimit / 1024 / 1024);
+    if (usedMb > Math.max(256, limitMb * 0.65)) {
+      console.info("[Nammude diagnostics] JS heap usage", { usedMb, limitMb, path: location.pathname });
+    }
+  }, 30_000);
+  return () => window.clearInterval(id);
 }
 
 function requestInfo(input: RequestInfo | URL, init?: RequestInit) {
