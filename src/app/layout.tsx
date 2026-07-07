@@ -1,24 +1,28 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Suspense } from "react";
-import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
-import { FirestoreStoreHydrator } from "@/components/firebase/firestore-store-hydrator";
-import { AnalyticsProvider } from "@/components/monitoring/analytics-provider";
-import { SyncCenterScope } from "@/components/offline/sync-center-scope";
-import { PwaRegistrar } from "@/components/pwa/pwa-registrar";
-import { PushNotificationProvider } from "@/components/pwa/push-notification-provider";
-import { AlertProvider } from "@/components/ui/AlertProvider";
-import { AppToaster } from "@/components/ui/app-toaster";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { I18nProvider } from "@/lib/i18n";
-import { MapboxProvider } from "@/components/maps/mapbox-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { getInitialTheme } from "@/lib/server/theme-preference";
 import { resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
-import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
+
+const appSans = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-app-sans",
+});
+
+const appDisplay = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  display: "swap",
+  variable: "--font-app-display",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(getConfiguredPublicAppUrl()),
@@ -205,7 +209,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={initialMode === "dark" ? "dark" : undefined}
+      className={[appSans.variable, appDisplay.variable, initialMode === "dark" ? "dark" : ""].filter(Boolean).join(" ")}
       data-theme={initialTheme}
       style={{ colorScheme: initialMode }}
       suppressHydrationWarning
@@ -228,20 +232,7 @@ export default async function RootLayout({
         ) : null}
         <ThemeProvider initialTheme={initialTheme}>
           <I18nProvider>
-            <AlertProvider>
-              <MapboxProvider>
-                <PwaRegistrar />
-                <PushNotificationProvider />
-                <AuthSessionBridge />
-                <FirestoreStoreHydrator />
-                <SyncCenterScope />
-                <AppToaster />
-                <Suspense fallback={null}>
-                  <AnalyticsProvider />
-                </Suspense>
-                {children}
-              </MapboxProvider>
-            </AlertProvider>
+            {children}
           </I18nProvider>
         </ThemeProvider>
       </body>

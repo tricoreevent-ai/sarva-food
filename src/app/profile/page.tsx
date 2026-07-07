@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
@@ -35,8 +36,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { AppPreferences } from "@/components/settings/app-preferences";
-import { AddressAutocomplete, type MapboxPickedLocation } from "@/components/maps/address-autocomplete";
-import { useMapbox } from "@/components/maps/mapbox-provider";
+import type { MapboxPickedLocation } from "@/components/maps/address-autocomplete";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { InlineLoading, RetryState } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
@@ -85,14 +85,22 @@ const emptyAddressDraft: AddressDraft = {
   floor: "",
   landmark: "",
 };
+const LazyAddressAutocomplete = dynamic(() => import("@/components/maps/address-autocomplete").then((module) => module.AddressAutocomplete), {
+  ssr: false,
+  loading: () => <Input placeholder="Search delivery area or street address" disabled />,
+});
 
 export default function ProfilePage() {
+  return <ProfilePageContent />;
+}
+
+function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { confirm } = useAlert();
   const auth = useAuthUser();
   const appName = usePublicAppName();
-  const mapbox = useMapbox();
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() ?? "";
   const { user, loading } = auth;
   const customer = useCustomerData(user?.uid);
   const { profile: customerProfile, retry: retryCustomer, status: customerStatus } = customer;
@@ -295,10 +303,10 @@ export default function ProfilePage() {
         const longitude = Number(position.coords.longitude.toFixed(6));
         let address = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
         let placeId: string | undefined;
-        if (mapbox.token) {
+        if (mapboxToken) {
           try {
             const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json`);
-            url.searchParams.set("access_token", mapbox.token);
+            url.searchParams.set("access_token", mapboxToken);
             url.searchParams.set("limit", "1");
             const response = await fetch(url.toString());
             const payload = (await response.json()) as { features?: Array<{ id?: string; place_name?: string }> };
@@ -314,7 +322,7 @@ export default function ProfilePage() {
           latitude,
           longitude,
           placeId,
-          deliveryRadiusKm: mapbox.defaultDeliveryRadiusKm,
+          deliveryRadiusKm: 5,
         }));
         setAddressMessage("Current location added. Add flat, floor, and label to save.");
         setLocating(false);
@@ -862,7 +870,7 @@ function AddressesPanel({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <AddressAutocomplete
+            <LazyAddressAutocomplete
               value={draft.address}
               placeholder="Search delivery area or street address"
               proximity={typeof draft.latitude === "number" && typeof draft.longitude === "number" ? { latitude: draft.latitude, longitude: draft.longitude } : undefined}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, RefreshCw, Save, Search, SlidersHorizontal, Star, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
@@ -815,7 +814,12 @@ export function OwnerMenuManagementFlow() {
     toast.error("Please fix the highlighted menu item fields.");
   }
 
-  function downloadExcelTemplate() {
+  async function loadXlsx() {
+    return import("xlsx");
+  }
+
+  async function downloadExcelTemplate() {
+    const XLSX = await loadXlsx();
     const headers = [
       "item name",
       "category",
@@ -891,6 +895,7 @@ export function OwnerMenuManagementFlow() {
   async function previewImportFile(file?: File) {
     if (!file) return;
     try {
+      const XLSX = await loadXlsx();
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];

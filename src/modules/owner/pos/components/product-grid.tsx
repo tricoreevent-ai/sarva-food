@@ -1,5 +1,3 @@
-"use client";
-
 import { ProductCard, type PosProduct } from "@/modules/owner/pos/components/product-card";
 
 export function ProductGrid({

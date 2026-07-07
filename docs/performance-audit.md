@@ -1,5 +1,92 @@
 # Performance Audit
 
+## RC Performance Phase 2 Optimization - 2026-07-07
+
+Scope: enterprise performance optimization only. No UI redesign, API change, repository change, Firestore collection, schema migration, or business workflow change was made.
+
+### Implemented Optimizations
+
+| Area | Result |
+| --- | --- |
+| Root providers | Removed Mapbox, PWA, push, auth bridge, Firestore hydrator, sync scope, toaster, alert, and analytics from `src/app/layout.tsx`; root layout now keeps only theme/i18n and route children. |
+| Route-scoped runtime | Customer and dashboard shells now own runtime providers, with non-visual providers loaded through dynamic client chunks. |
+| Fonts | Replaced Google Fonts CSS `@import` with `next/font/google` for Inter and Plus Jakarta Sans using matching subsets, weights, CSS variables, and `display: swap`. |
+| Mapbox | Removed global `mapbox-gl` CSS import and moved the map canvas to a dynamic map-only component; Mapbox stylesheet is injected only when the map canvas mounts. |
+| Heavy imports | Moved client `xlsx` imports in Owner Menu and Admin Menu Library to action-time dynamic imports. |
+| Profile route | Lazy-loaded address autocomplete/map lookup instead of carrying the map provider across the full profile page. |
+| Runtime images | Replaced React runtime `<img>` usage in shared loading state and Admin CMS preview with `next/image`; print-window QR HTML remains intentionally raw. |
+| Client boundaries | Removed unnecessary `use client` from pure printing/POS/admin presentational files; current client-marked file count is `172`, down from `175`. |
+| Stack Auth | `npm ls` found a single installed `@stackframe/*` version family; the Phase 1 duplicate signal was analyzer-path aggregation, so auth behavior was left unchanged. |
+
+### After Bundle Snapshot
+
+Generated from local `ANALYZE=true npm run build` on 2026-07-07.
+
+| Asset / Entry | Parsed | Gzip | Result |
+| --- | ---: | ---: | --- |
+| `app/layout` | 9.4 KB | 3.6 KB | Root shell is now minimal. |
+| `/owner/layout` | 225.2 KB | 77.1 KB | Dashboard runtime is route-scoped and async for non-visual providers. |
+| `/admin/layout` | 225.2 KB | 77.1 KB | Same dashboard runtime boundary as owner. |
+| Largest Mapbox chunk | 1704.4 KB | 459.9 KB | Still exists for map-capable routes, but is not initial on checked non-map routes. |
+| Stack handler chunk | 772.9 KB | 213.0 KB | Isolated to Stack handler/auth paths. |
+| Shared account/auth chunk | 574.9 KB | 144.6 KB | Still a major profile/customer-account hotspot. |
+
+### Route Comparison
+
+Phase 1 route rows did not include root layout cost, so public page rows are not a perfect apples-to-apples comparison after provider scoping. The important checks are root layout reduction, owner menu reduction, and absence of Mapbox/XLSX in non-map/import initial chunks.
+
+| Route / Entry | Phase 1 Parsed | Phase 2 Parsed | Result |
+| --- | ---: | ---: | --- |
+| `app/layout` | Not recorded | 9.4 KB | Root provider cost removed. |
+| `/` | 807.8 KB | 951.8 KB | Customer runtime is now route-owned; Mapbox and XLSX are absent. |
+| `/restaurants` | 783.0 KB | 938.4 KB | Customer runtime is now route-owned; Mapbox and XLSX are absent. |
+| `/restaurant/[slug]` | 915.4 KB | 1057.4 KB | Customer runtime is now route-owned; Mapbox and XLSX are absent. |
+| `/checkout` | 860.0 KB | 1015.3 KB | Checkout remains interactive-heavy; Mapbox and XLSX are absent. |
+| `/orders` | 783.5 KB | 927.5 KB | Customer runtime is now route-owned; Mapbox and XLSX are absent. |
+| `/profile` | 1404.6 KB | 1540.1 KB | Still highest customer route; deeper tab splitting remains. |
+| `/owner/menu` | 1391.1 KB | 992.8 KB | Reduced by 398.3 KB parsed / 134.9 KB gzip after dynamic import/export boundaries. |
+| `/owner/pos` | 70.6 KB | 70.6 KB | Preserved good isolation. |
+| `/owner/kitchen` | 128.0 KB | 128.0 KB | Preserved good isolation. |
+| `/admin` | 209.5 KB | 209.5 KB | Unchanged. |
+| `/admin/menu-library` | Not recorded | 91.6 KB | Initial route excludes `xlsx`; import/export stays action-scoped. |
+
+### Initial Chunk Probes
+
+| Probe | Result |
+| --- | --- |
+| Public/customer checked routes initial Mapbox | Absent |
+| Public/customer checked routes initial `xlsx` | Absent |
+| `/owner/menu` initial `xlsx` | Absent |
+| `/admin/menu-library` initial `xlsx` | Absent |
+| Global `mapbox-gl/dist/mapbox-gl.css` scan | No matches |
+| Google Fonts CSS `@import` scan | No matches |
+
+### Lighthouse Projection
+
+Hosted Lighthouse was not rerun as a final score because Hostinger is still a stale/non-production-env deployment. After redeploy, the strongest expected gains are lower render-blocking font work, lower root-shell JS, no Mapbox on non-map critical paths, and lower import/export weight on Owner Menu/Admin Library. Mobile score is still likely constrained by LCP/CLS and the shared customer/profile chunks until public route/profile tab splitting is completed and measured on the current deployment.
+
+### Remaining Opportunities
+
+| Priority | Work |
+| --- | --- |
+| P0 | Redeploy current commit with production env and rerun Lighthouse on the hosted current build. |
+| P1 | Split `/profile` by existing tabs, especially orders/addresses/settings, without redesigning the UI. |
+| P1 | Continue Owner Menu splitting by existing sections/actions after browser smoke confirms import/export behavior. |
+| P1 | Review broad `framer-motion` and `react-hot-toast` route ownership after functional smoke. |
+| P2 | Audit lucide icon imports and large shared customer/auth chunks with route-level screenshots. |
+| P2 | Address the existing Firebase/protobuf build warning separately from performance work. |
+
+### Phase 2 Validation
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run build` | Passed with the existing Firebase/protobuf dynamic dependency warning. |
+| `npm run analyze` | Passed and regenerated `.next/analyze/client.html`, `nodejs.html`, and `edge.html`. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| UI/API/schema changes | None. |
+
 ## RC Performance Phase 1 Baseline - 2026-07-06
 
 Scope: enterprise performance audit and analyzer tooling only. No UI, API, repository, Firestore collection, schema, or business workflow change was made.

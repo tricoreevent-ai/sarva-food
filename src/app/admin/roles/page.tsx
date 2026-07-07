@@ -1,5 +1,3 @@
-"use client";
-
 import { ShieldCheck, UserCog, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { adminRoleDefinitions, ownerModuleDefinitions, ownerRoleDefinitions, type AccessOperation } from "@/lib/access-control";

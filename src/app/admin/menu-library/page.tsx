@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { Archive, Copy, Download, Eye, FileJson, FileSpreadsheet, PackageOpen, RotateCcw, Search, ShieldCheck, ToggleLeft, ToggleRight, Upload } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -200,11 +199,16 @@ export default function AdminMenuLibraryPage() {
     }
   }
 
+  async function loadXlsx() {
+    return import("xlsx");
+  }
+
   async function handleImportFile(file?: File) {
     if (!file) return;
     try {
       const name = file.name.toLowerCase();
       if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        const XLSX = await loadXlsx();
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const sheet = workbook.Sheets[workbook.SheetNames[0]];

@@ -1,5 +1,3 @@
-"use client";
-
 import { getPaperLineWidth, renderReceiptLines, type BillContext } from "@/lib/print-engine";
 import type { PrintTemplate } from "@/lib/types";
 

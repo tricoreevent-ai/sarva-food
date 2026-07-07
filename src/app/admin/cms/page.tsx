@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Italic, List, ListOrdered, Monitor, Plus, Save, Smartphone, Tablet, Trash2, Type, type LucideIcon } from "lucide-react";
@@ -586,8 +587,7 @@ function HomepagePreview({ settings, mode }: { settings: CmsSettings; mode: Prev
         </div>
         <div className={mode === "mobile" ? "mt-4 aspect-[16/9] overflow-hidden rounded-2xl bg-orange-100" : "aspect-[16/10] overflow-hidden rounded-2xl bg-orange-100"}>
           {settings.homepage.backgroundImage || banner?.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={settings.homepage.backgroundImage || banner?.imageUrl} alt="Homepage preview" className="h-full w-full object-cover" />
+            <Image src={settings.homepage.backgroundImage || banner?.imageUrl || ""} alt="Homepage preview" width={640} height={360} className="h-full w-full object-cover" sizes={mode === "mobile" ? "360px" : "420px"} />
           ) : null}
         </div>
       </div>

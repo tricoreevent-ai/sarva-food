@@ -1,5 +1,3 @@
-"use client";
-
 import { getPaperLineWidth, renderKotLines, type KotContext } from "@/lib/print-engine";
 import type { PrintTemplate } from "@/lib/types";
 

@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,64 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC Performance Phase 1 Enterprise Performance Audit |
+| Current Sprint | RC Performance Phase 2 Enterprise Performance Optimization |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Performance Phase 1 audit prepared from base `fe069b609009b8a042f58d1143407998407f3c64`; exact final SHA reported in release handoff. |
+| Latest Git Commit | Performance Phase 2 optimization prepared on top of local Phase 1 audit commit `8a0c9849a2f043ff80cfb0eb51d7e6732d72ddfc`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not current release branch HEAD; env still reports `development`. Lighthouse baseline was measured against this stale hosted deployment. |
-| Build Date | 2026-07-06 |
-| Verification Status | Performance analyzer tooling, local bundle analysis, requested route bundle matrix, and hosted Lighthouse desktop/mobile audit completed; `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed with the existing Firebase/protobuf warning. |
-| Scope | Performance audit/tooling only: bundle analyzer setup, bundle/CSS/package/duplicate/route analysis, hosted Lighthouse baseline, and optimization queue. No UI, API, repository, collection, schema, or business feature change. |
+| Build Date | 2026-07-07 |
+| Verification Status | Phase 2 performance optimization local lint, typecheck, build, analyzer build, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Performance optimization only: route-scoped runtime providers, `next/font`, Mapbox/map CSS lazy loading, dynamic `xlsx`, profile map autocomplete lazy loading, runtime image fixes, and server/client boundary cleanup. No UI redesign, API, repository, collection, schema, or business feature change. |
+
+## RC Performance Phase 2 Enterprise Performance Optimization - 2026-07-07
+
+| Field | Result |
+| --- | --- |
+| Scope | Performance optimization only. Existing UI, APIs, repositories, Firestore collections, schema, auth flows, payment flows, POS, Kitchen, owner, admin, and customer business workflows were preserved. |
+| Root Runtime | `src/app/layout.tsx` now keeps only theme/i18n and route children; Mapbox, PWA, push, auth bridge, Firestore hydrator, sync, toaster, alert, and analytics are no longer mounted globally from the root layout. |
+| Route Runtime | Customer and dashboard shells now own runtime providers; non-visual providers load through dynamic client chunks so route shells are no longer forced through the root app shell. |
+| Fonts | Google Fonts CSS `@import` was removed from `themes/shared-typography.css`; Inter and Plus Jakarta Sans now load through `next/font/google` with matching weights, subsets, CSS variables, and `display: swap`. |
+| Mapbox | Global `mapbox-gl` CSS was removed. Mapbox map canvas and stylesheet now load only through the map component path, and checked public/customer/owner/admin non-map route entrypoints do not include initial Mapbox. |
+| Heavy Imports | Client `xlsx` usage in Owner Menu and Admin Menu Library now loads only during import/export actions; checked `/owner/menu` and `/admin/menu-library` entrypoints do not include initial `xlsx`. |
+| Profile | Address autocomplete/map lookup is now lazy-loaded inside the profile address surface instead of carrying map runtime ownership across the whole profile page. |
+| Runtime Images | Shared loading logo and Admin CMS preview now use `next/image`; print-window QR HTML remains intentionally raw. |
+| Client Boundaries | Removed unnecessary `use client` from pure printing/POS/admin presentational files; client-marked file count is now `172`, down from the Phase 1 `175`. |
+| Stack Auth | Dependency review found a single installed `@stackframe/*` version family, so the Phase 1 duplicate signal was treated as analyzer aggregation and auth behavior was left unchanged. |
+
+### Phase 2 Bundle Results
+
+| Entry / Route | Phase 1 Parsed | Phase 2 Parsed | Result |
+| --- | ---: | ---: | --- |
+| `app/layout` | Not recorded | `9.4 KB` | Root provider cost removed. |
+| `/owner/layout` | Not recorded | `225.2 KB` | Dashboard runtime route-scoped. |
+| `/admin/layout` | Not recorded | `225.2 KB` | Dashboard runtime route-scoped. |
+| `/owner/menu` | `1391.1 KB` | `992.8 KB` | Reduced by `398.3 KB` parsed and `134.9 KB` gzip. |
+| `/owner/pos` | `70.6 KB` | `70.6 KB` | Good isolation preserved. |
+| `/owner/kitchen` | `128.0 KB` | `128.0 KB` | Good isolation preserved. |
+| `/admin/menu-library` | Not recorded | `91.6 KB` | Initial route excludes `xlsx`. |
+| `/profile` | `1404.6 KB` | `1540.1 KB` | Still the highest customer route; deeper tab splitting remains. |
+
+### Phase 2 Validation
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run build` | Passed with the existing Firebase/protobuf dynamic dependency warning. |
+| `npm run analyze` | Passed and regenerated analyzer reports. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| Initial Mapbox probe | Passed for checked non-map routes. |
+| Initial `xlsx` probe | Passed for checked customer routes, `/owner/menu`, and `/admin/menu-library`. |
+
+### Phase 2 Remaining Work
+
+| Area | Next Action |
+| --- | --- |
+| Lighthouse | Redeploy current commit with production env and rerun Lighthouse; hosted baseline remains stale and cannot validate Phase 2 until Hostinger serves current code. |
+| Profile | Split profile by existing tabs/actions without redesign. |
+| Owner Menu | Continue splitting heavy sections/actions after import/export browser smoke. |
+| Shared Chunks | Review broad customer/auth chunks, `framer-motion`, `react-hot-toast`, and lucide route ownership in the next performance pass. |
+| Build Warning | Existing Firebase/protobuf warning remains tracked separately from this performance optimization. |
 
 ## RC Performance Phase 1 Enterprise Performance Audit - 2026-07-06
 

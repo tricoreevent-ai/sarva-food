@@ -4,7 +4,7 @@ import { Loader2, MapPin, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useMapbox } from "@/components/maps/mapbox-provider";
+import { MapboxProvider, useMapbox } from "@/components/maps/mapbox-provider";
 import {
   matchRegisteredDeliveryLocations,
   normalizeLocationSearch,
@@ -84,6 +84,24 @@ export async function mapboxReverseGeocode(input: {
 }
 
 export function AddressAutocomplete({
+  value,
+  onSelect,
+  placeholder = "Search address",
+  proximity,
+}: {
+  value?: string;
+  onSelect: (location: MapboxPickedLocation) => void;
+  placeholder?: string;
+  proximity?: { latitude: number; longitude: number };
+}) {
+  return (
+    <MapboxProvider>
+      <AddressAutocompleteInner value={value} onSelect={onSelect} placeholder={placeholder} proximity={proximity} />
+    </MapboxProvider>
+  );
+}
+
+function AddressAutocompleteInner({
   value,
   onSelect,
   placeholder = "Search address",

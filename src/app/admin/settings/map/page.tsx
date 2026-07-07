@@ -3,7 +3,7 @@
 import { DatabaseZap, Save } from "lucide-react";
 import { useState } from "react";
 import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
-import { useMapbox } from "@/components/maps/mapbox-provider";
+import { MapboxProvider, useMapbox } from "@/components/maps/mapbox-provider";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,14 @@ import { DEFAULT_BRANCH_ID, DEFAULT_TENANT_ID } from "@/lib/tenant";
 import type { RestaurantSettingsDoc } from "@/types/firebase";
 
 export default function AdminMapConfigurationPage() {
+  return (
+    <MapboxProvider>
+      <AdminMapConfigurationContent />
+    </MapboxProvider>
+  );
+}
+
+function AdminMapConfigurationContent() {
   const [location, setLocation] = useState<MapboxPickedLocation>({
     address: "12 100 Feet Road, Indiranagar, Bengaluru",
     latitude: 12.9719,

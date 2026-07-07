@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { AlertCircle, Bike, ChefHat, Loader2, PackageOpen, RefreshCw, Utensils } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -59,12 +60,12 @@ export function OwnerLoadingScreen({ label = "Loading....." }: { label?: string 
       }}
     >
       <section style={{ display: "grid", placeItems: "center", gap: 18, textAlign: "center" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={BRAND_ASSETS.primaryLogo}
           alt="Nammude"
           width={320}
           height={152}
+          priority
           style={{ width: "min(72vw, 320px)", height: "auto", objectFit: "contain" }}
         />
         <p style={{ margin: 0, color: "#1f2a14", font: "700 15px/1.4 system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>{label}</p>
