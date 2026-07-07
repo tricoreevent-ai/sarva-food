@@ -49,14 +49,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, entryId: body.entryId });
   } catch (error) {
     if (error instanceof SyncConflictError) {
-      return NextResponse.json({ error: error.message, conflict: error.conflict }, { status: 409 });
+      return NextResponse.json({ error: "Offline sync conflict.", conflict: publicConflict(error.conflict) }, { status: 409 });
     }
     if (error instanceof OwnerSyncAccessError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+      return NextResponse.json({ error: "Offline sync is not allowed for this restaurant or branch." }, { status: 403 });
     }
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Owner sync failed." },
+      { error: "Owner sync failed." },
       { status: 500 },
     );
   }
@@ -211,6 +211,15 @@ class SyncConflictError extends Error {
     super("Offline sync conflict");
     this.conflict = conflict;
   }
+}
+
+function publicConflict(conflict: SyncConflictError["conflict"]) {
+  return {
+    collectionName: conflict.collectionName,
+    docId: conflict.docId,
+    local: {},
+    remote: {},
+  };
 }
 
 class OwnerSyncAccessError extends Error {}

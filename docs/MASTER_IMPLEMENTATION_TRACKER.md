@@ -11,14 +11,82 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Owner Module Operational Excellence - Runtime Ownership |
+| Current Sprint | Enterprise Production Hardening and Release Closure |
 | Release Version | `v1.0.0-rc1` |
-| Latest Git Commit | Owner/admin toast runtime ownership prepared on top of local Phase 3 commit `f21603788873f413dcc078b92554529b1397c5ac`; exact final SHA reported in release handoff. |
+| Latest Git Commit | Enterprise production hardening prepared on top of local owner runtime commit `f5cf3fe5faadad5a68821a4e1a0d7e19f085e393`; exact final SHA reported in release handoff. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `83885e01585510f8c833436e964b0d76002f6516`, not current release branch HEAD; env still reports `development`. Lighthouse baseline was measured against this stale hosted deployment. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `fe069b609009b8a042f58d1143407998407f3c64`, not current release branch HEAD; env still reports `development` and `applicationVersion: 0.1.0`. |
 | Build Date | 2026-07-07 |
-| Verification Status | Owner/admin toast runtime deferral local lint, typecheck, build, analyzer build, and `git diff --check` passed. Build retains the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Owner/admin runtime ownership only: action-time toast facade, lazy Sarva notification loading, and analyzer validation. No UI redesign, API, repository, collection, schema, or business feature change. |
+| Verification Status | Enterprise hardening audit local typecheck, lint, build, operational smoke, owner route/API HTTP probe, hosted route/provider reachability probe, Firestore rules/index review, and `git diff --check` passed where workspace-verifiable. `validate:prod-env` still fails locally for missing production env values and non-HTTPS local app URL. Build retains the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Production hardening and release closure only: owner route/API verification, safe owner error responses/logs, sync-conflict redaction, release metadata correction, hosted metadata check, env validation, and manual gate documentation. No UI redesign, repository, Firestore collection, schema, or business workflow change. |
+
+## Enterprise Production Hardening and Release Closure Audit - 2026-07-07
+
+| Field | Result |
+| --- | --- |
+| Scope | Production-readiness audit and safe error/metadata hardening only. Completed owner workflows, POS, Kitchen, QR, Inventory, Accounting, Payment Gateway, Master Menu, Owner Settings, repositories, APIs, Firestore collections, and schemas were preserved. |
+| Local Commit Audited | Started from `f5cf3fe5faadad5a68821a4e1a0d7e19f085e393`; final hardening commit reported in release handoff. |
+| Rollback SHA | `f5cf3fe5faadad5a68821a4e1a0d7e19f085e393` is the pre-hardening local owner runtime commit to roll back to if the hardening handoff is rejected. |
+| Hosted Metadata | Hostinger `/api/release-info` currently reports `fe069b609009b8a042f58d1143407998407f3c64`, `deploymentEnvironment: development`, and `applicationVersion: 0.1.0`; it is behind local release HEAD and not production-configured. |
+| Local Production Metadata | Local `next start` after build served `/api/release-info` with `deploymentEnvironment: production` and corrected `applicationVersion: v1.0.0-rc1`; final deployed commit must be verified after the handoff commit is pushed and rebuilt. |
+| Owner Route Probe | Local production server verified `/owner/login` returns `200`; 25 protected owner routes redirect unauthenticated users with `307` to `/owner/login?next=...`. |
+| Owner API Probe | Local production server checked 58 owner API method/path combinations. Result: 56 expected unauthenticated `403` responses and 2 expected auth validation `400` responses; no unexpected 2xx/5xx response was found. |
+| Hosted Route Probe | Hosted unauthenticated probe found public/auth pages returning `200`, protected owner routes returning expected `307`, owner APIs returning expected `403`/`405`, provider endpoints returning expected validation/auth statuses, and no unexpected `404`/`500` in checked routes. |
+| Provider Reachability | Hosted Cloudinary signature POST returns `200`; Razorpay order/verify require auth (`401`), Razorpay webhook rejects missing signature (`400`), WhatsApp send requires auth (`401`), WhatsApp webhook rejects invalid verification token (`403`), OTP/phone/order-notification empty payloads return safe `400`. Real provider sends/uploads/payments remain manual. |
+| Firestore Review | Local `firestore.rules` now includes `masterMenuTemplates`, `communicationSettings`, `communicationHistory`, `supportIssues`, `user_preferences`, `phoneVerificationSessions`, `emailOtps`, `modulePasswordOtps`, `paymentIntents`, `paymentWebhooks`, `whatsappEvents`, and `whatsappWebhooks`; catch-all deny remains. `firestore.indexes.json` includes current operational owner indexes. Deployment remains manual. |
+| Safe Error Hardening | Owner tables, owner sync, owner profile access, owner offers access, owner POS logging, auth session verification logs, and owner offline sync conflict responses now avoid returning/logging raw exception details or full document snapshots. |
+| Release Metadata Hardening | `/api/release-info` now reports `applicationVersion` from `NEXT_PUBLIC_APP_VERSION` or falls back to `v1.0.0-rc1`, aligning the local release build with tracker release metadata. |
+| Tenant Validation | Owner APIs either use `requireOwnerFeature` plus `tenantScope`, direct owner session role checks plus `tenantScope`, or endpoint-specific allowed restaurant checks. Repository write/read paths continue to enforce tenant/restaurant ownership. |
+| Duplicate Request Audit | Owner fetch scan found bounded route bootstrap/action calls and the existing Kitchen SSE path; no new duplicate polling loop, duplicate Firestore listener, or duplicate owner endpoint family was introduced. |
+| Authenticated Workflow Limit | Full login-to-logout owner workflow remains manual because this workspace does not have production owner credentials, provider consoles, real devices, or printer hardware. Logout path is wired through `/api/auth/session?surface=owner` and records logout audit when a session exists. |
+| Release Readiness | `99%` code-ready and `82%` production-release ready. Recommendation is No-Go until Hostinger production env/redeploy, authenticated browser smoke, provider validation, Firestore deploy verification, and printer/device smoke are complete. |
+
+### Owner Workflow Verification Matrix
+
+| Workflow | Local Verification | Remaining Manual Smoke |
+| --- | --- | --- |
+| Login / Logout | `/owner/login` 200; empty owner login returns expected 400; logout endpoint/code path reviewed. | Real owner credential login, view switch, and logout audit in hosted browser. |
+| Dashboard / Analytics / Reports | Protected routes redirect unauthenticated; analytics API returns expected 403 without owner session. | Authenticated dashboard metrics, reports range fetch, and chart accuracy. |
+| Orders / Notifications | `/owner/orders` protected; orders API GET/PATCH expected 403; topbar notification read/ack path reviewed. | New order alert, notification center filters/read state, and order action smoke. |
+| Kitchen | `/owner/kitchen` and history protected; Kitchen API GET/POST/PATCH/stream expected 403. | Realtime SSE, sound, KOT preview/print/reprint, tablet/TV smoke. |
+| POS | `/owner/pos` protected; POS API GET/PATCH/POST/DELETE expected 403; POS safe logging hardened. | Draft, payment, KOT, bill/receipt, offline recovery, and cashier device smoke. |
+| Tables / QR Ordering | `/owner/tables` protected; tables API GET/POST/PATCH/DELETE expected 403; table errors hardened. | QR generate/rotate/session/transfer/end and real device table order smoke. |
+| Customers | `/owner/customers` protected; customers API expected 403. | Customer profile/detail/search workflow with owner session. |
+| Menu / Master Menu | `/owner/menu` protected; owner menu and master template APIs expected 403. | Owner menu CRUD, template picker/import, image upload, import/export browser smoke. |
+| Inventory / Accounting | Routes protected; inventory/accounting APIs expected 403. | Authenticated stock, adjustment, purchase, expense, ledger, and export smoke. |
+| Offers | `/owner/offers` protected; offers API expected 403 and access errors hardened. | Offer create/edit/delete, active/inactive visibility, checkout applicability. |
+| Settings / Payment / Communication / QR Settings | Routes protected; payment, communication, QR, diagnostics APIs expected 403. | Razorpay settings test, provider settings save, QR settings, diagnostics. |
+| Staff | `/owner/employees` protected; staff API expected 403. | Staff create/update/delete, permissions, role-specific navigation smoke. |
+| Printer | `/owner/printers` protected; printer API expected 403. | 58mm/80mm/A4 bill, receipt, KOT, split receipt, duplicate, reprint hardware smoke. |
+
+### Enterprise Hardening Validation
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with the existing Firebase/protobuf dynamic dependency warning. |
+| `npm run smoke:operational` | Passed |
+| Local owner route probe | Passed: `/owner/login` 200 and 25 protected routes 307 to owner login. |
+| Local owner API probe | Passed: 58 checked owner API methods returned expected unauthenticated/auth-validation statuses. |
+| Hosted route probe | Passed reachability/security expectations for checked unauthenticated routes: public/auth routes 200, protected owner routes 307, owner APIs 403/405, provider routes safe validation/auth responses, and no unexpected 404/500. |
+| Hosted provider reachability | Partial only: Cloudinary signature route reachable; Razorpay/WhatsApp/OTP/order-notification routes reject unauthenticated or invalid requests safely. Real send/upload/payment/webhook smoke remains manual. |
+| Firestore rules/index review | Passed local static review: release collections have explicit allow/deny rules and operational indexes are present. Firebase project deploy/diagnostics remain manual. |
+| Local `/api/release-info` | Passed after build/start: `deploymentEnvironment: production` and `applicationVersion: v1.0.0-rc1`. |
+| Hosted `/api/release-info` | Blocked for signoff: reports `fe069b609009b8a042f58d1143407998407f3c64`, `applicationVersion: 0.1.0`, not local hardening HEAD, and env is still `development`. |
+| `cmd /c npm run validate:prod-env` | Failed locally: missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `DATABASE_ALERT_EMAIL`; `NEXT_PUBLIC_APP_URL` must use `https://`. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+### Release Closure Blockers
+
+| Gate | Status | Next Action |
+| --- | --- | --- |
+| GitHub / Hostinger current commit | Blocked | Push hardening HEAD, redeploy Hostinger, clear cache, and verify `/api/release-info` matches final commit. |
+| Production env | Blocked | Set `NEXT_PUBLIC_APP_ENV=production`, HTTPS `NEXT_PUBLIC_APP_URL`, Firebase Admin, VAPID, `DATABASE_ALERT_EMAIL`, and optional `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc1` in Hostinger/production. |
+| Release metadata | Blocked on redeploy | Hosted `/api/release-info` must report final hardening commit, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc1`. |
+| Authenticated owner workflow | Manual | Run login to dashboard/orders/Kitchen/POS/tables/menu/inventory/accounting/settings/staff/printer/notifications/logout with real owner credentials. |
+| Providers | Manual/provider | Smoke SMTP, Razorpay, WhatsApp/SMS/push, Cloudinary, Mapbox, Google OAuth with real credentials. |
+| Hardware/device | Manual | Smoke printers, cashier tablet, Kitchen tablet/TV, mobile QR, and multi-device realtime. |
 
 ## Owner Module Operational Excellence - Runtime Ownership - 2026-07-07
 

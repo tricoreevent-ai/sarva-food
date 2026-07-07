@@ -30,11 +30,8 @@ export async function POST(request: NextRequest) {
   const restaurantId = launchCafeAlArabOwner ? DEFAULT_RESTAURANT_ID : body.restaurant.slug || session.tenantId || DEFAULT_RESTAURANT_ID;
   try {
     assertRestaurantAccess(session, restaurantId);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Restaurant access is not configured." },
-      { status: 403 },
-    );
+  } catch {
+    return NextResponse.json({ error: "Restaurant access is not configured." }, { status: 403 });
   }
 
   const tenantId = resolveTenantId(restaurantId);

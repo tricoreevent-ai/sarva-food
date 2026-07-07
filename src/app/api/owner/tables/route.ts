@@ -36,8 +36,9 @@ export async function DELETE(request: NextRequest) {
     await new AuditRepository().record({ tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid, role: access.session.role, action: "table_delete", module: "tables", entityId: id });
     return NextResponse.json({ data });
   } catch (error) {
-    console.error("[owner/tables] delete failed", { requestId: crypto.randomUUID(), restaurantId: scope.tenantId, table: id, error });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Table could not be deleted." }, { status: 409 });
+    const requestId = crypto.randomUUID();
+    console.error("[owner/tables] delete failed", { requestId, restaurantId: scope.tenantId, table: id, reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Table could not be deleted.", requestId }, { status: 409 });
   }
 }
 
@@ -67,8 +68,9 @@ async function upsert(request: NextRequest) {
       ? NextResponse.json({ data: tableDocToPosTable(data.target), source: tableDocToPosTable(data.source), raw: data })
       : NextResponse.json({ data: tableDocToPosTable(data), raw: data });
   } catch (error) {
-    console.error("[owner/tables] save failed", { requestId: crypto.randomUUID(), restaurantId: scope.tenantId, table: key || body.table, action: body.action || "upsert", error });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Table could not be saved." }, { status: 409 });
+    const requestId = crypto.randomUUID();
+    console.error("[owner/tables] save failed", { requestId, restaurantId: scope.tenantId, table: key || body.table, action: body.action || "upsert", reason: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Table could not be saved.", requestId }, { status: 409 });
   }
 }
 

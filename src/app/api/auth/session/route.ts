@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
   try {
     session = await verifyFirebaseIdToken(idToken, { ensureCustomer: requestedSessionSurface === "customer" || ensureCustomer === true });
   } catch (error) {
-    console.error("[auth/session] Firebase session verification failed:", error);
+    console.error("[auth/session] Firebase session verification failed", { reason: error instanceof Error ? error.name : typeof error });
     return NextResponse.json(
       { error: sessionVerificationMessage(error, requestedSessionSurface) },
       { status: 401 },

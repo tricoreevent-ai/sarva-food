@@ -29,11 +29,8 @@ export async function GET(request: NextRequest) {
   const restaurantId = request.nextUrl.searchParams.get("restaurantId") || session.tenantId || DEFAULT_RESTAURANT_ID;
   try {
     assertRestaurantAccess(session, restaurantId);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Restaurant access is not configured." },
-      { status: 403 },
-    );
+  } catch {
+    return NextResponse.json({ error: "Restaurant access is not configured." }, { status: 403 });
   }
 
   const offers = (await new OfferRepository().list(tenantScope(session, restaurantId)))
@@ -61,11 +58,8 @@ export async function POST(request: NextRequest) {
   const restaurantId = body.restaurantId || offer.restaurantSlug || session.tenantId || DEFAULT_RESTAURANT_ID;
   try {
     assertRestaurantAccess(session, restaurantId);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Restaurant access is not configured." },
-      { status: 403 },
-    );
+  } catch {
+    return NextResponse.json({ error: "Restaurant access is not configured." }, { status: 403 });
   }
 
   const data = await new OfferRepository().upsert(tenantScope(session, restaurantId), sanitize({

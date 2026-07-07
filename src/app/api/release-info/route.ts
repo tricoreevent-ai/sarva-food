@@ -8,7 +8,7 @@ export const revalidate = 0;
 
 const RELEASE_BRANCH = "release/production-nammude";
 const RELEASE_MARKER = "nammude-production-release";
-const APPLICATION_VERSION = "0.1.0";
+const APPLICATION_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "v1.0.0-rc1";
 
 export function GET() {
   const buildCommit = getBuildCommit();

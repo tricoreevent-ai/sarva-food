@@ -80,7 +80,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 function posError(action: string, error: unknown, requestId: string) {
-  console.error("[owner-pos-api] request failed", { action, requestId, message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+  console.error("[owner-pos-api] request failed", { action, requestId, reason: error instanceof Error ? error.name : typeof error });
   const message = error instanceof Error ? error.message : "";
   if (/POS draft not found|draft/i.test(message)) return NextResponse.json({ error: "This order is no longer active. Please refresh.", requestId }, { status: 409 });
   if (/Kitchen ticket not found|Kitchen order/i.test(message)) return NextResponse.json({ error: "Kitchen ticket not found.", requestId }, { status: 404 });
