@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -96,6 +96,7 @@ export function KitchenDisplayFlow() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
   const busyOrders = useRef(new Set<string>());
+  const ordersRef = useRef<TableOrder[]>([]);
   const printedThisSession = useRef(new Set<string>());
   const previousAcceptedOrders = useRef(new Set<string>());
   const autoPrintReady = useRef(false);
@@ -109,6 +110,8 @@ export function KitchenDisplayFlow() {
     [settings.profiles],
   );
   const selectedPrinter = kitchenPrinters.find((profile) => profile.id === selectedPrinterId) ?? kitchenPrinters[0];
+  const selectedPrinterRef = useRef<PrinterProfile | undefined>(selectedPrinter);
+  const nowBucket = Math.floor(now / 60000);
   const boardOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort((a, b) => sortKitchenOrders(a, b, now)), [now, orders]);
   const stationOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.kitchenStation || stationForOrder(order)).filter(isStringValue))).sort(), [boardOrders]);
   const tableOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.tableNumber).filter(isStringValue))).sort(), [boardOrders]);
@@ -126,6 +129,14 @@ export function KitchenDisplayFlow() {
   const historyOrders = useMemo(() => orders.filter((order) => isCompleted(order.status) && !isToday(order.createdAt)), [orders]);
   const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId]);
   const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders), [now, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
+
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
+  useEffect(() => {
+    selectedPrinterRef.current = selectedPrinter;
+  }, [selectedPrinter]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30000);
@@ -150,7 +161,7 @@ export function KitchenDisplayFlow() {
     ])
       .then(([payload, tablePayload]) => {
         if (!active) return;
-        setOrders(payload.data ?? []);
+        setOrders((current) => reconcileKitchenOrders(current, payload.data ?? []));
         setTables(tablePayload.data ?? []);
         setConnectionState("fallback");
       })
@@ -167,7 +178,7 @@ export function KitchenDisplayFlow() {
       if (!active) return;
       try {
         const payload = JSON.parse((event as MessageEvent).data) as { data?: TableOrder[] };
-        setOrders(payload.data ?? []);
+        setOrders((current) => reconcileKitchenOrders(current, payload.data ?? []));
         setConnectionState("realtime");
       } catch (error) {
         console.error("[kitchen] stream parse failed", { reason: error instanceof Error ? error.name : typeof error });
@@ -204,7 +215,7 @@ export function KitchenDisplayFlow() {
     if (busyOrders.current.has(order.id)) return;
     busyOrders.current.add(order.id);
     setBusyOrderId(order.id);
-    const previousOrder = orders.find((item) => item.id === order.id) ?? order;
+    const previousOrder = ordersRef.current.find((item) => item.id === order.id) ?? order;
     setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: "served" } : item));
     try {
       const response = await fetch("/api/owner/kitchen", {
@@ -223,13 +234,13 @@ export function KitchenDisplayFlow() {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, [orders]);
+  }, []);
 
   const updateStatus = useCallback(async (order: TableOrder, status: TableOrderStatus, options: { silent?: boolean } = {}) => {
     if (busyOrders.current.has(order.id)) return;
     busyOrders.current.add(order.id);
     setBusyOrderId(order.id);
-    const previousOrder = orders.find((item) => item.id === order.id) ?? order;
+    const previousOrder = ordersRef.current.find((item) => item.id === order.id) ?? order;
     setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status } : item));
     try {
       const response = await fetch("/api/owner/kitchen", {
@@ -268,7 +279,7 @@ export function KitchenDisplayFlow() {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, [orders, serveReadyToastOrder]);
+  }, [serveReadyToastOrder]);
 
   const showNewOrderNotification = useCallback((order: TableOrder) => {
     const id = `new-order-${order.id}`;
@@ -316,7 +327,8 @@ export function KitchenDisplayFlow() {
     const jobId = `${order.id}:${options.reprint ? "reprint" : "print"}`;
     if (!options.reprint && printedThisSession.current.has(jobId)) return;
     printedThisSession.current.add(jobId);
-    const printed = openKitchenTicket(order, selectedPrinter, { print: true });
+    const printer = selectedPrinterRef.current;
+    const printed = openKitchenTicket(order, printer, { print: true });
     if (!printed) {
       printedThisSession.current.delete(jobId);
       if (!options.auto) toast.error("Allow browser popups to print KOT.");
@@ -329,7 +341,7 @@ export function KitchenDisplayFlow() {
           status: options.reprint ? "reprint" : "printed",
           user: "Kitchen",
           branchId: order.branchId ?? "main",
-          printerProfileId: selectedPrinter?.id ?? "browser-kitchen",
+          printerProfileId: printer?.id ?? "browser-kitchen",
           referenceId: order.id,
         }),
         fetch("/api/owner/kitchen", {
@@ -343,7 +355,7 @@ export function KitchenDisplayFlow() {
       if (!options.auto) toast.error("KOT printed, but the print log could not be saved.");
     }
     if (!options.auto) toast.success(options.reprint ? "KOT reprint sent." : "KOT print sent.");
-  }, [logPrint, selectedPrinter]);
+  }, [logPrint]);
 
   useEffect(() => {
     if (!settings.autoPrintOrders) {
@@ -380,7 +392,7 @@ export function KitchenDisplayFlow() {
 
   async function bulkUpdateStatus(targetOrders: TableOrder[], status: TableOrderStatus) {
     if (!targetOrders.length) return;
-    const previousOrders = orders;
+    const previousOrders = ordersRef.current;
     const results = await Promise.all(targetOrders.map((order) => updateStatus(order, status, { silent: true })));
     const successCount = results.filter(Boolean).length;
     if (successCount === targetOrders.length) {
@@ -391,11 +403,11 @@ export function KitchenDisplayFlow() {
     toast.error("Bulk kitchen update was not fully applied. The board was restored.");
   }
 
-  function previewKot(order: TableOrder) {
-    const opened = openKitchenTicket(order, selectedPrinter, { print: false });
+  const previewKot = useCallback((order: TableOrder) => {
+    const opened = openKitchenTicket(order, selectedPrinterRef.current, { print: false });
     if (opened) toast.success("KOT preview opened.");
     else toast.error("Allow browser popups to preview KOT.");
-  }
+  }, []);
 
   function requestCancel(order: TableOrder) {
     setConfirmAction({
@@ -435,7 +447,7 @@ export function KitchenDisplayFlow() {
           filtersOpen={filtersOpen}
           historyOrders={historyOrders}
           highlightedOrderId={highlightedOrderId}
-          now={now}
+          nowBucket={nowBucket}
           selectedPrinter={selectedPrinter}
           selectedPrinterId={selectedPrinterId}
           kitchenPrinters={kitchenPrinters}
@@ -595,29 +607,20 @@ export function KitchenDisplayFlow() {
           {desktopColumns.map((column) => {
             const columnOrders = visibleOrders.filter((order) => column.statuses.includes(order.status));
             return (
-              <div key={column.id} className={cn("max-h-[calc(100vh-270px)] overflow-y-auto rounded-lg border bg-white shadow-sm", statusFilter !== "all" && !column.statuses.includes(statusFilter) && "hidden", columnBorder(column.tone))}>
-                <div className={cn("sticky top-0 z-10 flex items-center justify-between border-b px-3 py-2", columnHeader(column.tone))}>
-                  <h2 className="text-sm font-black uppercase">{column.title}</h2>
-                  <Badge variant="secondary">{columnOrders.length}</Badge>
-                </div>
-                <div className="grid gap-3 p-3">
-                  {columnOrders.map((order) => (
-                    <KitchenOrderCard
-                      key={order.id}
-                      order={order}
-                      now={now}
-                      busy={busyOrderId === order.id}
-                      highlighted={highlightedOrderId === order.id}
-                      onPrint={(reprint) => void printKot(order, { reprint })}
-                      onPreview={() => previewKot(order)}
-                      onOpen={() => setSelectedOrderId(order.id)}
-                      onNext={(status) => void updateStatus(order, status)}
-                      onCancel={() => requestCancel(order)}
-                    />
-                  ))}
-                  {!columnOrders.length ? <p className="rounded-lg border border-dashed p-6 text-center text-sm font-semibold text-slate-500">No orders</p> : null}
-                </div>
-              </div>
+              <KitchenOrderColumn
+                key={column.id}
+                busyOrderId={busyOrderId}
+                column={column}
+                hidden={statusFilter !== "all" && !column.statuses.includes(statusFilter)}
+                highlightedOrderId={highlightedOrderId}
+                nowBucket={nowBucket}
+                orders={columnOrders}
+                onCancel={requestCancel}
+                onNext={(order, status) => void updateStatus(order, status)}
+                onOpen={(order) => setSelectedOrderId(order.id)}
+                onPreview={previewKot}
+                onPrint={(order, reprint) => void printKot(order, { reprint })}
+              />
             );
           })}
         </div>
@@ -769,6 +772,88 @@ export function KitchenOrderHistoryFlow() {
   );
 }
 
+function KitchenOrderColumn({
+  busyOrderId,
+  column,
+  hidden,
+  highlightedOrderId,
+  nowBucket,
+  orders,
+  onCancel,
+  onNext,
+  onOpen,
+  onPreview,
+  onPrint,
+}: {
+  busyOrderId: string | null;
+  column: (typeof desktopColumns)[number];
+  hidden: boolean;
+  highlightedOrderId: string | null;
+  nowBucket: number;
+  orders: TableOrder[];
+  onCancel: (order: TableOrder) => void;
+  onNext: (order: TableOrder, status: TableOrderStatus) => void;
+  onOpen: (order: TableOrder) => void;
+  onPreview: (order: TableOrder) => void;
+  onPrint: (order: TableOrder, reprint: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(720);
+  const itemHeight = 258;
+  const overscan = 3;
+  const virtual = orders.length > 18;
+  const start = virtual ? Math.max(0, Math.floor(scrollTop / itemHeight) - overscan) : 0;
+  const count = virtual ? Math.ceil(viewportHeight / itemHeight) + overscan * 2 : orders.length;
+  const visible = virtual ? orders.slice(start, start + count) : orders;
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const update = () => setViewportHeight(Math.max(360, node.clientHeight));
+    update();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(node);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={cn("max-h-[calc(100vh-270px)] overflow-y-auto rounded-lg border bg-white shadow-sm", hidden && "hidden", columnBorder(column.tone))}
+      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+    >
+      <div className={cn("sticky top-0 z-10 flex items-center justify-between border-b px-3 py-2", columnHeader(column.tone))}>
+        <h2 className="text-sm font-black uppercase">{column.title}</h2>
+        <Badge variant="secondary">{orders.length}</Badge>
+      </div>
+      <div className="p-3" style={virtual ? { height: orders.length * itemHeight, position: "relative" } : undefined}>
+        <div className="grid gap-3" style={virtual ? { transform: `translateY(${start * itemHeight}px)` } : undefined}>
+          {visible.map((order) => (
+            <MemoKitchenOrderCard
+              key={order.id}
+              order={order}
+              nowBucket={nowBucket}
+              busy={busyOrderId === order.id}
+              highlighted={highlightedOrderId === order.id}
+              onPrint={(reprint) => onPrint(order, reprint)}
+              onPreview={() => onPreview(order)}
+              onOpen={() => onOpen(order)}
+              onNext={(status) => onNext(order, status)}
+              onCancel={() => onCancel(order)}
+            />
+          ))}
+          {!orders.length ? <p className="rounded-lg border border-dashed p-6 text-center text-sm font-semibold text-slate-500">No orders</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KitchenMetric({ label, value, tone, compact }: { label: string; value: string | number; tone: "red" | "orange" | "amber" | "green" | "blue" | "violet" | "slate"; compact?: boolean }) {
   return (
     <Card className="overflow-hidden border-slate-200 shadow-sm">
@@ -797,7 +882,7 @@ function CompactKitchenBoard({
   historyOrders,
   highlightedOrderId,
   kitchenPrinters,
-  now,
+  nowBucket,
   orderTypeFilter,
   priorityFilter,
   query,
@@ -846,7 +931,7 @@ function CompactKitchenBoard({
   historyOrders: TableOrder[];
   highlightedOrderId: string | null;
   kitchenPrinters: PrinterProfile[];
-  now: number;
+  nowBucket: number;
   orderTypeFilter: CompactOrderTypeFilter;
   priorityFilter: TableOrder["priority"] | "all";
   query: string;
@@ -955,11 +1040,11 @@ function CompactKitchenBoard({
             </div>
             <div className="grid gap-3 min-[769px]:grid-cols-2">
               {visibleCards.map((order) => (
-                <CompactKitchenOrderCard
+                <MemoCompactKitchenOrderCard
                   key={order.id}
                   busy={busyOrderId === order.id}
                   highlighted={highlightedOrderId === order.id}
-                  now={now}
+                  nowBucket={nowBucket}
                   order={order}
                   onCancel={() => onCancel(order)}
                   onNext={(status) => onNext(order, status)}
@@ -1101,11 +1186,23 @@ function QuickAction({ title, value, icon, onClick }: { title: string; value: st
   );
 }
 
-function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onCancel: () => void }) {
+type CompactKitchenOrderCardProps = {
+  order: TableOrder;
+  nowBucket: number;
+  busy: boolean;
+  highlighted: boolean;
+  onNext: (status: TableOrderStatus) => void;
+  onPrint: (reprint: boolean) => void;
+  onPreview: () => void;
+  onCancel: () => void;
+};
+
+function CompactKitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, onPrint, onPreview, onCancel }: CompactKitchenOrderCardProps) {
   const [itemsOpen, setItemsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const startX = useRef(0);
   const longPress = useRef<number | null>(null);
+  const now = nowBucket * 60000;
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
   const delay = getKitchenDelay(order, now);
@@ -1222,6 +1319,13 @@ function CompactKitchenOrderCard({ order, now, busy, highlighted, onNext, onPrin
   );
 }
 
+const MemoCompactKitchenOrderCard = memo(CompactKitchenOrderCard, (prev, next) => (
+  prev.order === next.order &&
+  prev.nowBucket === next.nowBucket &&
+  prev.busy === next.busy &&
+  prev.highlighted === next.highlighted
+));
+
 function KitchenConfirmDialog({
   title,
   description,
@@ -1265,9 +1369,22 @@ function KitchenConfirmDialog({
   );
 }
 
-function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: { order: TableOrder; now: number; busy: boolean; highlighted?: boolean; onNext: (status: TableOrderStatus) => void; onPrint: (reprint: boolean) => void; onPreview: () => void; onOpen: () => void; onCancel: () => void }) {
+type KitchenOrderCardProps = {
+  order: TableOrder;
+  nowBucket: number;
+  busy: boolean;
+  highlighted?: boolean;
+  onNext: (status: TableOrderStatus) => void;
+  onPrint: (reprint: boolean) => void;
+  onPreview: () => void;
+  onOpen: () => void;
+  onCancel: () => void;
+};
+
+function KitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [itemsOpen, setItemsOpen] = useState(false);
+  const now = nowBucket * 60000;
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
   const delay = getKitchenDelay(order, now);
@@ -1365,6 +1482,13 @@ function KitchenOrderCard({ order, now, busy, highlighted, onNext, onPrint, onPr
     </Card>
   );
 }
+
+const MemoKitchenOrderCard = memo(KitchenOrderCard, (prev, next) => (
+  prev.order === next.order &&
+  prev.nowBucket === next.nowBucket &&
+  prev.busy === next.busy &&
+  prev.highlighted === next.highlighted
+));
 
 function KitchenOrderDrawer({ order, now, onClose, onPrint, onPreview, onNext }: { order: TableOrder; now: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -1523,6 +1647,76 @@ function buildKitchenStats(orders: TableOrder[], now: number, printerStatus: str
     printerOnline: printerStatus !== "offline",
     printerLabel: autoPrint ? "Auto" : printerStatus === "browser-preview" ? "Browser" : printerStatus,
   };
+}
+
+function reconcileKitchenOrders(current: TableOrder[], next: TableOrder[]) {
+  if (!current.length) return next;
+  const currentById = new Map(current.map((order) => [order.id, order]));
+  let changed = current.length !== next.length;
+  const merged = next.map((order, index) => {
+    const previous = currentById.get(order.id);
+    if (!previous) {
+      changed = true;
+      return order;
+    }
+    if (current[index]?.id !== order.id) changed = true;
+    if (sameKitchenOrder(previous, order)) return previous;
+    changed = true;
+    return order;
+  });
+  return changed ? merged : current;
+}
+
+function sameKitchenOrder(first: TableOrder, second: TableOrder) {
+  return (
+    first.status === second.status &&
+    first.paymentStatus === second.paymentStatus &&
+    first.tableNumber === second.tableNumber &&
+    first.source === second.source &&
+    first.orderType === second.orderType &&
+    first.priority === second.priority &&
+    first.etaMinutes === second.etaMinutes &&
+    first.printedCount === second.printedCount &&
+    first.customerName === second.customerName &&
+    first.guestName === second.guestName &&
+    first.customerPhone === second.customerPhone &&
+    first.assignedStaffName === second.assignedStaffName &&
+    first.waiterName === second.waiterName &&
+    first.kitchenStation === second.kitchenStation &&
+    first.total === second.total &&
+    sameKitchenLines(first.lines, second.lines) &&
+    sameTimelineTail(first.statusHistory, second.statusHistory)
+  );
+}
+
+function sameKitchenLines(first: TableOrder["lines"], second: TableOrder["lines"]) {
+  if (first.length !== second.length) return false;
+  return first.every((line, index) => {
+    const next = second[index];
+    return Boolean(next) &&
+      line.itemId === next.itemId &&
+      line.name === next.name &&
+      line.quantity === next.quantity &&
+      line.notes === next.notes &&
+      line.allergyNote === next.allergyNote &&
+      sameStringList(line.modifiers, next.modifiers);
+  });
+}
+
+function sameTimelineTail(first?: Array<Record<string, unknown>>, second?: Array<Record<string, unknown>>) {
+  if ((first?.length ?? 0) !== (second?.length ?? 0)) return false;
+  const a = first?.at(-1);
+  const b = second?.at(-1);
+  return (!a && !b) || (
+    a?.status === b?.status &&
+    a?.foodStatus === b?.foodStatus &&
+    a?.at === b?.at
+  );
+}
+
+function sameStringList(first?: string[], second?: string[]) {
+  if ((first?.length ?? 0) !== (second?.length ?? 0)) return false;
+  return (first ?? []).every((value, index) => value === second?.[index]);
 }
 
 function filterKitchenOrders(

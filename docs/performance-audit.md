@@ -1,5 +1,95 @@
 # Performance Audit
 
+## Enterprise Performance Sprint Phase 2 - 2026-07-08
+
+Scope: route-level bundle splitting and React startup optimization only. No business workflow, API contract, repository behavior, Firestore collection, schema, auth flow, Owner, Kitchen, POS, Admin, or UI redesign change was made.
+
+### Implemented
+
+| Area | Result |
+| --- | --- |
+| Report artifacts | Added `BUNDLE_DEEP_ANALYSIS.md`, `DEPENDENCY_AUDIT.md`, `ROUTE_LOAD_ANALYSIS.md`, and `PERFORMANCE_PHASE2_REPORT.md`. |
+| Firebase config | Added `src/firebase/config.ts`; config-only checks no longer import SDK accessors. |
+| Auth hook | `useAuthUser` now dynamic-loads `auth-service` inside the browser effect instead of importing Firebase Auth/Firestore at module scope. |
+| Profile route | Firebase auth update helpers and Stack/customer sign-out services now load only during save/logout actions. |
+| Shared app store | Owner/menu/staff/inventory Firestore mutation services now load only when the relevant mutation action runs, so public shell `useAppStore` usage no longer imports those services. |
+| FCM support check | FCM client uses config-only Firebase detection before loading messaging. |
+
+### Bundle Results
+
+| Metric | Before | After | Result |
+| --- | ---: | ---: | --- |
+| `/` RSC route JS | `1017 KB` | `455 KB` | Down `562 KB`. |
+| `/profile` RSC route JS | `1714 KB` | `562 KB` | Down `1152 KB`. |
+| Firestore common ownership | `94` route manifests | `10` route manifests | Broad shell ownership removed. |
+| Firebase Auth ownership | `94` route manifests | `10` route manifests | Broad shell ownership removed. |
+| Stack auth ownership | `6` route manifests | `4` route manifests | Profile initial ownership removed. |
+
+### Initial HTML Probe
+
+| Route | Result |
+| --- | --- |
+| `/` | No initial Firestore/Auth/Stack/XLSX/Mapbox flagged chunks. |
+| `/profile` | No initial Firestore/Auth/Stack/XLSX/Mapbox flagged chunks. |
+| `/login` | Auth chunks present as expected. |
+| `/owner/pos` | No initial Firestore/Auth/Stack/XLSX/Mapbox flagged chunks. |
+
+### Remaining Work
+
+| Priority | Work |
+| --- | --- |
+| P0 | Rerun Lighthouse/Core Web Vitals/Chrome Performance/Coverage/Memory after Hostinger production-env redeploy. |
+| P1 | Split owner orders/settings/profile tabs only after authenticated browser smoke. |
+| P1 | Review Framer Motion ownership with visual/a11y regression coverage. |
+
+## Enterprise Performance Recovery Sprint - 2026-07-08
+
+Scope: runtime performance recovery only. No business workflow, API contract, repository behavior, Firestore collection, schema, auth flow, Owner, Kitchen, POS, Admin, or UI redesign change was made.
+
+### Runtime Root Causes
+
+| Area | Finding |
+| --- | --- |
+| LCP | Saved Lighthouse identified the home explanatory paragraph as LCP; delay was primarily render/main-thread delay, not image transfer. |
+| CLS | Saved Lighthouse showed large footer/page movement from skeleton/content height mismatch. |
+| Providers | Customer shell mounted auth session bridge, Firestore hydrator, toaster, PWA/push, and analytics diagnostics before idle. |
+| Firebase | Public header and shared Firebase compatibility exports could pull Firestore/Auth/Storage/Analytics into public startup paths. |
+| Network | Home route requested below-the-fold hero-restaurant menu data before first paint. |
+| Third party | Google Analytics loaded `afterInteractive`; stale Lighthouse attributed about `450ms` main-thread blocking to Google Tag Manager. |
+
+### Implemented Recovery
+
+| Area | Result |
+| --- | --- |
+| Report-first audit | Added root `PERFORMANCE_REPORT.md` before implementation with bottlenecks, LCP/CLS/provider/Firestore/network/bundle findings, and the implementation plan. |
+| Analytics | Deferred Google Analytics scripts to `lazyOnload`. |
+| Customer runtime | Moved auth session bridge, Firestore hydrator, toaster, PWA, push, and analytics diagnostics behind `IdleMount`. |
+| Header Firestore | Public header now imports Firestore/client/collections only while the location picker is open for a signed-in customer. |
+| Action-only modules | Customer logout and favorite-write modules now load only on user actions. |
+| Home network | Hero menu preview fetch is deferred until browser idle. |
+| Firebase startup | Firebase compatibility exports are non-eager; accessor functions remain the supported initialization path. |
+| CLS | Customer home loading fallback now reserves final page-like height instead of using a full-screen splash. |
+
+### Current Build Evidence
+
+| Check | Result |
+| --- | --- |
+| `cmd /c npm run typecheck` | Passed |
+| `cmd /c npm run lint` | Passed |
+| `cmd /c npm run build` | Passed with the existing Firebase/protobuf dynamic dependency warning. |
+| `cmd /c npm run analyze` | Passed and regenerated `.next/analyze/client.html`, `nodejs.html`, and `edge.html`. |
+| `cmd /c npm run audit:release` | Passed: `0` debt markers and `0` matching unbounded Firestore collection reads. |
+| `cmd /c npm run smoke:operational` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+
+### Measurement Limits
+
+| Item | Status |
+| --- | --- |
+| Production Lighthouse | Not rerun from this workspace because PageSpeed API returned quota `429 RESOURCE_EXHAUSTED` and no local Lighthouse/Chrome executable was available. |
+| Current hosted env | Hosted `/api/release-info` serves the latest release branch commit but still reports `deploymentEnvironment: development`; production-env Lighthouse remains manual. |
+| Remaining opportunities | `/profile` tab/action splitting, deeper public server-component/data island conversion, and broad customer shared chunk reduction remain future performance work after browser smoke. |
+
 ## RC Performance Phase 3 Runtime and Core Web Vitals Optimization - 2026-07-07
 
 Scope: runtime performance and Core Web Vitals optimization only. No UI redesign, API contract change, repository change, Firestore collection, schema migration, or business workflow change was made.

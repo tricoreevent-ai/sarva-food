@@ -5,8 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import toast from "react-hot-toast";
-import { updateEmail, updatePassword, updateProfile, type User } from "firebase/auth";
+import type { User } from "firebase/auth";
 import {
   Bell,
   Building2,
@@ -35,7 +34,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { AppPreferences } from "@/components/settings/app-preferences";
+import { toast } from "@/lib/client-toast";
 import type { MapboxPickedLocation } from "@/components/maps/address-autocomplete";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { InlineLoading, RetryState } from "@/components/state/page-state";
@@ -49,9 +48,7 @@ import { useCustomerData, type CustomerCouponDoc } from "@/hooks/use-customer-da
 import { usePublicAppName } from "@/hooks/use-public-app-name";
 import { useAlert } from "@/hooks/useAlert";
 import { parseFirestoreDate } from "@/lib/firestore-date";
-import { getFirebaseAuth, isFirebaseConfigured } from "@/firebase/client";
-import { ensureCustomerProfile, signOutUser } from "@/services/auth-service";
-import { signOutStackCustomer } from "@/services/auth/stack-auth-client";
+import { isFirebaseConfigured } from "@/firebase/config";
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
@@ -89,6 +86,10 @@ const LazyAddressAutocomplete = dynamic(() => import("@/components/maps/address-
   ssr: false,
   loading: () => <Input placeholder="Search delivery area or street address" disabled />,
 });
+const AppPreferences = dynamic(() => import("@/components/settings/app-preferences").then((module) => module.AppPreferences), {
+  ssr: false,
+  loading: () => <div className="rounded-md border bg-muted/30 p-3 text-sm font-semibold text-muted-foreground">Loading preferences</div>,
+});
 
 export default function ProfilePage() {
   return <ProfilePageContent />;
@@ -124,10 +125,15 @@ function ProfilePageContent() {
     if (!shouldUseFirebase() || !isFirebaseConfigured) return;
     const expectedUid = user.uid;
     const id = window.setTimeout(() => {
-      const authUser = getFirebaseAuth().currentUser;
-      if (!authUser || authUser.uid !== expectedUid) return;
-      void ensureCustomerProfile(authUser, "customer")
-        .then(() => retryCustomer())
+      void Promise.all([
+        import("@/firebase/client"),
+        import("@/services/auth-service"),
+      ])
+        .then(([firebaseClient, authService]) => {
+          const authUser = firebaseClient.getFirebaseAuth().currentUser;
+          if (!authUser || authUser.uid !== expectedUid) return;
+          return authService.ensureCustomerProfile(authUser, "customer").then(() => retryCustomer());
+        })
         .catch(() => undefined);
     }, 250);
     return () => window.clearTimeout(id);
@@ -135,10 +141,7 @@ function ProfilePageContent() {
 
   useEffect(() => {
     if (!blockedByRole) return;
-    void Promise.all([
-      signOutUser().catch(() => undefined),
-      signOutStackCustomer().catch(() => undefined),
-    ]).finally(() => {
+    void signOutProfileServices().finally(() => {
       clearCart();
       setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
       router.replace("/login?next=/profile");
@@ -147,11 +150,7 @@ function ProfilePageContent() {
 
   async function handleLogout() {
     setSigningOut(true);
-    await Promise.all([
-      signOutUser().catch(() => undefined),
-      signOutStackCustomer().catch(() => undefined),
-      fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
-    ]);
+    await signOutProfileServices();
     clearCart();
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
@@ -191,6 +190,7 @@ function ProfilePageContent() {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      const { getFirebaseAuth } = await import("@/firebase/client");
       if (!shouldUseFirebase() || !isFirebaseConfigured || !getFirebaseAuth().currentUser) {
         setAddressMessage("Could not connect to Firebase. Please refresh and try again.");
         return;
@@ -425,6 +425,10 @@ function ProfilePageContent() {
         setAccountMessage("Could not connect to Firebase. Please refresh and try again.");
         return;
       }
+      const [{ getFirebaseAuth }, { updateEmail, updatePassword, updateProfile }] = await Promise.all([
+        import("@/firebase/client"),
+        import("firebase/auth"),
+      ]);
       const authUser = getFirebaseAuth().currentUser;
       if (!authUser) {
         setAccountMessage("Sign in again before saving profile changes.");
@@ -1344,6 +1348,18 @@ function profileTabFromUrl(tab: string | null) {
 
 function safeClientReason(error: unknown) {
   return error instanceof Error ? error.name : typeof error;
+}
+
+async function signOutProfileServices() {
+  const [{ signOutUser }, { signOutStackCustomer }] = await Promise.all([
+    import("@/services/auth-service"),
+    import("@/services/auth/stack-auth-client"),
+  ]);
+  await Promise.all([
+    signOutUser().catch(() => undefined),
+    signOutStackCustomer().catch(() => undefined),
+    fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
+  ]);
 }
 
 function friendlyProfileMessage(error: unknown, fallback: string) {

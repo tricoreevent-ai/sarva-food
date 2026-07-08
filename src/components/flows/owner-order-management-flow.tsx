@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import {
   AlertTriangle,
@@ -30,9 +31,7 @@ import {
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { OrderCard, type OpsOrder } from "@/components/orders/order-card";
 import { OrderFilters } from "@/components/orders/order-filters";
-import { IntegrationDialog } from "@/components/orders/integration-dialog";
 import { OrderMetricCard } from "@/components/orders/metric-card";
-import { PartnerCard } from "@/components/orders/partner-card";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,6 +42,9 @@ import { normalizePhone } from "@/services/restaurant-ops-service";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";
+
+const IntegrationDialog = dynamic(() => import("@/components/orders/integration-dialog").then((module) => module.IntegrationDialog), { loading: () => null });
+const PartnerCard = dynamic(() => import("@/components/orders/partner-card").then((module) => module.PartnerCard), { loading: () => null });
 
 type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
 type SourceFilter = "all" | "website" | "pos" | "zomato" | "swiggy" | "dine-in" | "parcel" | "catering";
@@ -91,17 +93,23 @@ export function OwnerOrderManagementFlow() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const knownNewOrders = useRef<Set<string> | null>(null);
+  const tableOrdersRef = useRef<TableOrder[]>([]);
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
+  const debouncedSearch = useDebouncedValue(search, 120);
   const rangeLabel = useMemo(() => formatRangeLabel(dateRange), [dateRange]);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders, now), [now, orders, tableOrders]);
   const tabOrders = useMemo(() => mappedOrders.filter((order) => matchesTab(order, tab)), [mappedOrders, tab]);
   const tabCatering = useMemo(() => cateringInquiries.filter((quote) => matchesCateringTab(quote, tab)), [cateringInquiries, tab]);
-  const visibleOrders = useMemo(() => tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, search)), [filter, search, tabOrders]);
-  const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, search)), [filter, search, tabCatering]);
+  const visibleOrders = useMemo(() => tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, debouncedSearch)), [debouncedSearch, filter, tabOrders]);
+  const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, debouncedSearch)), [debouncedSearch, filter, tabCatering]);
   const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
   const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
   const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
   const activeView = tab === "live";
+
+  useEffect(() => {
+    tableOrdersRef.current = tableOrders;
+  }, [tableOrders]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60000);
@@ -268,10 +276,10 @@ export function OwnerOrderManagementFlow() {
     knownNewOrders.current = incomingIds;
   }, [activeOrders, notifyNewOrder]);
 
-  async function updateKitchenOrder(order: TableOrder, targetStatus?: TableOrderStatus) {
+  const updateKitchenOrder = useCallback(async (order: TableOrder, targetStatus?: TableOrderStatus) => {
     const status = targetStatus ?? nextKitchenStatus[order.status];
     if (!status || status === order.status) return;
-    const previous = tableOrders;
+    const previous = tableOrdersRef.current;
     setTableOrders((current) => current.map((item) => item.id === order.id ? { ...item, status } : item));
     const response = await fetch("/api/owner/kitchen", {
       method: "PATCH",
@@ -286,7 +294,7 @@ export function OwnerOrderManagementFlow() {
     }
     if (payload?.data) setTableOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
     toast.success(orderStatusToast(status));
-  }
+  }, []);
 
   async function updateCateringInquiryStatus() {
     toast.error("Catering requests are not part of the repository-backed order queue yet.");
@@ -534,7 +542,7 @@ function ActiveOrdersGrid({
       </div>
       <div className="divide-y divide-slate-100">
         {visible.map((order) => (
-          <ActiveOrderCard
+          <MemoActiveOrderCard
             key={order.id}
             order={order}
             highlighted={highlightedOrderIds.has(order.id)}
@@ -608,6 +616,8 @@ function ActiveOrderCard({
     </article>
   );
 }
+
+const MemoActiveOrderCard = memo(ActiveOrderCard);
 
 function ActiveOrderMenu({
   isNew,
@@ -1220,4 +1230,15 @@ function formatFirestoreDateTime(value: unknown) {
 
 function normalizeFulfillment(value?: string) {
   return value === "dine-in" || value === "parcel" || value === "delivery" ? value : "parcel";
+}
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(id);
+  }, [delayMs, value]);
+
+  return debounced;
 }

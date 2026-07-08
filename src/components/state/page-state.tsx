@@ -17,8 +17,29 @@ export function PageLoading() {
 
 export function CustomerHomeLoading() {
   return (
-    <main className="customer-theme fixed inset-0 z-[90] grid place-items-center bg-background px-6 py-10" aria-busy="true" aria-live="polite" aria-label="Loading Nammude">
-      <AppSplashLoading />
+    <main className="customer-theme min-h-[1600px] space-y-5 pb-24" aria-busy="true" aria-live="polite" aria-label="Loading Nammude">
+      <section className="px-4 pb-4 pt-4 md:hidden">
+        <div className="grid grid-cols-[1fr_7.6rem] items-end gap-1">
+          <div className="space-y-2 pb-2">
+            <Skeleton className="h-5 w-36 rounded-md" />
+            <Skeleton className="h-4 w-48 rounded-md" />
+            <Skeleton className="h-20 w-60 rounded-lg" />
+          </div>
+          <Skeleton className="size-32 rounded-full" />
+        </div>
+        <Skeleton className="mt-3 h-12 rounded-[1.35rem]" />
+      </section>
+      <section className="container-page hidden pt-6 md:block">
+        <Skeleton className="h-[22.5rem] rounded-[1.35rem]" />
+      </section>
+      <section className="container-page space-y-5 py-5">
+        <Skeleton className="h-44 rounded-2xl" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <Skeleton key={index} className="h-72 rounded-lg" />
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

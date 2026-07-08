@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { ProductCard, type PosProduct } from "@/modules/owner/pos/components/product-card";
 
-export function ProductGrid({
+function ProductGridComponent({
   items,
   quantities,
   onAdd,
@@ -38,3 +39,9 @@ export function ProductGrid({
     </div>
   );
 }
+
+export const ProductGrid = memo(ProductGridComponent, (prev, next) => (
+  prev.items === next.items &&
+  prev.quantities === next.quantities &&
+  prev.compact === next.compact
+));

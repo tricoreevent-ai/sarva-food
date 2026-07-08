@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
-import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import {
   Check,
   ChevronDown,
@@ -28,8 +27,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { AppPreferences } from "@/components/settings/app-preferences";
-import { getFirebaseDb, isFirebaseConfigured } from "@/firebase/client";
-import { COLLECTIONS } from "@/firebase/collections";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { defaultLocation, useLocationCommerce, type CommerceLocation } from "@/hooks/use-location-commerce";
 import { useAppStore } from "@/lib/app-store";
@@ -42,8 +39,6 @@ import { customerNav } from "@/lib/navigation";
 import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
-import { signOutUser } from "@/services/auth-service";
-import { signOutStackCustomer } from "@/services/auth/stack-auth-client";
 import type { CmsSettings } from "@/lib/types";
 import type { CustomerAddressDoc } from "@/types/firebase";
 
@@ -114,6 +109,11 @@ export function PublicHeader() {
   }, [location, locationQuery, savedAddresses, suggestions]);
 
   useEffect(() => {
+    if (!locationOpen) {
+      const resetTimerId = window.setTimeout(() => setRemoteAddresses([]), 0);
+      return () => window.clearTimeout(resetTimerId);
+    }
+
     if (!customerId || customerId === "anonymous") {
       const resetTimerId = window.setTimeout(() => {
         setRemoteAddresses([]);
@@ -121,27 +121,51 @@ export function PublicHeader() {
       return () => window.clearTimeout(resetTimerId);
     }
 
-    if (!shouldUseFirebase() || !isFirebaseConfigured) {
+    if (!shouldUseFirebase()) {
       const resetTimerId = window.setTimeout(() => setRemoteAddresses([]), 0);
       return () => {
         window.clearTimeout(resetTimerId);
       };
     }
 
-    const unsubscribe = onSnapshot(
-      query(collection(getFirebaseDb(), COLLECTIONS.customerAddresses), where("customerId", "==", customerId), limit(12)),
-      (snapshot) => {
-        setRemoteAddresses(snapshot.docs.map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }) as CustomerAddressDoc));
-      },
-      () => {
-        setRemoteAddresses([]);
-      },
-    );
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+
+    void Promise.all([
+      import("firebase/firestore"),
+      import("@/firebase/client"),
+      import("@/firebase/collections"),
+    ])
+      .then(([firestore, firebaseClient, collections]) => {
+        if (!active) return;
+        if (!shouldUseFirebase() || !firebaseClient.isFirebaseConfigured) {
+          setRemoteAddresses([]);
+          return;
+        }
+        unsubscribe = firestore.onSnapshot(
+          firestore.query(
+            firestore.collection(firebaseClient.getFirebaseDb(), collections.COLLECTIONS.customerAddresses),
+            firestore.where("customerId", "==", customerId),
+            firestore.limit(12),
+          ),
+          (snapshot) => {
+            if (!active) return;
+            setRemoteAddresses(snapshot.docs.map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }) as CustomerAddressDoc));
+          },
+          () => {
+            if (active) setRemoteAddresses([]);
+          },
+        );
+      })
+      .catch(() => {
+        if (active) setRemoteAddresses([]);
+      });
 
     return () => {
-      unsubscribe();
+      active = false;
+      unsubscribe?.();
     };
-  }, [customerId]);
+  }, [customerId, locationOpen]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -153,6 +177,10 @@ export function PublicHeader() {
   async function handleLogout() {
     setSigningOut(true);
     setProfileOpen(false);
+    const [{ signOutUser }, { signOutStackCustomer }] = await Promise.all([
+      import("@/services/auth-service"),
+      import("@/services/auth/stack-auth-client"),
+    ]);
     await Promise.all([
       signOutUser().catch(() => undefined),
       signOutStackCustomer().catch(() => undefined),

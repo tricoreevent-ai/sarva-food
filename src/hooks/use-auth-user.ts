@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { getUserProfile, subscribeToAuth } from "@/services/auth-service";
 import { shouldUseFirebase } from "@/lib/env";
-import { isFirebaseConfigured } from "@/firebase/client";
+import { isFirebaseConfigured } from "@/firebase/config";
 import { useAppStore } from "@/lib/app-store";
 import type { UserDoc } from "@/types/firebase";
 
@@ -81,60 +80,59 @@ export function useAuthUser() {
       setError(null);
     }, AUTH_CHECK_TIMEOUT_MS);
 
-    try {
-      const unsubscribe = subscribeToAuth((nextUser) => {
+    let unsubscribe: (() => void) | undefined;
+
+    void import("@/services/auth-service")
+      .then(({ getUserProfile, subscribeToAuth }) => {
+        if (!active) return;
+        unsubscribe = subscribeToAuth((nextUser) => {
+          if (!active) return;
+          window.clearTimeout(checkingTimerId);
+          window.clearTimeout(timeoutId);
+          setUser(nextUser);
+          setProfile(nextUser ? null : localProfile);
+          setTimedOut(false);
+          setState(nextUser || localProfile ? "authenticated" : "guest");
+          setProfileState(nextUser ? "loading" : localProfile ? "success" : "idle");
+          setError(null);
+
+          if (!nextUser) return;
+
+          void Promise.race([
+            getUserProfile(nextUser.uid),
+            timeoutAfter(PROFILE_LOOKUP_TIMEOUT_MS, "Profile lookup timed out."),
+          ])
+            .then((nextProfile) => {
+              if (!active) return;
+              setProfile(nextProfile);
+              setProfileState("success");
+            })
+            .catch((profileError) => {
+              if (!active) return;
+              setProfile(null);
+              setProfileState("error");
+              const message = profileError instanceof Error ? profileError.message : "";
+              setError(message && !/timed out/i.test(message) ? message : null);
+            });
+        });
+      })
+      .catch(() => {
         if (!active) return;
         window.clearTimeout(checkingTimerId);
         window.clearTimeout(timeoutId);
-        setUser(nextUser);
-        setProfile(nextUser ? null : localProfile);
-        setTimedOut(false);
-        setState(nextUser || localProfile ? "authenticated" : "guest");
-        setProfileState(nextUser ? "loading" : localProfile ? "success" : "idle");
-        setError(null);
-
-        if (!nextUser) return;
-
-        void Promise.race([
-          getUserProfile(nextUser.uid),
-          timeoutAfter(PROFILE_LOOKUP_TIMEOUT_MS, "Profile lookup timed out."),
-        ])
-          .then((nextProfile) => {
-            if (!active) return;
-            setProfile(nextProfile);
-            setProfileState("success");
-          })
-          .catch((profileError) => {
-            if (!active) return;
-            setProfile(null);
-            setProfileState("error");
-            const message = profileError instanceof Error ? profileError.message : "";
-            setError(message && !/timed out/i.test(message) ? message : null);
-          });
-      });
-
-      return () => {
-        active = false;
-        window.clearTimeout(checkingTimerId);
-        window.clearTimeout(timeoutId);
-        unsubscribe();
-      };
-    } catch {
-      window.clearTimeout(checkingTimerId);
-      window.clearTimeout(timeoutId);
-      const fallbackTimerId = window.setTimeout(() => {
-        if (!active) return;
         setUser(null);
         setProfile(null);
         setState("guest");
         setProfileState("idle");
         setError("Account check failed. Continuing as guest.");
-      }, 0);
-      return () => {
-        active = false;
-        window.clearTimeout(fallbackTimerId);
-      };
-    }
+      });
+
+    return () => {
+      active = false;
+      window.clearTimeout(checkingTimerId);
+      window.clearTimeout(timeoutId);
+      unsubscribe?.();
+    };
   }, [localAuthUser, version]);
 
   const loading = state === "initial" || state === "checking";

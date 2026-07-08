@@ -22,6 +22,7 @@
     "validate:prod-env": "node scripts/validate-production-env.mjs",
     "smoke:operational": "node scripts/release/operational-hardening-smoke.mjs",
     "audit:release": "node scripts/release/repository-hardening-audit.mjs",
+    "profile:runtime": "node scripts/release/performance-phase3-reports.mjs",
     "verify": "npm run typecheck && npm run lint && npm run build",
     "firebase:emulators": "npx firebase-tools emulators:start --only auth,firestore,storage,functions",
     "firebase:emulators:export": "npx firebase-tools emulators:export ./tmp/firebase-emulator-data",

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Minus, Plus } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export type PosProduct = {
   raw: MenuItem | InventoryItem;
 };
 
-export function ProductCard({
+function ProductCardComponent({
   item,
   quantity,
   onAdd,
@@ -70,3 +71,8 @@ export function ProductCard({
     </article>
   );
 }
+
+export const ProductCard = memo(ProductCardComponent, (prev, next) => (
+  prev.item === next.item &&
+  prev.quantity === next.quantity
+));

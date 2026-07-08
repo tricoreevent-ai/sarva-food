@@ -226,6 +226,7 @@ export function PosBillingFlow() {
   const taxSettings = useAppStore((state) => state.taxSettings);
   const printerSettings = useAppStore((state) => state.printerSettings);
   const bill = useAppStore((state) => state.posBill);
+  const billRef = useRef(bill);
   const draftWrite = useRef(Promise.resolve());
   const { categories: masterCategories } = usePublicCategories();
   const setPosBill = useAppStore((state) => state.setPosBill);
@@ -242,6 +243,10 @@ export function PosBillingFlow() {
   );
   const applyGst = bill.applyGst ?? true;
   const waiveParcelCharge = Boolean(bill.waiveParcelCharge);
+
+  useEffect(() => {
+    billRef.current = bill;
+  }, [bill]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -367,6 +372,7 @@ export function PosBillingFlow() {
     () => inventoryItems.filter((item) => item.sellable !== false && item.price !== undefined),
     [inventoryItems],
   );
+  const debouncedQuery = useDebouncedValue(query, 120);
   const categoryNameById = useMemo(
     () => {
       const entries: Array<[string, string]> = [];
@@ -405,11 +411,19 @@ export function PosBillingFlow() {
       .filter((item) => item.count > 0)
       .sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
   }, [masterCategories, menu, menuCategories, restaurantId, resolveCategoryName]);
+  const menuProducts = useMemo(
+    () => menu.map((item) => toMenuProduct(item, resolveCategoryName(item))),
+    [menu, resolveCategoryName],
+  );
+  const customProducts = useMemo(
+    () => products.map(toInventoryProduct),
+    [products],
+  );
   const displayedItems = useMemo(() => {
-    const source = activeTab === "menu" ? menu.map((item) => toMenuProduct(item, resolveCategoryName(item))) : activeTab === "custom" ? products.map(toInventoryProduct) : [];
+    const source = activeTab === "menu" ? menuProducts : activeTab === "custom" ? customProducts : [];
+    const search = debouncedQuery.trim().toLowerCase();
     return source.filter((item) => {
       const matchesCategory = !activeCategory || item.category === activeCategory;
-      const search = query.trim().toLowerCase();
       const matchesSearch = !search || item.name.toLowerCase().includes(search) || item.category.toLowerCase().includes(search);
       const matchesFood = foodFilter === "all" || item.source === "product" || (foodFilter === "veg" ? item.isVeg !== false : item.isVeg === false);
       const matchesAvailability = !availableOnly || !item.soldOut;
@@ -420,7 +434,7 @@ export function PosBillingFlow() {
       if (sortMode === "price-high") return second.price - first.price;
       return Number(second.isPopular) - Number(first.isPopular) || first.name.localeCompare(second.name);
     });
-  }, [activeTab, activeCategory, availableOnly, foodFilter, menu, products, query, sortMode, resolveCategoryName]);
+  }, [activeTab, activeCategory, availableOnly, customProducts, debouncedQuery, foodFilter, menuProducts, sortMode]);
   const quantities = useMemo(
     () => Object.fromEntries(bill.lines.map((line) => [line.itemId, line.quantity])),
     [bill.lines],
@@ -453,26 +467,29 @@ export function PosBillingFlow() {
     [applyGst, taxSettings, waiveParcelCharge],
   );
 
-  const billContext = buildBillContext({
+  const billContext = useMemo(() => buildBillContext({
     bill,
     branch,
     taxSettings: effectiveTaxSettings,
     restaurantName: ownerBusinessProfile?.hotelName,
     createdAt: ticketCreatedAt ?? new Date(),
-  });
-  const kotContext = buildKotContext(billContext);
-  const billTemplate = printerSettings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate;
-  const kotTemplate = printerSettings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate;
-  const selectedBillTemplate = { ...billTemplate, paperWidth: previewPaper };
-  const billingPrinter = printerSettings.profiles?.find((profile) => profile.type === "billing") ?? printerSettings.profiles?.[0];
-  const totals = calculateBillTotals(billContext);
+  }), [bill, branch, effectiveTaxSettings, ownerBusinessProfile?.hotelName, ticketCreatedAt]);
+  const kotContext = useMemo(() => buildKotContext(billContext), [billContext]);
+  const billTemplate = useMemo(() => printerSettings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate, [printerSettings.templates]);
+  const kotTemplate = useMemo(() => printerSettings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate, [printerSettings.templates]);
+  const selectedBillTemplate = useMemo(() => ({ ...billTemplate, paperWidth: previewPaper }), [billTemplate, previewPaper]);
+  const billingPrinter = useMemo(() => printerSettings.profiles?.find((profile) => profile.type === "billing") ?? printerSettings.profiles?.[0], [printerSettings.profiles]);
+  const totals = useMemo(() => calculateBillTotals(billContext), [billContext]);
   const activeKitchenOrder = bill.linkedKitchenOrderId ? tableOrders.find((order) => order.id === bill.linkedKitchenOrderId) : undefined;
   const operationalOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
   const activeOperationalOrders = useMemo(() => operationalOrders.filter((order) => !["completed", "cancelled", "billed"].includes(order.status)), [operationalOrders]);
   const occupiedTableNames = useMemo(() => new Set(activeOperationalOrders
     .filter((order) => order.id !== bill.linkedKitchenOrderId && order.tableNumber)
     .map((order) => normalizeTableName(order.tableNumber))), [activeOperationalOrders, bill.linkedKitchenOrderId]);
-  const activeKotCount = activeOperationalOrders.filter((order) => order.hasKitchenTicket !== false && ["new", "accepted", "preparing", "ready"].includes(order.status)).length;
+  const activeKotCount = useMemo(
+    () => activeOperationalOrders.filter((order) => order.hasKitchenTicket !== false && ["new", "accepted", "preparing", "ready"].includes(order.status)).length,
+    [activeOperationalOrders],
+  );
   const activeOrderCount = activeOperationalOrders.length;
   const lastInvalidTableWarning = useRef("");
 
@@ -494,7 +511,7 @@ export function PosBillingFlow() {
     setPosBill(nextBill);
   }, [deliveryAddress, landmark, orderNote, setPosBill]);
 
-  async function commitDraft(nextBill: PosBill, extra?: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }>) {
+  const commitDraft = useCallback(async (nextBill: PosBill, extra?: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }>) => {
     try {
       await persistDraft(nextBill, extra);
     } catch (error) {
@@ -503,7 +520,12 @@ export function PosBillingFlow() {
       setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "pending");
       toast.error("POS draft could not be saved.");
     }
-  }
+  }, [persistDraft]);
+  const commitDraftRef = useRef(commitDraft);
+
+  useEffect(() => {
+    commitDraftRef.current = commitDraft;
+  }, [commitDraft]);
 
   useEffect(() => {
     if (panel !== "new" || bill.orderType !== "dine-in" || !tables.length) return;
@@ -524,14 +546,14 @@ export function PosBillingFlow() {
     }
   }, [bill, occupiedTableNames, panel, persistDraft, tables]);
 
-  function handleAdd(item: PosProduct) {
-    void commitDraft(addItemToBill(bill, item));
-  }
+  const handleAdd = useCallback((item: PosProduct) => {
+    void commitDraftRef.current(addItemToBill(billRef.current, item));
+  }, []);
 
-  function handleQuantity(item: PosProduct, quantity: number) {
+  const handleQuantity = useCallback((item: PosProduct, quantity: number) => {
     const nextQuantity = item.source === "product" ? Math.min(quantity, (item.raw as InventoryItem).currentStock) : quantity;
-    void commitDraft(updateBillQuantity(bill, item.id, nextQuantity));
-  }
+    void commitDraftRef.current(updateBillQuantity(billRef.current, item.id, nextQuantity));
+  }, []);
 
   function handleBillQuantity(itemId: string, quantity: number) {
     void commitDraft(updateBillQuantity(bill, itemId, quantity));
@@ -4058,4 +4080,15 @@ function StatusPill({ icon: Icon, label, value }: { icon: LucideIcon; label: str
       </div>
     </div>
   );
+}
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(id);
+  }, [delayMs, value]);
+
+  return debounced;
 }

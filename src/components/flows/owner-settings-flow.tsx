@@ -2,16 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { toast } from "@/lib/client-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, ArrowDown, ArrowUp, BellRing, CheckCircle2, ChevronRight, Clock, CloudOff, CreditCard, Database, Download, HardDrive, ImageIcon, KeyRound, Mail, MessageCircle, MonitorSmartphone, Moon, PackageCheck, Pencil, Play, Plus, RefreshCcw, RotateCcw, Save, Share2, ShieldCheck, Smartphone, Store, Sun, Trash2, X, type LucideIcon } from "lucide-react";
-import { MapboxLocationPicker, type MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
-import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
+import type { MapboxPickedLocation } from "@/components/maps/mapbox-location-picker";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { DashboardCard } from "@/components/owner/dashboard-card";
-import { PushPermissionPanel } from "@/components/pwa/push-permission-panel";
-import { FullscreenToggle } from "@/components/ui/fullscreen-toggle";
-import { LoyaltyRulesPanel } from "@/components/owner/loyalty-rules-panel";
 import { Button } from "@/components/ui/button";
 import { CreatableMultiSelect, type MultiSelectOption } from "@/components/ui/creatable-multi-select";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -22,6 +19,27 @@ import { useThemeMode } from "@/lib/theme-provider";
 import { getConnectivitySnapshot, offlineQueueManager, startOfflineSyncEngine, subscribeConnectivity, subscribeOfflineQueue, type ConnectivitySnapshot, type OfflineQueueEntry } from "@/lib/offline";
 import { operationalSoundOptions, playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
+
+const MapboxLocationPicker = dynamic(() => import("@/components/maps/mapbox-location-picker").then((module) => module.MapboxLocationPicker), {
+  ssr: false,
+  loading: () => <div className="grid min-h-72 place-items-center rounded-xl border bg-muted/40 text-sm font-bold text-muted-foreground">Loading map</div>,
+});
+const CloudinaryUploadWidget = dynamic(() => import("@/components/media/cloudinary-upload-widget").then((module) => module.CloudinaryUploadWidget), {
+  ssr: false,
+  loading: () => <Button type="button" variant="outline" disabled>Upload</Button>,
+});
+const PushPermissionPanel = dynamic(() => import("@/components/pwa/push-permission-panel").then((module) => module.PushPermissionPanel), {
+  ssr: false,
+  loading: () => <div className="rounded-xl border bg-muted/30 p-3 text-sm font-bold text-muted-foreground">Loading push settings</div>,
+});
+const FullscreenToggle = dynamic(() => import("@/components/ui/fullscreen-toggle").then((module) => module.FullscreenToggle), {
+  ssr: false,
+  loading: () => <Button type="button" variant="outline" disabled>Fullscreen</Button>,
+});
+const LoyaltyRulesPanel = dynamic(() => import("@/components/owner/loyalty-rules-panel").then((module) => module.LoyaltyRulesPanel), {
+  ssr: false,
+  loading: () => <div className="rounded-xl border bg-muted/30 p-4 text-sm font-bold text-muted-foreground">Loading loyalty rules</div>,
+});
 
 type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
 type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "qr" | "pricing" | "notifications" | "communication" | "hours" | "taxes" | "social" | "loyalty" | "sync";

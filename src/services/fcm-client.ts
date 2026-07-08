@@ -1,7 +1,7 @@
 "use client";
 
 import type { MessagePayload, Unsubscribe } from "firebase/messaging";
-import { isFirebaseConfigured } from "@/firebase/client";
+import { isFirebaseConfigured } from "@/firebase/config";
 
 export type PushSurface = "customer" | "owner" | "admin" | "kitchen" | "pos" | "waiter";
 

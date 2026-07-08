@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   ChevronRight,
@@ -34,7 +34,6 @@ import { getCartSubtotal, useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
 import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
-import { customerFavoriteId, deleteCustomerFavoriteRestaurant, saveCustomerFavoriteRestaurant } from "@/services/customer-favorites-service";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -78,6 +77,7 @@ export function CustomerDiscoveryHome() {
   } = useLocationCommerce(restaurants);
   const [locationQuery, setLocationQuery] = useState("");
   const [locationResultsOpen, setLocationResultsOpen] = useState(false);
+  const [menuPreviewReady, setMenuPreviewReady] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
   const cartItems = useCartStore((state) => state.items);
   const rawCmsSettings = useAppStore((state) => state.cmsSettings) ?? defaultCmsSettings;
@@ -86,7 +86,7 @@ export function CustomerDiscoveryHome() {
   const customerDisplayName = customer.profile?.displayName || (auth.profile?.role === "customer" ? auth.profile?.displayName : "") || auth.user?.displayName || "";
   const customerFirstName = customerDisplayName.trim().split(/\s+/)[0] ?? "";
   const heroRestaurant = nearbyRestaurants[0] ?? restaurants[0];
-  const { items: menuItems } = usePublicMenu(heroRestaurant?.slug);
+  const { items: menuItems } = usePublicMenu(menuPreviewReady ? heroRestaurant?.slug : undefined);
   const cmsBanners = useMemo(
     () => {
       const homepage = getHomepageCmsItems(cmsSettings);
@@ -168,6 +168,16 @@ export function CustomerDiscoveryHome() {
     return map;
   }, [categoryChips, menuItems]);
 
+  useEffect(() => {
+    const win = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number; cancelIdleCallback?: (id: number) => void };
+    if (typeof win.requestIdleCallback === "function") {
+      const id = win.requestIdleCallback(() => setMenuPreviewReady(true), { timeout: 3000 });
+      return () => win.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setMenuPreviewReady(true), 1200);
+    return () => window.clearTimeout(id);
+  }, []);
+
   function handleLocationSelect(nextLocation: typeof visibleLocationOptions[number]) {
     selectLocation(nextLocation);
     setLocationQuery(nextLocation.label);
@@ -181,9 +191,14 @@ export function CustomerDiscoveryHome() {
       return;
     }
 
-    const favoriteId = savedRestaurantMap.get(restaurant.slug) ?? savedRestaurantMap.get(restaurant.id) ?? customerFavoriteId(customerId, restaurant);
-    const alreadySaved = savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id);
     try {
+      const {
+        customerFavoriteId,
+        deleteCustomerFavoriteRestaurant,
+        saveCustomerFavoriteRestaurant,
+      } = await import("@/services/customer-favorites-service");
+      const favoriteId = savedRestaurantMap.get(restaurant.slug) ?? savedRestaurantMap.get(restaurant.id) ?? customerFavoriteId(customerId, restaurant);
+      const alreadySaved = savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id);
       if (alreadySaved) {
         await deleteCustomerFavoriteRestaurant(favoriteId);
         notifyCustomerHome("success", `${restaurant.name} removed from favorites.`);

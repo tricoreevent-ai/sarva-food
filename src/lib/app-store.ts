@@ -7,9 +7,7 @@ import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { applyInventoryMovements, calculateRecipeCost } from "@/lib/inventory-engine";
 import { enqueueOfflineOperation, isOnline, syncQueuedOperations } from "@/lib/offline";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
-import { safeCreateCategory, safeDeleteMenuItem, safeUpdateCategory, safeUpsertMenuItem } from "@/services/advanced-menu-service";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
-import { deleteOwnerOffer, safeDeleteEmployeeUser, safeUpsertEmployeeUser, saveOwnerOffer, saveOwnerRestaurantProfile } from "@/services/production-data-service";
 import type {
   BusinessListingApplication,
   CateringPackage,
@@ -58,16 +56,12 @@ import type {
   TableOrder,
   TaxSettings,
 } from "@/lib/types";
-import {
-  canUseOperationalFirestore,
-  normalizePhone,
-} from "@/services/restaurant-ops-service";
 
 function persistenceErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Save failed. Please check your connection and access permissions.";
 }
-import { saveInventoryItem } from "@/services/production-data-service";
 import type { MenuCategoryDoc, MenuDoc } from "@/types/firebase";
+import type { InventoryWrite } from "@/services/production-data-service";
 
 type ApiPhase = "idle" | "loading" | "success" | "error";
 
@@ -279,6 +273,70 @@ function createLocalId(prefix: string) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
+function normalizePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length <= 10 ? digits : digits.slice(-10);
+}
+
+async function canUseOperationalFirestoreNow() {
+  if (!shouldUseFirebase() || typeof window === "undefined") return false;
+  const [{ isFirebaseConfigured }, { getFirebaseAuth }] = await Promise.all([
+    import("@/firebase/config"),
+    import("@/firebase/client"),
+  ]);
+  return isFirebaseConfigured && Boolean(getFirebaseAuth().currentUser);
+}
+
+async function saveMenuItemDoc(item: MenuDoc) {
+  const { safeUpsertMenuItem } = await import("@/services/advanced-menu-service");
+  return safeUpsertMenuItem(item);
+}
+
+async function deleteMenuItemDoc(itemId: string, restaurantId?: string) {
+  const { safeDeleteMenuItem } = await import("@/services/advanced-menu-service");
+  return safeDeleteMenuItem(itemId, restaurantId);
+}
+
+async function createCategoryDoc(category: MenuCategoryDoc) {
+  const { safeCreateCategory } = await import("@/services/advanced-menu-service");
+  return safeCreateCategory(category);
+}
+
+async function updateCategoryDoc(id: string, category: MenuCategoryDoc) {
+  const { safeUpdateCategory } = await import("@/services/advanced-menu-service");
+  return safeUpdateCategory(id, category);
+}
+
+async function saveOfferDoc(offer: Offer, restaurantId: string) {
+  const { saveOwnerOffer } = await import("@/services/production-data-service");
+  return saveOwnerOffer(offer, restaurantId);
+}
+
+async function deleteOfferDoc(code: string) {
+  const { deleteOwnerOffer } = await import("@/services/production-data-service");
+  return deleteOwnerOffer(code);
+}
+
+async function saveOwnerProfileDoc(input: { profile: OwnerBusinessProfile; restaurant: Restaurant; branch: RestaurantBranch }) {
+  const { saveOwnerRestaurantProfile } = await import("@/services/production-data-service");
+  return saveOwnerRestaurantProfile(input);
+}
+
+async function upsertEmployeeDoc(member: StaffMember) {
+  const { safeUpsertEmployeeUser } = await import("@/services/production-data-service");
+  return safeUpsertEmployeeUser(member);
+}
+
+async function deleteEmployeeDoc(id: string) {
+  const { safeDeleteEmployeeUser } = await import("@/services/production-data-service");
+  return safeDeleteEmployeeUser(id);
+}
+
+async function saveInventoryDoc(item: InventoryWrite) {
+  const { saveInventoryItem } = await import("@/services/production-data-service");
+  return saveInventoryItem(item);
 }
 
 function toRestaurantThumbnailUrl(url: string) {
@@ -974,7 +1032,7 @@ export const useAppStore = create<AppStore>()(
         };
         let order = localOrder;
         let savedToFirestore = false;
-        if (canUseOperationalFirestore() && isOnline()) {
+        if (isOnline() && await canUseOperationalFirestoreNow()) {
           const saved = await createOrderViaApi({
             restaurantId: input.restaurantSlug,
             customerName: input.customer.name,
@@ -1105,7 +1163,7 @@ export const useAppStore = create<AppStore>()(
         if (!order) return;
 
         set({ apiPhase: "loading", apiMessage: `Updating ${orderId}...` });
-        if (canUseOperationalFirestore() && isOnline()) {
+        if (isOnline() && await canUseOperationalFirestoreNow()) {
           void updateOrderStatusViaApi(orderId, status).catch(() => undefined);
         }
         const updated = {
@@ -1125,7 +1183,7 @@ export const useAppStore = create<AppStore>()(
         const nextOrder = Math.max(0, ...get().menuItems.filter((entry) => entry.restaurantSlug === item.restaurantSlug).map((entry) => entry.displayOrder ?? 0)) + 1;
         const created: MenuItem = { ...item, id: createLocalId("menu"), displayOrder: item.displayOrder ?? nextOrder, orderCount: item.orderCount ?? 0 };
         try {
-          await safeUpsertMenuItem(toMenuDoc(created));
+          await saveMenuItemDoc(toMenuDoc(created));
           set((state) => ({
             menuItems: [created, ...state.menuItems],
             apiPhase: "success",
@@ -1141,7 +1199,7 @@ export const useAppStore = create<AppStore>()(
         set({ apiPhase: "loading", apiMessage: "Updating menu item..." });
         const updated = { ...item, displayOrder: item.displayOrder ?? 0, orderCount: item.orderCount ?? 0 };
         try {
-          await safeUpsertMenuItem(toMenuDoc(updated));
+          await saveMenuItemDoc(toMenuDoc(updated));
           set((state) => ({
             menuItems: state.menuItems.map((entry) =>
               entry.id === updated.id ? updated : entry,
@@ -1158,7 +1216,7 @@ export const useAppStore = create<AppStore>()(
       deleteMenuItem: async (itemId) => {
         const current = get().menuItems.find((entry) => entry.id === itemId);
         try {
-          await safeDeleteMenuItem(itemId, current?.restaurantSlug);
+          await deleteMenuItemDoc(itemId, current?.restaurantSlug);
           set((state) => ({
             menuItems: state.menuItems.filter((entry) => entry.id !== itemId),
             apiPhase: "success",
@@ -1184,7 +1242,7 @@ export const useAppStore = create<AppStore>()(
           return;
         }
         const created = { ...category, id: createLocalId("cat"), sortOrder: get().menuCategories.length + 1 };
-        void safeCreateCategory(toMenuCategoryDoc(created, get().authUser.id)).catch(() => undefined);
+        void createCategoryDoc(toMenuCategoryDoc(created, get().authUser.id)).catch(() => undefined);
         set((state) => ({
           menuCategories: [created, ...state.menuCategories],
           apiPhase: "success",
@@ -1198,7 +1256,7 @@ export const useAppStore = create<AppStore>()(
           set({ apiPhase: "error", apiMessage: "Duplicate category names are not allowed." });
           return;
         }
-        void safeUpdateCategory(category.id, toMenuCategoryDoc(category, get().authUser.id)).catch(() => undefined);
+        void updateCategoryDoc(category.id, toMenuCategoryDoc(category, get().authUser.id)).catch(() => undefined);
         set((state) => ({
           menuCategories: state.menuCategories.map((item) => (item.id === category.id ? category : item)),
           apiPhase: "success",
@@ -1293,7 +1351,7 @@ export const useAppStore = create<AppStore>()(
           discountType: offer.discountType ?? (offer.offerType === "flat" ? "flat" : "percentage"),
         };
         try {
-          await saveOwnerOffer(normalizedOffer, normalizedOffer.restaurantSlug ?? get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
+          await saveOfferDoc(normalizedOffer, normalizedOffer.restaurantSlug ?? get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
         } catch (error) {
           set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
           throw error;
@@ -1312,7 +1370,7 @@ export const useAppStore = create<AppStore>()(
         const code = offer.code.trim().toUpperCase();
         const normalizedOffer: Offer = { ...offer, code };
         try {
-          await saveOwnerOffer(normalizedOffer, normalizedOffer.restaurantSlug ?? get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
+          await saveOfferDoc(normalizedOffer, normalizedOffer.restaurantSlug ?? get().authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
         } catch (error) {
           set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
           throw error;
@@ -1330,7 +1388,7 @@ export const useAppStore = create<AppStore>()(
       deleteOffer: async (code) => {
         const normalizedCode = code.trim().toUpperCase();
         try {
-          await deleteOwnerOffer(normalizedCode);
+          await deleteOfferDoc(normalizedCode);
         } catch (error) {
           set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
           throw error;
@@ -1683,7 +1741,7 @@ export const useAppStore = create<AppStore>()(
         };
         const savedProfile = { ...profile, thumbnailImages, completed: profile.completed, reviewStatus: profile.reviewStatus ?? (profile.completed ? "pending_review" : "draft") };
         try {
-          await saveOwnerRestaurantProfile({ profile: savedProfile, restaurant, branch });
+          await saveOwnerProfileDoc({ profile: savedProfile, restaurant, branch });
         } catch (error) {
           set({ apiPhase: "error", apiMessage: persistenceErrorMessage(error) });
           throw error;
@@ -1740,7 +1798,7 @@ export const useAppStore = create<AppStore>()(
 
       createStaffMember: async (member) => {
         const nextMember = { ...member, id: createLocalId("staff"), roleId: member.roleId ?? member.role, lastActivity: member.role === "admin" ? "Created by Super Admin" : "Created by owner" };
-        void safeUpsertEmployeeUser(nextMember).catch(() => undefined);
+        void upsertEmployeeDoc(nextMember).catch(() => undefined);
         set((state) => ({
           staffMembers: [nextMember, ...state.staffMembers],
           apiPhase: "success",
@@ -1749,7 +1807,7 @@ export const useAppStore = create<AppStore>()(
       },
 
       updateStaffMember: async (member) => {
-        void safeUpsertEmployeeUser(member).catch(() => undefined);
+        void upsertEmployeeDoc(member).catch(() => undefined);
         set((state) => ({
           staffMembers: state.staffMembers.map((item) => (item.id === member.id ? member : item)),
           apiPhase: "success",
@@ -1759,7 +1817,7 @@ export const useAppStore = create<AppStore>()(
 
       deleteStaffMember: async (id) => {
         const member = get().staffMembers.find((item) => item.id === id);
-        void safeDeleteEmployeeUser(id).catch(() => undefined);
+        void deleteEmployeeDoc(id).catch(() => undefined);
         set((state) => ({
           staffMembers: state.staffMembers.filter((item) => item.id !== id),
           apiPhase: "success",
@@ -1784,10 +1842,10 @@ export const useAppStore = create<AppStore>()(
         })),
 
       updateInventoryItem: async (item) => {
-        const canWriteNow = canUseOperationalFirestore() && isOnline();
+        const canWriteNow = isOnline() && await canUseOperationalFirestoreNow();
         const existing = get().inventoryItems.find((entry) => entry.id === item.id);
         if (canWriteNow) {
-          void saveInventoryItem({
+          void saveInventoryDoc({
             id: item.id,
             itemName: item.name,
             quantity: item.currentStock,

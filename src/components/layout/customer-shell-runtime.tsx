@@ -31,10 +31,10 @@ export function CustomerShellRuntime({ children }: { children: ReactNode }) {
 export function CustomerRuntimeProviders({ children }: { children: ReactNode }) {
   return (
     <AlertProvider>
-      <LazyAuthSessionBridge />
-      <LazyFirestoreStoreHydrator />
-      <LazyAppToaster />
       <IdleMount>
+        <LazyAuthSessionBridge />
+        <LazyFirestoreStoreHydrator />
+        <LazyAppToaster />
         <LazyPwaRegistrar />
         <LazyPushNotificationProvider />
         <Suspense fallback={null}>

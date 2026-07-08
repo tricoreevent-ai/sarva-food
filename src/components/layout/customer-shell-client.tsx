@@ -18,8 +18,6 @@ import { useCartStore } from "@/lib/cart-store";
 import { customerNav } from "@/lib/navigation";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { useThemeMode } from "@/lib/theme-provider";
-import { signOutStackCustomer } from "@/services/auth/stack-auth-client";
-import { signOutUser } from "@/services/auth-service";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -48,6 +46,10 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
   const signedIn = authUser.role === "customer" && authUser.id !== "anonymous";
 
   async function logout() {
+    const [{ signOutUser }, { signOutStackCustomer }] = await Promise.all([
+      import("@/services/auth-service"),
+      import("@/services/auth/stack-auth-client"),
+    ]);
     await Promise.all([
       signOutUser().catch(() => undefined),
       signOutStackCustomer().catch(() => undefined),

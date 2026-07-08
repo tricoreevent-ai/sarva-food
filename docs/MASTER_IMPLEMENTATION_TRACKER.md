@@ -11,14 +11,64 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Final Production Hardening and Release Certification |
+| Current Sprint | Enterprise Performance Sprint Phase 3 |
 | Release Version | `v1.0.0-rc3` |
-| Latest Git Commit | Runtime rc3 release tag commit is `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`; final documentation-only certification commit is reported in the release handoff after commit/push. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
+| Latest Git Commit | Performance Phase 3 prepared on top of pushed rc3 certification commit `bf54ec3013a1b7e8630377567aee1663becf745a` and existing Phase 2 work; exact final SHA must be recorded after these changes are committed. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `fe069b609009b8a042f58d1143407998407f3c64`, not current release branch HEAD; env still reports `development` and `applicationVersion: 0.1.0`. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `bf54ec3013a1b7e8630377567aee1663becf745a` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after this performance recovery commit. |
 | Build Date | 2026-07-08 |
-| Verification Status | Final certification typecheck, lint, build, analyze, operational smoke, `audit:release`, local release/health probe, remote branch/tag verification, and `git diff --check` passed. `validate:prod-env` fails locally only for missing real production env values and non-HTTPS local app URL. Build/analyze retain the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Final repository-side production health endpoints, diagnostics enrichment, rc3 release metadata, validation, documentation, commit, and immutable rc3 tag only. No UI redesign, Firestore collection, schema, or business workflow change. |
+| Verification Status | Performance Phase 3 typecheck, lint, build, analyze, generated runtime/stress/final report pack, operational smoke, and `audit:release` passed. Final `git diff --check` is recorded in the Phase 3 validation row. Production Lighthouse/Chrome Performance/Coverage/Memory remains manual because browser tooling/provider access is not available in this workspace. Build/analyze retain the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Runtime smoothness and operational responsiveness only: Kitchen snapshot reconciliation/card memoization/queue windowing, POS debounced search/product memoization/stable cart handlers, Owner Orders debounced search/hidden panel deferral, Owner Settings tab-only dynamic imports, Profile preference/toast deferral, and performance report automation. No business workflow, API contract, Firestore collection, schema, auth flow, payment flow, or UI redesign change. |
+
+## Enterprise Performance Sprint Phase 3 - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Scope | Final runtime smoothness pass for Customer, Owner, Kitchen, and POS only. Existing Customer, Owner, POS, Kitchen, QR, inventory, accounting, Menu Library, notifications, payment, repository, API, Firestore collection, schema, auth, UI, and business workflows were preserved. |
+| Reports | Added `RUNTIME_PROFILE.md`, `PERFORMANCE_PHASE3_REPORT.md`, `RENDER_ANALYSIS.md`, `MEMORY_ANALYSIS.md`, `STRESS_TEST_REPORT.md`, `PERFORMANCE_BUDGET.md`, `FINAL_PERFORMANCE_REPORT.md`, `FINAL_RUNTIME_REPORT.md`, `FINAL_BUNDLE_REPORT.md`, `FINAL_BUG_REPORT.md`, `FINAL_FIRESTORE_AUDIT.md`, `FINAL_RENDER_REPORT.md`, `FINAL_NETWORK_REPORT.md`, `FINAL_MEMORY_REPORT.md`, and `FINAL_RELEASE_READINESS.md`; added `npm run profile:runtime` to regenerate them from `.next` manifests and synthetic operational stress measurements. |
+| Final Task Check | The final optimization sprint attachment was checked against the current implementation. Browser-only flame graphs, Lighthouse/Core Web Vitals, Chrome Coverage/Memory, authenticated smoke, provider checks, and hardware checks remain manual because the required browser tooling, credentials, provider dashboards, and devices are not available in this workspace. |
+| Kitchen Runtime | Kitchen SSE/full-refresh payloads now reconcile unchanged ticket objects, Kitchen cards are memoized by ticket reference and minute bucket, and desktop Kitchen columns use lightweight windowing for long queues. Existing EventSource cleanup, print, sound, status, and drawer workflows were preserved. |
+| POS Runtime | POS search is debounced, menu/custom product lists are precomputed per data refresh, product grid/cards are memoized, bill totals/templates are memoized, and cart item handlers use stable refs so quantity changes repaint only changed product cards. |
+| Owner Runtime | Owner Orders search is debounced; partner integration dialog/card code loads only when the hidden operations panel/dialog is used. Owner Settings now dynamically loads Mapbox, Cloudinary upload, push permission, fullscreen, and loyalty rules tab dependencies. |
+| Customer/Profile Runtime | Profile no longer statically imports `react-hot-toast`; App Preferences loads dynamically from the settings surface. Customer home remains at the Phase 2 startup shape; the larger server-component/data-island conversion remains a separate architecture pass. |
+| Stress Result | Synthetic Node stress for 100 Kitchen orders and 1000 POS products stayed under the runtime CPU budgets: Kitchen filter/sort p95 `0.40ms`, Kitchen reconciliation p95 `0.03ms`, POS category switch p95 `0.07ms`, POS search p95 `0.11ms`. |
+| Budget Result | Route-owned JS remains over the aspirational budgets: `/` `455 KB`, `/profile` `544 KB`, `/owner` `556 KB`, `/owner/orders` `1188 KB`, `/owner/settings` `667 KB`. This sprint improved runtime behavior more than total route ownership. |
+| Validation | Passed: `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run analyze`, `cmd /c npm run profile:runtime`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `git diff --check`. Build/analyze retain the known Firebase/protobuf dynamic dependency warning; `git diff --check` retained Git line-ending normalization warnings only. |
+| Remaining Manual Gates | Production Chrome Performance/Coverage/Memory, 30-minute heap stability, authenticated owner/POS/Kitchen/customer browser smoke, hosted Lighthouse/Core Web Vitals, and provider/hardware gates remain manual before production signoff. |
+| Release Readiness | Code readiness remains `99%`; production-release readiness remains `85%` until manual infrastructure/provider/hardware/browser and Lighthouse gates pass. Recommendation remains No-Go before those gates. |
+
+## Enterprise Performance Sprint Phase 2 - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Scope | Route-level bundle splitting and React startup optimization only. Existing Customer, Owner, POS, Kitchen, QR, inventory, accounting, Menu Library, notifications, payment, repository, API, Firestore collection, schema, auth, UI, and business workflows were preserved. |
+| Reports | Added `BUNDLE_DEEP_ANALYSIS.md`, `DEPENDENCY_AUDIT.md`, `ROUTE_LOAD_ANALYSIS.md`, and `PERFORMANCE_PHASE2_REPORT.md`. |
+| Firebase Config | Added `src/firebase/config.ts`; `src/firebase/client.ts`, FCM support checks, auth hooks, and profile actions now use config-only checks before loading Firebase SDK accessors. |
+| Auth / Profile Split | `useAuthUser` dynamic-loads `auth-service` inside the browser effect; profile save/logout dynamically loads Firebase Auth and Stack/customer sign-out helpers only on action. |
+| App Store Split | `src/lib/app-store.ts` no longer statically imports owner/menu production Firestore mutation services. Menu, offer, staff, owner profile, and inventory persistence helpers load only when their mutation actions run. |
+| Bundle Result | `/` RSC route JS reduced from `1017 KB` to `455 KB`; `/profile` reduced from `1714 KB` to `562 KB`; Firestore/Auth ownership reduced from `94` route manifests to `10`. |
+| Initial Chunk Probe | Local production HTML for `/`, `/profile`, and `/owner/pos` has no initial Firestore/Auth/Stack/XLSX/Mapbox flagged chunks. `/login` keeps auth chunks as expected. |
+| Validation | Passed: `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run analyze`, local production initial-chunk probe, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `git diff --check`. Build/analyze retain the known Firebase/protobuf dynamic dependency warning. |
+| Remaining Manual Gates | Redeploy current performance commit with `NEXT_PUBLIC_APP_ENV=production`, rerun Lighthouse/Core Web Vitals/Chrome Performance/Coverage/Memory on hosted production, run authenticated browser smoke, and keep provider/hardware/Firebase manual gates from rc3 certification. |
+| Release Readiness | Code readiness remains `99%`; production-release readiness remains `85%` until manual infrastructure/provider/hardware/browser and Lighthouse gates pass. Recommendation remains No-Go before those gates. |
+
+## Enterprise Performance Recovery Sprint - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Scope | Runtime performance recovery only. Existing Customer, Owner, POS, Kitchen, QR, inventory, accounting, Menu Library, notifications, payment, repository, API, Firestore collection, schema, auth, UI, and business workflows were preserved. |
+| Report First | Added root `PERFORMANCE_REPORT.md` before implementation with current bottlenecks, LCP/CLS causes, provider, Firestore, network, hydration, bundle, and dependency findings. |
+| Measurement Limits | PageSpeed Insights returned quota `429 RESOURCE_EXHAUSTED`; local Lighthouse/Chrome/Edge executables were unavailable. Saved Lighthouse artifacts were used only for root-cause direction, and final Lighthouse/Core Web Vitals remain manual after production-env redeploy. |
+| LCP Finding | Saved Lighthouse identified the home explanatory paragraph as LCP; the dominant issue was render/main-thread delay rather than image loading. |
+| CLS Finding | Saved Lighthouse identified large customer shell/footer movement; the home loading fallback did not reserve enough final page height. |
+| Provider Deferral | Google Analytics now loads with `lazyOnload`; customer auth session bridge, Firestore hydrator, toaster, PWA, push, and analytics diagnostics mount behind `IdleMount`. |
+| Firebase / Firestore | Public header no longer statically imports Firestore/client collections for saved addresses; it lazy-loads the listener only while the location picker is open for a signed-in customer. Firebase compatibility exports are non-eager and accessor functions remain the initialization path. |
+| Home Runtime | Favorite write helpers load only on favorite action, logout auth modules load only on logout, and home menu preview data waits for browser idle because those cards are below the initial LCP area. |
+| CLS Stabilization | Customer home loading state now uses a route-shaped skeleton with reserved mobile/desktop height instead of a full-screen splash overlay. |
+| Bundle Evidence | Current largest client chunks after analyze: Mapbox `1.75 MB`, shared/app `788 KB`, account/auth/profile `589 KB`, owner/admin menu-library `412 KB`, customer/public shared `266 KB`, main CSS `183 KB`. |
+| Validation | Passed: `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `git diff --check`. Build/analyze retain the known Firebase/protobuf dynamic dependency warning. |
+| Remaining Manual Gates | Redeploy current performance recovery commit with `NEXT_PUBLIC_APP_ENV=production`, rerun Lighthouse/Core Web Vitals/Chrome Performance/Coverage/Memory on hosted production, run authenticated browser smoke, and keep provider/hardware/Firebase manual gates from rc3 certification. |
+| Release Readiness | Code readiness remains `99%`; production-release readiness remains `85%` until manual infrastructure/provider/hardware/browser and Lighthouse gates pass. Recommendation remains No-Go before those gates. |
 
 ## Final Production Hardening and Release Certification - 2026-07-08
 

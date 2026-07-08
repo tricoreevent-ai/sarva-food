@@ -21,25 +21,9 @@ import {
   getStorage,
   type FirebaseStorage,
 } from "firebase/storage";
+import { firebaseConfig, isFirebaseConfigured } from "@/firebase/config";
 import { shouldUseEmulators } from "@/lib/env";
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? "",
-};
-
-export const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.storageBucket &&
-    firebaseConfig.appId,
-);
+export { firebaseConfig, isFirebaseConfigured } from "@/firebase/config";
 
 let emulatorConnected = false;
 let authPersistenceConfigured = false;
@@ -59,13 +43,17 @@ export function getFirebaseApp(): FirebaseApp {
 export function getFirebaseAuth(): Auth {
   const auth = getAuth(getFirebaseApp());
   configureAuthPersistence(auth);
-  connectEmulatorsOnce(auth, getFirestore(getFirebaseApp()), getStorage(getFirebaseApp()));
+  if (shouldUseEmulators()) {
+    connectEmulatorsOnce(auth, getFirestore(getFirebaseApp()), getStorage(getFirebaseApp()));
+  }
   return auth;
 }
 
 export function getFirebaseDb(): Firestore {
   const db = getFirestoreInstance();
-  connectEmulatorsOnce(getAuth(getFirebaseApp()), db, getStorage(getFirebaseApp()));
+  if (shouldUseEmulators()) {
+    connectEmulatorsOnce(getAuth(getFirebaseApp()), db, getStorage(getFirebaseApp()));
+  }
   return db;
 }
 
@@ -127,26 +115,19 @@ function getFirestoreInstance() {
 
 export function getFirebaseStorage(): FirebaseStorage {
   const storage = getStorage(getFirebaseApp());
-  connectEmulatorsOnce(getAuth(getFirebaseApp()), getFirestore(getFirebaseApp()), storage);
+  if (shouldUseEmulators()) {
+    connectEmulatorsOnce(getAuth(getFirebaseApp()), getFirestore(getFirebaseApp()), storage);
+  }
   return storage;
 }
 
-function safeResolve<T>(factory: () => T): T | null {
-  if (!isFirebaseConfigured) return null;
-  try {
-    return factory();
-  } catch {
-    return null;
-  }
-}
-
-export const app = safeResolve(getFirebaseApp);
+export const app: FirebaseApp | null = null;
 export const firebaseApp = app;
-export const auth = safeResolve(getFirebaseAuth);
-export const db = safeResolve(getFirebaseDb);
+export const auth: Auth | null = null;
+export const db: Firestore | null = null;
 export const firestore = db;
-export const storage = safeResolve(getFirebaseStorage);
-export const analytics = getFirebaseAnalytics();
+export const storage: FirebaseStorage | null = null;
+export const analytics: Promise<Analytics | null> = Promise.resolve(null);
 
 function connectEmulatorsOnce(auth: Auth, db: Firestore, storage: FirebaseStorage) {
   if (
