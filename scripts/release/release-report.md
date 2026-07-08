@@ -5,6 +5,9 @@
 | Build Date | 2026-07-08 |
 | Git Branch | release/production-nammude |
 | Base Commit SHA | 6272d7edfdc7299a728cb0e606b523a55b1248ee |
+| Runtime Release Commit SHA | cd1c81435a1e535483b94d66ffa1b1bf63494c0b |
+| Final Certification Commit SHA | Reported in the final handoff after this docs-only certification commit is created and pushed. |
+| Release Tag | PASS: immutable `v1.0.0-rc3` resolves to runtime release commit `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`; `v1.0.0-rc1` and `v1.0.0-rc2` were not moved. |
 | Release Version | v1.0.0-rc3 |
 | Node Version | v22.16.0 |
 | Package Version | 1.0.0-rc.3 |
@@ -24,7 +27,7 @@
 ## Pending Manual Tasks
 - Hostinger env/cache/redeploy and hosted route smoke.
 - Firestore rules/index deployment.
-- Deploy the new immutable `v1.0.0-rc3` tag; do not move existing `v1.0.0-rc1` or `v1.0.0-rc2`.
+- Deploy Hostinger from the final pushed `release/production-nammude` commit; `v1.0.0-rc3` remains the immutable runtime release tag.
 - Browser, tablet, mobile, Kitchen TV, and multi-device smoke.
 - Printer profile and physical output validation.
 

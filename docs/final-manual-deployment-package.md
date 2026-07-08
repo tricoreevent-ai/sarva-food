@@ -2,7 +2,10 @@
 
 Release: `v1.0.0-rc3`
 Branch: `release/production-nammude`
-Codebase commit audited before this pass: `6272d7edfdc7299a728cb0e606b523a55b1248ee`
+Base commit audited before this pass: `6272d7edfdc7299a728cb0e606b523a55b1248ee`
+Runtime release commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
+Final repository certification commit: reported in the final handoff after the docs-only certification commit is pushed
+Release tag: `v1.0.0-rc3` points to runtime release commit `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
 
 ## Files Changed
 
@@ -61,13 +64,15 @@ Codebase commit audited before this pass: `6272d7edfdc7299a728cb0e606b523a55b124
 - `docs/changelog.md`
 - `RELEASE_NOTES.md`
 - `docs/hostinger-deployment.md`
+- `docs/api-documentation.md`
+- `docs/final-repository-certification-report.md`
 - `docs/MASTER_IMPLEMENTATION_TRACKER.md`
 
 ## Configuration Changes
 
 - Release version is `v1.0.0-rc3`.
 - Package version is `1.0.0-rc.3`.
-- Keep existing `v1.0.0-rc1` and published `v1.0.0-rc2` tags immutable; deploy the new `v1.0.0-rc3` tag after final validation.
+- Keep existing `v1.0.0-rc1`, published `v1.0.0-rc2`, and `v1.0.0-rc3` immutable; deploy the final pushed `release/production-nammude` commit.
 - `NEXT_PUBLIC_APP_VERSION` must be `v1.0.0-rc3` in production if set.
 - Public no-store health endpoints are available at `/health/live`, `/health/ready`, and `/health/startup`.
 - `TABLE_QR_SECRET` is required in production and must be at least 32 characters.
@@ -104,7 +109,7 @@ npx firebase-tools deploy
 4. Confirm `NEXT_PUBLIC_APP_ENV=production`.
 5. Confirm `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc3`.
 6. Confirm `NEXT_PUBLIC_APP_URL` is the final HTTPS domain.
-7. Deploy the latest release commit.
+7. Deploy the final pushed `release/production-nammude` commit.
 8. Restart the Node app after env changes.
 9. Verify `/api/release-info`.
 
@@ -209,7 +214,7 @@ Hostinger rollback:
 
 ## Release Certification Checklist
 
-- `v1.0.0-rc3` tag points to the final committed release SHA.
+- `v1.0.0-rc3` tag points to `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`.
 - `/api/release-info` reports final SHA, branch, `deploymentEnvironment: production`, HTTPS public URL, and `applicationVersion: v1.0.0-rc3`.
 - `/health/live`, `/health/ready`, and `/health/startup` return safe no-store health metadata with no exposed secrets.
 - Production env validation passes with real Hostinger values.

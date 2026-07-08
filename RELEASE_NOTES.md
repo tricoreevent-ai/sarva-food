@@ -2,14 +2,14 @@
 
 ## v1.0.0-rc3 - Release Candidate
 
-Commit: final SHA after the release hardening commit is created
+Commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
 Branch: `release/production-nammude`
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
 ### Status
 
 - Repository-side health endpoints, diagnostics, observability, release metadata, env validation, QR secret requirements, and safe diagnostics have been hardened for rc3.
-- The existing `v1.0.0-rc1` and published `v1.0.0-rc2` tags remain immutable; `v1.0.0-rc3` is the correct tag for the final committed candidate.
+- The existing `v1.0.0-rc1` and published `v1.0.0-rc2` tags remain immutable; `v1.0.0-rc3` points to the final committed candidate.
 - Production release remains blocked by manual environment, provider, Firestore, browser, and hardware verification gates.
 
 ### Completed

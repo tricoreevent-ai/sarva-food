@@ -5,6 +5,7 @@
 - Advanced the active immutable release candidate to `v1.0.0-rc3` without moving the existing `v1.0.0-rc1` or published `v1.0.0-rc2` tags; package metadata now reports `1.0.0-rc.3`.
 - Added public no-store `/health/live`, `/health/ready`, and `/health/startup` endpoints with safe app version, git SHA, deployment environment, Firestore/storage status, SMTP/Cloudinary/Razorpay/Firebase configuration status, runtime, memory, CPU estimate, build timestamp, and request-id metadata.
 - Expanded authenticated Owner/Admin diagnostics with operational listener/cache/queue status, tenant/open-order/Kitchen counts, memory, CPU estimate, and slow-query signal using existing repository reads and Firestore count aggregation.
+- Completed final repository certification documentation: `v1.0.0-rc3` resolves to runtime release commit `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`, and production docs now point Hostinger to the final pushed release branch commit.
 - Preserved all Customer, Owner, POS, Kitchen, QR, Inventory, Accounting, Menu Library, notification, payment, repository, API, Firestore collection, schema, UI, and business workflows.
 
 ## 2026-07-07

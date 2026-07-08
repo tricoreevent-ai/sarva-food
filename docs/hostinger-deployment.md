@@ -9,7 +9,7 @@ Use these values in the Hostinger "Review build settings" screen:
 | Setting | Value |
 | --- | --- |
 | Framework preset | Next.js |
-| Branch | main |
+| Branch | release/production-nammude |
 | Node version | 22.x |
 | Root directory | `./` |
 | Package manager | npm |
@@ -129,6 +129,8 @@ curl.exe https://violet-squid-380447.hostingersite.com/health/live
 curl.exe https://violet-squid-380447.hostingersite.com/health/ready
 curl.exe https://violet-squid-380447.hostingersite.com/health/startup
 ```
+
+For rc3, hosted `/api/release-info` must report the final pushed `release/production-nammude` commit from the release handoff, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc3`.
 
 Optional environment validation after setting a local production env file:
 
