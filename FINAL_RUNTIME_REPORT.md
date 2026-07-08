@@ -1,15 +1,15 @@
 # Final Runtime Report
 
-Date: 2026-07-08T10:50:32.956Z
+Date: 2026-07-08T14:50:48.154Z
 
 ## Runtime Measurements
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.26ms | 0.39ms | 1.23ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.25ms | <100ms update |
-| POS 1000-item category switch | 0.04ms | 0.08ms | 0.20ms | <50ms switch |
-| POS 1000-item search filter | 0.09ms | 0.15ms | 0.30ms | debounced |
+| Kitchen 100-order filter/sort | 0.39ms | 0.49ms | 2.20ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.03ms | 0.07ms | 0.34ms | <100ms update |
+| POS 1000-item category switch | 0.07ms | 0.17ms | 0.26ms | <50ms switch |
+| POS 1000-item search filter | 0.11ms | 0.19ms | 0.47ms | debounced |
 
 ## Continuous Operation Controls
 
@@ -18,6 +18,8 @@ Date: 2026-07-08T10:50:32.956Z
 | Kitchen | EventSource cleanup preserved, unchanged ticket references are retained, card renders are memoized, and long desktop columns are windowed. |
 | POS | Debounced search, memoized product lists, memoized grid/cards, memoized billing templates, and stable cart handlers reduce repeat input work. |
 | Owner Orders | Debounced search and deferred hidden operations panel code reduce idle render work. |
+| Active Orders | Status/Priority/Progress/ETA/Quick View/Actions columns keep fixed desktop tracks; mobile Quick View expands inline without overlaying row controls. |
+| Delay Alerts | Owner Orders, Kitchen, and POS reuse `getKitchenDelay` with the persisted prepared-not-served threshold; no new realtime listener was added. |
 | Owner Settings | Heavy tab-only dependencies are dynamically imported only for visible tabs. |
 | Profile | Preferences and toast runtime are action/surface loaded instead of static startup ownership. |
 

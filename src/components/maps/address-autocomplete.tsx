@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, MapPin, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapboxProvider, useMapbox } from "@/components/maps/mapbox-provider";
@@ -120,7 +120,7 @@ function AddressAutocompleteInner({
     mapbox.configured ? "" : "Search registered locations. Mapbox token missing for wider map search.",
   );
 
-  function showRegisteredMatches(nextQuery: string) {
+  const showRegisteredMatches = useCallback((nextQuery: string) => {
     if (nextQuery.trim().length < 3) {
       setSuggestions([]);
       setMessage("");
@@ -135,29 +135,9 @@ function AddressAutocompleteInner({
       setMessage(mapbox.enabled && mapbox.token ? "Press Search for map results." : "No registered address matches found.");
     }
     return matches;
-  }
+  }, [mapbox.enabled, mapbox.token]);
 
-  useEffect(() => {
-    const id = window.setTimeout(() => setQuery(value ?? ""), 0);
-    return () => window.clearTimeout(id);
-  }, [value]);
-
-  useEffect(() => {
-    if (query.trim().length < 3) {
-      const id = window.setTimeout(() => {
-        setSuggestions([]);
-        setMessage("");
-      }, 0);
-      return () => window.clearTimeout(id);
-    }
-    const id = window.setTimeout(() => {
-      void search(query);
-    }, 350);
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, mapbox.enabled, mapbox.token]);
-
-  async function search(nextQuery = query) {
+  const search = useCallback(async (nextQuery = query) => {
     if (nextQuery.trim().length < 3) {
       setSuggestions([]);
       setMessage("Enter at least 3 characters.");
@@ -188,7 +168,26 @@ function AddressAutocompleteInner({
     } finally {
       setLoading(false);
     }
-  }
+  }, [mapbox.defaultCountry, mapbox.enabled, mapbox.token, proximity, query, showRegisteredMatches]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setQuery(value ?? ""), 0);
+    return () => window.clearTimeout(id);
+  }, [value]);
+
+  useEffect(() => {
+    if (query.trim().length < 3) {
+      const id = window.setTimeout(() => {
+        setSuggestions([]);
+        setMessage("");
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+    const id = window.setTimeout(() => {
+      void search(query);
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [query, search]);
 
   function selectFeature(feature: MapboxFeature) {
     const [longitude, latitude] = feature.center ?? [proximity?.longitude ?? 77.6412, proximity?.latitude ?? 12.9719];

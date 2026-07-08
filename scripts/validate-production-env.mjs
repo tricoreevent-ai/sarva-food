@@ -1,13 +1,9 @@
 import nextEnv from "@next/env";
+import { check, envValue, isHttpsUrl, isPlaceholder, releaseVersion, summarize, writeReport } from "./release/verification-utils.mjs";
 
-const { loadEnvConfig } = nextEnv;
-const RELEASE_VERSION = "v1.0.0-rc2";
+nextEnv.loadEnvConfig(process.cwd(), false, { info: () => undefined, error: () => undefined });
 
-loadEnvConfig(process.cwd(), false, {
-  info: () => undefined,
-  error: () => undefined,
-});
-
+const expectedVersion = releaseVersion();
 const required = [
   "NEXT_PUBLIC_APP_ENV",
   "NEXT_PUBLIC_APP_URL",
@@ -33,142 +29,126 @@ const required = [
   "DATABASE_ALERT_EMAIL",
   "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
   "NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
   "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_API_KEY",
   "CLOUDINARY_API_SECRET",
-  "GOOGLE_OAUTH_CLIENT_ID",
-  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "NEXT_PUBLIC_RAZORPAY_KEY_ID",
+  "RAZORPAY_KEY_ID",
+  "RAZORPAY_KEY_SECRET",
+  "RAZORPAY_WEBHOOK_SECRET",
 ];
+const deprecated = {
+  NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "Use NEXT_PUBLIC_FIREBASE_USE_EMULATORS.",
+  FIREBASE_PROJECT_ID: "Use FIREBASE_ADMIN_PROJECT_ID.",
+  FIREBASE_CLIENT_EMAIL: "Use FIREBASE_ADMIN_CLIENT_EMAIL.",
+  FIREBASE_PRIVATE_KEY: "Use FIREBASE_ADMIN_PRIVATE_KEY.",
+  SMTP_PASSWORD: "Use SMTP_PASS.",
+  RAZORPAY_SECRET: "Use RAZORPAY_KEY_SECRET.",
+  GOOGLE_CLIENT_ID: "Use GOOGLE_OAUTH_CLIENT_ID.",
+  GOOGLE_CLIENT_SECRET: "Use GOOGLE_OAUTH_CLIENT_SECRET.",
+  MAPBOX_TOKEN: "Use NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN.",
+  WHATSAPP_ACCESS_TOKEN: "Use WHATSAPP_CLOUD_API_TOKEN.",
+  QR_SECRET: "Use TABLE_QR_SECRET.",
+};
 
-const missing = required.filter((key) => !process.env[key]);
-const invalid = [];
+const checks = [];
 
-if (process.env.NEXT_PUBLIC_APP_ENV && process.env.NEXT_PUBLIC_APP_ENV !== "production") {
-  invalid.push("NEXT_PUBLIC_APP_ENV must be production for production deployments.");
+for (const key of required) {
+  const value = envValue(key);
+  checks.push(check(`required:${key}`, value ? "PASS" : "ERROR", value ? "configured" : "missing or empty"));
+  if (value && isPlaceholder(value)) checks.push(check(`placeholder:${key}`, "ERROR", "value still looks like a placeholder/local example"));
 }
 
-if (process.env.NEXT_PUBLIC_APP_VERSION && process.env.NEXT_PUBLIC_APP_VERSION !== RELEASE_VERSION) {
-  invalid.push(`NEXT_PUBLIC_APP_VERSION must be ${RELEASE_VERSION}.`);
+for (const [key, detail] of Object.entries(deprecated)) {
+  if (envValue(key)) checks.push(check(`deprecated:${key}`, "WARNING", detail));
 }
 
-if (process.env.NEXT_PUBLIC_USE_FIREBASE && process.env.NEXT_PUBLIC_USE_FIREBASE !== "true") {
-  invalid.push("NEXT_PUBLIC_USE_FIREBASE must be true.");
+checks.push(check("version:NEXT_PUBLIC_APP_VERSION", envValue("NEXT_PUBLIC_APP_VERSION") === expectedVersion ? "PASS" : "ERROR", `expected ${expectedVersion}`));
+checks.push(check("environment:NEXT_PUBLIC_APP_ENV", envValue("NEXT_PUBLIC_APP_ENV") === "production" ? "PASS" : "ERROR", "must be production"));
+checks.push(check("url:NEXT_PUBLIC_APP_URL", isHttpsUrl(envValue("NEXT_PUBLIC_APP_URL")) ? "PASS" : "ERROR", "must be a valid https URL"));
+checks.push(check("firebase:NEXT_PUBLIC_USE_FIREBASE", envValue("NEXT_PUBLIC_USE_FIREBASE") === "true" ? "PASS" : "ERROR", "must be true"));
+checks.push(check("firebase:emulators", envValue("NEXT_PUBLIC_FIREBASE_USE_EMULATORS") === "false" ? "PASS" : "ERROR", "must be false in production"));
+checks.push(check("login:dev", envValue("NEXT_PUBLIC_ENABLE_DEV_LOGIN") === "false" ? "PASS" : "ERROR", "must be false in production"));
+checks.push(check("login:test", envValue("NEXT_PUBLIC_ENABLE_TEST_LOGIN") === "false" ? "PASS" : "ERROR", "must be false in production"));
+checks.push(check("plugins:quality", envValue("NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS") === "true" ? "WARNING" : "PASS", "quality diagnostics should stay disabled unless profiling"));
+checks.push(check("plugins:dashboard", envValue("NEXT_PUBLIC_ENABLE_PLUGIN_RUNTIME_DASHBOARD") === "true" ? "ERROR" : "PASS", "developer dashboard must stay disabled"));
+checks.push(check("plugins:profiler", envValue("NEXT_PUBLIC_ENABLE_PLUGIN_PROFILER") === "true" ? "ERROR" : "PASS", "plugin profiler must stay disabled unless profiling"));
+
+validateFirebase();
+validateCloudinary();
+validateRazorpay();
+validateSmtp();
+validateOauth();
+validateSecrets();
+validateDuplicates();
+
+const { summary } = writeReport("PRODUCTION_ENV_VALIDATION_REPORT", "Production Environment Validation Report", checks);
+console.log(`Production env validation: ${JSON.stringify(summary.counts)}`);
+process.exit(summarize(checks).exitCode);
+
+function validateFirebase() {
+  const apiKey = envValue("NEXT_PUBLIC_FIREBASE_API_KEY");
+  const appId = envValue("NEXT_PUBLIC_FIREBASE_APP_ID");
+  const sender = envValue("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID");
+  const project = envValue("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+  checks.push(check("firebase:api-key-format", /^AIza[0-9A-Za-z_-]{20,}$/.test(apiKey) ? "PASS" : "ERROR", "client api key must look like a Firebase web key"));
+  checks.push(check("firebase:app-id-format", /^1:\d+:web:[0-9a-f]+$/i.test(appId) ? "PASS" : "ERROR", "app id must match 1:<sender>:web:<hash>"));
+  checks.push(check("firebase:sender-format", /^\d{6,}$/.test(sender) ? "PASS" : "ERROR", "messaging sender id must be numeric"));
+  checks.push(check("firebase:admin-project-match", envValue("FIREBASE_ADMIN_PROJECT_ID") === project ? "PASS" : "ERROR", "admin and public project ids must match"));
+  checks.push(check("firebase:admin-email", /@.+\.iam\.gserviceaccount\.com$/.test(envValue("FIREBASE_ADMIN_CLIENT_EMAIL")) ? "PASS" : "ERROR", "admin client email must be a service account"));
+  checks.push(check("firebase:private-key", normalizePrivateKey(envValue("FIREBASE_ADMIN_PRIVATE_KEY")).includes("BEGIN PRIVATE KEY") ? "PASS" : "ERROR", "private key must be full PEM with escaped newlines"));
 }
 
-if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.startsWith("https://")) {
-  invalid.push("NEXT_PUBLIC_APP_URL must use https://.");
+function validateCloudinary() {
+  checks.push(check("cloudinary:cloud-name-match", envValue("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME") === envValue("CLOUDINARY_CLOUD_NAME") ? "PASS" : "ERROR", "public and server cloud names must match"));
+  checks.push(check("cloudinary:cloud-name-format", /^[a-z0-9_-]+$/i.test(envValue("CLOUDINARY_CLOUD_NAME")) ? "PASS" : "ERROR", "cloud name format"));
+  checks.push(check("cloudinary:api-key-format", /^\d{6,}$/.test(envValue("CLOUDINARY_API_KEY")) ? "PASS" : "ERROR", "api key should be numeric"));
 }
 
-if (process.env.SMTP_SECURE && !["true", "false"].includes(process.env.SMTP_SECURE)) {
-  invalid.push("SMTP_SECURE must be true or false.");
+function validateRazorpay() {
+  checks.push(check("razorpay:public-key", /^rzp_live_/.test(envValue("NEXT_PUBLIC_RAZORPAY_KEY_ID")) ? "PASS" : "ERROR", "production key must start rzp_live_"));
+  checks.push(check("razorpay:key-match", envValue("NEXT_PUBLIC_RAZORPAY_KEY_ID") === envValue("RAZORPAY_KEY_ID") ? "PASS" : "ERROR", "public/server key ids must match"));
+  checks.push(check("razorpay:secret-strength", envValue("RAZORPAY_KEY_SECRET").length >= 24 ? "PASS" : "ERROR", "secret must be configured"));
+  checks.push(check("razorpay:webhook-strength", envValue("RAZORPAY_WEBHOOK_SECRET").length >= 24 ? "PASS" : "ERROR", "webhook secret must be configured"));
 }
 
-if (process.env.SMTP_PORT) {
-  const smtpPort = Number(process.env.SMTP_PORT);
-  if (!Number.isInteger(smtpPort) || smtpPort <= 0) {
-    invalid.push("SMTP_PORT must be a valid positive port number.");
-  }
+function validateSmtp() {
+  const port = Number(envValue("SMTP_PORT"));
+  checks.push(check("smtp:port", Number.isInteger(port) && port > 0 ? "PASS" : "ERROR", "port must be positive integer"));
+  checks.push(check("smtp:secure", ["true", "false"].includes(envValue("SMTP_SECURE")) ? "PASS" : "ERROR", "SMTP_SECURE must be true or false"));
+  checks.push(check("smtp:from", /@/.test(envValue("SMTP_FROM")) ? "PASS" : "ERROR", "SMTP_FROM must include email address"));
+  const pass = envValue("SMTP_PASS").replace(/\s+/g, "");
+  checks.push(check("smtp:gmail-app-password", envValue("SMTP_HOST").includes("gmail") && !/^[a-z0-9]{16}$/i.test(pass) ? "WARNING" : "PASS", "Gmail should use a 16-character app password"));
 }
 
-if (process.env.SMTP_PASS) {
-  const smtpPass = process.env.SMTP_HOST?.includes("gmail.com")
-    ? process.env.SMTP_PASS.replace(/\s+/g, "")
-    : process.env.SMTP_PASS.trim();
-  if (/app-password-you-generated|replace[_-]?me|placeholder|your[_-]?smtp[_-]?pass/i.test(smtpPass)) {
-    invalid.push("SMTP_PASS is still a placeholder.");
-  }
-  if (process.env.SMTP_HOST?.includes("gmail.com") && !/^[a-z0-9]{16}$/i.test(smtpPass)) {
-    invalid.push("Gmail SMTP_PASS must be a 16 character App Password without spaces.");
-  }
+function validateOauth() {
+  checks.push(check("oauth:client-match", envValue("NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID") === envValue("GOOGLE_OAUTH_CLIENT_ID") ? "PASS" : "ERROR", "public/server OAuth client ids must match"));
+  checks.push(check("oauth:client-format", /\.apps\.googleusercontent\.com$/.test(envValue("GOOGLE_OAUTH_CLIENT_ID")) ? "PASS" : "ERROR", "Google OAuth client id format"));
 }
 
-if (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && /\s/.test(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)) {
-  invalid.push("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN must not contain spaces or line breaks.");
-}
-
-if (process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY && /\s/.test(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY)) {
-  invalid.push("NEXT_PUBLIC_FIREBASE_VAPID_KEY must not contain spaces or line breaks.");
-}
-
-if (process.env.TABLE_QR_SECRET && process.env.TABLE_QR_SECRET.trim().length < 32) {
-  invalid.push("TABLE_QR_SECRET must be at least 32 characters.");
-}
-
-if (process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY && process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY.trim().length < 32) {
-  invalid.push("PAYMENT_SETTINGS_ENCRYPTION_KEY must be at least 32 characters when configured.");
-}
-
-const normalizedPrivateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
-
-if (normalizedPrivateKey && !normalizedPrivateKey.includes("BEGIN PRIVATE KEY")) {
-  invalid.push("FIREBASE_ADMIN_PRIVATE_KEY must contain the full service account private key.");
-}
-
-if (normalizedPrivateKey && !normalizedPrivateKey.includes("\n")) {
-  invalid.push("FIREBASE_ADMIN_PRIVATE_KEY must include newline separators. Use escaped \\n line breaks in hosting variables.");
-}
-
-const razorpayKeys = ["NEXT_PUBLIC_RAZORPAY_KEY_ID", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"];
-if (razorpayKeys.some((key) => process.env[key]) && razorpayKeys.some((key) => !process.env[key])) {
-  invalid.push("Razorpay variables are optional, but if one is set all Razorpay key and webhook variables must be set.");
-}
-
-if (
-  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID &&
-  process.env.GOOGLE_OAUTH_CLIENT_ID &&
-  process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID !== process.env.GOOGLE_OAUTH_CLIENT_ID
-) {
-  invalid.push("NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_ID must match.");
-}
-
-if (missing.length || invalid.length) {
-  console.error("Production environment validation failed.");
-  if (missing.length) console.error(`Missing: ${missing.join(", ")}`);
-  invalid.forEach((message) => console.error(message));
-  process.exit(1);
-}
-
-console.log("Production environment validation passed.");
-
-function normalizePrivateKey(value) {
-  let trimmed = value?.trim();
-  if (!trimmed) return "";
-  if (trimmed.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed.private_key) trimmed = parsed.private_key.trim();
-    } catch {
-      // Fall through to the plain string parser.
+function validateSecrets() {
+  for (const [key, min] of [["TABLE_QR_SECRET", 32], ["PAYMENT_SETTINGS_ENCRYPTION_KEY", 32]]) {
+    const value = envValue(key);
+    if (key === "PAYMENT_SETTINGS_ENCRYPTION_KEY" && !value) {
+      checks.push(check(`secret:${key}`, "WARNING", "recommended for encrypted owner payment settings"));
+    } else {
+      checks.push(check(`secret:${key}`, value.length >= min ? "PASS" : "ERROR", `minimum ${min} characters`));
     }
   }
-  trimmed = trimmed.replace(/^(?:FIREBASE_ADMIN_PRIVATE_KEY|private_key)\s*=\s*/i, "").trim();
-  const unquoted =
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-      ? trimmed.slice(1, -1)
-      : trimmed;
-  const normalized = unquoted
-    .replace(/\\r\\n/g, "\n")
-    .replace(/\\r/g, "\n")
-    .replace(/\\n/g, "\n")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/\u2028|\u2029/g, "\n")
-    .replace(/^\uFEFF/, "");
-  const beginMarker = "-----BEGIN PRIVATE KEY-----";
-  const endMarker = "-----END PRIVATE KEY-----";
-  const beginIndex = normalized.indexOf(beginMarker);
-  const endIndex = normalized.indexOf(endMarker);
-  if (beginIndex >= 0 && endIndex >= beginIndex) {
-    const keyBody = normalized
-      .slice(beginIndex + beginMarker.length, endIndex)
-      .replace(/[^A-Za-z0-9+/=]/g, "");
-    return `${beginMarker}\n${chunkPemBody(keyBody)}\n${endMarker}\n`;
-  }
-  return normalized.trim();
 }
 
-function chunkPemBody(value) {
-  return value.match(/.{1,64}/g)?.join("\n") ?? value;
+function validateDuplicates() {
+  const pairs = [["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_SITE_URL"], ["NEXT_PUBLIC_BUILD_COMMIT", "NEXT_PUBLIC_GIT_COMMIT_SHA"]];
+  for (const [a, b] of pairs) {
+    const av = envValue(a);
+    const bv = envValue(b);
+    if (av && bv && av !== bv) checks.push(check(`duplicate:${a}:${b}`, "WARNING", "duplicate environment values differ"));
+  }
+}
+
+function normalizePrivateKey(value) {
+  return value.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim();
 }

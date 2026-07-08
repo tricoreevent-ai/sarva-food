@@ -1,0 +1,346 @@
+{
+  "generatedAt": "2026-07-08T14:46:42.039Z",
+  "summary": {
+    "counts": {
+      "PASS": 41,
+      "WARNING": 1,
+      "ERROR": 24,
+      "FAIL": 0,
+      "MANUAL": 0
+    },
+    "exitCode": 1
+  },
+  "checks": [
+    {
+      "name": "required:NEXT_PUBLIC_APP_ENV",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_APP_URL",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "placeholder:NEXT_PUBLIC_APP_URL",
+      "status": "ERROR",
+      "detail": "value still looks like a placeholder/local example"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_APP_VERSION",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_USE_FIREBASE",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_API_KEY",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_VAPID_KEY",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_FIREBASE_APP_ID",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:FIREBASE_ADMIN_PROJECT_ID",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:FIREBASE_ADMIN_CLIENT_EMAIL",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:FIREBASE_ADMIN_PRIVATE_KEY",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:TABLE_QR_SECRET",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:SMTP_HOST",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:SMTP_PORT",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:SMTP_SECURE",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:SMTP_USER",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:SMTP_PASS",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:SMTP_FROM",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:DATABASE_ALERT_EMAIL",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:GOOGLE_OAUTH_CLIENT_ID",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:GOOGLE_OAUTH_CLIENT_SECRET",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:CLOUDINARY_CLOUD_NAME",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:CLOUDINARY_API_KEY",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:CLOUDINARY_API_SECRET",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "required:NEXT_PUBLIC_RAZORPAY_KEY_ID",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:RAZORPAY_KEY_ID",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:RAZORPAY_KEY_SECRET",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "required:RAZORPAY_WEBHOOK_SECRET",
+      "status": "ERROR",
+      "detail": "missing or empty"
+    },
+    {
+      "name": "version:NEXT_PUBLIC_APP_VERSION",
+      "status": "ERROR",
+      "detail": "expected v1.0.0-rc3"
+    },
+    {
+      "name": "environment:NEXT_PUBLIC_APP_ENV",
+      "status": "ERROR",
+      "detail": "must be production"
+    },
+    {
+      "name": "url:NEXT_PUBLIC_APP_URL",
+      "status": "ERROR",
+      "detail": "must be a valid https URL"
+    },
+    {
+      "name": "firebase:NEXT_PUBLIC_USE_FIREBASE",
+      "status": "PASS",
+      "detail": "must be true"
+    },
+    {
+      "name": "firebase:emulators",
+      "status": "PASS",
+      "detail": "must be false in production"
+    },
+    {
+      "name": "login:dev",
+      "status": "ERROR",
+      "detail": "must be false in production"
+    },
+    {
+      "name": "login:test",
+      "status": "PASS",
+      "detail": "must be false in production"
+    },
+    {
+      "name": "plugins:quality",
+      "status": "PASS",
+      "detail": "quality diagnostics should stay disabled unless profiling"
+    },
+    {
+      "name": "plugins:dashboard",
+      "status": "PASS",
+      "detail": "developer dashboard must stay disabled"
+    },
+    {
+      "name": "plugins:profiler",
+      "status": "PASS",
+      "detail": "plugin profiler must stay disabled unless profiling"
+    },
+    {
+      "name": "firebase:api-key-format",
+      "status": "PASS",
+      "detail": "client api key must look like a Firebase web key"
+    },
+    {
+      "name": "firebase:app-id-format",
+      "status": "PASS",
+      "detail": "app id must match 1:<sender>:web:<hash>"
+    },
+    {
+      "name": "firebase:sender-format",
+      "status": "PASS",
+      "detail": "messaging sender id must be numeric"
+    },
+    {
+      "name": "firebase:admin-project-match",
+      "status": "ERROR",
+      "detail": "admin and public project ids must match"
+    },
+    {
+      "name": "firebase:admin-email",
+      "status": "ERROR",
+      "detail": "admin client email must be a service account"
+    },
+    {
+      "name": "firebase:private-key",
+      "status": "ERROR",
+      "detail": "private key must be full PEM with escaped newlines"
+    },
+    {
+      "name": "cloudinary:cloud-name-match",
+      "status": "PASS",
+      "detail": "public and server cloud names must match"
+    },
+    {
+      "name": "cloudinary:cloud-name-format",
+      "status": "PASS",
+      "detail": "cloud name format"
+    },
+    {
+      "name": "cloudinary:api-key-format",
+      "status": "PASS",
+      "detail": "api key should be numeric"
+    },
+    {
+      "name": "razorpay:public-key",
+      "status": "ERROR",
+      "detail": "production key must start rzp_live_"
+    },
+    {
+      "name": "razorpay:key-match",
+      "status": "PASS",
+      "detail": "public/server key ids must match"
+    },
+    {
+      "name": "razorpay:secret-strength",
+      "status": "ERROR",
+      "detail": "secret must be configured"
+    },
+    {
+      "name": "razorpay:webhook-strength",
+      "status": "ERROR",
+      "detail": "webhook secret must be configured"
+    },
+    {
+      "name": "smtp:port",
+      "status": "PASS",
+      "detail": "port must be positive integer"
+    },
+    {
+      "name": "smtp:secure",
+      "status": "PASS",
+      "detail": "SMTP_SECURE must be true or false"
+    },
+    {
+      "name": "smtp:from",
+      "status": "PASS",
+      "detail": "SMTP_FROM must include email address"
+    },
+    {
+      "name": "smtp:gmail-app-password",
+      "status": "PASS",
+      "detail": "Gmail should use a 16-character app password"
+    },
+    {
+      "name": "oauth:client-match",
+      "status": "PASS",
+      "detail": "public/server OAuth client ids must match"
+    },
+    {
+      "name": "oauth:client-format",
+      "status": "PASS",
+      "detail": "Google OAuth client id format"
+    },
+    {
+      "name": "secret:TABLE_QR_SECRET",
+      "status": "ERROR",
+      "detail": "minimum 32 characters"
+    },
+    {
+      "name": "secret:PAYMENT_SETTINGS_ENCRYPTION_KEY",
+      "status": "WARNING",
+      "detail": "recommended for encrypted owner payment settings"
+    }
+  ],
+  "sections": []
+}

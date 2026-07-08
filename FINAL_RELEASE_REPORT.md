@@ -1,98 +1,58 @@
 # Final Release Report
 
+Date: 2026-07-08
+
 | Field | Value |
 | --- | --- |
+| Release Candidate | `v1.0.0-rc3` |
+| Production Branch | `release/production-nammude` |
+| Latest Pushed Commit | `311104b4c982edae5135d8643deabff65aef4af4` |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
-| Commit SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Release SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Hostinger SHA | `35017398773ba04efbdc3ab37d250cfa547c0675` |
-| Deployment Time | `2026-06-26T04:48:26.958Z` |
-| Final Release Result | PASS |
+| Certification Result | Repository certified for deployment testing; production signoff remains manual-gated. |
+| Feature Scope | Stabilization only. No new business workflow, API contract, schema, auth flow, payment flow, Firestore collection, or UI redesign was introduced. |
 
-## Browser Validation
+## Validation
 
-| Surface | Result |
+| Check | Result |
 | --- | --- |
-| Owner Dashboard | PASS |
-| Owner Orders | PASS |
-| Kitchen | PASS |
-| POS | PASS |
-| Employees | PASS |
-| Tables | PASS |
-| Menu | PASS |
-| Offers | PASS |
-| Inventory | PASS |
-| Accounting | PASS |
-| Admin Dashboard | PASS |
-| Admin Analytics | PASS |
-| Customer Profile | PASS |
-| Customer Orders | PASS |
-| Customer History | PASS |
-| Audit | PASS |
-| Printers | PASS |
-| View Switching | PASS |
+| `cmd /c npm run test:enhancements` | Passed |
+| `cmd /c npm run typecheck` | Passed |
+| `cmd /c npm run lint` | Passed |
+| `cmd /c npm run build` | Passed with accepted Firebase/protobuf warning |
+| `cmd /c npm run analyze` | Passed with accepted Firebase/protobuf warning |
+| `cmd /c npm run profile:runtime` | Passed |
+| `cmd /c npm run audit:release` | Passed |
+| `cmd /c npm run smoke:operational` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
+| `cmd /c npm run validate:prod-env` | Failed locally for missing production-only env/secrets and non-HTTPS local app URL |
 
-## API Validation
+## Bug Sweep
 
-| API | Result |
+| Area | Result |
 | --- | --- |
-| `/api/release-info` | PASS |
-| `/api/owner/analytics` | PASS |
-| `/api/owner/orders` | PASS |
-| `/api/owner/kitchen` | PASS |
-| `/api/owner/pos` | PASS |
-| `/api/owner/menu` | PASS |
-| `/api/owner/offers` | PASS |
-| `/api/owner/staff` | PASS |
-| `/api/owner/tables` | PASS |
-| `/api/owner/inventory` | PASS |
-| `/api/owner/accounting` | PASS |
-| `/api/owner/printers` | PASS |
-| `/api/owner/audit-logs` | PASS |
-| `/api/customer/orders` | PASS |
-| `/api/admin/data` | PASS |
+| Runtime markers | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. |
+| Safe cleanup | Removed three React hook suppression comments with explicit dependency-safe code. |
+| Route coverage | Static audit found `100` pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`. |
+| API/network | No duplicate API family or fetch polling interval found by static scan. |
+| Realtime | Kitchen remains the checked EventSource path; no new realtime listener was added. |
+| Firestore | No collection, schema, rule, index, or repository contract changed. |
 
-## Firestore Validation
+## Accepted Warning
 
-| Metric | Firestore | API | Browser | Result |
-| --- | ---: | ---: | ---: | --- |
-| Orders | 5 | 5 | 5 | PASS |
-| Revenue | INR 1976 | INR 1976 | INR 1976 | PASS |
-| Customers | 3 | 3 | 3 | PASS |
-| Loyalty | 3 | 3 | 3 | PASS |
-| Kitchen | 4 | 4 | 4 | PASS |
-| Staff | 2 | 2 | 2 | PASS |
-| Menu | 8 | 8 | 8 | PASS |
-| Offers | 2 | 2 | 2 | PASS |
-| Inventory | 0 | 0 | 0 | PASS |
-| Accounting | 0 | 0 | 0 | PASS |
-| Customer Orders | 18 | 18 | 18 | PASS |
+The Firebase/protobuf dynamic dependency warning remains accepted. The trace is `@protobufjs/inquire -> protobufjs -> @grpc/proto-loader -> @firebase/firestore -> firebase/firestore -> src/firebase/collections.ts -> src/app/api/admin/system-diagnostics/route.ts`. It originates in upstream Firebase/protobuf server dependency code, and replacing or aliasing it during release certification is not safe.
 
-## Permission Validation
+## Remaining Manual Gates
 
-| Role | Result |
+| Gate | Required Action |
 | --- | --- |
-| Owner | PASS |
-| Admin | PASS |
-| Manager | PASS |
-| Cashier | PASS |
-| Kitchen | PASS |
-| Waiter | PASS |
-| Delivery | PASS |
-| Customer | PASS |
+| Hostinger | Set production env, redeploy latest commit, clear cache, and verify `/api/release-info`. |
+| Environment | Configure `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. |
+| Firebase | Deploy/review Firestore rules and indexes, then run protected flow smoke. |
+| Browser smoke | Authenticate and verify customer, owner, admin, POS, Kitchen, QR, profile, menu, checkout, and reports flows. |
+| Providers | Smoke SMTP, Cloudinary, Google OAuth, Razorpay, WhatsApp/SMS/push, Mapbox, and Meta where enabled. |
+| Hardware | Verify KOT, bill, receipt, split receipt, duplicate copy, and reprint output on target printers/devices. |
+| Performance | Run hosted Lighthouse/Core Web Vitals and Chrome Performance/Coverage/Memory after redeploy. |
 
-## Performance Summary
+## Certification Decision
 
-Production browser checks completed successfully. Observed page load validations stayed within the validation timeout; Owner Dashboard was the slowest validated route at about 13 seconds due initial authenticated data hydration.
-
-## Security Summary
-
-Scoped owner, admin, customer, staff, audit, printer, and operational view APIs enforced expected access. Restricted staff routes returned 403 where appropriate.
-
-## Known Issues
-
-None blocking.
-
-## Manual Verification Items
-
-- Owner password-protected view switch verification requires manual password entry.
+Repository code is certified as Release Candidate `v1.0.0-rc3` for deployment testing. Production release remains No-Go until the manual gates above pass.

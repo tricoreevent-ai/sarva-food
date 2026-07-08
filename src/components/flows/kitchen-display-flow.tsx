@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { delaySortRank, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
+import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { readableTableOrderId } from "@/lib/order-display";
 import { cn } from "@/lib/utils";
 import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
@@ -95,6 +96,7 @@ export function KitchenDisplayFlow() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
   const busyOrders = useRef(new Set<string>());
   const ordersRef = useRef<TableOrder[]>([]);
   const printedThisSession = useRef(new Set<string>());
@@ -112,7 +114,7 @@ export function KitchenDisplayFlow() {
   const selectedPrinter = kitchenPrinters.find((profile) => profile.id === selectedPrinterId) ?? kitchenPrinters[0];
   const selectedPrinterRef = useRef<PrinterProfile | undefined>(selectedPrinter);
   const nowBucket = Math.floor(now / 60000);
-  const boardOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort((a, b) => sortKitchenOrders(a, b, now)), [now, orders]);
+  const boardOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort((a, b) => sortKitchenOrders(a, b, now, operationalSettings.orderDelayThresholdMinutes)), [now, operationalSettings.orderDelayThresholdMinutes, orders]);
   const stationOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.kitchenStation || stationForOrder(order)).filter(isStringValue))).sort(), [boardOrders]);
   const tableOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.tableNumber).filter(isStringValue))).sort(), [boardOrders]);
   const staffOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.assignedStaffName || order.waiterName).filter(isStringValue))).sort(), [boardOrders]);
@@ -128,7 +130,7 @@ export function KitchenDisplayFlow() {
   const activeRequests = useMemo(() => tables.flatMap((table) => (table.serviceRequests ?? []).filter((request) => request.status === "open").map((request) => ({ ...request, table: table.table }))).slice(-8).reverse(), [tables]);
   const historyOrders = useMemo(() => orders.filter((order) => isCompleted(order.status) && !isToday(order.createdAt)), [orders]);
   const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId]);
-  const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders), [now, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
+  const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders, operationalSettings.orderDelayThresholdMinutes), [now, operationalSettings.orderDelayThresholdMinutes, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
 
   useEffect(() => {
     ordersRef.current = orders;
@@ -158,11 +160,13 @@ export function KitchenDisplayFlow() {
     void Promise.all([
       fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal }).then((response) => readKitchenPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
       fetch("/api/owner/tables", { cache: "no-store", signal: controller.signal }).then((response) => readKitchenPayload<{ data?: PosTable[] }>(response, "Kitchen tables could not be loaded.")),
+      fetch("/api/owner/operational-settings", { cache: "no-store", signal: controller.signal }).then((response) => readKitchenPayload<{ data?: Partial<OperationalSettings> }>(response, "Kitchen settings could not be loaded.")),
     ])
-      .then(([payload, tablePayload]) => {
+      .then(([payload, tablePayload, settingsPayload]) => {
         if (!active) return;
         setOrders((current) => reconcileKitchenOrders(current, payload.data ?? []));
         setTables(tablePayload.data ?? []);
+        setOperationalSettings(normalizeOperationalSettings(settingsPayload.data));
         setConnectionState("fallback");
       })
       .catch((error) => {
@@ -447,6 +451,7 @@ export function KitchenDisplayFlow() {
           filtersOpen={filtersOpen}
           historyOrders={historyOrders}
           highlightedOrderId={highlightedOrderId}
+          orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
           nowBucket={nowBucket}
           selectedPrinter={selectedPrinter}
           selectedPrinterId={selectedPrinterId}
@@ -614,6 +619,7 @@ export function KitchenDisplayFlow() {
                 hidden={statusFilter !== "all" && !column.statuses.includes(statusFilter)}
                 highlightedOrderId={highlightedOrderId}
                 nowBucket={nowBucket}
+                orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
                 orders={columnOrders}
                 onCancel={requestCancel}
                 onNext={(order, status) => void updateStatus(order, status)}
@@ -644,6 +650,7 @@ export function KitchenDisplayFlow() {
         <KitchenOrderDrawer
           order={selectedOrder}
           now={now}
+          orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
           onClose={() => setSelectedOrderId(null)}
           onPrint={() => void printKot(selectedOrder, { reprint: Boolean(selectedOrder.printedCount) })}
           onPreview={() => previewKot(selectedOrder)}
@@ -778,6 +785,7 @@ function KitchenOrderColumn({
   hidden,
   highlightedOrderId,
   nowBucket,
+  orderDelayThresholdMinutes,
   orders,
   onCancel,
   onNext,
@@ -790,6 +798,7 @@ function KitchenOrderColumn({
   hidden: boolean;
   highlightedOrderId: string | null;
   nowBucket: number;
+  orderDelayThresholdMinutes: number;
   orders: TableOrder[];
   onCancel: (order: TableOrder) => void;
   onNext: (order: TableOrder, status: TableOrderStatus) => void;
@@ -838,6 +847,7 @@ function KitchenOrderColumn({
               key={order.id}
               order={order}
               nowBucket={nowBucket}
+              orderDelayThresholdMinutes={orderDelayThresholdMinutes}
               busy={busyOrderId === order.id}
               highlighted={highlightedOrderId === order.id}
               onPrint={(reprint) => onPrint(order, reprint)}
@@ -883,6 +893,7 @@ function CompactKitchenBoard({
   highlightedOrderId,
   kitchenPrinters,
   nowBucket,
+  orderDelayThresholdMinutes,
   orderTypeFilter,
   priorityFilter,
   query,
@@ -932,6 +943,7 @@ function CompactKitchenBoard({
   highlightedOrderId: string | null;
   kitchenPrinters: PrinterProfile[];
   nowBucket: number;
+  orderDelayThresholdMinutes: number;
   orderTypeFilter: CompactOrderTypeFilter;
   priorityFilter: TableOrder["priority"] | "all";
   query: string;
@@ -1045,6 +1057,7 @@ function CompactKitchenBoard({
                   busy={busyOrderId === order.id}
                   highlighted={highlightedOrderId === order.id}
                   nowBucket={nowBucket}
+                  orderDelayThresholdMinutes={orderDelayThresholdMinutes}
                   order={order}
                   onCancel={() => onCancel(order)}
                   onNext={(status) => onNext(order, status)}
@@ -1189,6 +1202,7 @@ function QuickAction({ title, value, icon, onClick }: { title: string; value: st
 type CompactKitchenOrderCardProps = {
   order: TableOrder;
   nowBucket: number;
+  orderDelayThresholdMinutes: number;
   busy: boolean;
   highlighted: boolean;
   onNext: (status: TableOrderStatus) => void;
@@ -1197,7 +1211,7 @@ type CompactKitchenOrderCardProps = {
   onCancel: () => void;
 };
 
-function CompactKitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, onPrint, onPreview, onCancel }: CompactKitchenOrderCardProps) {
+function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, onNext, onPrint, onPreview, onCancel }: CompactKitchenOrderCardProps) {
   const [itemsOpen, setItemsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const startX = useRef(0);
@@ -1205,7 +1219,7 @@ function CompactKitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, 
   const now = nowBucket * 60000;
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
-  const delay = getKitchenDelay(order, now);
+  const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
   const delayed = delay.delayed;
   const next = nextStatus[order.status];
   const final = isCompleted(order.status);
@@ -1322,6 +1336,7 @@ function CompactKitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, 
 const MemoCompactKitchenOrderCard = memo(CompactKitchenOrderCard, (prev, next) => (
   prev.order === next.order &&
   prev.nowBucket === next.nowBucket &&
+  prev.orderDelayThresholdMinutes === next.orderDelayThresholdMinutes &&
   prev.busy === next.busy &&
   prev.highlighted === next.highlighted
 ));
@@ -1372,6 +1387,7 @@ function KitchenConfirmDialog({
 type KitchenOrderCardProps = {
   order: TableOrder;
   nowBucket: number;
+  orderDelayThresholdMinutes: number;
   busy: boolean;
   highlighted?: boolean;
   onNext: (status: TableOrderStatus) => void;
@@ -1381,13 +1397,13 @@ type KitchenOrderCardProps = {
   onCancel: () => void;
 };
 
-function KitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
+function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [itemsOpen, setItemsOpen] = useState(false);
   const now = nowBucket * 60000;
   const createdMs = Date.parse(order.createdAt);
   const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
-  const delay = getKitchenDelay(order, now);
+  const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
   const delayed = delay.delayed;
   const next = nextStatus[order.status];
   const label = actionLabel[order.status] ?? readyActionLabel(order);
@@ -1486,14 +1502,15 @@ function KitchenOrderCard({ order, nowBucket, busy, highlighted, onNext, onPrint
 const MemoKitchenOrderCard = memo(KitchenOrderCard, (prev, next) => (
   prev.order === next.order &&
   prev.nowBucket === next.nowBucket &&
+  prev.orderDelayThresholdMinutes === next.orderDelayThresholdMinutes &&
   prev.busy === next.busy &&
   prev.highlighted === next.highlighted
 ));
 
-function KitchenOrderDrawer({ order, now, onClose, onPrint, onPreview, onNext }: { order: TableOrder; now: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void }) {
+function KitchenOrderDrawer({ order, now, orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes, onClose, onPrint, onPreview, onNext }: { order: TableOrder; now: number; orderDelayThresholdMinutes?: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const next = nextStatus[order.status];
-  const delay = getKitchenDelay(order, now);
+  const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
   const timeline = order.statusHistory ?? [];
 
   useEffect(() => {
@@ -1623,10 +1640,10 @@ function HistoryPanel({ orders }: { orders: TableOrder[] }) {
   );
 }
 
-function buildKitchenStats(orders: TableOrder[], now: number, printerStatus: string, autoPrint: boolean) {
+function buildKitchenStats(orders: TableOrder[], now: number, printerStatus: string, autoPrint: boolean, orderDelayThresholdMinutes: number) {
   const completedToday = orders.filter((order) => ["completed", "billed"].includes(order.status) && isToday(order.createdAt)).length;
   const active = orders.filter((order) => !isCompleted(order.status));
-  const delays = active.map((order) => getKitchenDelay(order, now));
+  const delays = active.map((order) => getKitchenDelay(order, now, { orderDelayThresholdMinutes }));
   const delayed = delays.filter((delay) => delay.delayed).length;
   const completed = orders.filter((order) => ["completed", "billed"].includes(order.status));
   const onTime = completed.filter((order) => {
@@ -1791,9 +1808,9 @@ function openKitchenTicket(order: TableOrder, printer: PrinterProfile | undefine
   return true;
 }
 
-function sortKitchenOrders(a: TableOrder, b: TableOrder, now = Date.now()) {
-  const firstRank = delaySortRank(a, now);
-  const secondRank = delaySortRank(b, now);
+function sortKitchenOrders(a: TableOrder, b: TableOrder, now = Date.now(), orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes) {
+  const firstRank = delaySortRank(a, now, { orderDelayThresholdMinutes });
+  const secondRank = delaySortRank(b, now, { orderDelayThresholdMinutes });
   const priority = secondRank.criticality - firstRank.criticality;
   const late = secondRank.lateMinutes - firstRank.lateMinutes;
   const first = Date.parse(a.createdAt);

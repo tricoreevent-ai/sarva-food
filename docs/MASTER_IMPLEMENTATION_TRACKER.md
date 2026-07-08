@@ -11,14 +11,248 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Enterprise Performance Sprint Phase 3 |
+| Current Sprint | Release Candidate Repository Certification Closure |
 | Release Version | `v1.0.0-rc3` |
-| Latest Git Commit | Performance Phase 3 prepared on top of pushed rc3 certification commit `bf54ec3013a1b7e8630377567aee1663becf745a` and existing Phase 2 work; exact final SHA must be recorded after these changes are committed. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
+| Latest Git Commit | Latest pushed production branch commit before this certification pass is `311104b4c982edae5135d8643deabff65aef4af4`; certification documentation/hook-cleanup changes are pending final commit. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `bf54ec3013a1b7e8630377567aee1663becf745a` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after this performance recovery commit. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `311104b4c982edae5135d8643deabff65aef4af4` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after the final certification commit. |
 | Build Date | 2026-07-08 |
-| Verification Status | Performance Phase 3 typecheck, lint, build, analyze, generated runtime/stress/final report pack, operational smoke, and `audit:release` passed. Final `git diff --check` is recorded in the Phase 3 validation row. Production Lighthouse/Chrome Performance/Coverage/Memory remains manual because browser tooling/provider access is not available in this workspace. Build/analyze retain the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Runtime smoothness and operational responsiveness only: Kitchen snapshot reconciliation/card memoization/queue windowing, POS debounced search/product memoization/stable cart handlers, Owner Orders debounced search/hidden panel deferral, Owner Settings tab-only dynamic imports, Profile preference/toast deferral, and performance report automation. No business workflow, API contract, Firestore collection, schema, auth flow, payment flow, or UI redesign change. |
+| Verification Status | Repository certification validation passed `npm run test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env`, hosted deployment env/runtime metadata, provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
+| Scope | Repository-side release certification closure only: release scripts, validation reports, deployment/provider/performance/memory smoke reports, and documentation alignment. No new business feature, Firestore collection/schema/rule/index, API contract, auth workflow, payment provider contract, realtime listener, or completed workflow redesign. |
+
+## Release Candidate Repository Certification Closure - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Status | Repository-side work complete locally; final commit and push pending. |
+| Scope | Repository-side certification, report regeneration, release verifier cleanup, and documentation alignment only. |
+| Repository Fixes | Analyzer verification is now persisted outside `.next`; performance verification budgets route-owned JS instead of total static build JS; provider verification can use hosted health evidence; release certificate metadata reports Phase 2A/2B correctly. |
+| Database Impact | None. No Firestore collection, schema, rule, index, repository contract, read, write, or listener change. |
+| API Impact | None. Existing route contracts remain unchanged. |
+| Business Workflow Impact | None. No new application feature or workflow redesign was added by this certification closure. |
+| Release Decision | NO GO until Hostinger env/redeploy, Firebase Console/rules/index checks, provider dashboard checks, authenticated browser smoke, production Lighthouse/Chrome profiling, memory stability, and hardware/printer validation pass. |
+| Documentation | Added `FINAL_RC_STATUS.md`; regenerated release certificate, production env, deployment, performance, smoke, memory, provider, final performance/runtime/bug/readiness reports. |
+
+## Quality Enhancement Program Phase 2B Enterprise Plugin Runtime and Official SDK - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `PH2B-RUNTIME-001` |
+| Scope | Enterprise plugin runtime and official SDK only. Phase 2A registry remains metadata ownership; Phase 2B runtime owns execution. |
+| Status | Implemented locally; validation passed. |
+| SDK Architecture | `src/plugins/core/sdk` exposes `PluginContext`, `PluginAPI`, `PluginLifecycle`, `PluginEvents`, `PluginLogger`, `PluginStorage`, `PluginPermissions`, `PluginConfig`, `PluginDiagnostics`, `PluginRuntime`, `PluginManifest`, `PluginRouter`, `PluginUI`, `PluginAssets`, `PluginServices`, `PluginUtilities`, and `PluginVersion`. |
+| Runtime Flow | Discovery -> metadata validation -> dependency resolution -> compatibility validation -> registry registration -> context creation -> SDK injection -> permission validation -> config validation -> lazy import -> lifecycle initialize -> health monitor -> UI registration -> route registration -> runtime execution. |
+| Sandbox Design | Runtime receives a frozen context and executes plugins through a sandbox that detects global mutation attempts. Registry, lifecycle, event bus, permissions, and hidden app services are not exposed as mutable internals. |
+| Plugin Context Diagram | `PluginContext` includes plugin id, version, runtime version, permissions, logger, event bus, config, storage, navigation/router, UI, assets, approved API/services, theme, environment, user, tenant, language, timezone, and diagnostics. |
+| Extension Point Catalog | Header Actions, Sidebar, Dashboard Cards, Widgets, Panels, Dialogs, Context Menus, Toolbar Actions, Quick Actions, Status Badges, Settings Pages, Reports, and Floating Panels. |
+| Route / Navigation | Plugins may register lazy owner, admin, customer, kitchen, POS, and developer routes plus sidebar/settings/dashboard/reports/tools/developer navigation contributions. All contributions require feature flags and permissions. |
+| Storage | Namespaced memory/session/persistent/encrypted storage supports version, migration, quota, cleanup, key listing, and snapshots. |
+| Approved Services | Notifications, toast, modal, clipboard, theme, navigation, localization, formatting, date, currency, and analytics. Internal repositories, Firestore, payment providers, and business APIs are not exposed. |
+| Health Monitoring Flow | Heartbeat, runtime errors, memory, FPS, long tasks, leaks, failures, health score, and automatic disable state are tracked by `src/plugins/core/diagnostics`. |
+| Sample Plugins | Added developer-only Clock, Notes, System Information, and Theme Preview sample plugins, all disabled by default and scoped to SDK validation only. |
+| Generator | Added `npm run plugin:create`, backed by `scripts/plugins/create-plugin.mjs`, to scaffold registry-compatible plugin folders. |
+| Database Impact | None. No Firestore collection, field, rule, index, read, write, or schema change. |
+| API Impact | None. No application endpoint or contract change. Plugin API is an internal SDK contract only. |
+| Realtime Impact | None. No listener, EventSource, polling, or subscription change. |
+| Business Workflow Impact | None. Customer, Owner, Kitchen, POS, Admin, QR, auth, payment, inventory, reports, notifications, and settings workflows were not modified for Phase 2B. |
+| Risk | Low. SDK/runtime infrastructure is disabled unless plugin feature flags are enabled; no business modules are imported. |
+| Rollback | Revert `src/plugins/core/{runtime,sdk,api,hooks,services,context,router,storage,assets,ui,sandbox}`, sample plugins, generator script, `docs/plugin-sdk`, feature flag additions, and enhancement audit/tracker additions. |
+| Performance Metrics | Runtime context creation target `<5ms`; context injection target `<1ms`; storage lookup is O(1); lazy routes add no startup imports; health monitor stores in-memory counters only. |
+| Documentation | Added `docs/plugin-sdk/*`, updated `docs/enhancement-plugin-architecture.md`, `scripts/release/enhancement-registry-audit.mjs`, and this tracker. |
+
+Validation plan:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with accepted Firebase/protobuf warning |
+| `npm run analyze` | Passed with accepted Firebase/protobuf warning; analyzer verification report generated |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
+
+## Quality Enhancement Program Phase 2A Enterprise Plugin Registry System - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `PH2A-REGISTRY-001` |
+| Scope | Enterprise plugin registry infrastructure only. Phase 1 lifecycle, feature flags, event bus, permissions, config, profiler, dashboard, logger, and error isolation were reused without expanding business surfaces. |
+| Status | Implemented locally; validation passed. |
+| Architecture Decision | Keep plugin discovery, metadata, registry state, dependency checks, compatibility checks, loading, marketplace data, installation, validation, and diagnostics as isolated `src/plugins/core/*` modules. Runtime plugin execution still flows through the existing lifecycle manager. |
+| Database Impact | None. No Firestore collection, field, rule, index, read, write, or schema change. |
+| API Impact | None. No endpoint or contract change. Marketplace is mock/local only. |
+| Realtime Impact | None. No listener, EventSource, polling, or subscription change. |
+| Business Workflow Impact | None. Customer, Owner, Kitchen, POS, Admin, QR, auth, payment, inventory, reports, notifications, and settings workflows were not modified for Phase 2A. |
+| New Core Modules | `metadata`, `registry`, `discovery`, `dependency-manager`, `compatibility`, `validator`, `loader`, `marketplace`, `installer`, and `diagnostics`. |
+| Plugin Metadata | `PluginMetadata` now covers identity, author/company/contact, version/license/category/priority, dependencies, permissions, feature flag, compatibility, assets, docs, tags, bundle/signature fields, and health/status. |
+| Registry State Machine | `UNREGISTERED -> REGISTERED -> VALIDATED -> INITIALIZED -> ENABLED -> RUNNING`, with suspend/resume/disable/destroy paths and invalid-transition errors. |
+| Dependency Graph | Dependency manager builds graph/tree views, topologically sorts plugins, detects missing/disabled/version-mismatch dependencies, and blocks circular dependencies. |
+| Marketplace Roadmap | Phase 2A ships a mock provider only. Future remote registry, signed packages, downloads, reviews, pricing, ratings, and update channels remain disabled roadmap work. |
+| Installer | Transactional install validates metadata, dependencies, compatibility, lifecycle, config, permissions, and health, then rolls back registry/lifecycle steps on failure. |
+| Diagnostics | Reports total/installed/enabled/disabled/broken counts, failed loads, memory estimates, health score, slow plugins, missing dependencies, and update availability without provider calls. |
+| Build Tooling | `next.config.ts` disables the unstable local webpack build worker, and the existing trace recovery wrapper now also covers `_global-error/page.js.nft.json` so build/analyze complete on Windows. |
+| Risk | Low. Disabled/local registry infrastructure; no business routes or data contracts changed. |
+| Rollback | Revert `src/plugins/core/{metadata,registry,discovery,dependency-manager,compatibility,validator,loader,marketplace,installer,diagnostics}`, plugin metadata, `docs/plugin-platform`, and the enhancement audit additions. |
+| Performance Benchmarks | Registry lookups are map-backed O(1); dependency resolution is O(V+E); discovery is lazy and cached; loader imports only requested plugins with timeout/abort; mock marketplace uses in-memory data only. |
+| Documentation | Added `docs/plugin-platform/*`, updated `docs/enhancement-plugin-architecture.md`, plugin docs, plugin tests docs, and this tracker. |
+
+Validation plan:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with accepted Firebase/protobuf warning |
+| `npm run analyze` | Passed with accepted Firebase/protobuf warning; analyzer HTML regenerated |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
+
+## Active Orders, Delay Threshold, Payment Session Hotfix - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Status | Implemented locally; release remains pending hosted redeploy and manual production validation. |
+| Database Impact | Reuses existing `restaurantSettings`; adds optional `operationalSettings.orderDelayThresholdMinutes` only. No collection, rule, index, listener, or repository contract change. |
+| API Impact | Added owner-scoped `GET/PUT /api/owner/operational-settings`; Razorpay order/verify now use the same request session fallback as `/api/orders`. Existing route contracts remain backward compatible. |
+| Dependency Impact | Added `@radix-ui/react-popover` for lightweight desktop floating panels. No dialog/drawer framework added. |
+| Active Orders | Owner active orders grid now aligns Status, Priority, Progress, ETA, Quick View, and Actions with fixed desktop tracks, no action overflow, and mobile inline expansion. |
+| Quick View | Desktop uses compact Radix Popover without backdrop; mobile uses row expansion. Content is read-only and includes customer, table/order number, items, variants, notes, quantity, payment, kitchen status, order/waiting/ETA, and timeline. |
+| Late Alerts | Owner Settings persists 10/15/20/25/30 minute threshold, default 15. Owner Orders, Kitchen, and POS use the same threshold; delayed rows highlight while only status, waiting/ETA, and serve action blink softly. |
+| Payment Fix | Root cause was payment route session mismatch: order creation accepted legacy/scoped customer sessions while Razorpay order/verify forced only the scoped customer cookie. Payment fetches now stay same-origin with aligned session resolution. |
+| Performance Before | Hosted baseline from user report: Desktop 77, Mobile 58, LCP 10.9s, Speed Index 9.2s, TBT 350ms. |
+| Performance After | Local build/runtime gates passed, but hosted Lighthouse after-score is not available from this workspace. Rerun after Hostinger redeploy/cache clear. |
+| Bundle Reduction | `npm run analyze` now completes through the wrapper and persists analyzer verification evidence; hosted Lighthouse after-score still requires redeploy and browser tooling. |
+| Hydration Reduction | Quick View avoids full-order navigation and heavy modal/drawer surfaces; mobile expansion avoids desktop popover hydration. |
+| Memory/Listener Impact | No new realtime listener or polling loop. Operational settings are fetched through existing no-store API reads and reused in memoized delay calculations. |
+| Known Issues | Stale Hostinger deployment/env, hosted Lighthouse after-score, real Razorpay/provider validation, authenticated browser smoke, printer/hardware checks, and Firebase rules/index deployment remain manual gates. |
+
+Validation:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with accepted Firebase/protobuf warning |
+| `npm run analyze` | Passed with accepted Firebase/protobuf warning; analyzer verification report generated |
+| `npm run profile:runtime` | Passed |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
+
+## Quality Enhancement Program Phase 1 Foundation Completion - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `PH1-FOUNDATION-001` |
+| Architecture Decision | Complete the plugin framework before Phase 2 feature work. Plugins must initialize through lifecycle, read flags through the feature-flag service, communicate through the event bus, use plugin-local config/permissions/error boundaries, and remain disabled by default. |
+| Status | Implemented, disabled by default, local validation passed. |
+| Dependencies | Existing `IdleMount`, dynamic imports, React client boundaries, browser Performance APIs. No dependency package added. |
+| Feature Flags | `NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS=false`, `NEXT_PUBLIC_ENABLE_PLUGIN_RUNTIME_DASHBOARD=false`, `NEXT_PUBLIC_ENABLE_PLUGIN_PROFILER=false`. |
+| Database Impact | None. No Firestore collection, field, rule, index, read, write, or schema change. |
+| API Impact | None. No route or contract change. |
+| Realtime Impact | None. No listener, EventSource, polling, or subscription change. |
+| Performance Impact | Disabled path keeps plugin runtime unmounted. Enabled path lazy-loads after idle and uses bounded client-only observers/intervals. |
+| Bundle Impact | Adds isolated plugin-core and diagnostics chunks only when flags mount the enhancement runtime. |
+| Memory Impact | Lifecycle state maps are runtime-scoped; profiler/diagnostics observers and intervals clean up on unmount. Disabled path has no observer/interval allocation. |
+| Risk | Low. Framework-only extension with no business workflow changes. |
+| QA | Manual QA not required while flags stay disabled; developer dashboard is ignored in production. |
+| Rollback | Keep all plugin flags `false`; revert `src/plugins`, shell enhancement mount, env docs, and `test:enhancements` script if needed. |
+| Documentation | Updated `docs/enhancement-plugin-architecture.md`, plugin docs, test docs, env matrix, and this tracker. |
+| Release Version | `v1.0.0-rc3` extension-only follow-up. |
+
+Completed Phase 1 foundation components:
+
+| Component | Status | Path |
+| --- | --- | --- |
+| Plugin Registry | Complete | `src/plugins/registry.ts` |
+| Lifecycle Manager | Complete | `src/plugins/core/lifecycle` |
+| Feature Flag Manager | Complete | `src/plugins/core/feature-flags` |
+| Event Bus | Complete | `src/plugins/core/events` |
+| Logger | Complete | `src/plugins/core/logger` |
+| Runtime Dashboard | Complete, developer-only, disabled | `src/plugins/core/runtime-dashboard` |
+| Performance Profiler | Complete, disabled | `src/plugins/core/profiler` |
+| Error Isolation | Complete | `src/plugins/core/error-isolation` |
+| Permission Layer | Complete | `src/plugins/core/permissions` |
+| Configuration Manager | Complete | `src/plugins/core/config` plus plugin-owned config files |
+| Testing Framework | Complete | `src/plugins/core/testing`, `scripts/release/enhancement-registry-audit.mjs` |
+
+Validation plan:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed |
+| `npm run analyze` | Passed |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `git diff --check` | Passed |
+
+## Final Release Candidate Production Certification - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Scope | Stabilization-only release certification. Existing Customer, Owner, POS, Kitchen, Admin, QR, payment, inventory, reports, notifications, authentication, repositories, APIs, Firestore collections, schemas, and UI workflows were preserved. |
+| Latest Commit | `311104b4c982edae5135d8643deabff65aef4af4` is the latest pushed production branch commit at the start of this certification pass; this pass has local documentation/hook-cleanup changes pending final commit. |
+| Bug Sweep | Repository marker audit found no actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code. Three React hook suppression comments were removed safely by making dependencies explicit. Remaining broad hits are docs, lockfiles, CLI script logging, or intentional user-facing copy. |
+| Route Audit | Static App Router audit found `100` pages, `73` API route handlers, `21` route loading files, `12` error boundaries, and the generated Next `_not-found` route. Loading, retry, empty, auth, permission, and error states remain present across the major customer, owner, admin, POS, and Kitchen surfaces. Full authenticated browser route smoke remains manual. |
+| Operational Audit | Customer, Owner, Kitchen, POS, and Admin workflows were reviewed statically against existing route, component, repository, and API paths. No business workflow or API contract change was introduced. |
+| Firestore / Realtime Audit | No Firestore collection, schema, rule, index, or repository contract was changed. Kitchen remains the only checked EventSource path, and no duplicate fetch interval or duplicate API family was found by static scan. Firebase rules/index deployment remains manual. |
+| Deployment Config Audit | Env references for Firebase, Cloudinary, SMTP, Google OAuth, Razorpay, WhatsApp, SMS, Mapbox, Meta, and diagnostics remain env-driven. No secrets were changed. Local `validate:prod-env` failed for expected missing production-only values. |
+| Firebase Warning | Build/analyze still report `@protobufjs/inquire` dynamic dependency through Firebase Firestore/Admin diagnostics. This is accepted and documented because it originates in upstream Firebase/protobuf server dependency code; replacing it is not safe during certification. |
+| Validation | Passed: `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run analyze`, `cmd /c npm run profile:runtime`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run test:enhancements`, and `git diff --check`. |
+| Env Validation | `cmd /c npm run validate:prod-env` failed locally for missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`; these require Hostinger/Firebase/provider values. |
+| Release Readiness | Repository code is certified as Release Candidate `v1.0.0-rc3` for deployment testing. Production signoff remains No-Go until Hostinger production env/redeploy/cache, Firebase rules/index deployment, authenticated browser smoke, provider checks, Lighthouse/Core Web Vitals, Chrome profiling, and hardware/printer checks pass. |
+
+## Quality Enhancement Program Phase 1 - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Scope | Added the extension architecture lane for future quality enhancements without touching stable Customer, POS, Kitchen, Owner, Admin, QR, payments, inventory, realtime orders, notifications, reports, authentication, or settings business logic. |
+| Feature ID | `PH1-QD-001` |
+| Feature | Quality Diagnostics plugin foundation. |
+| Priority | `P1` |
+| Status | Implemented, disabled by default, local validation passed. |
+| Owner | Codex |
+| Dependencies | Existing `IdleMount`, shell composition, browser Performance APIs. No third-party dependency added. |
+| Feature Flag | `NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS=false` in committed env examples. |
+| Database Impact | None. No collection, schema, field, index, or Firestore read/write change. |
+| API Impact | None. No endpoint or API contract change. |
+| Performance Impact | Disabled path loads no plugin runtime. Enabled path mounts after idle and samples only client Performance APIs. |
+| Bundle Size Impact | Disabled path does not import the plugin runtime chunk. Enabled path lazy-loads an isolated diagnostics chunk. |
+| Realtime Impact | None. No realtime listener added. |
+| Memory Impact | Enabled path uses one bounded interval and one PerformanceObserver with cleanup on unmount. Disabled path has no runtime allocation beyond static flag metadata. |
+| Risk Level | Low. Rollback is flag-off or removing `src/plugins/quality-diagnostics` and the shell mount. |
+| Testing Status | Passed `npm run test:enhancements`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run analyze`, `npm run audit:release`, `npm run smoke:operational`, and `git diff --check`. |
+| QA Status | Manual QA not required while disabled; controlled profiling QA required before enabling in any hosted environment. |
+| Release Version | `v1.0.0-rc3` extension-only follow-up. |
+| Rollback Strategy | Keep `NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS=false`; if needed, revert plugin files and the two shell mount lines. |
+| Documentation Status | Added `docs/enhancement-plugin-architecture.md` and `src/plugins/quality-diagnostics/docs/README.md`. |
+| Deployment Status | Not production-enabled. Requires explicit env flag to activate. |
+
+Required feature package:
+
+| Requirement | Status |
+| --- | --- |
+| Business Objective | Documented in plugin README. |
+| Technical Design | Documented with runtime architecture diagram in plugin README. |
+| Architecture Diagram | Documented in plugin README. |
+| Performance Analysis | Documented; disabled path has no startup runtime. |
+| Risk Analysis | Documented as low risk with flag rollback. |
+| Acceptance Criteria | Documented in plugin README. |
+| Unit Tests | `npm run test:enhancements` audits registry and disabled defaults. |
+| Integration Tests | Shell mount is flag-gated and idle-mounted; typecheck covers import boundaries. |
+| Regression Tests | No business workflow files changed. |
+| Accessibility Validation | Dev-only panel uses `output` with polite live updates. |
+| Performance Benchmark | No startup benchmark needed while disabled; enabled profiling remains manual. |
+| Rollback Plan | Flag off or revert plugin/shell mount. |
+| Documentation | Completed. |
 
 ## Enterprise Performance Sprint Phase 3 - 2026-07-08
 

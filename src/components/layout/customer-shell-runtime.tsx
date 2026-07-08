@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { ModuleRuntimeBoundary } from "@/components/runtime/module-runtime-boundary";
 import { IdleMount } from "@/components/runtime/idle-mount";
 import { AlertProvider } from "@/components/ui/AlertProvider";
+import { shouldMountEnhancementRuntime } from "@/plugins/registry";
 
 const LazyCustomerShellClient = lazy(() =>
   import("@/components/layout/customer-shell-client").then((module) => ({
@@ -17,6 +18,9 @@ const LazyAnalyticsProvider = dynamic(() => import("@/components/monitoring/anal
 const LazyAppToaster = dynamic(() => import("@/components/ui/app-toaster").then((module) => module.AppToaster), { ssr: false });
 const LazyPwaRegistrar = dynamic(() => import("@/components/pwa/pwa-registrar").then((module) => module.PwaRegistrar), { ssr: false });
 const LazyPushNotificationProvider = dynamic(() => import("@/components/pwa/push-notification-provider").then((module) => module.PushNotificationProvider), { ssr: false });
+const LazyEnhancementRuntime = shouldMountEnhancementRuntime()
+  ? dynamic(() => import("@/plugins/runtime/enhancement-runtime").then((module) => module.EnhancementRuntime), { ssr: false })
+  : null;
 
 export function CustomerShellRuntime({ children }: { children: ReactNode }) {
   return (
@@ -37,6 +41,7 @@ export function CustomerRuntimeProviders({ children }: { children: ReactNode }) 
         <LazyAppToaster />
         <LazyPwaRegistrar />
         <LazyPushNotificationProvider />
+        {LazyEnhancementRuntime ? <LazyEnhancementRuntime /> : null}
         <Suspense fallback={null}>
           <LazyAnalyticsProvider />
         </Suspense>

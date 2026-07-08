@@ -25,8 +25,17 @@ export function GET() {
       commitSha: buildCommit,
       applicationVersion: process.env.NEXT_PUBLIC_APP_VERSION || RELEASE_VERSION,
       buildTimestamp,
+      deploymentTimestamp: buildTimestamp,
       deploymentEnvironment,
       publicAppUrl,
+      runtimeVersion: process.version,
+      nodeEnv: process.env.NODE_ENV || "production",
+      pluginFlags: {
+        qualityDiagnostics: process.env.NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS === "true",
+        runtimeDashboard: process.env.NEXT_PUBLIC_ENABLE_PLUGIN_RUNTIME_DASHBOARD === "true",
+        profiler: process.env.NEXT_PUBLIC_ENABLE_PLUGIN_PROFILER === "true",
+        performanceDiagnostics: process.env.NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS !== "false",
+      },
       generatedAt: new Date().toISOString(),
     },
     {

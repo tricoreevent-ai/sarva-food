@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   let trace = createTraceContext(request);
   const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
-  const session = await getSessionFromRequest(request, "customer");
+  const session = await getSessionFromRequest(request);
   if (!session || session.role !== "customer") {
     return fail("Authentication required", 401);
   }

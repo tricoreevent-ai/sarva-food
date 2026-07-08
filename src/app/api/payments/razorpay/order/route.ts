@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return fail("Too many payment attempts", 429);
   }
 
-  const session = await getSessionFromRequest(request, "customer");
+  const session = await getSessionFromRequest(request);
   if (!session || session.role !== "customer") {
     return fail("Authentication required", 401);
   }

@@ -1,0 +1,141 @@
+{
+  "generatedAt": "2026-07-08T14:47:27.439Z",
+  "summary": {
+    "counts": {
+      "PASS": 7,
+      "WARNING": 0,
+      "ERROR": 0,
+      "FAIL": 0,
+      "MANUAL": 18
+    },
+    "exitCode": 0
+  },
+  "checks": [
+    {
+      "name": "route:/",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "route:/restaurants",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "route:/offers",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "route:/api/release-info",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "route:/health/live",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "route:/health/ready",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "route:/api/public/restaurants",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "manual:Customer authentication",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Owner authentication",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Kitchen flow",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:POS billing",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Admin",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:QR ordering",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Table ordering",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Checkout",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Razorpay",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Offers",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Coupons",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Notifications",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Print",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Realtime updates",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Role switching",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Offline recovery",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Error boundaries",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    },
+    {
+      "name": "manual:Accessibility",
+      "status": "MANUAL",
+      "detail": "Requires authenticated browser/provider/hardware validation."
+    }
+  ],
+  "sections": []
+}

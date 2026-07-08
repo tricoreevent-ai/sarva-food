@@ -23,6 +23,8 @@ import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib
 import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PaperWidth, PosBill, PosTable, PrintLog, PrintTemplate, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
+import { getKitchenDelay } from "@/lib/kitchen-delay";
+import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/services/restaurant-ops-service";
 
 const posTabs = ["menu", "custom", "combos"] as const;
@@ -209,6 +211,7 @@ export function PosBillingFlow() {
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => (typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "online"));
   const [pendingChanges, setPendingChanges] = useState(0);
+  const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
     menuCategories: [],
@@ -219,6 +222,20 @@ export function PosBillingFlow() {
     tableOrders: [],
     staffMembers: [],
   }));
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/operational-settings", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: Partial<OperationalSettings>; error?: string }) => {
+        if (!active || payload.error) return;
+        setOperationalSettings(normalizeOperationalSettings(payload.data));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
   const { menuItems, menuCategories, inventoryItems, orders, tables, loyaltyCustomers, tableOrders, staffMembers } = readModel;
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
@@ -1396,6 +1413,7 @@ export function PosBillingFlow() {
               kitchenOrders={operationalOrders}
               tables={tables}
               staff={staffMembers}
+              orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
               onOpenNew={requestNewOrder}
               onOpen={(order) => setDetailsTarget(order as OperationalOrder)}
               onAddItems={openKitchenOrder}
@@ -2982,10 +3000,8 @@ function paymentLabel(value?: TableOrder["paymentStatus"]) {
   return "Unpaid";
 }
 
-function isDelayedTableOrder(order: TableOrder) {
-  const eta = Number(order.etaMinutes ?? 12);
-  const created = Date.parse(order.createdAt);
-  return Number.isFinite(created) && Date.now() - created > eta * 60_000;
+function isDelayedTableOrder(order: TableOrder, orderDelayThresholdMinutes: number = defaultOperationalSettings.orderDelayThresholdMinutes) {
+  return getKitchenDelay(order, Date.now(), { orderDelayThresholdMinutes }).delayed;
 }
 
 function readySinceMillis(order: OperationalOrder) {
@@ -3193,6 +3209,7 @@ function ActiveOrdersPanel({
   kitchenOrders,
   tables,
   staff,
+  orderDelayThresholdMinutes,
   onOpenNew,
   onOpen,
   onAddItems,
@@ -3216,6 +3233,7 @@ function ActiveOrdersPanel({
   kitchenOrders: OperationalOrder[];
   tables: PosTable[];
   staff: StaffMember[];
+  orderDelayThresholdMinutes: number;
   onOpenNew: () => void;
   onOpen: (order: TableOrder) => void;
   onAddItems: (order: TableOrder) => void;
@@ -3254,7 +3272,7 @@ function ActiveOrdersPanel({
   const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
   const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
   const completedToday = orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length;
-  const delayedOrders = activeKitchenOrders.filter(isDelayedTableOrder);
+  const delayedOrders = activeKitchenOrders.filter((order) => isDelayedTableOrder(order, orderDelayThresholdMinutes));
   const occupiedTables = tables.filter((table) => ["occupied", "reserved"].includes(String(table.status)));
   const activeStaff = staff.filter((member) => member.status === "active");
   const revenue = orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + Number(order.totals.total ?? 0), 0);
@@ -3376,6 +3394,7 @@ function ActiveOrdersPanel({
                   key={order.id}
                   index={index}
                   order={order}
+                  orderDelayThresholdMinutes={orderDelayThresholdMinutes}
                   canMerge={activeKitchenOrders.length >= 2}
                   busy={activeAction ?? ""}
                   onOpen={onOpen}
@@ -3409,6 +3428,7 @@ function ActiveOrdersPanel({
 
 function ActiveOrderRow({
   order,
+  orderDelayThresholdMinutes,
   index,
   canMerge,
   busy,
@@ -3429,6 +3449,7 @@ function ActiveOrderRow({
   onCancel,
 }: {
   order: OperationalOrder;
+  orderDelayThresholdMinutes: number;
   index: number;
   canMerge: boolean;
   busy: string;
@@ -3450,7 +3471,7 @@ function ActiveOrderRow({
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
-  const delayed = isDelayedTableOrder(order);
+  const delayed = isDelayedTableOrder(order, orderDelayThresholdMinutes);
   const table = order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in");
   const waiter = order.waiterName || order.assignedStaffName || "Unassigned";
   return (

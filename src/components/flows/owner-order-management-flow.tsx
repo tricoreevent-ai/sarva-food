@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import * as Popover from "@radix-ui/react-popover";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import {
   AlertTriangle,
@@ -38,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAlert } from "@/hooks/useAlert";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
+import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/services/restaurant-ops-service";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -54,6 +56,8 @@ type ActiveOpsOrder = OpsOrder & {
   createdAtMs: number;
   etaLabel: string;
   itemSummary: string;
+  lines: Array<{ name: string; quantity: number; modifiers?: string[]; notes?: string; allergyNote?: string }>;
+  timeline: Array<{ label: string; at?: string }>;
   kitchenStatus: string;
   paymentStatusLabel: string;
   priorityLabel: string;
@@ -92,12 +96,13 @@ export function OwnerOrderManagementFlow() {
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
   const knownNewOrders = useRef<Set<string> | null>(null);
   const tableOrdersRef = useRef<TableOrder[]>([]);
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
   const debouncedSearch = useDebouncedValue(search, 120);
   const rangeLabel = useMemo(() => formatRangeLabel(dateRange), [dateRange]);
-  const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders, now), [now, orders, tableOrders]);
+  const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders, now, operationalSettings.orderDelayThresholdMinutes), [now, operationalSettings.orderDelayThresholdMinutes, orders, tableOrders]);
   const tabOrders = useMemo(() => mappedOrders.filter((order) => matchesTab(order, tab)), [mappedOrders, tab]);
   const tabCatering = useMemo(() => cateringInquiries.filter((quote) => matchesCateringTab(quote, tab)), [cateringInquiries, tab]);
   const visibleOrders = useMemo(() => tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, debouncedSearch)), [debouncedSearch, filter, tabOrders]);
@@ -132,11 +137,13 @@ export function OwnerOrderManagementFlow() {
     void Promise.all([
       fetch(`/api/owner/orders?${query}`, { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: OrderDoc[] }>(response, "Orders could not be loaded.")),
       fetch(`/api/owner/kitchen?${query}`, { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
+      fetch("/api/owner/operational-settings", { cache: "no-store", signal: controller.signal }).then((response) => readOwnerPayload<{ data?: Partial<OperationalSettings> }>(response, "Order settings could not be loaded.")),
     ])
-      .then(([ordersPayload, kitchenPayload]) => {
+      .then(([ordersPayload, kitchenPayload, settingsPayload]) => {
         if (controller.signal.aborted) return;
         setOrders((ordersPayload.data ?? []).map(toDemoOrder));
         setTableOrders(kitchenPayload.data ?? []);
+        setOperationalSettings(normalizeOperationalSettings(settingsPayload.data));
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
@@ -530,14 +537,12 @@ function ActiveOrdersGrid({
   const visible = orders.slice(0, 30);
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="hidden grid-cols-[110px_minmax(150px,1fr)_110px_minmax(180px,1.2fr)_110px_145px_120px_124px] gap-3 border-b bg-slate-50 px-3 py-2 text-[11px] font-black uppercase text-slate-500 xl:grid">
-        <span>Order</span>
-        <span>Kitchen</span>
+      <div className="hidden grid-cols-[minmax(220px,1.4fr)_112px_150px_96px_88px_132px] gap-3 border-b bg-slate-50 px-3 py-2 text-[11px] font-black uppercase text-slate-500 xl:grid">
+        <span>Status</span>
+        <span>Priority</span>
+        <span>Progress</span>
         <span>ETA</span>
-        <span>Items</span>
-        <span>Payment</span>
-        <span>Type / Table</span>
-        <span>Placed</span>
+        <span>Quick View</span>
         <span>Actions</span>
       </div>
       <div className="divide-y divide-slate-100">
@@ -581,27 +586,43 @@ function ActiveOrderCard({
   const ready = order.status === "ready";
   const isNew = order.status === "new";
   const preparing = order.status === "accepted" || order.status === "preparing";
+  const [mobileQuickOpen, setMobileQuickOpen] = useState(false);
+  const primaryAction = isNew
+    ? { label: "Accept", onClick: onAccept }
+    : preparing
+      ? { label: "Ready", onClick: onReady }
+      : ready
+        ? { label: "Serve", onClick: onComplete }
+        : null;
   return (
-    <article className={cn("grid gap-3 px-3 py-2.5 transition xl:grid-cols-[110px_minmax(150px,1fr)_110px_minmax(180px,1.2fr)_110px_145px_120px_124px] xl:items-center", isNew && "border-l-4 border-orange-500 bg-orange-50/45 kitchen-new-order-pulse", delayed && "bg-gradient-to-r from-red-50 to-white", ready && "bg-gradient-to-r from-emerald-50 to-white kitchen-ready-pulse", critical && "ring-1 ring-inset ring-red-300", highlighted && "ring-2 ring-inset ring-orange-400")}>
+    <article className={cn("grid gap-3 px-3 py-2.5 transition xl:grid-cols-[minmax(220px,1.4fr)_112px_150px_96px_88px_132px] xl:items-center", isNew && "border-l-4 border-orange-500 bg-orange-50/45 kitchen-new-order-pulse", delayed && "bg-red-50/75", ready && "bg-emerald-50/65", critical && "ring-1 ring-inset ring-red-300", highlighted && "ring-2 ring-inset ring-orange-400")}>
       <div className="min-w-0">
-        <p className="truncate text-base font-black text-slate-950">{order.displayId ?? "Order"}</p>
-        <p className="truncate text-xs font-bold text-slate-500">{order.customer}</p>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <p className="truncate text-base font-black text-slate-950">{order.displayId ?? "Order"}</p>
+          <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status), delayed && "order-delay-soft-blink")}>{order.status}</span>
+        </div>
+        <p className="mt-0.5 truncate text-xs font-bold text-slate-500">{order.customer} · {order.tableNumber || order.type} · {order.source}</p>
       </div>
-      <OrderCell label="Kitchen" value={order.kitchenStatus} strong>
-        <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status))}>{order.status}</span>
-      </OrderCell>
-      <OrderCell label="ETA" value={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel} tone={delayed ? "danger" : ready ? "success" : "default"}>
+      <OrderCell label="Priority" value={order.priorityLabel} tone={critical || delayed ? "danger" : "default"}>
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black", priorityTone(order.delay?.priority))}>
           {delayed || critical ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" />}
-          {order.priorityLabel}
+          {order.delay?.lateMinutes ? `${order.delay.lateMinutes}m` : "On time"}
         </span>
       </OrderCell>
-      <OrderCell label="Items" value={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"}`} subvalue={order.itemSummary} strong />
-      <OrderCell label="Payment" value={order.paymentStatusLabel} tone={paymentTone(order.paymentStatusLabel)} />
-      <OrderCell label="Type / Table" value={order.tableNumber || order.type} subvalue={order.source} />
-      <OrderCell label="Placed" value={order.age} subvalue={order.actualTime} />
+      <OrderCell label="Progress" value={order.kitchenStatus} subvalue={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"} · ${order.itemSummary}`} strong>
+        <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+          <span className={cn("block h-full rounded-full", ready ? "bg-emerald-500" : preparing ? "bg-blue-500" : isNew ? "bg-orange-500" : "bg-slate-400")} style={{ width: `${orderProgressPercent(order.status)}%` }} />
+        </span>
+      </OrderCell>
+      <OrderCell label="ETA" value={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel} subvalue={order.age} tone={delayed ? "danger" : ready ? "success" : "default"} blink={delayed} />
+      <QuickViewCell order={order} mobileOpen={mobileQuickOpen} onMobileToggle={() => setMobileQuickOpen((value) => !value)} />
       <div className="flex items-center gap-2 xl:justify-end">
-        <Button size="sm" variant="outline" className="min-h-9" onClick={onView}><Eye className="size-4" />Open</Button>
+        {primaryAction ? (
+          <Button size="sm" variant={primaryAction.label === "Serve" ? "default" : "outline"} className={cn("min-h-9", delayed && primaryAction.label === "Serve" && "order-delay-soft-blink")} onClick={primaryAction.onClick}>
+            <CheckCircle2 className="size-4" />
+            {primaryAction.label}
+          </Button>
+        ) : null}
         <ActiveOrderMenu
           isNew={isNew}
           preparing={preparing}
@@ -613,6 +634,7 @@ function ActiveOrderCard({
           onView={onView}
         />
       </div>
+      {mobileQuickOpen ? <div className="xl:hidden"><QuickViewContent order={order} /></div> : null}
     </article>
   );
 }
@@ -639,7 +661,6 @@ function ActiveOrderMenu({
   onView: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
   const act = (fn: () => void) => () => {
     close();
@@ -648,7 +669,7 @@ function ActiveOrderMenu({
   const actions = [
     ...(isNew ? [{ label: "Accept", onClick: onAccept }, { label: "Reject", onClick: onReject, danger: true }] : []),
     ...(preparing ? [{ label: "Mark Ready", onClick: onReady }] : []),
-    ...(ready ? [{ label: "Complete", onClick: onComplete }] : []),
+    ...(ready ? [{ label: "Serve", onClick: onComplete }] : []),
     { label: "Edit", onClick: onView },
     { label: "Add Items", onClick: onView },
     { label: "Split Bill", onClick: onView },
@@ -667,30 +688,21 @@ function ActiveOrderMenu({
     { label: "Cancel", onClick: onReject, danger: true },
   ];
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("pointerdown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
-    <div ref={ref} className="relative">
-      <Button size="sm" variant="outline" className="min-h-9" onClick={() => setOpen((value) => !value)} aria-haspopup="menu" aria-expanded={open}>
-        <MoreHorizontal className="size-4" />
-        More
-      </Button>
-      {open ? (
-        <div role="menu" className="absolute right-0 z-40 mt-2 max-h-80 w-48 overflow-y-auto rounded-xl border bg-white p-1 shadow-2xl">
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <Button size="icon-sm" variant="outline" aria-label="More actions" title="More actions">
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="end"
+          sideOffset={8}
+          collisionPadding={12}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          className="z-[70] max-h-80 w-52 overflow-y-auto rounded-xl border border-white/50 bg-white/90 p-1 shadow-2xl backdrop-blur data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+        >
           {actions.map((action) => (
             <button
               key={action.label}
@@ -702,18 +714,109 @@ function ActiveOrderMenu({
               {action.label}
             </button>
           ))}
-        </div>
-      ) : null}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function QuickViewCell({ order, mobileOpen, onMobileToggle }: { order: ActiveOpsOrder; mobileOpen: boolean; onMobileToggle: () => void }) {
+  return (
+    <div className="flex items-center xl:justify-center">
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <Button size="icon-sm" variant="outline" className="hidden xl:inline-flex" aria-label={`View ${order.displayId ?? order.id}`} title="Quick view">
+            <Eye className="size-4" />
+          </Button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="center"
+            sideOffset={8}
+            collisionPadding={12}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            className="z-[70] max-h-[min(78vh,42rem)] w-[min(34rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-white/50 bg-white/80 p-4 shadow-2xl backdrop-blur-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+          >
+            <QuickViewContent order={order} />
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      <Button size="sm" variant="outline" className="xl:hidden" onClick={onMobileToggle} aria-expanded={mobileOpen}>
+        <Eye className="size-4" />
+        View
+      </Button>
     </div>
   );
 }
 
-function OrderCell({ label, value, subvalue, strong, tone = "default", children }: { label: string; value: string; subvalue?: string; strong?: boolean; tone?: "default" | "success" | "danger"; children?: ReactNode }) {
+function QuickViewContent({ order }: { order: ActiveOpsOrder }) {
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <p className="text-xs font-black uppercase text-orange-600">Quick view</p>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+          <h3 className="truncate text-xl font-black text-slate-950">{order.displayId ?? order.id}</h3>
+          <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status))}>{order.status}</span>
+        </div>
+        <p className="mt-1 font-semibold text-slate-600">{order.customer || "Customer"} · {order.tableNumber || order.type}</p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <QuickFact label="Payment" value={`${order.paymentStatusLabel} · ${formatCurrency(order.total)}`} />
+        <QuickFact label="Kitchen" value={order.kitchenStatus} />
+        <QuickFact label="ETA" value={order.delay?.delayed ? `${order.delay.lateMinutes}m late` : order.etaLabel} tone={order.delay?.delayed ? "danger" : undefined} />
+        <QuickFact label="Order time" value={order.actualTime || "-"} />
+        <QuickFact label="Waiting" value={order.age} tone={order.delay?.delayed ? "danger" : undefined} />
+        <QuickFact label="Priority" value={order.priorityLabel} tone={order.delay?.delayed ? "danger" : undefined} />
+      </div>
+
+      <div className="rounded-xl border border-white/60 bg-white/70 p-3">
+        <p className="text-xs font-black uppercase text-slate-500">Items</p>
+        <div className="mt-2 space-y-2">
+          {order.lines.map((line, index) => (
+            <div key={`${line.name}-${index}`} className="rounded-lg bg-slate-50 p-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 font-black text-slate-950">{line.name}</p>
+                <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-700">x{line.quantity}</span>
+              </div>
+              {line.modifiers?.length ? <p className="mt-1 text-xs font-bold text-orange-700">{line.modifiers.join(", ")}</p> : null}
+              {line.notes ? <p className="mt-1 text-xs font-semibold text-slate-600">Note: {line.notes}</p> : null}
+              {line.allergyNote ? <p className="mt-1 text-xs font-black text-red-700">Allergy: {line.allergyNote}</p> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-white/60 bg-white/70 p-3">
+        <p className="text-xs font-black uppercase text-slate-500">Timeline</p>
+        <div className="mt-2 space-y-2">
+          {order.timeline.map((item, index) => (
+            <div key={`${item.label}-${index}`} className="grid grid-cols-[7px_1fr] gap-2">
+              <span className="mt-1.5 size-1.5 rounded-full bg-orange-500" />
+              <p className="font-semibold text-slate-700"><span className="font-black text-slate-950">{item.label}</span>{item.at ? ` · ${item.at}` : ""}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickFact({ label, value, tone }: { label: string; value: string; tone?: "danger" }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-white/60 bg-white/70 p-2">
+      <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
+      <p className={cn("mt-1 truncate font-black text-slate-900", tone === "danger" && "text-red-700")}>{value}</p>
+    </div>
+  );
+}
+
+function OrderCell({ label, value, subvalue, strong, tone = "default", blink, children }: { label: string; value: string; subvalue?: string; strong?: boolean; tone?: "default" | "success" | "danger"; blink?: boolean; children?: ReactNode }) {
   return (
     <div className="min-w-0">
       <p className="text-[10px] font-black uppercase text-slate-400 xl:hidden">{label}</p>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        <p className={cn("truncate text-sm font-black", strong ? "text-slate-950" : tone === "success" ? "text-emerald-700" : tone === "danger" ? "text-red-700" : "text-slate-700")}>{value || "-"}</p>
+        <p className={cn("truncate text-sm font-black", strong ? "text-slate-950" : tone === "success" ? "text-emerald-700" : tone === "danger" ? "text-red-700" : "text-slate-700", blink && "order-delay-soft-blink")}>{value || "-"}</p>
         {children}
       </div>
       {subvalue ? <p className="truncate text-xs font-semibold text-slate-500">{subvalue}</p> : null}
@@ -951,14 +1054,14 @@ async function readOwnerPayload<T>(response: Response, fallback: string): Promis
   return payload;
 }
 
-function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: number): ActiveOpsOrder[] {
+function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: number, orderDelayThresholdMinutes: number): ActiveOpsOrder[] {
   const countByPhone = new Map<string, number>();
   for (const order of orders) {
     const phone = normalizePhone(order.customer.phone);
     if (phone) countByPhone.set(phone, (countByPhone.get(phone) ?? 0) + 1);
   }
   const customerOrders = orders.map((order, index) => {
-    const delay = getKitchenDelay({ status: order.status, createdAt: order.createdAt, prepEstimateMinutes: order.prepEstimateMinutes });
+    const delay = getKitchenDelay({ status: order.status, createdAt: order.createdAt, prepEstimateMinutes: order.prepEstimateMinutes }, now, { orderDelayThresholdMinutes });
     return {
       delay,
       id: order.id,
@@ -991,6 +1094,8 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       createdAtMs: timestampMs(order.createdAt),
       etaLabel: `${order.prepEstimateMinutes ?? 30} min`,
       itemSummary: compactItems(order.lines),
+      lines: order.lines,
+      timeline: compactTimeline(order.status, order.createdAt, actualOrderTime(order.createdAt)),
       kitchenStatus: kitchenStatusLabel(order.status),
       paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
       priorityLabel: priorityLabel(delay.priority),
@@ -998,7 +1103,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
     };
   });
   const kotOrders = tableOrders.map((order, index) => {
-    const delay = getKitchenDelay(order, now);
+    const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
     return {
       delay,
       id: order.id,
@@ -1020,6 +1125,8 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       createdAtMs: timestampMs(order.createdAt),
       etaLabel: `${order.etaMinutes ?? 15} min`,
       itemSummary: compactItems(order.lines),
+      lines: order.lines,
+      timeline: compactTimeline(order.status, order.createdAt, actualOrderTime(order.createdAt), order.statusHistory),
       kitchenStatus: kitchenStatusLabel(order.status),
       paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
       priorityLabel: priorityLabel(delay.priority),
@@ -1176,14 +1283,41 @@ function paymentStatusLabel(status?: string) {
   return kitchenStatusLabel(status);
 }
 
-function paymentTone(status: string) {
-  return /paid/i.test(status) && !/unpaid|pending/i.test(status) ? "success" : "danger";
-}
-
 function compactItems(lines: DemoOrder["lines"] | TableOrder["lines"]) {
   const summary = lines.slice(0, 2).map((line) => `${line.quantity}x ${line.name}`).join(", ");
   const more = lines.length > 2 ? ` +${lines.length - 2}` : "";
   return `${summary}${more}`;
+}
+
+function compactTimeline(status: string, createdAt: string, createdLabel: string, history: TableOrder["statusHistory"] = []) {
+  const entries = history
+    .map((entry) => ({
+      label: kitchenStatusLabel(String(entry.status ?? entry.foodStatus ?? entry.event ?? status)),
+      at: formatTimelineTime(entry.at),
+    }))
+    .filter((entry) => entry.label)
+    .slice(-5);
+  return [
+    { label: "Created", at: createdLabel || formatTimelineTime(createdAt) },
+    ...entries,
+    ...(entries.some((entry) => entry.label.toLowerCase() === kitchenStatusLabel(status).toLowerCase()) ? [] : [{ label: kitchenStatusLabel(status), at: "Now" }]),
+  ];
+}
+
+function formatTimelineTime(value: unknown) {
+  const iso = formatFirestoreDateTime(value);
+  if (!iso) return "";
+  const date = new Date(iso);
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : "";
+}
+
+function orderProgressPercent(status: string) {
+  if (status === "new" || status === "occupied") return 15;
+  if (status === "accepted") return 35;
+  if (status === "preparing") return 65;
+  if (status === "ready" || status === "served") return 90;
+  if (status === "completed" || status === "delivered") return 100;
+  return 25;
 }
 
 function priorityLabel(priority?: DelayPriority) {

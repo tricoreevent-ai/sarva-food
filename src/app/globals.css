@@ -799,6 +799,10 @@ textarea::selection,
   animation: kitchen-ready-pulse 2.8s ease-in-out infinite;
 }
 
+.order-delay-soft-blink {
+  animation: order-delay-soft-blink 1.8s ease-in-out infinite;
+}
+
 @keyframes kitchen-delay-pulse {
   0%,
   100% {
@@ -832,12 +836,26 @@ textarea::selection,
   }
 }
 
+@keyframes order-delay-soft-blink {
+  0%,
+  100% {
+    opacity: 1;
+    filter: saturate(1);
+  }
+
+  50% {
+    opacity: 0.62;
+    filter: saturate(1.2);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sarva-toast-progress,
   .sarva-notification-card,
   .kitchen-delay-pulse,
   .kitchen-new-order-pulse,
-  .kitchen-ready-pulse {
+  .kitchen-ready-pulse,
+  .order-delay-soft-blink {
     animation: none;
   }
 }

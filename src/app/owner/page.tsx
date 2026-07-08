@@ -28,7 +28,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { QuickActionButton } from "@/components/owner/quick-action";
@@ -397,21 +397,23 @@ function KpiCard({
 
 function AnimatedNumber({ value, format, className }: { value: number; format: (input: number) => string; className?: string }) {
   const [display, setDisplay] = useState(0);
+  const displayRef = useRef(0);
 
   useEffect(() => {
     let frame = 0;
-    const start = display;
+    const start = displayRef.current;
     const delta = value - start;
     const startedAt = performance.now();
     const duration = 480;
     const animate = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / duration);
-      setDisplay(start + delta * easeOutCubic(progress));
+      const next = start + delta * easeOutCubic(progress);
+      displayRef.current = next;
+      setDisplay(next);
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return <span className={className}>{format(display)}</span>;

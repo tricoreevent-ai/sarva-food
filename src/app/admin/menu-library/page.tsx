@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/lib/client-toast";
 import { Archive, Copy, Download, Eye, FileJson, FileSpreadsheet, PackageOpen, RotateCcw, Search, ShieldCheck, ToggleLeft, ToggleRight, Upload } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
@@ -83,11 +83,6 @@ export default function AdminMenuLibraryPage() {
     return () => window.clearTimeout(timer);
   }, [q]);
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, status, categoryId, subcategoryId, cuisineId, foodType, tag, minRating, maxPrice, maxPrepTime, sort, offset]);
-
   const duplicateKeys = useMemo(() => rows.reduce((map, row) => {
     const key = duplicateKey(row);
     map.set(key, (map.get(key) ?? 0) + 1);
@@ -119,7 +114,7 @@ export default function AdminMenuLibraryPage() {
     }
   }, [duplicateKeys, importFormat, importMode, importText]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -149,7 +144,14 @@ export default function AdminMenuLibraryPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [categoryId, cuisineId, foodType, maxPrepTime, maxPrice, minRating, offset, search, sort, status, subcategoryId, tag]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   async function runAction(action: string, id?: string) {
     const ids = id ? [id] : selected;

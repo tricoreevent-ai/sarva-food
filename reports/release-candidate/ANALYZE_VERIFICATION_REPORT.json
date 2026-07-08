@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-07-08T14:56:47.827Z",
+  "summary": {
+    "counts": {
+      "PASS": 1,
+      "WARNING": 0,
+      "ERROR": 0,
+      "FAIL": 0,
+      "MANUAL": 0
+    },
+    "exitCode": 0
+  },
+  "checks": [
+    {
+      "name": "analyzer:reports",
+      "status": "PASS",
+      "detail": "All analyzer reports generated and usable."
+    },
+    {
+      "name": "analyzer:exit",
+      "status": "PASS",
+      "detail": "next build exit=0 signal=none error=none"
+    },
+    {
+      "name": "analyzer:middleware-artifacts",
+      "status": "PASS",
+      "detail": {
+        "runtime": true,
+        "proxyTrace": true,
+        "trace": true,
+        "globalErrorTrace": true
+      }
+    }
+  ],
+  "reports": [
+    {
+      "file": ".next/analyze/nodejs.html",
+      "exists": true,
+      "bytes": 2006311
+    },
+    {
+      "file": ".next/analyze/edge.html",
+      "exists": true,
+      "bytes": 274816
+    },
+    {
+      "file": ".next/analyze/client.html",
+      "exists": true,
+      "bytes": 1583888
+    }
+  ]
+}

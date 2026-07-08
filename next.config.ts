@@ -3,6 +3,8 @@ import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
+  analyzerMode: "static",
+  logLevel: "info",
   openAnalyzer: false,
 });
 
@@ -19,6 +21,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins,
   productionBrowserSourceMaps: false,
+  experimental: {
+    webpackBuildWorker: false,
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30,
@@ -115,6 +120,10 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/images/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/fonts/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {

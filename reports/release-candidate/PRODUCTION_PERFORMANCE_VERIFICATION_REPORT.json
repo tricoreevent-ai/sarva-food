@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-07-08T14:51:56.526Z",
+  "summary": {
+    "counts": {
+      "PASS": 3,
+      "WARNING": 1,
+      "ERROR": 0,
+      "FAIL": 0,
+      "MANUAL": 2
+    },
+    "exitCode": 0
+  },
+  "checks": [
+    {
+      "name": "target:url",
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com"
+    },
+    {
+      "name": "bundle:tracked-route-js",
+      "status": "WARNING",
+      "detail": "/owner/orders 1245 KB / budget 1200 KB"
+    },
+    {
+      "name": "bundle:static-js-total",
+      "status": "PASS",
+      "detail": "8846 KB built JS total; informational, not first-load budget."
+    },
+    {
+      "name": "bundle:analyzer-client",
+      "status": "PASS",
+      "detail": "ANALYZE_VERIFICATION_REPORT.json confirms npm run analyze completed."
+    },
+    {
+      "name": "lighthouse:desktop",
+      "status": "MANUAL",
+      "detail": "Chrome/Lighthouse unavailable or RUN_LIGHTHOUSE=1 not set."
+    },
+    {
+      "name": "lighthouse:mobile",
+      "status": "MANUAL",
+      "detail": "Run with RUN_LIGHTHOUSE=1 PRODUCTION_URL=https://..."
+    }
+  ],
+  "sections": [
+    {
+      "title": "Budgets",
+      "body": "| Metric | Budget |\n| --- | --- |\n| desktopPerformance | 0.95 |\n| mobilePerformance | 0.9 |\n| lcpMs | 2500 |\n| cls | 0.1 |\n| inpMs | 200 |\n| ttfbMs | 800 |\n| routeJsKb | 1200 |"
+    },
+    {
+      "title": "Bundle Snapshot",
+      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 393 |\n| staticJsKb | 8846 |\n| staticCssKb | 191 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 191 KB CSS |\n| maxTrackedRoute | /owner/orders 1245 KB JS / 191 KB CSS |"
+    },
+    {
+      "title": "Tracked Routes",
+      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 191 | 19 |\n| /owner | 560 | 191 | 27 |\n| /owner/kitchen | 642 | 191 | 30 |\n| /owner/orders | 1245 | 191 | 40 |\n| /owner/pos | 565 | 191 | 28 |\n| /owner/settings | 673 | 191 | 31 |\n| /profile | 548 | 191 | 25 |"
+    }
+  ]
+}

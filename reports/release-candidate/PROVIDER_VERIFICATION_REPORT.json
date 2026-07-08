@@ -1,0 +1,71 @@
+{
+  "generatedAt": "2026-07-08T14:50:33.307Z",
+  "summary": {
+    "counts": {
+      "PASS": 8,
+      "WARNING": 0,
+      "ERROR": 0,
+      "FAIL": 0,
+      "MANUAL": 3
+    },
+    "exitCode": 0
+  },
+  "checks": [
+    {
+      "name": "provider:Firebase",
+      "status": "PASS",
+      "detail": "hosted public/admin Firebase configured"
+    },
+    {
+      "name": "provider:Firestore",
+      "status": "PASS",
+      "detail": "hosted Firestore status: connected"
+    },
+    {
+      "name": "provider:Authentication",
+      "status": "PASS",
+      "detail": "hosted Firebase public auth config present"
+    },
+    {
+      "name": "provider:Storage",
+      "status": "PASS",
+      "detail": "hosted storage status: configured"
+    },
+    {
+      "name": "provider:Cloudinary",
+      "status": "PASS",
+      "detail": "hosted Cloudinary status: configured"
+    },
+    {
+      "name": "provider:SMTP",
+      "status": "PASS",
+      "detail": "hosted SMTP status: configured"
+    },
+    {
+      "name": "provider:Google OAuth",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "provider:Mapbox",
+      "status": "PASS",
+      "detail": "configured"
+    },
+    {
+      "name": "provider:Razorpay",
+      "status": "MANUAL",
+      "detail": "hosted status owner_scoped_or_missing; verify owner-scoped settings and dashboard/webhook before enabling live payments"
+    },
+    {
+      "name": "provider:WhatsApp",
+      "status": "MANUAL",
+      "detail": "requires Meta/WhatsApp dashboard env verification before Cloud API launch"
+    },
+    {
+      "name": "provider:live-checks",
+      "status": "MANUAL",
+      "detail": "Set PROVIDER_LIVE=1 and run provider dashboard/API smoke with real credentials."
+    }
+  ],
+  "sections": []
+}

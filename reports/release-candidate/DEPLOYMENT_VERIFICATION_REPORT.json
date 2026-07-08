@@ -1,0 +1,101 @@
+{
+  "generatedAt": "2026-07-08T15:04:03.851Z",
+  "summary": {
+    "counts": {
+      "PASS": 15,
+      "WARNING": 1,
+      "ERROR": 1,
+      "FAIL": 0,
+      "MANUAL": 0
+    },
+    "exitCode": 1
+  },
+  "checks": [
+    {
+      "name": "http:release-info",
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com/api/release-info -> HTTP 200"
+    },
+    {
+      "name": "release:version",
+      "status": "PASS",
+      "detail": "expected v1.0.0-rc3, saw v1.0.0-rc3"
+    },
+    {
+      "name": "release:sha",
+      "status": "WARNING",
+      "detail": "hosted currently serves de0f78fea85f650c21594d92ba9610ecbd80d151; final certification commit is pending and must be redeployed"
+    },
+    {
+      "name": "release:branch",
+      "status": "PASS",
+      "detail": "expected release/production-nammude"
+    },
+    {
+      "name": "release:environment",
+      "status": "ERROR",
+      "detail": "saw development"
+    },
+    {
+      "name": "release:timestamp",
+      "status": "PASS",
+      "detail": "deployment timestamp present"
+    },
+    {
+      "name": "release:runtime",
+      "status": "PASS",
+      "detail": "runtime v22.18.0"
+    },
+    {
+      "name": "release:plugin-flags",
+      "status": "PASS",
+      "detail": "runtime dashboard/profiler disabled"
+    },
+    {
+      "name": "http:health-live",
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com/health/live -> HTTP 200"
+    },
+    {
+      "name": "health:live-status",
+      "status": "PASS",
+      "detail": "status ok"
+    },
+    {
+      "name": "http:health-ready",
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com/health/ready -> HTTP 200"
+    },
+    {
+      "name": "health:ready-http",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "firebase:firestore",
+      "status": "PASS",
+      "detail": "connected"
+    },
+    {
+      "name": "firebase:admin",
+      "status": "PASS",
+      "detail": "Firebase Admin configured"
+    },
+    {
+      "name": "env:consistency",
+      "status": "PASS",
+      "detail": "release-info and health environment match"
+    },
+    {
+      "name": "http:health-startup",
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com/health/startup -> HTTP 200"
+    },
+    {
+      "name": "health:startup",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    }
+  ],
+  "sections": []
+}

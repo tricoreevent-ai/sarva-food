@@ -17,6 +17,7 @@ import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data"
 import { useAppStore } from "@/lib/app-store";
 import { useThemeMode } from "@/lib/theme-provider";
 import { getConnectivitySnapshot, offlineQueueManager, startOfflineSyncEngine, subscribeConnectivity, subscribeOfflineQueue, type ConnectivitySnapshot, type OfflineQueueEntry } from "@/lib/offline";
+import { defaultOperationalSettings, normalizeOperationalSettings, orderDelayThresholdOptions, type OperationalSettings } from "@/lib/order-delay-settings";
 import { operationalSoundOptions, playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
@@ -245,13 +246,35 @@ export function OwnerSettingsFlow() {
     maxActiveOrders: 20,
     deliveryRadiusLimit: 7,
     staffingRequired: true,
+    orderDelayThresholdMinutes: defaultOperationalSettings.orderDelayThresholdMinutes,
   });
+  const [automationLoading, setAutomationLoading] = useState(true);
+  const [automationSaving, setAutomationSaving] = useState(false);
   const [successNotice, setSuccessNotice] = useState("");
   const dismissSuccessNotice = useCallback(() => setSuccessNotice(""), []);
 
   useEffect(() => {
     window.localStorage.setItem(soundStorageKey, JSON.stringify(soundPrefs));
   }, [soundPrefs]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/owner/operational-settings", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: Partial<OperationalSettings>; error?: string }) => {
+        if (!active) return;
+        if (payload.error) throw new Error(payload.error);
+        const settings = normalizeOperationalSettings(payload.data);
+        setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: settings.orderDelayThresholdMinutes }));
+      })
+      .catch(() => toast.error("Order delay settings could not be loaded."))
+      .finally(() => {
+        if (active) setAutomationLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -316,6 +339,26 @@ export function OwnerSettingsFlow() {
     };
     await updateTaxSettings(nextSettings);
     setSuccessNotice("Pricing rules saved for menu, parcel, delivery, and POS billing.");
+  }
+
+  async function saveAutomation() {
+    setAutomationSaving(true);
+    try {
+      const settings = normalizeOperationalSettings({ orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes });
+      const response = await fetch("/api/owner/operational-settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings }),
+      });
+      const payload = await response.json().catch(() => ({})) as { data?: OperationalSettings; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Order settings could not be saved.");
+      setAutomation((current) => ({ ...current, ...normalizeOperationalSettings(payload.data) }));
+      setSuccessNotice("Order delay threshold saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Order settings could not be saved.");
+    } finally {
+      setAutomationSaving(false);
+    }
   }
 
   async function saveProfile() {
@@ -693,7 +736,7 @@ export function OwnerSettingsFlow() {
         </TabsContent>
 
         <TabsContent value="ordering">
-          <DashboardCard title="Order Automation">
+          <DashboardCard title="Order Automation" action={<Button onClick={() => void saveAutomation()} disabled={automationLoading || automationSaving}><Save className="size-4" />{automationSaving ? "Saving" : "Save ordering"}</Button>}>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {(["website", "swiggy", "zomato", "pos", "scheduled"] as const).map((key) => (
                 <ToggleRow key={key} label={`${key[0].toUpperCase()}${key.slice(1)} orders`} checked={automation[key]} onChange={(value) => setAutomation((current) => ({ ...current, [key]: value }))} />
@@ -702,6 +745,16 @@ export function OwnerSettingsFlow() {
               <ToggleRow label="Staffing availability required" checked={automation.staffingRequired} onChange={(value) => setAutomation((current) => ({ ...current, staffingRequired: value }))} />
               <NumberRow label="Max active order limit" value={automation.maxActiveOrders} onChange={(value) => setAutomation((current) => ({ ...current, maxActiveOrders: value }))} />
               <NumberRow label="Delivery radius limit km" value={automation.deliveryRadiusLimit} onChange={(value) => setAutomation((current) => ({ ...current, deliveryRadiusLimit: value }))} />
+              <label className="grid gap-1 text-xs font-black uppercase text-muted-foreground">
+                Order delay threshold
+                <select
+                  className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground"
+                  value={automation.orderDelayThresholdMinutes}
+                  onChange={(event) => setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: Number(event.target.value) as OperationalSettings["orderDelayThresholdMinutes"] }))}
+                >
+                  {orderDelayThresholdOptions.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
+                </select>
+              </label>
               <p className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 md:col-span-2 xl:col-span-3">{automationSummary} automation controls enabled.</p>
             </div>
           </DashboardCard>

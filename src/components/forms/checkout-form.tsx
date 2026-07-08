@@ -454,6 +454,7 @@ export function CheckoutForm({
 async function createOrderThroughServer(input: CreateOrderRequest) {
   const response = await fetch("/api/orders", {
     method: "POST",
+    credentials: "same-origin",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
@@ -472,6 +473,7 @@ async function payWithRazorpay(input: { orderId: string; amount: number; custome
   await loadRazorpayCheckout();
   const orderResponse = await fetch("/api/payments/razorpay/order", {
     method: "POST",
+    credentials: "same-origin",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ orderId: input.orderId, amount: input.amount }),
   });
@@ -511,6 +513,7 @@ async function payWithRazorpay(input: { orderId: string; amount: number; custome
   });
   const verifyResponse = await fetch("/api/payments/razorpay/verify", {
     method: "POST",
+    credentials: "same-origin",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ...payment, orderId: input.orderId }),
   });

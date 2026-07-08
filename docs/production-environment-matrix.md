@@ -64,6 +64,9 @@ Release: `v1.0.0-rc3`
 | `NEXT_PUBLIC_SENTRY_DSN` | Browser Sentry DSN. | Optional monitoring. |
 | `SENTRY_DSN` | Server Sentry DSN. | Optional monitoring. |
 | `NEXT_PUBLIC_ENABLE_PERFORMANCE_DIAGNOSTICS` | Runtime diagnostics flag. | Defaults to enabled unless set to `false`. |
+| `NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS` | Phase 1 plugin diagnostics flag. | Defaults disabled; set to `true` only for controlled profiling. |
+| `NEXT_PUBLIC_ENABLE_PLUGIN_RUNTIME_DASHBOARD` | Developer-only plugin dashboard. | Defaults disabled; ignored in production. |
+| `NEXT_PUBLIC_ENABLE_PLUGIN_PROFILER` | Optional plugin profiler. | Defaults disabled and depends on quality diagnostics. |
 
 ## Build Metadata
 

@@ -1,4 +1,5 @@
 import type { OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
+import { defaultOrderDelayThresholdMinutes, normalizeOrderDelayThreshold } from "@/lib/order-delay-settings";
 
 type DelayStatus = TableOrderStatus | OrderStatus | string;
 type StatusEntry = { status?: DelayStatus; foodStatus?: DelayStatus; at?: unknown };
@@ -23,18 +24,23 @@ type DelayInput = {
   priority?: "normal" | "rush" | string;
   statusHistory?: StatusEntry[];
 };
+type DelayOptions = {
+  orderDelayThresholdMinutes?: number;
+};
 
-const terminalStatuses = new Set(["completed", "cancelled", "billed", "delivered", "rejected"]);
+const terminalStatuses = new Set(["completed", "cancelled", "billed", "delivered", "rejected", "served"]);
 
-export function getKitchenDelay(order: DelayInput, now = Date.now()): DelayState {
+export function getKitchenDelay(order: DelayInput, now = Date.now(), options: DelayOptions = {}): DelayState {
   const etaMinutes = Math.max(1, Math.round(Number(order.etaMinutes ?? order.prepEstimateMinutes ?? 12)));
+  const thresholdMinutes = normalizeOrderDelayThreshold(options.orderDelayThresholdMinutes ?? defaultOrderDelayThresholdMinutes);
   const createdMs = dateMs(order.createdAt);
   const elapsedMinutes = minutesBetween(createdMs, now);
   const status = String(order.status ?? "");
   const stageStartedMs = status === "ready" ? statusMs(order.statusHistory, "ready") ?? createdMs : status === "preparing" ? statusMs(order.statusHistory, "preparing") ?? createdMs : status === "accepted" ? statusMs(order.statusHistory, "accepted") ?? createdMs : createdMs;
   const stageMinutes = minutesBetween(stageStartedMs, now);
   const measuredMinutes = status === "ready" ? stageMinutes : elapsedMinutes;
-  const lateMinutes = terminalStatuses.has(status) ? 0 : Math.max(0, measuredMinutes - etaMinutes);
+  const limitMinutes = status === "ready" ? thresholdMinutes : etaMinutes;
+  const lateMinutes = terminalStatuses.has(status) ? 0 : Math.max(0, measuredMinutes - limitMinutes);
   const delayed = lateMinutes > 0;
   const ratio = measuredMinutes / etaMinutes;
   const priority = priorityFor({ delayed, ratio, rush: order.priority === "rush" });
@@ -49,8 +55,8 @@ export function getKitchenDelay(order: DelayInput, now = Date.now()): DelayState
   };
 }
 
-export function delaySortRank(order: TableOrder, now = Date.now()) {
-  const delay = getKitchenDelay(order, now);
+export function delaySortRank(order: TableOrder, now = Date.now(), options: DelayOptions = {}) {
+  const delay = getKitchenDelay(order, now, options);
   return { criticality: priorityRank(delay.priority), lateMinutes: delay.lateMinutes, etaMinutes: delay.etaMinutes };
 }
 

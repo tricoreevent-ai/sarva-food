@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-07-08T14:50:26.614Z",
+  "summary": {
+    "counts": {
+      "PASS": 1,
+      "WARNING": 0,
+      "ERROR": 0,
+      "FAIL": 0,
+      "MANUAL": 2
+    },
+    "exitCode": 0
+  },
+  "checks": [
+    {
+      "name": "server:heap-growth",
+      "status": "PASS",
+      "detail": "-0.06 MB growth / budget 64 MB"
+    },
+    {
+      "name": "browser:listeners",
+      "status": "MANUAL",
+      "detail": "EventSource/WebSocket/Firestore listener and React mount counts require authenticated Chrome instrumentation."
+    },
+    {
+      "name": "browser:heap",
+      "status": "MANUAL",
+      "detail": "Detached DOM and client heap require 30-minute authenticated browser session."
+    }
+  ],
+  "sections": [
+    {
+      "title": "Samples",
+      "body": "| Time | Heap MB | RSS MB | Status |\n| --- | --- | --- | --- |\n| 2026-07-08T14:50:23.593Z | 79.13 | 172.98 | ok |\n| 2026-07-08T14:50:25.095Z | 79.01 | 172.98 | ok |\n| 2026-07-08T14:50:26.613Z | 79.07 | 172.98 | ok |"
+    }
+  ]
+}
