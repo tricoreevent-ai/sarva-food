@@ -3378,7 +3378,7 @@ function ActiveOrdersPanel({
         />
       ) : (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[112px_minmax(145px,1fr)_82px_92px_108px_128px_132px] gap-2 border-b bg-slate-50/90 px-3 py-2 text-[10px] font-black uppercase text-slate-500 xl:grid">
+          <div className="hidden grid-cols-[minmax(104px,3fr)_minmax(148px,5fr)_minmax(72px,2fr)_minmax(96px,3fr)_minmax(96px,3fr)_minmax(120px,4fr)_180px] gap-2 border-b bg-slate-50/90 px-3 py-2 text-[10px] font-black uppercase text-slate-500 xl:grid">
             <span>Order</span>
             <span>Status</span>
             <span>ETA</span>
@@ -3475,7 +3475,7 @@ function ActiveOrderRow({
   const table = order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in");
   const waiter = order.waiterName || order.assignedStaffName || "Unassigned";
   return (
-    <article className={cn("grid gap-2 px-3 py-2 transition xl:grid-cols-[112px_minmax(145px,1fr)_82px_92px_108px_128px_132px] xl:items-center", delayed && "bg-red-50/70 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/70 kitchen-ready-pulse")}>
+    <article className={cn("grid gap-2 px-3 py-2 transition xl:grid-cols-[minmax(104px,3fr)_minmax(148px,5fr)_minmax(72px,2fr)_minmax(96px,3fr)_minmax(96px,3fr)_minmax(120px,4fr)_180px] xl:items-center", delayed && "bg-red-50/70 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/70 kitchen-ready-pulse")}>
       <button type="button" className="min-w-0 text-left" onClick={() => setDetailsOpen((value) => !value)} aria-expanded={detailsOpen}>
         <h3 className="truncate text-base font-black text-slate-950">{readableTableOrderId(order, index + 1)}</h3>
         <p className="truncate text-xs font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"} · {actualOrderTime(order.createdAt)}</p>
@@ -3493,8 +3493,8 @@ function ActiveOrderRow({
       <ActiveInfoRow label="Items" value={`${itemCount} item${itemCount === 1 ? "" : "s"}`} subvalue={posCompactItems(order.lines)} />
       <ActiveInfoRow label="Payment" value={paymentLabel(order.paymentStatus)} tone={paymentInfoTone(order.paymentStatus)} />
       <ActiveInfoRow label="Table / Waiter" value={table} subvalue={waiter} />
-      <div className="flex items-center gap-2 xl:justify-end">
-        <Button size="sm" variant="outline" className="min-h-9" onClick={() => onOpen(order)}>
+      <div className="flex min-w-0 items-center gap-2 xl:justify-end">
+        <Button size="sm" variant="outline" className="min-h-9 shrink-0 whitespace-nowrap" onClick={() => onOpen(order)}>
           <Eye className="size-4" />
           Open
         </Button>
@@ -3779,7 +3779,7 @@ function PosActiveOrderMenu({
 
   return (
     <div ref={ref} className="relative">
-      <Button size="sm" variant="outline" className="min-h-9" onClick={toggle} aria-haspopup="menu" aria-expanded={open}>
+      <Button size="sm" variant="outline" className="min-h-9 shrink-0 whitespace-nowrap" onClick={toggle} aria-haspopup="menu" aria-expanded={open}>
         <MoreHorizontal className="size-4" />
         More
       </Button>
