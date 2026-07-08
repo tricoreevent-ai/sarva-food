@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T14:50:26.614Z",
+  "generatedAt": "2026-07-08T17:01:06.748Z",
   "summary": {
     "counts": {
       "PASS": 1,
@@ -14,7 +14,7 @@
     {
       "name": "server:heap-growth",
       "status": "PASS",
-      "detail": "-0.06 MB growth / budget 64 MB"
+      "detail": "2.08 MB growth / budget 64 MB"
     },
     {
       "name": "browser:listeners",
@@ -30,7 +30,7 @@
   "sections": [
     {
       "title": "Samples",
-      "body": "| Time | Heap MB | RSS MB | Status |\n| --- | --- | --- | --- |\n| 2026-07-08T14:50:23.593Z | 79.13 | 172.98 | ok |\n| 2026-07-08T14:50:25.095Z | 79.01 | 172.98 | ok |\n| 2026-07-08T14:50:26.613Z | 79.07 | 172.98 | ok |"
+      "body": "| Time | Heap MB | RSS MB | Status |\n| --- | --- | --- | --- |\n| 2026-07-08T17:01:01.384Z | 77.81 | 165.21 | ok |\n| 2026-07-08T17:01:03.441Z | 79.5 | 165.46 | ok |\n| 2026-07-08T17:01:06.747Z | 79.89 | 167.01 | ok |"
     }
   ]
 }

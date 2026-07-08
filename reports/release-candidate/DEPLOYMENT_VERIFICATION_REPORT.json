@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T15:04:03.851Z",
+  "generatedAt": "2026-07-08T17:00:52.384Z",
   "summary": {
     "counts": {
       "PASS": 15,
@@ -24,7 +24,7 @@
     {
       "name": "release:sha",
       "status": "WARNING",
-      "detail": "hosted currently serves de0f78fea85f650c21594d92ba9610ecbd80d151; final certification commit is pending and must be redeployed"
+      "detail": "hosted currently serves 7fcd009d828635aef090fc9785af94b6ffc6b971; final certification commit is pending and must be redeployed"
     },
     {
       "name": "release:branch",

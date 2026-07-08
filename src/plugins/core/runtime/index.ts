@@ -20,6 +20,7 @@ export type PluginRuntimeExecution<TConfig extends object = Record<string, unkno
   metadata: PluginMetadata;
   context: PluginContext<TConfig>;
   sandbox: PluginSandbox<TConfig>;
+  load?: PluginLoadEntry<PluginRuntimeModule<TConfig>>;
   module?: PluginRuntimeModule<TConfig>;
   startedAt: number;
   updatedAt: number;
@@ -77,6 +78,7 @@ class PluginRuntimeManager {
       metadata,
       context,
       sandbox,
+      load: options.load,
       module: runtimeModule,
       startedAt: Date.now(),
       updatedAt: Date.now(),
@@ -92,6 +94,37 @@ class PluginRuntimeManager {
     this.emit();
   }
 
+  async suspend(pluginId: string) {
+    await getPluginLifecycleManager().suspend(pluginId);
+    getEnterprisePluginRegistry().suspend(pluginId);
+    this.emit();
+  }
+
+  async resume(pluginId: string) {
+    await getPluginLifecycleManager().resume(pluginId);
+    const registry = getEnterprisePluginRegistry();
+    registry.resume(pluginId);
+    registry.run(pluginId);
+    this.emit();
+  }
+
+  async reload<TConfig extends object>(pluginId: string) {
+    const execution = this.executions.get(pluginId) as PluginRuntimeExecution<TConfig> | undefined;
+    if (!execution) throw new Error(`Plugin is not running: ${pluginId}.`);
+    const options = {
+      config: execution.context.config,
+      runtimeVersion: execution.context.runtimeVersion,
+      environment: execution.context.environment,
+      user: execution.context.user,
+      tenant: execution.context.tenant,
+      language: execution.context.language,
+      timezone: execution.context.timezone,
+      load: execution.load,
+    } satisfies PluginRuntimeStartOptions<TConfig>;
+    await this.destroy(pluginId);
+    return this.start(execution.metadata, options);
+  }
+
   async destroy(pluginId: string) {
     const execution = this.executions.get(pluginId);
     await getPluginLifecycleManager().destroy(pluginId);
@@ -99,9 +132,15 @@ class PluginRuntimeManager {
     getPluginRouterRegistry().detachPlugin(pluginId);
     getPluginUIRegistry().detachPlugin(pluginId);
     getPluginAssetRegistry().detachPlugin(pluginId);
-    getEnterprisePluginRegistry().destroy(pluginId);
+    const registry = getEnterprisePluginRegistry();
+    registry.destroy(pluginId);
+    registry.unregister(pluginId);
     this.executions.delete(pluginId);
     this.emit();
+  }
+
+  async uninstall(pluginId: string) {
+    await this.destroy(pluginId);
   }
 
   get(pluginId: string) {

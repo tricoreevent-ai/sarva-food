@@ -1,11 +1,11 @@
 # Final Release Certificate
 
-Generated: 2026-07-08T15:04:10.037Z
+Generated: 2026-07-08T17:01:11.406Z
 
 | Field | Value |
 | --- | --- |
 | Release Version | v1.0.0-rc3 |
-| Git SHA At Report Generation | 20429fdf2cdc33c2f2202dc0e1353f5caee33e62 (pre-final certification commit) |
+| Git SHA At Report Generation | 7fcd009d828635aef090fc9785af94b6ffc6b971 (pre-final certification commit) |
 | Branch | release/production-nammude |
 | Build Date | 2026-07-08 |
 | Environment | local-certification |

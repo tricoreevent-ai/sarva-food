@@ -13,7 +13,7 @@ import { getPluginRuntimeManager, type PluginRuntimeExecution, type PluginRuntim
 import type { PluginNavigationContribution, PluginRouteContribution } from "../router";
 import { getPluginRouterRegistry } from "../router";
 import type { PluginServices } from "../services";
-import type { PluginStorage } from "../storage";
+import { getPluginStorageManager, type PluginStorage, type PluginStorageMode, type PluginStorageSnapshot } from "../storage";
 import type { PluginUIContribution } from "../ui";
 import { getPluginUIRegistry } from "../ui";
 
@@ -34,7 +34,17 @@ export type PluginRouter = {
 };
 export type PluginUI = PluginUIContribution;
 export type PluginAssets = PluginAsset;
-export type { PluginAPIRequest, PluginAPIResponse, PluginContext, PluginLogger, PluginServices, PluginStorage };
+export type { PluginStorageMode, PluginStorageSnapshot };
+export type {
+  PluginAPIRequest,
+  PluginAPIResponse,
+  PluginConfigSchema,
+  PluginConfigValidation,
+  PluginContext,
+  PluginLogger,
+  PluginServices,
+  PluginStorage,
+};
 
 export const PluginVersion = {
   sdk: "2.0.0",
@@ -43,6 +53,7 @@ export const PluginVersion = {
 } as const;
 
 export const PluginRuntime = getPluginRuntimeManager();
+export const PluginStorageManager = getPluginStorageManager();
 export const PluginAPI = getPluginAPIRegistry();
 export const PluginRouter = getPluginRouterRegistry();
 export const PluginUI = getPluginUIRegistry();

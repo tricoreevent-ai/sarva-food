@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-08T14:50:48.154Z
+Date: 2026-07-08T16:48:19.354Z
 
 ## Local Validation
 
@@ -21,7 +21,7 @@ Date: 2026-07-08T14:50:48.154Z
 
 | Area | Result |
 | --- | --- |
-| Latest pushed commit | `311104b4c982edae5135d8643deabff65aef4af4` on `release/production-nammude` before this local certification pass. |
+| Latest pushed commit | `7fcd009d828635aef090fc9785af94b6ffc6b971` on `release/production-nammude` before this Phase 2D validation closure. |
 | Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
 | Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
 | API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |
@@ -46,7 +46,7 @@ Date: 2026-07-08T14:50:48.154Z
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
 | Production env | Manual | Set `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. |
-| Hostinger redeploy | Manual | Redeploy the final commit, clear cache, and verify `/api/release-info` reports production env and the final SHA. |
+| Hostinger redeploy | Manual | Redeploy the final Phase 2D commit, clear cache, and verify `/api/release-info` reports production env and the final SHA. |
 
 ## Accepted Warning
 

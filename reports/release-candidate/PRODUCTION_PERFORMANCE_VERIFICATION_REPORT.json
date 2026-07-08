@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T14:51:56.526Z",
+  "generatedAt": "2026-07-08T17:01:00.835Z",
   "summary": {
     "counts": {
       "PASS": 3,
@@ -19,17 +19,17 @@
     {
       "name": "bundle:tracked-route-js",
       "status": "WARNING",
-      "detail": "/owner/orders 1245 KB / budget 1200 KB"
+      "detail": "/owner/orders 1246 KB / budget 1200 KB"
     },
     {
       "name": "bundle:static-js-total",
       "status": "PASS",
-      "detail": "8846 KB built JS total; informational, not first-load budget."
+      "detail": "8847 KB built JS total; informational, not first-load budget."
     },
     {
       "name": "bundle:analyzer-client",
       "status": "PASS",
-      "detail": "ANALYZE_VERIFICATION_REPORT.json confirms npm run analyze completed."
+      "detail": ".next/analyze/client.html is present and usable."
     },
     {
       "name": "lighthouse:desktop",
@@ -49,11 +49,11 @@
     },
     {
       "title": "Bundle Snapshot",
-      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 393 |\n| staticJsKb | 8846 |\n| staticCssKb | 191 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 191 KB CSS |\n| maxTrackedRoute | /owner/orders 1245 KB JS / 191 KB CSS |"
+      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 393 |\n| staticJsKb | 8847 |\n| staticCssKb | 191 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 191 KB CSS |\n| maxTrackedRoute | /owner/orders 1246 KB JS / 191 KB CSS |"
     },
     {
       "title": "Tracked Routes",
-      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 191 | 19 |\n| /owner | 560 | 191 | 27 |\n| /owner/kitchen | 642 | 191 | 30 |\n| /owner/orders | 1245 | 191 | 40 |\n| /owner/pos | 565 | 191 | 28 |\n| /owner/settings | 673 | 191 | 31 |\n| /profile | 548 | 191 | 25 |"
+      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 191 | 19 |\n| /owner | 561 | 191 | 27 |\n| /owner/kitchen | 642 | 191 | 30 |\n| /owner/orders | 1246 | 191 | 40 |\n| /owner/pos | 565 | 191 | 28 |\n| /owner/settings | 674 | 191 | 31 |\n| /profile | 548 | 191 | 25 |"
     }
   ]
 }

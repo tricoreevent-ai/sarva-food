@@ -23,7 +23,7 @@ export const developerNotesMetadata = {
   supportedModules: ["developer"],
   entry: "@/plugins/examples/developer-notes/plugin",
   screenshots: [],
-  documentation: "src/plugins/examples/developer-notes/README.md",
+  documentation: "src/plugins/examples/developer-notes/docs/README.md",
   keywords: ["developer", "notes", "sample"],
   tags: ["phase-2b", "sample"],
   bundleSize: 0,

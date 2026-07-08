@@ -390,7 +390,7 @@ export default function OwnerOffersPage() {
                 <Textarea
                   value={restaurantMarketingSettings.whatsappFooter}
                   onChange={(event) => setRestaurantMarketingSettings({ ...restaurantMarketingSettings, whatsappFooter: event.target.value })}
-                  placeholder={"📍 Cafe Al Arab, Thanisandra\n📞 +91XXXXXXXXXX"}
+                  placeholder={"📍 Cafe Al Arab, Thanisandra\n📞 +91 98765 43210"}
                   rows={4}
                 />
               </div>

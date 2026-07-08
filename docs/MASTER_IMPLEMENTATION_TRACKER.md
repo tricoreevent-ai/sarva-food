@@ -11,20 +11,103 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Release Candidate Repository Certification Closure |
+| Current Sprint | Quality Enhancement Program Phase 2D Enterprise Plugin Production Validation and First Real Plugin |
 | Release Version | `v1.0.0-rc3` |
-| Latest Git Commit | Latest pushed production branch commit before this certification pass is `311104b4c982edae5135d8643deabff65aef4af4`; certification documentation/hook-cleanup changes are pending final commit. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
+| Latest Git Commit | Latest pushed production branch commit before this Phase 2D closure is `7fcd009d828635aef090fc9785af94b6ffc6b971`; Phase 2D validation/report changes are pending final commit. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `311104b4c982edae5135d8643deabff65aef4af4` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after the final certification commit. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `7fcd009d828635aef090fc9785af94b6ffc6b971` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after the Phase 2D final commit. |
 | Build Date | 2026-07-08 |
-| Verification Status | Repository certification validation passed `npm run test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env`, hosted deployment env/runtime metadata, provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
-| Scope | Repository-side release certification closure only: release scripts, validation reports, deployment/provider/performance/memory smoke reports, and documentation alignment. No new business feature, Firestore collection/schema/rule/index, API contract, auth workflow, payment provider contract, realtime listener, or completed workflow redesign. |
+| Verification Status | Phase 2D real plugin production validation passed `npm run test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env`, hosted deployment env/runtime metadata, provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
+| Scope | First real SDK-only plugin implementation and production validation only. No business feature, Firestore collection/schema/rule/index, API contract, auth workflow, payment provider contract, realtime listener, repository change, or completed workflow redesign. |
+
+## Quality Enhancement Program Phase 2D Enterprise Plugin Production Validation and First Real Plugin - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `PH2D-PRODUCTION-001` |
+| Scope | Implement one real SDK-only plugin and validate plugin production readiness without modifying Customer, Owner, Kitchen, POS, Admin, QR, auth, payment, inventory, reports, Firestore, repositories, realtime, or business APIs. |
+| Status | Implemented locally; validation passed. |
+| Real Plugin | Restaurant Health Dashboard, an Admin/Developer diagnostics plugin disabled by default with `NEXT_PUBLIC_ENABLE_RESTAURANT_HEALTH_DASHBOARD=false`. |
+| SDK Usage Matrix | Uses `PluginContext`, `PluginAPI`, `PluginLifecycle`, `PluginEvents`, `PluginLogger`, `PluginStorage`, `PluginStorageManager`, `PluginPermissions`, `PluginConfig`, `PluginDiagnostics`, `PluginRuntime`, `PluginManifest`, `PluginRouter`, `PluginUI`, `PluginAssets`, `PluginServices`, `PluginUtilities`, `PluginVersion`, and `src/plugins/core/sdk/hooks`. |
+| Extension Coverage | Dashboard Card, Sidebar, Header Action, Settings Page, Report Page, Floating Panel, Toolbar Button, Status Badge, Quick Action, Context Menu, Widget, Dialog, and Panel are registered through SDK UI contributions. |
+| Runtime Coverage | Install, register, validate, initialize, enable, run, suspend, resume, disable, destroy, reload, and uninstall are covered by the runtime/lifecycle validation matrix. |
+| Permission Coverage | Guest, Customer, Kitchen, Waiter, Owner, Admin, and Developer visibility/navigation/routing/action behavior is modeled; only Admin and Developer can see plugin surfaces. |
+| Storage Coverage | Memory, session, persistent, and encrypted storage modes validate set/get, migration, quota, snapshot, and cleanup through SDK storage APIs. |
+| Router Coverage | Admin dashboard, developer dynamic route, settings page, and report page register as lazy protected routes and detach on unload. |
+| Performance | Passed. Latest synthetic timings: discovery `0.13ms`, registry lookup `0.26ms`, validation `0.08ms`, dependency resolution `0.48ms`, runtime creation `0.07ms`, context injection `0.12ms`, SDK injection `0.09ms`, UI registration `0.09ms`, route registration `0.09ms`, navigation registration `0.21ms`, event publish `1.91ms`, storage write `0.79ms`, storage read `2.30ms`, rapid enable/disable `0.47ms`, lazy load/unload `0.24ms`. |
+| Memory | Passed. Latest heap delta was `-901928` bytes in the Node-safe validation run, with registry, event topic, storage, lifecycle, and cache cleanup counts all `0` after teardown. |
+| Regression | Passed. Audit reports Customer, Owner, Kitchen, POS, Admin, QR, Payments, Inventory, Reports, Authentication, Realtime, and Firestore unchanged. |
+| Security | Passed. Audit checks SDK-only imports, no business imports, no mutable globals, no storage escape, permission/flag gating, route unload cleanup, and no provider/secret exposure. |
+| QA Results | Passed. `PLUGIN_PLATFORM_VALIDATION_REPORT.md`, `reports/plugin-platform/PH2D_PRODUCTION_VALIDATION_REPORT.md`, and `reports/plugin-platform/PH2D_PRODUCTION_VALIDATION_REPORT.json` were generated with `489/489` checks passed, `0` warnings, and `0` failures. |
+| Documentation | Added `FIRST_REAL_PLUGIN.md`, `PLUGIN_DEVELOPER_GUIDE.md`, `PLUGIN_LIFECYCLE_GUIDE.md`, `PLUGIN_EXTENSION_GUIDE.md`, `PLUGIN_SECURITY_GUIDE.md`, `PLUGIN_PERFORMANCE_GUIDE.md`, and `PLUGIN_TROUBLESHOOTING.md`. |
+| Database Impact | None. No Firestore collection, field, rule, index, read, write, listener, or schema change. |
+| API Impact | None. No application endpoint or contract change. Plugin API use is internal SDK-only validation. |
+| Realtime Impact | None. No listener, EventSource, polling, or subscription change. |
+| Business Workflow Impact | None. Customer, Owner, Kitchen, POS, Admin, QR, auth, payment, inventory, reports, notifications, and settings workflows were not modified. |
+| Known Issues | Hosted flag-enabled browser validation, Chrome memory, Lighthouse/Core Web Vitals, Hostinger env/redeploy, Firebase Console, provider dashboard checks, authenticated smoke, and printer/device checks remain manual. |
+| Rollback | Set `NEXT_PUBLIC_ENABLE_RESTAURANT_HEALTH_DASHBOARD=false`; revert `src/plugins/restaurant-health-dashboard`, SDK storage/hook/runtime delegate additions, feature flag additions, Phase 2D docs, audit/report updates, and tracker updates. |
+
+Validation plan:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with accepted Firebase/protobuf warning |
+| `npm run analyze` | Passed with accepted Firebase/protobuf warning; analyzer verification report generated |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `npm run profile:runtime` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
+
+## Quality Enhancement Program Phase 2C Enterprise Plugin Validation, QA, and Production Hardening - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `PH2C-VALIDATION-001` |
+| Scope | Validation and hardening only for completed Phase 1 plugin foundation, Phase 2A registry, and Phase 2B runtime/SDK. |
+| Status | Implemented locally; validation passed. |
+| Validation Coverage | Registry, lifecycle, runtime, SDK, sandbox, loader, validator, compatibility, marketplace, installer, diagnostics, storage, context, router, assets, services, hooks, feature flags, runtime dashboard, profiler, error isolation, permissions, configuration, generator, and sample plugins. |
+| Contract Validation | `npm run test:enhancements` now validates metadata completeness, duplicate ids, duplicate feature flags, duplicate documentation, invalid versions, dependencies, lifecycle shape, storage namespace use, docs, tests, validators, schemas, feature flag files, and generator output. |
+| SDK Validation | SDK export surface, public API strings, version compatibility, circular import guard, forbidden business imports, and documentation parity are checked. |
+| Sandbox Validation | Frozen context, global mutation detection, prototype pollution probe, runtime destroy, global leakage, and browser global guardrails are checked by static and Node-safe probes. |
+| Stress Results | Passed. Synthetic coverage included 100 plugin registrations, 1000 metadata lookups, 1000 event publishes, 1000 storage writes/reads, rapid enable/disable, lazy load/unload, and cleanup. Latest timings: event publish `0.90ms`, storage write `0.60ms`, storage read `0.89ms`, rapid enable/disable `0.14ms`, lazy load/unload `0.10ms`. |
+| Memory Results | Passed. Latest heap delta was `1001392` bytes in the Node-safe validation run, with registry, event topic, storage, lifecycle, and cache cleanup counts all `0` after teardown. |
+| Performance Results | Passed. Latest timings: discovery `0.11ms`, registry lookup `0.20ms`, validation `0.06ms`, dependency resolution `0.39ms`, runtime creation `0.06ms`, context injection `0.08ms`, SDK injection `0.07ms`, UI registration `0.07ms`, route/navigation registration `0.06ms`, enable `0.06ms`, disable `0.03ms`, destroy `0.03ms`. |
+| Security Results | Passed. Checks covered forbidden business imports, storage namespace escape, permission-aware UI, feature-flag gating, sandbox mutation guard, prototype pollution probe, cycle detection, runtime cleanup, rollback, and error recovery. |
+| QA Results | Passed. `PLUGIN_PLATFORM_VALIDATION_REPORT.md`, `reports/plugin-platform/PH2C_VALIDATION_REPORT.md`, and `reports/plugin-platform/PH2C_VALIDATION_REPORT.json` were generated with `340/340` checks passed, `0` warnings, and `0` failures. |
+| Generator QA | Generator supports temp-root validation and generated six plugin archetypes during the audit: developer plugin, dashboard widget, sidebar tool, settings page, report plugin, and developer utility. |
+| Sample Plugin Hardening | Developer Clock, Notes, System Information, and Theme Preview samples now include config defaults, config schemas, validators, feature flag files, docs, and tests README files. |
+| Documentation | Added `docs/plugin-sdk/validation-qa.md` and `docs/plugin-platform/validation-hardening.md`; updated plugin architecture and this tracker. |
+| Database Impact | None. No Firestore collection, field, rule, index, read, write, or schema change. |
+| API Impact | None. No application endpoint or contract change. |
+| Realtime Impact | None. No listener, EventSource, polling, or subscription change. |
+| Business Workflow Impact | None. Customer, Owner, Kitchen, POS, Admin, QR, auth, payment, inventory, reports, notifications, and settings workflows were not modified. |
+| Known Limitations | Browser-only sandbox checks for `window` and `document`, hosted Chrome memory, Lighthouse/Core Web Vitals, provider dashboards, Firebase Console, authenticated browser smoke, printer/POS/Kitchen/Owner/Customer validation, and plugin flag-enabled smoke remain manual. |
+| Production Readiness | Repository-side plugin platform readiness is complete for disabled/default-off infrastructure. Production readiness remains blocked by external/manual gates and controlled flag-enabled browser validation. |
+| Remaining Manual Tasks | Hostinger deployment/env, Firebase rules/indexes/authorized domains, Chrome profiling, Lighthouse/Core Web Vitals, browser memory, printers, POS, Kitchen, Owner, Customer, and controlled plugin validation. |
+| Rollback | Revert sample plugin contract additions, `scripts/release/enhancement-registry-audit.mjs`, `scripts/plugins/create-plugin.mjs` root option/cast change, `docs/plugin-sdk/validation-qa.md`, `docs/plugin-platform/validation-hardening.md`, architecture/tracker/report updates. |
+
+Validation plan:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with accepted Firebase/protobuf warning |
+| `npm run analyze` | Passed with accepted Firebase/protobuf warning; analyzer verification report generated |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `npm run profile:runtime` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
 
 ## Release Candidate Repository Certification Closure - 2026-07-08
 
 | Field | Result |
 | --- | --- |
-| Status | Repository-side work complete locally; final commit and push pending. |
+| Status | Repository-side work complete and pushed at `7fcd009d828635aef090fc9785af94b6ffc6b971`; Phase 2D production plugin validation closure is the final certification follow-up. |
 | Scope | Repository-side certification, report regeneration, release verifier cleanup, and documentation alignment only. |
 | Repository Fixes | Analyzer verification is now persisted outside `.next`; performance verification budgets route-owned JS instead of total static build JS; provider verification can use hosted health evidence; release certificate metadata reports Phase 2A/2B correctly. |
 | Database Impact | None. No Firestore collection, schema, rule, index, repository contract, read, write, or listener change. |
@@ -199,7 +282,7 @@ Validation plan:
 | Field | Result |
 | --- | --- |
 | Scope | Stabilization-only release certification. Existing Customer, Owner, POS, Kitchen, Admin, QR, payment, inventory, reports, notifications, authentication, repositories, APIs, Firestore collections, schemas, and UI workflows were preserved. |
-| Latest Commit | `311104b4c982edae5135d8643deabff65aef4af4` is the latest pushed production branch commit at the start of this certification pass; this pass has local documentation/hook-cleanup changes pending final commit. |
+| Latest Commit | Certification started from pushed commit `311104b4c982edae5135d8643deabff65aef4af4` and was later pushed as `7fcd009d828635aef090fc9785af94b6ffc6b971` before the Phase 2D production plugin validation closure. |
 | Bug Sweep | Repository marker audit found no actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code. Three React hook suppression comments were removed safely by making dependencies explicit. Remaining broad hits are docs, lockfiles, CLI script logging, or intentional user-facing copy. |
 | Route Audit | Static App Router audit found `100` pages, `73` API route handlers, `21` route loading files, `12` error boundaries, and the generated Next `_not-found` route. Loading, retry, empty, auth, permission, and error states remain present across the major customer, owner, admin, POS, and Kitchen surfaces. Full authenticated browser route smoke remains manual. |
 | Operational Audit | Customer, Owner, Kitchen, POS, and Admin workflows were reviewed statically against existing route, component, repository, and API paths. No business workflow or API contract change was introduced. |

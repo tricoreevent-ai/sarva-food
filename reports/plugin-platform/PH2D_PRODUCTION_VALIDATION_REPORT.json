@@ -1,0 +1,3257 @@
+{
+  "generatedAt": "2026-07-08",
+  "featureId": "PH2D-PRODUCTION-001",
+  "summary": {
+    "total": 489,
+    "pass": 489,
+    "warning": 0,
+    "fail": 0
+  },
+  "checks": [
+    {
+      "name": "platform:file:src/plugins/registry.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/runtime/enhancement-runtime.tsx",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/lifecycle/types.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/lifecycle/manager.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/feature-flags/types.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/feature-flags/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/events/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/logger/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/profiler/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/error-isolation/plugin-error-boundary.tsx",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/permissions/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/config/types.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/config/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/runtime-dashboard/runtime-dashboard.tsx",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/testing/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/metadata/types.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/metadata/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/registry/state.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/registry/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/discovery/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/dependency-manager/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/compatibility/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/validator/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/loader/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/marketplace/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/installer/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/diagnostics/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/runtime/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/sdk/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/sdk/hooks.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/api/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/hooks/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/services/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/context/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/router/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/storage/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/assets/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/ui/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/core/sandbox/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/metadata.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/plugin.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/config.defaults.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/config.schema.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/feature-flag.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/docs/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-clock/tests/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/metadata.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/plugin.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/config.defaults.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/config.schema.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/feature-flag.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/docs/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/developer-notes/tests/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/metadata.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/plugin.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/config.defaults.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/config.schema.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/feature-flag.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/docs/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/system-information/tests/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/metadata.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/plugin.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/config.defaults.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/config.schema.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/feature-flag.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/docs/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/examples/theme-preview/tests/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/feature-flag.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/metadata.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/plugin.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/config.schema.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/config.defaults.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/routes/runtime.tsx",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/hooks/use-quality-diagnostics.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/services/client-quality-diagnostics.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/types/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/ui/quality-diagnostics-panel.tsx",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/docs/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/quality-diagnostics/tests/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/feature-flag.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/metadata.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/plugin.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/config.schema.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/config.defaults.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/validator.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/api/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/assets/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/hooks/use-restaurant-health-dashboard.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/routes/dashboard.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/routes/report.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/routes/runtime.tsx",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/routes/settings.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/services/health-snapshot.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/types/index.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/ui/extensions.ts",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/docs/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:src/plugins/restaurant-health-dashboard/tests/README.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/enhancement-plugin-architecture.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/registry.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/metadata.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/dependency-manager.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/plugin-loader.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/marketplace.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/installer.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/compatibility.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/validator.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/diagnostics.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/plugin-author-guide.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-platform/registry-api.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/sdk-overview.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/runtime.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/context.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/services.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/storage.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/routing.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/ui-extension.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/health.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/plugin-generator.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/plugin-template.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/best-practices.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/migration-guide.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:docs/plugin-sdk/validation-qa.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:FIRST_REAL_PLUGIN.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:PLUGIN_DEVELOPER_GUIDE.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:PLUGIN_LIFECYCLE_GUIDE.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:PLUGIN_EXTENSION_GUIDE.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:PLUGIN_SECURITY_GUIDE.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:PLUGIN_PERFORMANCE_GUIDE.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:PLUGIN_TROUBLESHOOTING.md",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "platform:file:scripts/plugins/create-plugin.mjs",
+      "category": "platform",
+      "status": "PASS",
+      "detail": "Required platform file is present."
+    },
+    {
+      "name": "architecture:registry:quality",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Registry tracks the quality diagnostics plugin."
+    },
+    {
+      "name": "architecture:runtime:initialize",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Enhancement runtime initializes lifecycle before rendering."
+    },
+    {
+      "name": "architecture:runtime:error-boundary",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Enhancement runtime wraps plugin UI in error isolation."
+    },
+    {
+      "name": "architecture:lifecycle:initialize",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Lifecycle supports initialize."
+    },
+    {
+      "name": "architecture:lifecycle:suspend",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Lifecycle supports suspend."
+    },
+    {
+      "name": "architecture:lifecycle:health",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Lifecycle supports health checks."
+    },
+    {
+      "name": "architecture:flags:local",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Feature flags support local overrides."
+    },
+    {
+      "name": "architecture:flags:developer",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Feature flags support developer source."
+    },
+    {
+      "name": "architecture:flags:dependencies",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Feature flags carry dependencies."
+    },
+    {
+      "name": "architecture:events:priority",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Event bus supports priority."
+    },
+    {
+      "name": "architecture:logger:production-silent",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Logger is production silent."
+    },
+    {
+      "name": "architecture:profiler:export",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Profiler exports reports."
+    },
+    {
+      "name": "architecture:error-isolation:recover",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Error isolation supports recovery."
+    },
+    {
+      "name": "architecture:permissions:developer",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Permissions include developer role."
+    },
+    {
+      "name": "architecture:config:validator",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Config validator exists."
+    },
+    {
+      "name": "architecture:dashboard:flag",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Runtime dashboard is flag gated."
+    },
+    {
+      "name": "architecture:metadata:runtime",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Metadata tracks runtime compatibility."
+    },
+    {
+      "name": "architecture:metadata:signature",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Metadata includes signature fields."
+    },
+    {
+      "name": "architecture:registry:lookup",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Registry exposes O(1) flag lookup."
+    },
+    {
+      "name": "architecture:registry:state-error",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Registry has typed state transition errors."
+    },
+    {
+      "name": "architecture:discovery:remote-ready",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Discovery has remote-ready marker."
+    },
+    {
+      "name": "architecture:dependency:toposort",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Dependency manager topologically sorts."
+    },
+    {
+      "name": "architecture:dependency:circular",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Dependency manager detects cycles."
+    },
+    {
+      "name": "architecture:compatibility:runtime",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Compatibility checks plugin runtime."
+    },
+    {
+      "name": "architecture:validator:blocking",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Validator reports blocking issues."
+    },
+    {
+      "name": "architecture:loader:timeout",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Loader supports timeout."
+    },
+    {
+      "name": "architecture:loader:abort",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Loader supports abort."
+    },
+    {
+      "name": "architecture:marketplace:mock",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Marketplace is mock provider only."
+    },
+    {
+      "name": "architecture:installer:rollback",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Installer supports rollback."
+    },
+    {
+      "name": "architecture:diagnostics:score",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Diagnostics include health score."
+    },
+    {
+      "name": "architecture:diagnostics:heartbeat",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Diagnostics include heartbeat."
+    },
+    {
+      "name": "architecture:runtime:context",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Runtime creates context."
+    },
+    {
+      "name": "architecture:runtime:lifecycle",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Runtime reuses lifecycle manager."
+    },
+    {
+      "name": "architecture:runtime:registry",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Runtime reuses registry."
+    },
+    {
+      "name": "architecture:sdk:define",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "SDK exposes definePlugin."
+    },
+    {
+      "name": "architecture:api:request",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Plugin API has typed request contract."
+    },
+    {
+      "name": "architecture:hooks:storage",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Hooks include storage."
+    },
+    {
+      "name": "architecture:hooks:health",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Hooks include health."
+    },
+    {
+      "name": "architecture:services:clipboard",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Services include clipboard."
+    },
+    {
+      "name": "architecture:context:tenant",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Context includes tenant."
+    },
+    {
+      "name": "architecture:context:timezone",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Context includes timezone."
+    },
+    {
+      "name": "architecture:router:route",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Router has route contribution contract."
+    },
+    {
+      "name": "architecture:storage:quota",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Storage supports quota."
+    },
+    {
+      "name": "architecture:storage:migrate",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Storage supports migration."
+    },
+    {
+      "name": "architecture:assets:type",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Assets have typed contract."
+    },
+    {
+      "name": "architecture:ui:floating",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "UI supports floating panels."
+    },
+    {
+      "name": "architecture:sandbox:global-guard",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Sandbox detects global mutation."
+    },
+    {
+      "name": "architecture:generator:metadata",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Generator creates metadata."
+    },
+    {
+      "name": "architecture:generator:command",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Generator references plugin:create command."
+    },
+    {
+      "name": "architecture:tracker:phase2c",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Tracker includes Phase 2C validation."
+    },
+    {
+      "name": "architecture:tracker:phase2d",
+      "category": "architecture",
+      "status": "PASS",
+      "detail": "Tracker includes Phase 2D production validation."
+    },
+    {
+      "name": "contract:metadata:count",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Discovered 6 metadata files."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:required-fields",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Metadata fields complete."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:semver",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Version 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:runtime-version",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Runtime 2.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:feature-flag-known",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag DEVELOPER_CLOCK_WIDGET is in FeatureFlagKey."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:entry",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Entry @/plugins/examples/developer-clock/plugin resolves."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Documentation src/plugins/examples/developer-clock/docs/README.md exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:plugin-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin runtime file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:config-defaults",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config defaults exist."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:config-schema",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config schema exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:validator",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Validator exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:tests",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Tests README exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:feature-flag-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:lifecycle",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Lifecycle entry is valid."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:health",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Health check is defined."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:storage-namespace",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not bypass SDK storage."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:business-imports",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not import business modules."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:required-fields",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Metadata fields complete."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:semver",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Version 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:runtime-version",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Runtime 2.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:feature-flag-known",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag DEVELOPER_NOTES_WIDGET is in FeatureFlagKey."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:entry",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Entry @/plugins/examples/developer-notes/plugin resolves."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Documentation src/plugins/examples/developer-notes/docs/README.md exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:plugin-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin runtime file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:config-defaults",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config defaults exist."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:config-schema",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config schema exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:validator",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Validator exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:tests",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Tests README exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:feature-flag-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:lifecycle",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Lifecycle entry is valid."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:health",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Health check is defined."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:storage-namespace",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not bypass SDK storage."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:business-imports",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not import business modules."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:required-fields",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Metadata fields complete."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:semver",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Version 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:runtime-version",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Runtime 2.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:feature-flag-known",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag SYSTEM_INFORMATION_WIDGET is in FeatureFlagKey."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:entry",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Entry @/plugins/examples/system-information/plugin resolves."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Documentation src/plugins/examples/system-information/docs/README.md exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:plugin-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin runtime file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:config-defaults",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config defaults exist."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:config-schema",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config schema exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:validator",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Validator exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:tests",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Tests README exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:feature-flag-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:lifecycle",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Lifecycle entry is valid."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:health",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Health check is defined."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:storage-namespace",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not bypass SDK storage."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:business-imports",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not import business modules."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:required-fields",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Metadata fields complete."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:semver",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Version 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:runtime-version",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Runtime 2.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:feature-flag-known",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag THEME_PREVIEW_WIDGET is in FeatureFlagKey."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:entry",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Entry @/plugins/examples/theme-preview/plugin resolves."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Documentation src/plugins/examples/theme-preview/docs/README.md exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:plugin-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin runtime file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:config-defaults",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config defaults exist."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:config-schema",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config schema exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:validator",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Validator exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:tests",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Tests README exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:feature-flag-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag file exists."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:lifecycle",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Lifecycle entry is valid."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:health",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Health check is defined."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:storage-namespace",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not bypass SDK storage."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:business-imports",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not import business modules."
+    },
+    {
+      "name": "contract:PH1-QD-001:required-fields",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Metadata fields complete."
+    },
+    {
+      "name": "contract:PH1-QD-001:semver",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Version 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH1-QD-001:runtime-version",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Runtime 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH1-QD-001:feature-flag-known",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag QUALITY_DIAGNOSTICS is in FeatureFlagKey."
+    },
+    {
+      "name": "contract:PH1-QD-001:entry",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Entry @/plugins/quality-diagnostics/routes/runtime resolves."
+    },
+    {
+      "name": "contract:PH1-QD-001:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Documentation src/plugins/quality-diagnostics/docs/README.md exists."
+    },
+    {
+      "name": "contract:PH1-QD-001:plugin-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin runtime file exists."
+    },
+    {
+      "name": "contract:PH1-QD-001:config-defaults",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config defaults exist."
+    },
+    {
+      "name": "contract:PH1-QD-001:config-schema",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config schema exists."
+    },
+    {
+      "name": "contract:PH1-QD-001:validator",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Validator exists."
+    },
+    {
+      "name": "contract:PH1-QD-001:tests",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Tests README exists."
+    },
+    {
+      "name": "contract:PH1-QD-001:feature-flag-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag file exists."
+    },
+    {
+      "name": "contract:PH1-QD-001:lifecycle",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Lifecycle entry is valid."
+    },
+    {
+      "name": "contract:PH1-QD-001:health",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Health check is defined."
+    },
+    {
+      "name": "contract:PH1-QD-001:storage-namespace",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not bypass SDK storage."
+    },
+    {
+      "name": "contract:PH1-QD-001:business-imports",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not import business modules."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:required-fields",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Metadata fields complete."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:semver",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Version 1.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:runtime-version",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Runtime 2.0.0 is semantic."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:feature-flag-known",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag RESTAURANT_HEALTH_DASHBOARD is in FeatureFlagKey."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:entry",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Entry @/plugins/restaurant-health-dashboard/plugin resolves."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Documentation src/plugins/restaurant-health-dashboard/docs/README.md exists."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:plugin-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin runtime file exists."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:config-defaults",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config defaults exist."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:config-schema",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Config schema exists."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:validator",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Validator exists."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:tests",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Tests README exists."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:feature-flag-file",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Feature flag file exists."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:lifecycle",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Lifecycle entry is valid."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:health",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Health check is defined."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:storage-namespace",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not bypass SDK storage."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:business-imports",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Plugin does not import business modules."
+    },
+    {
+      "name": "contract:duplicates:ids",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "No duplicate plugin ids."
+    },
+    {
+      "name": "contract:duplicates:feature-flags",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "No duplicate feature flags."
+    },
+    {
+      "name": "contract:duplicates:documentation",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "No duplicate documentation paths."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-CLOCK:dependencies",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Dependencies resolve or are empty."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-NOTES:dependencies",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Dependencies resolve or are empty."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-SYSTEM:dependencies",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Dependencies resolve or are empty."
+    },
+    {
+      "name": "contract:PH2B-EXAMPLE-THEME:dependencies",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Dependencies resolve or are empty."
+    },
+    {
+      "name": "contract:PH1-QD-001:dependencies",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Dependencies resolve or are empty."
+    },
+    {
+      "name": "contract:PH2D-PRODUCTION-001:dependencies",
+      "category": "contract",
+      "status": "PASS",
+      "detail": "Dependencies resolve or are empty."
+    },
+    {
+      "name": "sdk:export:PluginContext",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginContext is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginContext",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginContext is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginAPI",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginAPI is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginAPI",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginAPI is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginLifecycle",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginLifecycle is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginLifecycle",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginLifecycle is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginEvents",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginEvents is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginEvents",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginEvents is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginLogger",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginLogger is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginLogger",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginLogger is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginStorage",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginStorage is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginStorage",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginStorage is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginPermissions",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginPermissions is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginPermissions",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginPermissions is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginConfig",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginConfig is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginConfig",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginConfig is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginDiagnostics",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginDiagnostics is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginDiagnostics",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginDiagnostics is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginRuntime",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginRuntime is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginRuntime",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginRuntime is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginManifest",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginManifest is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginManifest",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginManifest is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginRouter",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginRouter is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginRouter",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginRouter is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginUI",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginUI is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginUI",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginUI is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginAssets",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginAssets is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginAssets",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginAssets is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginServices",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginServices is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginServices",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginServices is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginUtilities",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginUtilities is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginUtilities",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginUtilities is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginVersion",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginVersion is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginVersion",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginVersion is documented in SDK overview."
+    },
+    {
+      "name": "sdk:export:PluginStorageManager",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginStorageManager is exported by SDK."
+    },
+    {
+      "name": "sdk:docs:PluginStorageManager",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "PluginStorageManager is documented in SDK overview."
+    },
+    {
+      "name": "sdk:define-plugin",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK exposes definePlugin helper."
+    },
+    {
+      "name": "sdk:storage-manager",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK exposes storage manager through public surface."
+    },
+    {
+      "name": "sdk:storage-mode",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK exports storage mode type."
+    },
+    {
+      "name": "sdk:storage-snapshot",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK exports storage snapshot type."
+    },
+    {
+      "name": "sdk:hooks:use-plugin",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK hook facade exports usePlugin."
+    },
+    {
+      "name": "sdk:hooks:storage",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK hook facade exports usePluginStorage."
+    },
+    {
+      "name": "sdk:version",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK runtime version is declared."
+    },
+    {
+      "name": "sdk:no-business-imports",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "SDK avoids business imports."
+    },
+    {
+      "name": "sdk:circular-imports",
+      "category": "sdk",
+      "status": "PASS",
+      "detail": "No relative import cycles detected under src/plugins."
+    },
+    {
+      "name": "sandbox:frozen-context",
+      "category": "sandbox",
+      "status": "PASS",
+      "detail": "Sandbox freezes context."
+    },
+    {
+      "name": "sandbox:global-baseline",
+      "category": "sandbox",
+      "status": "PASS",
+      "detail": "Sandbox records baseline globals."
+    },
+    {
+      "name": "sandbox:global-mutation",
+      "category": "sandbox",
+      "status": "PASS",
+      "detail": "Sandbox detects global mutation."
+    },
+    {
+      "name": "sandbox:destroy",
+      "category": "sandbox",
+      "status": "PASS",
+      "detail": "Sandbox supports destroy."
+    },
+    {
+      "name": "sandbox:prototype-pollution",
+      "category": "sandbox",
+      "status": "PASS",
+      "detail": "Prototype pollution probe stayed clean."
+    },
+    {
+      "name": "sandbox:window-document",
+      "category": "sandbox",
+      "status": "PASS",
+      "detail": "Browser global access is mediated by globalThis detection."
+    },
+    {
+      "name": "ui:extension:header-actions",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "header-actions extension point is registered."
+    },
+    {
+      "name": "ui:extension:sidebar",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "sidebar extension point is registered."
+    },
+    {
+      "name": "ui:extension:dashboard-cards",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "dashboard-cards extension point is registered."
+    },
+    {
+      "name": "ui:extension:widgets",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "widgets extension point is registered."
+    },
+    {
+      "name": "ui:extension:panels",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "panels extension point is registered."
+    },
+    {
+      "name": "ui:extension:dialogs",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "dialogs extension point is registered."
+    },
+    {
+      "name": "ui:extension:context-menus",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "context-menus extension point is registered."
+    },
+    {
+      "name": "ui:extension:toolbar-actions",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "toolbar-actions extension point is registered."
+    },
+    {
+      "name": "ui:extension:quick-actions",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "quick-actions extension point is registered."
+    },
+    {
+      "name": "ui:extension:status-badges",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "status-badges extension point is registered."
+    },
+    {
+      "name": "ui:extension:settings-pages",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "settings-pages extension point is registered."
+    },
+    {
+      "name": "ui:extension:reports",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "reports extension point is registered."
+    },
+    {
+      "name": "ui:extension:floating-panels",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "floating-panels extension point is registered."
+    },
+    {
+      "name": "router:surface:owner",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "owner route surface is supported."
+    },
+    {
+      "name": "router:surface:admin",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "admin route surface is supported."
+    },
+    {
+      "name": "router:surface:customer",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "customer route surface is supported."
+    },
+    {
+      "name": "router:surface:kitchen",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "kitchen route surface is supported."
+    },
+    {
+      "name": "router:surface:pos",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "pos route surface is supported."
+    },
+    {
+      "name": "router:surface:developer",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "developer route surface is supported."
+    },
+    {
+      "name": "ui:permission-aware",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "UI contributions require permissions."
+    },
+    {
+      "name": "ui:flag-aware",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "UI contributions require flags."
+    },
+    {
+      "name": "ui:lazy-load",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "UI contributions are lazy loaded."
+    },
+    {
+      "name": "ui:ordering",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "UI contributions support ordering."
+    },
+    {
+      "name": "router:ordering",
+      "category": "ui",
+      "status": "PASS",
+      "detail": "Navigation contributions support ordering."
+    },
+    {
+      "name": "real-plugin:metadata:id",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Restaurant Health Dashboard feature id is declared."
+    },
+    {
+      "name": "real-plugin:metadata:flag",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Restaurant Health Dashboard feature flag is declared."
+    },
+    {
+      "name": "real-plugin:metadata:manifest",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin metadata uses SDK manifest type."
+    },
+    {
+      "name": "real-plugin:sdk-only:define",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin uses official SDK definePlugin."
+    },
+    {
+      "name": "real-plugin:sdk-only:no-business-imports",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin avoids business imports."
+    },
+    {
+      "name": "real-plugin:config:defaults",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin config defaults are typed."
+    },
+    {
+      "name": "real-plugin:config:schema",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin config schema is versioned."
+    },
+    {
+      "name": "real-plugin:config:validator",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin config uses core validator."
+    },
+    {
+      "name": "real-plugin:feature-flag:definition",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Feature flag is registered."
+    },
+    {
+      "name": "real-plugin:feature-flag:env",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": ".env.example disables real plugin."
+    },
+    {
+      "name": "real-plugin:feature-flag:prod-env",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": ".env.production.example disables real plugin."
+    },
+    {
+      "name": "real-plugin:feature-flag:hostinger-env",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": ".env.hostinger.example disables real plugin."
+    },
+    {
+      "name": "real-plugin:context",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes Plugin Context."
+    },
+    {
+      "name": "real-plugin:logger",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes SDK logger."
+    },
+    {
+      "name": "real-plugin:events",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes event bus."
+    },
+    {
+      "name": "real-plugin:runtime",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes runtime and runtime supports reload/uninstall."
+    },
+    {
+      "name": "real-plugin:diagnostics",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes diagnostics."
+    },
+    {
+      "name": "real-plugin:api",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes Plugin API."
+    },
+    {
+      "name": "real-plugin:services",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin consumes approved services."
+    },
+    {
+      "name": "real-plugin:assets",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin registers assets."
+    },
+    {
+      "name": "real-plugin:hooks",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin hook uses SDK hook facade."
+    },
+    {
+      "name": "real-plugin:docs",
+      "category": "real-plugin",
+      "status": "PASS",
+      "detail": "Plugin docs and tests exist."
+    },
+    {
+      "name": "real-plugin:extension:dashboard-cards",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "dashboard-cards is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:sidebar",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "sidebar is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:header-actions",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "header-actions is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:settings-pages",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "settings-pages is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:reports",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "reports is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:floating-panels",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "floating-panels is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:toolbar-actions",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "toolbar-actions is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:status-badges",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "status-badges is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:quick-actions",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "quick-actions is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:context-menus",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "context-menus is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:widgets",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "widgets is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:dialogs",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "dialogs is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:extension:panels",
+      "category": "extension",
+      "status": "PASS",
+      "detail": "panels is registered by the real plugin."
+    },
+    {
+      "name": "real-plugin:lifecycle:install",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "install lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:register",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "register lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:validate",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "validate lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:initialize",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "initialize lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:enable",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "enable lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:run",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "run lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:suspend",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "suspend lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:resume",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "resume lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:disable",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "disable lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:destroy",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "destroy lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:reload",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "reload lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:lifecycle:uninstall",
+      "category": "lifecycle",
+      "status": "PASS",
+      "detail": "uninstall lifecycle path is covered."
+    },
+    {
+      "name": "real-plugin:permission:guest",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "guest permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:permission:customer",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "customer permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:permission:kitchen",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "kitchen permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:permission:waiter",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "waiter permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:permission:owner",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "owner permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:permission:admin",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "admin permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:permission:developer",
+      "category": "permission",
+      "status": "PASS",
+      "detail": "developer permission visibility is modeled."
+    },
+    {
+      "name": "real-plugin:storage:memory",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "memory storage mode is validated."
+    },
+    {
+      "name": "real-plugin:storage:session",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "session storage mode is validated."
+    },
+    {
+      "name": "real-plugin:storage:persistent",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "persistent storage mode is validated."
+    },
+    {
+      "name": "real-plugin:storage:encrypted",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "encrypted storage mode is validated."
+    },
+    {
+      "name": "real-plugin:storage:migration",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "Storage migration is validated."
+    },
+    {
+      "name": "real-plugin:storage:cleanup",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "Storage cleanup is explicit."
+    },
+    {
+      "name": "real-plugin:storage:quota",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "Storage quota handling is validated."
+    },
+    {
+      "name": "real-plugin:storage:snapshot",
+      "category": "storage",
+      "status": "PASS",
+      "detail": "Storage snapshot is validated."
+    },
+    {
+      "name": "real-plugin:route:/admin/plugins/restaurant-health",
+      "category": "router",
+      "status": "PASS",
+      "detail": "/admin/plugins/restaurant-health is registered."
+    },
+    {
+      "name": "real-plugin:route:/developer/plugins/restaurant-health/[section]",
+      "category": "router",
+      "status": "PASS",
+      "detail": "/developer/plugins/restaurant-health/[section] is registered."
+    },
+    {
+      "name": "real-plugin:route:/admin/settings/plugins/restaurant-health",
+      "category": "router",
+      "status": "PASS",
+      "detail": "/admin/settings/plugins/restaurant-health is registered."
+    },
+    {
+      "name": "real-plugin:route:/admin/reports/plugins/restaurant-health",
+      "category": "router",
+      "status": "PASS",
+      "detail": "/admin/reports/plugins/restaurant-health is registered."
+    },
+    {
+      "name": "real-plugin:route:dynamic",
+      "category": "router",
+      "status": "PASS",
+      "detail": "Dynamic route is registered."
+    },
+    {
+      "name": "real-plugin:route:lazy",
+      "category": "router",
+      "status": "PASS",
+      "detail": "Lazy routes are registered."
+    },
+    {
+      "name": "real-plugin:route:protected",
+      "category": "router",
+      "status": "PASS",
+      "detail": "Protected routes are permission scoped."
+    },
+    {
+      "name": "real-plugin:route:removal",
+      "category": "router",
+      "status": "PASS",
+      "detail": "Routes are removed on unload."
+    },
+    {
+      "name": "real-plugin:ui-state:loading",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "loading UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:empty",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "empty UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:error",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "error UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:permissionDenied",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "permissionDenied UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:disabled",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "disabled UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:lazyLoaded",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "lazyLoaded UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:responsive",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "responsive UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:darkMode",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "darkMode UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:keyboardNavigation",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "keyboardNavigation UI state is represented."
+    },
+    {
+      "name": "real-plugin:ui-state:touchInteraction",
+      "category": "ui-state",
+      "status": "PASS",
+      "detail": "touchInteraction UI state is represented."
+    },
+    {
+      "name": "real-plugin:doc:FIRST_REAL_PLUGIN.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "FIRST_REAL_PLUGIN.md exists."
+    },
+    {
+      "name": "real-plugin:doc:PLUGIN_DEVELOPER_GUIDE.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "PLUGIN_DEVELOPER_GUIDE.md exists."
+    },
+    {
+      "name": "real-plugin:doc:PLUGIN_LIFECYCLE_GUIDE.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "PLUGIN_LIFECYCLE_GUIDE.md exists."
+    },
+    {
+      "name": "real-plugin:doc:PLUGIN_EXTENSION_GUIDE.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "PLUGIN_EXTENSION_GUIDE.md exists."
+    },
+    {
+      "name": "real-plugin:doc:PLUGIN_SECURITY_GUIDE.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "PLUGIN_SECURITY_GUIDE.md exists."
+    },
+    {
+      "name": "real-plugin:doc:PLUGIN_PERFORMANCE_GUIDE.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "PLUGIN_PERFORMANCE_GUIDE.md exists."
+    },
+    {
+      "name": "real-plugin:doc:PLUGIN_TROUBLESHOOTING.md",
+      "category": "documentation",
+      "status": "PASS",
+      "detail": "PLUGIN_TROUBLESHOOTING.md exists."
+    },
+    {
+      "name": "generator:developer-plugin",
+      "category": "generator",
+      "status": "PASS",
+      "detail": "Generator scaffold complete."
+    },
+    {
+      "name": "generator:dashboard-widget",
+      "category": "generator",
+      "status": "PASS",
+      "detail": "Generator scaffold complete."
+    },
+    {
+      "name": "generator:sidebar-tool",
+      "category": "generator",
+      "status": "PASS",
+      "detail": "Generator scaffold complete."
+    },
+    {
+      "name": "generator:settings-page",
+      "category": "generator",
+      "status": "PASS",
+      "detail": "Generator scaffold complete."
+    },
+    {
+      "name": "generator:report-plugin",
+      "category": "generator",
+      "status": "PASS",
+      "detail": "Generator scaffold complete."
+    },
+    {
+      "name": "generator:developer-utility",
+      "category": "generator",
+      "status": "PASS",
+      "detail": "Generator scaffold complete."
+    },
+    {
+      "name": "static:forbidden-imports",
+      "category": "static",
+      "status": "PASS",
+      "detail": "No plugin business imports."
+    },
+    {
+      "name": "static:duplicate-metadata",
+      "category": "static",
+      "status": "PASS",
+      "detail": "No duplicate metadata names."
+    },
+    {
+      "name": "static:circular-imports",
+      "category": "static",
+      "status": "PASS",
+      "detail": "No relative cycles."
+    },
+    {
+      "name": "static:bundle-isolation",
+      "category": "static",
+      "status": "PASS",
+      "detail": "Sample plugins are not imported into runtime shell."
+    },
+    {
+      "name": "hardening:flags-default-false",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": "All plugin flags default disabled."
+    },
+    {
+      "name": "hardening:env-quality-disabled",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": ".env.example disables quality diagnostics."
+    },
+    {
+      "name": "hardening:env-health-disabled",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": ".env.example disables Restaurant Health Dashboard."
+    },
+    {
+      "name": "hardening:prod-env-quality-disabled",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": ".env.production.example disables quality diagnostics."
+    },
+    {
+      "name": "hardening:prod-env-health-disabled",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": ".env.production.example disables Restaurant Health Dashboard."
+    },
+    {
+      "name": "hardening:lazy-loader",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": "Loader is lazy and timeout guarded."
+    },
+    {
+      "name": "hardening:runtime-cleanup",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": "Runtime cleans up plugin registries and sandbox."
+    },
+    {
+      "name": "hardening:runtime-reload",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": "Runtime supports reload and uninstall validation."
+    },
+    {
+      "name": "hardening:rollback",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": "Installer rollback exists."
+    },
+    {
+      "name": "hardening:error-recovery",
+      "category": "hardening",
+      "status": "PASS",
+      "detail": "Error recovery exists."
+    },
+    {
+      "name": "regression:no-business-area-edit",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "No business area file edits are required by Phase 2D audit."
+    },
+    {
+      "name": "regression:no-firestore-import",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "Real plugin avoids Firestore imports."
+    },
+    {
+      "name": "regression:no-repository-import",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "Real plugin avoids repository imports."
+    },
+    {
+      "name": "regression:no-api-route-import",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "Real plugin avoids application API imports."
+    },
+    {
+      "name": "regression:no-payment-import",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "Real plugin avoids payment imports."
+    },
+    {
+      "name": "regression:no-auth-import",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "Real plugin avoids auth workflow imports."
+    },
+    {
+      "name": "regression:no-realtime-listener",
+      "category": "regression",
+      "status": "PASS",
+      "detail": "Real plugin adds no realtime listener or polling loop."
+    },
+    {
+      "name": "stress:registration-100",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "100 registrations in 0.132ms."
+    },
+    {
+      "name": "stress:metadata-lookups-1000",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "1000 lookups in 0.261ms."
+    },
+    {
+      "name": "stress:event-publishes-1000",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "1000 event publishes in 1.907ms."
+    },
+    {
+      "name": "stress:storage-writes-1000",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "1000 storage writes in 0.786ms."
+    },
+    {
+      "name": "stress:storage-reads-1000",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "1000 storage reads in 2.295ms."
+    },
+    {
+      "name": "stress:lifecycle-rapid",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "Rapid lifecycle transitions in 0.467ms."
+    },
+    {
+      "name": "stress:lazy-load-unload",
+      "category": "stress",
+      "status": "PASS",
+      "detail": "Lazy load/unload cycle in 0.240ms."
+    },
+    {
+      "name": "memory:cleanup",
+      "category": "memory",
+      "status": "PASS",
+      "detail": "All synthetic registries cleaned up."
+    }
+  ],
+  "details": {
+    "plugins": [
+      {
+        "id": "PH2B-EXAMPLE-CLOCK",
+        "file": "src\\plugins\\examples\\developer-clock\\metadata.ts",
+        "featureFlag": "DEVELOPER_CLOCK_WIDGET",
+        "version": "1.0.0",
+        "runtime": "2.0.0",
+        "documentation": "src/plugins/examples/developer-clock/docs/README.md"
+      },
+      {
+        "id": "PH2B-EXAMPLE-NOTES",
+        "file": "src\\plugins\\examples\\developer-notes\\metadata.ts",
+        "featureFlag": "DEVELOPER_NOTES_WIDGET",
+        "version": "1.0.0",
+        "runtime": "2.0.0",
+        "documentation": "src/plugins/examples/developer-notes/docs/README.md"
+      },
+      {
+        "id": "PH2B-EXAMPLE-SYSTEM",
+        "file": "src\\plugins\\examples\\system-information\\metadata.ts",
+        "featureFlag": "SYSTEM_INFORMATION_WIDGET",
+        "version": "1.0.0",
+        "runtime": "2.0.0",
+        "documentation": "src/plugins/examples/system-information/docs/README.md"
+      },
+      {
+        "id": "PH2B-EXAMPLE-THEME",
+        "file": "src\\plugins\\examples\\theme-preview\\metadata.ts",
+        "featureFlag": "THEME_PREVIEW_WIDGET",
+        "version": "1.0.0",
+        "runtime": "2.0.0",
+        "documentation": "src/plugins/examples/theme-preview/docs/README.md"
+      },
+      {
+        "id": "PH1-QD-001",
+        "file": "src\\plugins\\quality-diagnostics\\metadata.ts",
+        "featureFlag": "QUALITY_DIAGNOSTICS",
+        "version": "1.0.0",
+        "runtime": "1.0.0",
+        "documentation": "src/plugins/quality-diagnostics/docs/README.md"
+      },
+      {
+        "id": "PH2D-PRODUCTION-001",
+        "file": "src\\plugins\\restaurant-health-dashboard\\metadata.ts",
+        "featureFlag": "RESTAURANT_HEALTH_DASHBOARD",
+        "version": "1.0.0",
+        "runtime": "2.0.0",
+        "documentation": "src/plugins/restaurant-health-dashboard/docs/README.md"
+      }
+    ],
+    "generatorSamples": [
+      {
+        "id": "developer-plugin",
+        "name": "Developer Plugin",
+        "flag": "DEVELOPER_CLOCK_WIDGET",
+        "passed": true,
+        "missing": []
+      },
+      {
+        "id": "dashboard-widget",
+        "name": "Dashboard Widget",
+        "flag": "DEVELOPER_NOTES_WIDGET",
+        "passed": true,
+        "missing": []
+      },
+      {
+        "id": "sidebar-tool",
+        "name": "Sidebar Tool",
+        "flag": "SYSTEM_INFORMATION_WIDGET",
+        "passed": true,
+        "missing": []
+      },
+      {
+        "id": "settings-page",
+        "name": "Settings Page",
+        "flag": "THEME_PREVIEW_WIDGET",
+        "passed": true,
+        "missing": []
+      },
+      {
+        "id": "report-plugin",
+        "name": "Report Plugin",
+        "flag": "DEVELOPER_CLOCK_WIDGET",
+        "passed": true,
+        "missing": []
+      },
+      {
+        "id": "developer-utility",
+        "name": "Developer Utility",
+        "flag": "DEVELOPER_NOTES_WIDGET",
+        "passed": true,
+        "missing": []
+      }
+    ],
+    "realPlugin": {
+      "id": "PH2D-PRODUCTION-001",
+      "flag": "RESTAURANT_HEALTH_DASHBOARD",
+      "extensionPoints": [
+        "dashboard-cards",
+        "sidebar",
+        "header-actions",
+        "settings-pages",
+        "reports",
+        "floating-panels",
+        "toolbar-actions",
+        "status-badges",
+        "quick-actions",
+        "context-menus",
+        "widgets",
+        "dialogs",
+        "panels"
+      ],
+      "roles": [
+        "guest",
+        "customer",
+        "kitchen",
+        "waiter",
+        "owner",
+        "admin",
+        "developer"
+      ],
+      "storageModes": [
+        "memory",
+        "session",
+        "persistent",
+        "encrypted"
+      ],
+      "routes": [
+        "/admin/plugins/restaurant-health",
+        "/developer/plugins/restaurant-health/[section]",
+        "/admin/settings/plugins/restaurant-health",
+        "/admin/reports/plugins/restaurant-health"
+      ]
+    },
+    "extensionCoverage": {
+      "dashboard-cards": true,
+      "sidebar": true,
+      "header-actions": true,
+      "settings-pages": true,
+      "reports": true,
+      "floating-panels": true,
+      "toolbar-actions": true,
+      "status-badges": true,
+      "quick-actions": true,
+      "context-menus": true,
+      "widgets": true,
+      "dialogs": true,
+      "panels": true
+    },
+    "lifecycleCoverage": {
+      "install": true,
+      "register": true,
+      "validate": true,
+      "initialize": true,
+      "enable": true,
+      "run": true,
+      "suspend": true,
+      "resume": true,
+      "disable": true,
+      "destroy": true,
+      "reload": true,
+      "uninstall": true
+    },
+    "permissionCoverage": {
+      "guest": true,
+      "customer": true,
+      "kitchen": true,
+      "waiter": true,
+      "owner": true,
+      "admin": true,
+      "developer": true
+    },
+    "storageCoverage": {
+      "memory": true,
+      "session": true,
+      "persistent": true,
+      "encrypted": true
+    },
+    "routerCoverage": {
+      "/admin/plugins/restaurant-health": true,
+      "/developer/plugins/restaurant-health/[section]": true,
+      "/admin/settings/plugins/restaurant-health": true,
+      "/admin/reports/plugins/restaurant-health": true
+    },
+    "regression": {
+      "surfaces": {
+        "Customer": "unchanged",
+        "Owner": "unchanged",
+        "Kitchen": "unchanged",
+        "POS": "unchanged",
+        "Admin": "unchanged",
+        "QR": "unchanged",
+        "Payments": "unchanged",
+        "Inventory": "unchanged",
+        "Reports": "unchanged",
+        "Authentication": "unchanged",
+        "Realtime": "unchanged",
+        "Firestore": "unchanged"
+      },
+      "pluginFiles": [
+        "src\\plugins\\restaurant-health-dashboard\\api\\index.ts",
+        "src\\plugins\\restaurant-health-dashboard\\assets\\index.ts",
+        "src\\plugins\\restaurant-health-dashboard\\config.defaults.ts",
+        "src\\plugins\\restaurant-health-dashboard\\config.schema.ts",
+        "src\\plugins\\restaurant-health-dashboard\\feature-flag.ts",
+        "src\\plugins\\restaurant-health-dashboard\\hooks\\use-restaurant-health-dashboard.ts",
+        "src\\plugins\\restaurant-health-dashboard\\metadata.ts",
+        "src\\plugins\\restaurant-health-dashboard\\plugin.ts",
+        "src\\plugins\\restaurant-health-dashboard\\routes\\dashboard.ts",
+        "src\\plugins\\restaurant-health-dashboard\\routes\\report.ts",
+        "src\\plugins\\restaurant-health-dashboard\\routes\\runtime.tsx",
+        "src\\plugins\\restaurant-health-dashboard\\routes\\settings.ts",
+        "src\\plugins\\restaurant-health-dashboard\\services\\health-snapshot.ts",
+        "src\\plugins\\restaurant-health-dashboard\\types\\index.ts",
+        "src\\plugins\\restaurant-health-dashboard\\ui\\extensions.ts",
+        "src\\plugins\\restaurant-health-dashboard\\validator.ts"
+      ],
+      "changedBusinessAreas": []
+    },
+    "stress": {
+      "eventPublishMs": 1.9067000000000007,
+      "storageWriteMs": 0.7862999999999829,
+      "storageReadMs": 2.2950000000000728,
+      "rapidEnableDisableMs": 0.46719999999982065,
+      "lazyLoadUnloadMs": 0.2403999999999087
+    },
+    "performance": {
+      "discoveryMs": 0.13220000000001164,
+      "registryLookupMs": 0.26110000000016953,
+      "validationMs": 0.07970000000000255,
+      "dependencyResolutionMs": 0.4781000000000404,
+      "runtimeCreationMs": 0.07220000000006621,
+      "contextInjectionMs": 0.1169999999999618,
+      "sdkInjectionMs": 0.08680000000003929,
+      "uiRegistrationMs": 0.08979999999996835,
+      "routeRegistrationMs": 0.0888999999999669,
+      "navigationRegistrationMs": 0.21269999999981337,
+      "pluginEnableMs": 0.116800000000012,
+      "pluginDisableMs": 0.07660000000009859,
+      "pluginDestroyMs": 0.053699999999935244
+    },
+    "memory": {
+      "heapBefore": 7112960,
+      "heapAfter": 6211032,
+      "heapDelta": -901928,
+      "registryEntriesAfterCleanup": 0,
+      "eventTopicsAfterCleanup": 0,
+      "storageEntriesAfterCleanup": 0,
+      "lifecycleEntriesAfterCleanup": 0,
+      "cacheEntriesAfterCleanup": 0
+    },
+    "staticAnalysis": {
+      "pluginFiles": 90,
+      "forbiddenImports": [],
+      "duplicateMetadataNames": [],
+      "duplicateExports": [
+        [
+          "PluginEvents",
+          [
+            "src\\plugins\\core\\sdk\\index.ts",
+            "src\\plugins\\core\\sdk\\index.ts"
+          ]
+        ],
+        [
+          "PluginRuntime",
+          [
+            "src\\plugins\\core\\sdk\\index.ts",
+            "src\\plugins\\core\\sdk\\index.ts"
+          ]
+        ],
+        [
+          "PluginRouter",
+          [
+            "src\\plugins\\core\\sdk\\index.ts",
+            "src\\plugins\\core\\sdk\\index.ts"
+          ]
+        ],
+        [
+          "PluginUI",
+          [
+            "src\\plugins\\core\\sdk\\index.ts",
+            "src\\plugins\\core\\sdk\\index.ts"
+          ]
+        ],
+        [
+          "PluginAssets",
+          [
+            "src\\plugins\\core\\sdk\\index.ts",
+            "src\\plugins\\core\\sdk\\index.ts"
+          ]
+        ]
+      ],
+      "cycles": []
+    },
+    "manualChecklist": [
+      "Hostinger redeploy with production env",
+      "Firebase rules deploy",
+      "Firebase indexes deploy",
+      "Firebase authorized domains",
+      "Chrome Performance profiling",
+      "Lighthouse and Core Web Vitals",
+      "Browser memory stability",
+      "Printer validation",
+      "POS validation",
+      "Kitchen validation",
+      "Owner validation",
+      "Customer validation",
+      "Plugin validation with flags enabled only in a controlled environment"
+    ]
+  }
+}

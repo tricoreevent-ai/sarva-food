@@ -23,7 +23,7 @@ export const developerClockMetadata = {
   supportedModules: ["developer"],
   entry: "@/plugins/examples/developer-clock/plugin",
   screenshots: [],
-  documentation: "src/plugins/examples/developer-clock/README.md",
+  documentation: "src/plugins/examples/developer-clock/docs/README.md",
   keywords: ["developer", "clock", "sample"],
   tags: ["phase-2b", "sample"],
   bundleSize: 0,

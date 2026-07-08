@@ -20,6 +20,7 @@ const envValues: Partial<Record<FeatureFlagKey, string | undefined>> = {
   DEVELOPER_NOTES_WIDGET: process.env.NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET,
   SYSTEM_INFORMATION_WIDGET: process.env.NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET,
   THEME_PREVIEW_WIDGET: process.env.NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET,
+  RESTAURANT_HEALTH_DASHBOARD: process.env.NEXT_PUBLIC_ENABLE_RESTAURANT_HEALTH_DASHBOARD,
 };
 
 const definitions: FeatureFlagDefinition[] = [
@@ -77,6 +78,14 @@ const definitions: FeatureFlagDefinition[] = [
     envVar: "NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET",
     defaultValue: false,
     description: "Developer-only sample theme preview widget plugin.",
+    rollbackValue: false,
+    remoteReady: true,
+  },
+  {
+    key: "RESTAURANT_HEALTH_DASHBOARD",
+    envVar: "NEXT_PUBLIC_ENABLE_RESTAURANT_HEALTH_DASHBOARD",
+    defaultValue: false,
+    description: "Admin/developer Restaurant Health Dashboard validation plugin.",
     rollbackValue: false,
     remoteReady: true,
   },

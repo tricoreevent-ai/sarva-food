@@ -7,7 +7,7 @@ Decision: `NO GO`
 
 ## Repository Health
 
-Repository-side certification work is complete locally. Analyzer/report drift was fixed, release reports were regenerated, and local code gates pass except production-env validation, which correctly fails without production-only Hostinger/Firebase/provider secrets.
+Repository-side certification work is complete through base commit `7fcd009d828635aef090fc9785af94b6ffc6b971`, with Phase 2D plugin validation closure ready for the final release commit. Analyzer/report drift was fixed, release reports were regenerated, and local code gates pass except production-env validation, which correctly fails without production-only Hostinger/Firebase/provider secrets.
 
 ## Application Health
 
@@ -15,7 +15,7 @@ No unresolved local P0/P1 application bug is confirmed. Business workflows, API 
 
 ## Deployment Health
 
-`verify:deployment` reaches Hostinger health/release endpoints and confirms version, branch, runtime metadata, and health checks for the currently hosted app. Deployment remains blocked because hosted env reports `development` and the final certification commit still must be redeployed after Hostinger env correction.
+`verify:deployment` reaches Hostinger health/release endpoints and confirms version, branch, final SHA `7fcd009d828635aef090fc9785af94b6ffc6b971`, runtime metadata, and health checks for the currently hosted app. Deployment remains blocked because hosted env reports `development`.
 
 ## Provider Health
 
@@ -49,7 +49,7 @@ No repository-side accessibility blocker is confirmed. Full accessibility smoke 
 | `npm run audit:release` | Passed |
 | `npm run smoke:operational` | Passed |
 | `npm run validate:prod-env` | Failed as expected for missing production-only env/secrets |
-| `npm run verify:deployment` | Failed on Hostinger env/runtime metadata |
+| `npm run verify:deployment` | Failed only on Hostinger env reporting `development`; final SHA, version, branch, and health checks passed |
 | `npm run verify:performance` | Passed local bundle/analyzer checks with `/owner/orders` route-JS warning; Lighthouse manual |
 | `npm run smoke:production` | Public unauthenticated probes passed; authenticated checks manual |
 | `npm run monitor:memory` | Short server heap probe passed; browser heap/listeners manual |
@@ -65,7 +65,7 @@ Fixed analyzer persistence, route-level performance verification, provider verif
 
 | Owner | Task |
 | --- | --- |
-| Hostinger | Set production env, restart/redeploy final commit, clear cache, and verify `/api/release-info` production env/runtime/final SHA. |
+| Hostinger | Set production env, restart/redeploy if required, clear cache, and verify `/api/release-info` reports production env for final SHA `7fcd009d828635aef090fc9785af94b6ffc6b971`. |
 | Firebase Console | Confirm Admin credentials, VAPID key, authorized domains, Firestore rules, indexes, and protected read/write smoke. |
 | Razorpay Dashboard | Verify owner/live keys, order creation, checkout, verify, webhook signature, failed payment, refund, and reconciliation. |
 | Provider Dashboards | Verify SMTP sends, WhatsApp Cloud API send/webhook/template policy, Cloudinary quota/uploads, Google OAuth domains, Mapbox token. |

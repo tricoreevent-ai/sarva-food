@@ -23,7 +23,7 @@ export const themePreviewMetadata = {
   supportedModules: ["developer"],
   entry: "@/plugins/examples/theme-preview/plugin",
   screenshots: [],
-  documentation: "src/plugins/examples/theme-preview/README.md",
+  documentation: "src/plugins/examples/theme-preview/docs/README.md",
   keywords: ["developer", "theme", "sample"],
   tags: ["phase-2b", "sample"],
   bundleSize: 0,

@@ -30,7 +30,7 @@ class EnterprisePluginRegistry {
 
   unregister(id: string) {
     const record = this.requireRecord(id);
-    assertPluginTransition(record.state, "DESTROYED");
+    if (record.state !== "DESTROYED") assertPluginTransition(record.state, "DESTROYED");
     this.records.delete(id);
     this.flagIndex.delete(record.metadata.featureFlag);
     this.nameIndex.delete(record.metadata.name);

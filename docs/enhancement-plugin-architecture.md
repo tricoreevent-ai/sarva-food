@@ -18,6 +18,7 @@ Last updated: 2026-07-08
 | Feature ID | Plugin | Flag | Status | Impact |
 | --- | --- | --- | --- | --- |
 | `PH1-QD-001` | Quality Diagnostics | `NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS` | Disabled by default | No API, Firestore, schema, or realtime impact. |
+| `PH2D-PRODUCTION-001` | Restaurant Health Dashboard | `NEXT_PUBLIC_ENABLE_RESTAURANT_HEALTH_DASHBOARD` | Disabled by default | SDK-only Admin/Developer diagnostics plugin; no API, Firestore, schema, or realtime impact. |
 
 ## Core Foundation
 
@@ -45,6 +46,7 @@ Last updated: 2026-07-08
 | Diagnostics | `src/plugins/core/diagnostics` | Installed/enabled/broken plugin metrics, failures, health score, startup and size signals. |
 | Runtime Engine | `src/plugins/core/runtime` | Execution manager for context injection, SDK injection, lifecycle execution, recovery, unload, and destroy. |
 | Official SDK | `src/plugins/core/sdk` | Public plugin API surface for all future plugins. |
+| SDK Hooks | `src/plugins/core/sdk/hooks.ts` | Public client hook facade for plugin UI. |
 | Plugin API | `src/plugins/core/api` | Versioned approved API contract; arbitrary app module calls are blocked by design. |
 | Plugin Hooks | `src/plugins/core/hooks` | Client SDK hooks for plugin state, config, permissions, storage, logging, events, runtime, diagnostics, health, and lifecycle. |
 | Plugin Services | `src/plugins/core/services` | Approved no-op-safe service injection for toast, modal, clipboard, theme, navigation, localization, formatting, date, currency, analytics, and notifications. |
@@ -54,6 +56,7 @@ Last updated: 2026-07-08
 | Plugin Assets | `src/plugins/core/assets` | Versioned icon, image, font, SVG, animation, translation, theme, and manifest registry. |
 | Plugin UI | `src/plugins/core/ui` | Permission-aware and flag-aware extension point registry. |
 | Plugin Sandbox | `src/plugins/core/sandbox` | Frozen context execution boundary and global-mutation detection. |
+| Validation Hardening | `scripts/release/enhancement-registry-audit.mjs` | Phase 2C contract validation, SDK checks, sandbox tests, generator checks, stress benchmarks, memory checks, static analysis, and report generation. |
 
 ## Folder Contract
 

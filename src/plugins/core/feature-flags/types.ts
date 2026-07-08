@@ -5,7 +5,8 @@ export type FeatureFlagKey =
   | "DEVELOPER_CLOCK_WIDGET"
   | "DEVELOPER_NOTES_WIDGET"
   | "SYSTEM_INFORMATION_WIDGET"
-  | "THEME_PREVIEW_WIDGET";
+  | "THEME_PREVIEW_WIDGET"
+  | "RESTAURANT_HEALTH_DASHBOARD";
 
 export type FeatureFlagSource =
   | "default"

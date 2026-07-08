@@ -23,7 +23,7 @@ export const systemInformationMetadata = {
   supportedModules: ["developer"],
   entry: "@/plugins/examples/system-information/plugin",
   screenshots: [],
-  documentation: "src/plugins/examples/system-information/README.md",
+  documentation: "src/plugins/examples/system-information/docs/README.md",
   keywords: ["developer", "system", "sample"],
   tags: ["phase-2b", "sample"],
   bundleSize: 0,
