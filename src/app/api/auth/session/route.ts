@@ -12,6 +12,8 @@ import {
 } from "@/lib/server-auth";
 import { adminDb } from "@/firebase/admin";
 import { AuditRepository } from "@/repositories/audit-repository";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
+import { createTraceContext, publicTraceMeta, traceLogFields } from "@/lib/server/request-trace";
 
 function getCookieOptions(request: NextRequest) {
   const host = request.headers.get("host") ?? request.nextUrl.host;
@@ -57,6 +59,7 @@ async function getSessionProfile(uid: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const trace = createTraceContext(request);
   const { idToken, surface: requestedSurface, ensureCustomer } = (await request.json().catch(() => ({}))) as {
     idToken?: string;
     surface?: SessionSurface;
@@ -64,7 +67,7 @@ export async function POST(request: NextRequest) {
   };
 
   if (!idToken) {
-    return NextResponse.json({ error: "idToken is required" }, { status: 400 });
+    return NextResponse.json({ error: "idToken is required", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 400 });
   }
 
   const requestedSessionSurface = parseSessionSurface(requestedSurface);
@@ -72,9 +75,9 @@ export async function POST(request: NextRequest) {
   try {
     session = await verifyFirebaseIdToken(idToken, { ensureCustomer: requestedSessionSurface === "customer" || ensureCustomer === true });
   } catch (error) {
-    console.error("[auth/session] Firebase session verification failed", { reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.security("auth.session.verify_failed", { ...traceLogFields(trace), surface: requestedSessionSurface, errorName: safeErrorName(error) });
     return NextResponse.json(
-      { error: sessionVerificationMessage(error, requestedSessionSurface) },
+      { error: sessionVerificationMessage(error, requestedSessionSurface), requestId: trace.requestId, meta: publicTraceMeta(trace) },
       { status: 401 },
     );
   }
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
   const surface = requestedSessionSurface ?? surfaceForRole(session.role);
   if (!surface || !roleAllowedForSurface(session.role, surface)) {
     return NextResponse.json(
-      { error: "This account cannot be used for this module." },
+      { error: "This account cannot be used for this module.", requestId: trace.requestId, meta: publicTraceMeta(trace) },
       { status: 403 },
     );
   }

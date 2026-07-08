@@ -4,6 +4,7 @@ import { tenantScope } from "@/repositories/shared";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { operationKey as makeOperationKey } from "@/lib/server/operation-idempotency";
 import { logOperationalEvent, logOperationalFailure } from "@/lib/server/operational-logging";
+import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields, type TraceContext } from "@/lib/server/request-trace";
 import type { OrderStatus } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
@@ -69,44 +70,45 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const requestId = requestIdFor();
-  const startedAt = Date.now();
-  let context: Record<string, unknown> = { requestId };
+  let trace = createTraceContext(request);
+  let context: Record<string, unknown> = traceLogFields(trace);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
     const access = await requireOwnerFeature(request, "orders", "update");
     if (access.error) return access.error;
     const body = await request.json().catch(() => ({})) as OrderPatchBody;
-    if (!body.orderId) return NextResponse.json({ error: "Order id is required." }, { status: 400 });
+    if (!body.orderId) return fail("Order id is required.");
     const scope = tenantScope(access.session, body.restaurantId);
+    trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
     const orders = new OrderRepository();
     const action = body.action ?? body.status ?? "status";
     const opKey = cleanOperationKey(body.operationKey) ?? makeOperationKey([scope.tenantId, body.orderId, action, body.status, body.amount, body.method, body.type, body.event, body.reason, body.tableNumber, body.sourceOrderIds, body.splits, body.correction]);
-    context = { requestId, action, tenantId: scope.tenantId, restaurantId: scope.tenantId, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, role: access.session.role };
+    context = { ...traceLogFields(trace), action, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, role: access.session.role };
     const send = (data: unknown) => {
-      logOperationalEvent("owner.orders.patch", { ...context, outcome: "ok", durationMs: Date.now() - startedAt });
+      logOperationalEvent("owner.orders.patch", { ...context, outcome: "ok", durationMs: traceDurationMs(trace) });
       return NextResponse.json({ data });
     };
     const actor = { userId: access.session.uid, role: access.session.role, device: cleanDevice(body.device ?? request.headers.get("user-agent") ?? ""), ip: clientIp(request), note: cleanNote(body.note), operationKey: opKey };
     if (body.action === "payment_started") {
       const method = String(body.method ?? "");
-      if (method && !paymentMethods.has(method)) return NextResponse.json({ error: "Valid payment method is required." }, { status: 400 });
+      if (method && !paymentMethods.has(method)) return fail("Valid payment method is required.");
       const data = await orders.startPaymentLock(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number.isFinite(Number(body.amount)) ? Number(body.amount) : undefined, method: paymentMethods.has(method) ? method as PaymentMethod : undefined });
       return send(data);
     }
     if (body.action === "payment_unlock") {
-      if (!canUnlockPayment(access.session.role)) return NextResponse.json({ error: "Only owner can unlock payment changes." }, { status: 403 });
+      if (!canUnlockPayment(access.session.role)) return fail("Only owner can unlock payment changes.", 403);
       const reason = cleanNote(body.reason ?? body.note);
-      if (!reason) return NextResponse.json({ error: "Unlock reason is required." }, { status: 400 });
+      if (!reason) return fail("Unlock reason is required.");
       const data = await orders.unlockPayment(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, reason });
       return send(data);
     }
     if (body.action === "bill_correction") {
-      if (!canCorrectBill(access.session.role, access.session.permissions)) return NextResponse.json({ error: "Only owner or manager can correct completed bills." }, { status: 403 });
+      if (!canCorrectBill(access.session.role, access.session.permissions)) return fail("Only owner or manager can correct completed bills.", 403);
       const reason = cleanNote(body.reason ?? body.note);
       const lines = (body.correction?.lines ?? [])
         .map((line) => ({ ...line, name: String(line.name ?? "").trim(), price: Number(line.price), quantity: Number(line.quantity) }))
         .filter((line) => line.name && Number.isFinite(line.price) && Number.isFinite(line.quantity) && line.quantity > 0);
-      if (!reason || !lines.length) return NextResponse.json({ error: "Correction reason and valid bill lines are required." }, { status: 400 });
+      if (!reason || !lines.length) return fail("Correction reason and valid bill lines are required.");
       const data = await orders.recordBillCorrection(scope, {
         ...actor,
         orderId: body.orderId,
@@ -121,13 +123,13 @@ export async function PATCH(request: NextRequest) {
     }
     if (body.action === "payment") {
       const method = String(body.method ?? "");
-      if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return NextResponse.json({ error: "Valid payment method and amount are required." }, { status: 400 });
+      if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return fail("Valid payment method and amount are required.");
       const data = await orders.recordPayment(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as "cash" | "upi" | "card" | "credit", reference: body.reference, cashierId: access.session.uid });
       return send(data);
     }
     if (body.action === "refund") {
       const method = String(body.method ?? "");
-      if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return NextResponse.json({ error: "Valid refund method and amount are required." }, { status: 400 });
+      if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return fail("Valid refund method and amount are required.");
       const data = await orders.recordRefund(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as "cash" | "upi" | "card" | "credit", reference: body.reference, cashierId: access.session.uid });
       return send(data);
     }
@@ -137,7 +139,7 @@ export async function PATCH(request: NextRequest) {
       return send(data);
     }
     if (body.action === "event") {
-      if (!body.event || !timelineEvents.has(body.event)) return NextResponse.json({ error: "Valid operational event is required." }, { status: 400 });
+      if (!body.event || !timelineEvents.has(body.event)) return fail("Valid operational event is required.");
       const data = await orders.recordOperationalEvent(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, event: body.event as OperationalEvent, amount: body.amount, method: body.method, note: body.note });
       return send(data);
     }
@@ -145,7 +147,7 @@ export async function PATCH(request: NextRequest) {
       const splits = (body.splits ?? [])
         .map((split) => ({ ...split, amount: Number(split.amount), method: String(split.method ?? "") }))
         .filter((split) => Number.isFinite(split.amount) && split.amount > 0 && paymentMethods.has(split.method));
-      if (!splits.length) return NextResponse.json({ error: "Valid split bill rows are required." }, { status: 400 });
+      if (!splits.length) return fail("Valid split bill rows are required.");
       const data = await orders.recordSplitBill(scope, {
         ...actor,
         orderId: body.orderId,
@@ -156,21 +158,21 @@ export async function PATCH(request: NextRequest) {
     }
     if (body.action === "transfer_table") {
       const tableNumber = body.tableNumber?.trim();
-      if (!tableNumber) return NextResponse.json({ error: "Target table is required." }, { status: 400 });
+      if (!tableNumber) return fail("Target table is required.");
       const data = await orders.transferTable(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, tableNumber, waiterName: body.waiterName });
       return send(data);
     }
     if (body.action === "merge_tables") {
       const sourceOrderIds = Array.isArray(body.sourceOrderIds) ? body.sourceOrderIds.filter(Boolean) : [];
-      if (!sourceOrderIds.length) return NextResponse.json({ error: "At least one source order is required." }, { status: 400 });
+      if (!sourceOrderIds.length) return fail("At least one source order is required.");
       const data = await orders.mergeTables(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, sourceOrderIds, sourceKitchenOrderIds: body.sourceKitchenOrderIds, tableNumber: body.tableNumber });
       return send(data);
     }
-    if (!body.status || !statuses.has(body.status)) return NextResponse.json({ error: "Valid order status is required." }, { status: 400 });
+    if (!body.status || !statuses.has(body.status)) return fail("Valid order status is required.");
     const data = await orders.updateStatus(scope, body.orderId, body.status, actor);
     return send(data);
   } catch (error) {
-    return orderError(error, requestId, context, Date.now() - startedAt);
+    return orderError(error, trace, context);
   }
 }
 
@@ -206,22 +208,27 @@ function canUnlockPayment(role: string) {
   return ["owner", "admin", "super_admin"].includes(role);
 }
 
-function orderError(error: unknown, requestId: string, context: Record<string, unknown>, durationMs: number) {
+function orderError(error: unknown, trace: TraceContext, context: Record<string, unknown>) {
+  const requestId = trace.requestId;
+  const meta = publicTraceMeta(trace);
+  const response = (message: string, status: number) => NextResponse.json({ error: message, requestId, meta }, { status });
+  const durationMs = traceDurationMs(trace);
   logOperationalFailure("owner.orders.patch", error, { ...context, durationMs });
   const message = error instanceof Error ? error.message : "";
-  if (/Order not found|no longer active/i.test(message)) return NextResponse.json({ error: "This order is no longer active. Please refresh.", requestId }, { status: 404 });
-  if (/Kitchen ticket not found/i.test(message)) return NextResponse.json({ error: "Kitchen ticket not found.", requestId }, { status: 404 });
-  if (/Kitchen still preparing/i.test(message)) return NextResponse.json({ error: "Kitchen still preparing.", requestId }, { status: 409 });
-  if (/currently being modified/i.test(message)) return NextResponse.json({ error: "Order currently being modified. Refresh and retry.", requestId }, { status: 409 });
-  if (/already been collected|already paid/i.test(message)) return NextResponse.json({ error: "Payment has already been collected.", requestId }, { status: 409 });
-  if (/invalid .*transition|cannot move back|cancelled orders|refunded orders|without refund/i.test(message)) return NextResponse.json({ error: "That order state change is no longer valid. Refresh and retry.", requestId }, { status: 409 });
-  if (/split bill|balance due|source order|target table|required|completed bills|correction|unlock reason/i.test(message)) return NextResponse.json({ error: message, requestId }, { status: 400 });
-  if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return NextResponse.json({ error: "Unable to contact server. Please retry.", requestId }, { status: 503 });
-  return NextResponse.json({ error: `Unexpected error. Reference ID ${requestId}`, requestId }, { status: 500 });
+  if (/Order not found|no longer active/i.test(message)) return response("This order is no longer active. Please refresh.", 404);
+  if (/Kitchen ticket not found/i.test(message)) return response("Kitchen ticket not found.", 404);
+  if (/Kitchen still preparing/i.test(message)) return response("Kitchen still preparing.", 409);
+  if (/currently being modified/i.test(message)) return response("Order currently being modified. Refresh and retry.", 409);
+  if (/already been collected|already paid/i.test(message)) return response("Payment has already been collected.", 409);
+  if (/invalid .*transition|cannot move back|cancelled orders|refunded orders|without refund/i.test(message)) return response("That order state change is no longer valid. Refresh and retry.", 409);
+  if (/split bill|balance due|source order|target table|required|completed bills|correction|unlock reason/i.test(message)) return response(safeBusinessMessage(message), 400);
+  if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return response("Unable to contact server. Please retry.", 503);
+  return response(`Unexpected error. Reference ID ${requestId}`, 500);
 }
 
-function requestIdFor() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+function safeBusinessMessage(message: string) {
+  if (/(secret|token|private|credential|password|stack|firebase|firestore)/i.test(message)) return "Request could not be completed.";
+  return message.replace(/\s+/g, " ").slice(0, 180);
 }
 
 function startDate(value: string | null) {

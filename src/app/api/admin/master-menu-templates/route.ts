@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { MasterMenuTemplateRepository } from "@/repositories/master-menu-template-repository";
 import { keralaStarterMenuTemplates, normalizeMasterTemplate, templatesToCsv, templatesToExcelRows, type MasterTemplateInput, type TemplateImportFormat, type TemplateImportMode } from "@/lib/master-menu-template-normalizer";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -131,7 +132,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 function logTemplateError(action: string, error: unknown) {
-  console.error("[admin-master-menu-templates] request failed", { action, reason: error instanceof Error ? error.name : typeof error });
+  productionLogger.admin("admin.master-menu-templates.failed", { action, errorName: safeErrorName(error) });
 }
 
 async function requireAdmin(request: NextRequest) {

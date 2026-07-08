@@ -1,5 +1,7 @@
 import "server-only";
 
+import { productionLogger } from "@/lib/server/production-logger";
+
 type CacheEntry<T> = {
   data: T;
   freshUntil: number;
@@ -40,7 +42,7 @@ export async function getCachedPublicData<T>(
   if (existing && existing.staleUntil > now) {
     existing.inflight = refreshCacheWithDeadline(key, loader, options)
       .catch((error) => {
-        console.warn("[Nammude public cache] refresh failed", { key, reason: safeReason(error) });
+        productionLogger.warn("public-cache.refresh_failed", { key, reason: safeReason(error) });
         return existing.data;
       })
       .finally(() => {
@@ -98,7 +100,7 @@ function refreshCacheWithDeadline<T>(
   let timeoutId: ReturnType<typeof setTimeout>;
   const refreshPromise = refreshCache(key, loader, options);
   refreshPromise.catch((error) => {
-    console.warn("[Nammude public cache] refresh failed", { key, reason: safeReason(error) });
+    productionLogger.warn("public-cache.refresh_failed", { key, reason: safeReason(error) });
   });
   const timeout = new Promise<T>((_, reject) => {
     timeoutId = setTimeout(

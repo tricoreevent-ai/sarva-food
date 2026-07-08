@@ -12,16 +12,22 @@ import { ownerReadRoles, tenantScope } from "@/repositories/shared";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { getBuildCommit } from "@/lib/server/build-info";
 import { RELEASE_VERSION } from "@/lib/release";
+import { logOperationalFailure } from "@/lib/server/operational-logging";
+import { getOperationalDiagnostics } from "@/lib/server/production-health";
+import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields } from "@/lib/server/request-trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  let trace = createTraceContext(request);
   const session = await getSessionFromRequest(request, "owner");
-  if (!session || !ownerReadRoles.has(session.role)) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
+  if (!session || !ownerReadRoles.has(session.role)) return NextResponse.json({ error: "Owner access is required.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 403 });
+  trace = extendTrace(trace, { userId: session.uid });
 
   try {
     const scope = tenantScope(session, request.nextUrl.searchParams.get("restaurantId"));
+    trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId });
     const [orders, customers, loyalty, offers, menu, tables, staff, kitchen] = await Promise.all([
       new OrderRepository().summary(scope), new CustomerRepository().list(scope), new LoyaltyRepository().list(scope),
       new OfferRepository().list(scope), new MenuRepository().list(scope), new TableRepository().list(scope), new StaffRepository().list(scope), new KitchenRepository().list(scope),
@@ -45,10 +51,17 @@ export async function GET(request: NextRequest) {
         loyaltyCount: loyalty.length,
         kitchenCount: kitchen.length,
         revenue: orders.revenue,
+        operationalDiagnostics: getOperationalDiagnostics({
+          tenantCount: 1,
+          openOrders: orders.activeOrderCount,
+          kitchenOrders: kitchen,
+          posDraftCount: orders.orders.filter((order) => order.status === "draft").length,
+        }),
+        trace: publicTraceMeta(trace),
       },
     });
   } catch (error) {
-    console.error("[owner/system-diagnostics] load failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
-    return NextResponse.json({ error: "Unable to load system diagnostics." }, { status: 400 });
+    logOperationalFailure("owner.system-diagnostics.get", error, { ...traceLogFields(trace), durationMs: traceDurationMs(trace) });
+    return NextResponse.json({ error: "Unable to load system diagnostics.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 400 });
   }
 }

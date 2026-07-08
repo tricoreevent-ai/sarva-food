@@ -1,6 +1,6 @@
 {
   "name": "sarva-food-commerce-ecosystem",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "private": true,
   "engines": {
     "node": ">=22 <23",
@@ -21,6 +21,7 @@
     "theme:contrast": "node scripts/validate-theme-contrast.mjs",
     "validate:prod-env": "node scripts/validate-production-env.mjs",
     "smoke:operational": "node scripts/release/operational-hardening-smoke.mjs",
+    "audit:release": "node scripts/release/repository-hardening-audit.mjs",
     "verify": "npm run typecheck && npm run lint && npm run build",
     "firebase:emulators": "npx firebase-tools emulators:start --only auth,firestore,storage,functions",
     "firebase:emulators:export": "npx firebase-tools emulators:export ./tmp/firebase-emulator-data",

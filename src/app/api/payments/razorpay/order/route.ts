@@ -10,49 +10,57 @@ import {
   getRazorpayRuntimeForOrder,
   restaurantPaymentGatewayNotConfigured,
 } from "@/lib/server/owner-payment-settings";
+import { apiError } from "@/lib/server/api-response";
+import { productionLogger } from "@/lib/server/production-logger";
+import { createTraceContext, extendTrace, publicTraceMeta, traceLogFields, type TraceContext } from "@/lib/server/request-trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  let trace = createTraceContext(request);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
+  try {
   const ip = request.headers.get("x-forwarded-for") ?? "local";
   if (!rateLimit(`razorpay-order:${ip}`, 20).ok) {
-    return NextResponse.json({ error: "Too many payment attempts" }, { status: 429 });
+    return fail("Too many payment attempts", 429);
   }
 
   const session = await getSessionFromRequest(request, "customer");
   if (!session || session.role !== "customer") {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return fail("Authentication required", 401);
   }
+  trace = extendTrace(trace, { userId: session.uid });
 
   const { orderId, amount } = (await request.json().catch(() => ({}))) as {
     orderId?: string;
     amount?: number;
   };
-  if (!orderId) return NextResponse.json({ error: "Order id is required" }, { status: 400 });
+  if (!orderId) return fail("Order id is required");
 
   const { order, settings } = await getRazorpayRuntimeForOrder(orderId);
+  trace = extendTrace(trace, { tenantId: settings.tenantId, restaurantId: settings.restaurantId });
   if (order.customerId !== session.uid) {
-    return NextResponse.json({ error: "Payment is not available for this order." }, { status: 403 });
+    return fail("Payment is not available for this order.", 403);
   }
   if (order.paymentStatus === "paid") {
-    return NextResponse.json({ error: "This order is already paid." }, { status: 409 });
+    return fail("This order is already paid.", 409);
   }
   try {
     assertRazorpayUsable(settings);
   } catch {
-    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+    return fail(restaurantPaymentGatewayNotConfigured, 422);
   }
 
   const orderTotal = Number(order.total ?? 0);
   if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
-    return NextResponse.json({ error: "Order amount is invalid." }, { status: 400 });
+    return fail("Order amount is invalid.");
   }
   if (Number.isFinite(amount) && amount && Math.abs(Number(amount) - orderTotal) > 0.01) {
-    return NextResponse.json({ error: "Order amount changed. Please refresh checkout." }, { status: 409 });
+    return fail("Order amount changed. Please refresh checkout.", 409);
   }
   if (orderTotal < settings.minimumAmount || orderTotal > settings.maximumAmount) {
-    return NextResponse.json({ error: "This order amount is outside the configured payment range." }, { status: 422 });
+    return fail("This order amount is outside the configured payment range.", 422);
   }
 
   const receipt = `${settings.receiptPrefix}-${order.id}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch {
-    return NextResponse.json({ error: "Payment gateway is unavailable. Please try again." }, { status: 502 });
+    return fail("Payment gateway is unavailable. Please try again.", 502);
   }
 
   await adminDb().collection("paymentIntents").doc(providerOrder.id).set({
@@ -93,6 +101,7 @@ export async function POST(request: NextRequest) {
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
+  productionLogger.payment("razorpay.order.created", { ...traceLogFields(trace), orderId: order.id, tenantId: settings.tenantId, restaurantId: settings.restaurantId, amount: orderTotal, status: "created" });
   return NextResponse.json({
     provider: "razorpay",
     keyId: settings.keyId,
@@ -108,4 +117,11 @@ export async function POST(request: NextRequest) {
       contact: order.customerPhone,
     },
   });
+  } catch (error) {
+    return paymentRouteError(error, trace, "Payment order could not be created.");
+  }
+}
+
+function paymentRouteError(error: unknown, trace: TraceContext, fallback: string) {
+  return apiError(error, trace, fallback, 502);
 }

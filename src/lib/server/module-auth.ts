@@ -11,6 +11,7 @@ import {
   type SessionSurface,
   type VerifiedSession,
 } from "@/lib/server-auth";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import type { UserRole } from "@/types/firebase";
 
 type ModuleSurface = Extract<SessionSurface, "owner" | "admin">;
@@ -68,7 +69,7 @@ export async function handleModuleLogin(request: NextRequest, surface: ModuleSur
   }
 
   const credential = await verifyFirebasePassword(email, password).catch((error) => {
-    console.warn(`[Nammude] ${surface}-login-password-check: ${authDiagnosticMessage(error)}`);
+    logAuthDiagnostic(surface, "login-password-check", error);
     return null;
   });
   if (!credential?.uid) {
@@ -147,7 +148,7 @@ export async function handleModulePasswordOtp(request: NextRequest, surface: Mod
     if (action === "verify") return verifyModuleOtp(email, surface, body.code);
     return completeModuleOtp(email, surface, body.verificationToken, body.password);
   } catch (error) {
-    console.warn(`[Nammude] ${surface}-password-otp: ${authDiagnosticMessage(error)}`);
+    logAuthDiagnostic(surface, "password-otp", error);
     return jsonError("Password reset is temporarily unavailable.", 500);
   }
 }
@@ -187,7 +188,7 @@ async function requestModuleOtp(email: string, surface: ModuleSurface) {
 
   const smtp = getSmtpConfig();
   if (!smtp.ok) {
-    console.warn(`[Nammude] ${surface}-otp-smtp-config: ${smtp.error}`);
+    logAuthDiagnostic(surface, "otp-smtp-config", smtp.error);
     return jsonError(OTP_DELIVERY_ERROR, 503, { code: "smtp_unavailable" });
   }
 
@@ -233,7 +234,7 @@ async function requestModuleOtp(email: string, surface: ModuleSurface) {
   try {
     await sendModuleOtpEmail(email, otp, surface, smtp.options);
   } catch (error) {
-    console.warn(`[Nammude] ${surface}-otp-smtp-send: ${authDiagnosticMessage(error)}`);
+    logAuthDiagnostic(surface, "otp-smtp-send", error);
     await ref.delete().catch(() => undefined);
     return jsonError(OTP_DELIVERY_ERROR, 503, { code: "smtp_delivery_failed" });
   }
@@ -514,4 +515,12 @@ function authDiagnosticMessage(error: unknown) {
   const code = typeof maybe?.code === "string" ? maybe.code : undefined;
   const responseCode = typeof maybe?.responseCode === "number" ? maybe.responseCode : undefined;
   return [code, responseCode, message].filter(Boolean).join(" ");
+}
+
+function logAuthDiagnostic(surface: ModuleSurface, event: string, error: unknown) {
+  productionLogger.security(`auth.${surface}.${event}`, {
+    surface,
+    errorName: safeErrorName(error),
+    reason: authDiagnosticMessage(error).replace(/\s+/g, " ").slice(0, 180),
+  });
 }

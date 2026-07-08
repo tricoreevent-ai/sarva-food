@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { kitchenDocToTableOrder } from "@/lib/operational-api-mappers";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
+import { logOperationalFailure } from "@/lib/server/operational-logging";
 import { tenantScope } from "@/repositories/shared";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
             send("orders", { data, count: data.length });
           },
           (error) => {
-            console.error("[kitchen-stream] snapshot failed", { reason: error instanceof Error ? error.name : typeof error });
+            logOperationalFailure("owner.kitchen.stream.snapshot", error, { tenantId: scope.tenantId, restaurantId: scope.tenantId });
             send("error", { error: "Kitchen realtime sync failed." });
           },
         );

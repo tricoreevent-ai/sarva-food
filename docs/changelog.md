@@ -1,7 +1,18 @@
 # Changelog
 
+## 2026-07-08
+
+- Advanced the active immutable release candidate to `v1.0.0-rc3` without moving the existing `v1.0.0-rc1` or published `v1.0.0-rc2` tags; package metadata now reports `1.0.0-rc.3`.
+- Added public no-store `/health/live`, `/health/ready`, and `/health/startup` endpoints with safe app version, git SHA, deployment environment, Firestore/storage status, SMTP/Cloudinary/Razorpay/Firebase configuration status, runtime, memory, CPU estimate, build timestamp, and request-id metadata.
+- Expanded authenticated Owner/Admin diagnostics with operational listener/cache/queue status, tenant/open-order/Kitchen counts, memory, CPU estimate, and slow-query signal using existing repository reads and Firestore count aggregation.
+- Preserved all Customer, Owner, POS, Kitchen, QR, Inventory, Accounting, Menu Library, notification, payment, repository, API, Firestore collection, schema, UI, and business workflows.
+
 ## 2026-07-07
 
+- Added repository-side observability primitives for request/correlation/trace/transaction context, masked production logging, and unified API error helpers without changing business workflows.
+- Centralized remaining high-risk server diagnostics across owner Orders/POS/Kitchen, owner diagnostics, Razorpay order/verify/refund/webhook, auth/session/OTP, public order notification, public Firestore/cache/outage alerts, master menu, loyalty, tables, customer account/orders, public reviews, and push dispatch paths.
+- Added `npm run audit:release` and generated `scripts/release/repository-hardening-audit.md`; current static audit reports `0` debt markers and `0` matching unbounded Firestore collection reads, with remaining console hits limited to client/browser diagnostics.
+- Added `docs/production-operational-runbook.md` with operational logging, disaster recovery, security, performance, provider, and infrastructure checklists.
 - Prepared `v1.0.0-rc2` as the safe release-candidate strategy instead of rewriting the existing `v1.0.0-rc1` tag; package metadata now reports `1.0.0-rc.2`.
 - Added `docs/production-environment-matrix.md` and `docs/final-manual-deployment-package.md`; aligned `.env*` examples, Hostinger docs, and production validators with the actual runtime env surface.
 - Hardened production release metadata defaults, client build info, owner diagnostics, QR signing, and selected customer/public/payment/admin diagnostics so stale `0.1.0`/rc1 fallbacks and raw exception details do not leak.

@@ -10,6 +10,7 @@ import { TableRepository } from "@/repositories/table-repository";
 import { ownerReadRoles, tenantScope } from "@/repositories/shared";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { kitchenDocToTableOrder, menuDocToMenuItem, staffDocToStaffMember, tableDocToPosTable } from "@/lib/operational-api-mappers";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[owner/analytics] load failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.owner("owner.analytics.load_failed", { errorName: safeErrorName(error) });
     return NextResponse.json({ error: "Unable to load canonical analytics." }, { status: 400 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { CustomerRepository } from "@/repositories/customer-repository";
 import { ownerReadRoles, tenantScope } from "@/repositories/shared";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ data: await customers.list(scope, request.nextUrl.searchParams.get("search") ?? "") });
   } catch (error) {
-    console.error("[owner/customers] load failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.owner("owner.customers.load_failed", { errorName: safeErrorName(error) });
     return NextResponse.json({ error: "Unable to load customers." }, { status: 400 });
   }
 }

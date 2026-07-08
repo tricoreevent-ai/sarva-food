@@ -3,6 +3,7 @@ import { getSessionFromRequest } from "@/lib/server-auth";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { MasterMenuTemplateRepository } from "@/repositories/master-menu-template-repository";
 import { tenantScope } from "@/repositories/shared";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import type { MasterTemplateInput } from "@/lib/master-menu-template-normalizer";
 import type { UserRole } from "@/types/firebase";
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("[owner-master-menu-templates] list failed", { reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.owner("owner.master-menu-templates.list_failed", { errorName: safeErrorName(error) });
     return NextResponse.json({ error: "Menu templates could not be loaded." }, { status: 500 });
   }
 }
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (body.action === "unfavorite") return NextResponse.json({ data: await repository.favorite(body.templateId, scope, session.uid, false) });
     return NextResponse.json({ data: await repository.markUsed(body.templateId, scope, session.uid, body.mode ?? "wizard") });
   } catch (error) {
-    console.error("[owner-master-menu-templates] request failed", { action: body.action ?? "import", reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.owner("owner.master-menu-templates.request_failed", { action: body.action ?? "import", errorName: safeErrorName(error) });
     return NextResponse.json({ error: "Template action failed. Try again." }, { status: 400 });
   }
 }

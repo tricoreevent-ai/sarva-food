@@ -11,71 +11,87 @@ import {
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { tenantScope } from "@/repositories/shared";
 import { OrderRepository } from "@/repositories/order-repository";
+import { apiError } from "@/lib/server/api-response";
+import { productionLogger } from "@/lib/server/production-logger";
+import { createTraceContext, extendTrace, publicTraceMeta, traceLogFields, type TraceContext } from "@/lib/server/request-trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const access = await requireOwnerFeature(request, "orders", "update");
-  if (access.error) return access.error;
-
-  const body = await request.json().catch(() => ({})) as {
-    orderId?: string;
-    paymentId?: string;
-    amount?: number;
-    reason?: string;
-  };
-  if (!body.orderId || !body.paymentId) {
-    return NextResponse.json({ error: "Order id and Razorpay payment id are required." }, { status: 400 });
-  }
-
-  const { order, settings } = await getRazorpayRuntimeForOrder(body.orderId);
-  const scope = tenantScope(access.session, order.restaurantId || order.tenantId);
+  let trace = createTraceContext(request);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
-    assertRazorpayUsable(settings);
-  } catch {
-    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
-  }
-  if (!settings.refundEnabled) {
-    return NextResponse.json({ error: "Razorpay refunds are disabled for this restaurant." }, { status: 403 });
-  }
+    const access = await requireOwnerFeature(request, "orders", "update");
+    if (access.error) return access.error;
+    trace = extendTrace(trace, { userId: access.session.uid });
 
-  const client = createRazorpayClient(settings);
-  const payment = await client.payments.fetch(body.paymentId).catch(() => null);
-  if (!payment) {
-    return NextResponse.json({ error: "Payment gateway is unavailable. Please try again." }, { status: 502 });
-  }
-  if (payment.status !== "captured" && !payment.captured) {
-    return NextResponse.json({ error: "Only captured Razorpay payments can be refunded." }, { status: 409 });
-  }
+    const body = await request.json().catch(() => ({})) as {
+      orderId?: string;
+      paymentId?: string;
+      amount?: number;
+      reason?: string;
+    };
+    if (!body.orderId || !body.paymentId) {
+      return fail("Order id and Razorpay payment id are required.");
+    }
 
-  const amount = Number(body.amount ?? 0);
-  const refund = await client.payments.refund(body.paymentId, {
-    ...(amount > 0 ? { amount: amountToSubunits(amount) } : {}),
-    notes: {
+    const { order, settings } = await getRazorpayRuntimeForOrder(body.orderId);
+    const scope = tenantScope(access.session, order.restaurantId || order.tenantId);
+    trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId });
+    try {
+      assertRazorpayUsable(settings);
+    } catch {
+      return fail(restaurantPaymentGatewayNotConfigured, 422);
+    }
+    if (!settings.refundEnabled) {
+      return fail("Razorpay refunds are disabled for this restaurant.", 403);
+    }
+
+    const client = createRazorpayClient(settings);
+    const payment = await client.payments.fetch(body.paymentId).catch(() => null);
+    if (!payment) {
+      return fail("Payment gateway is unavailable. Please try again.", 502);
+    }
+    if (payment.status !== "captured" && !payment.captured) {
+      return fail("Only captured Razorpay payments can be refunded.", 409);
+    }
+
+    const amount = Number(body.amount ?? 0);
+    const refund = await client.payments.refund(body.paymentId, {
+      ...(amount > 0 ? { amount: amountToSubunits(amount) } : {}),
+      notes: {
+        orderId: body.orderId,
+        reason: body.reason?.trim() || "Owner refund",
+      },
+    }).catch(() => null);
+    if (!refund) {
+      return fail("Refund was rejected by the payment gateway.", 502);
+    }
+
+    const refundAmount = subunitsToAmount(refund.amount) || amount || subunitsToAmount(payment.amount);
+    const data = await new OrderRepository().recordRefund(scope, {
       orderId: body.orderId,
+      amount: refundAmount,
+      method: paymentMethod(payment.method),
+      reference: refund.id,
+      cashierId: access.session.uid,
+      role: access.session.role,
+      provider: "razorpay",
+      providerPaymentId: body.paymentId,
+      providerOrderId: payment.order_id,
+      providerRefundId: refund.id,
+      gatewayStatus: refund.status,
       reason: body.reason?.trim() || "Owner refund",
-    },
-  }).catch(() => null);
-  if (!refund) {
-    return NextResponse.json({ error: "Refund was rejected by the payment gateway." }, { status: 502 });
+    });
+
+    productionLogger.payment("razorpay.refund.completed", { ...traceLogFields(trace), orderId: body.orderId, amount: refundAmount, status: refund.status, role: access.session.role });
+    return NextResponse.json({ data, refund });
+  } catch (error) {
+    return paymentRouteError(error, trace, "Refund could not be completed.");
   }
+}
 
-  const refundAmount = subunitsToAmount(refund.amount) || amount || subunitsToAmount(payment.amount);
-  const data = await new OrderRepository().recordRefund(scope, {
-    orderId: body.orderId,
-    amount: refundAmount,
-    method: paymentMethod(payment.method),
-    reference: refund.id,
-    cashierId: access.session.uid,
-    role: access.session.role,
-    provider: "razorpay",
-    providerPaymentId: body.paymentId,
-    providerOrderId: payment.order_id,
-    providerRefundId: refund.id,
-    gatewayStatus: refund.status,
-    reason: body.reason?.trim() || "Owner refund",
-  });
-
-  return NextResponse.json({ data, refund });
+function paymentRouteError(error: unknown, trace: TraceContext, fallback: string) {
+  return apiError(error, trace, fallback, 502);
 }

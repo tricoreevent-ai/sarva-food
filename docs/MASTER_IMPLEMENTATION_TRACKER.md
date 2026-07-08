@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-07
+Last updated: 2026-07-08
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,51 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC2 Release Certification and Manual Deployment Package |
-| Release Version | `v1.0.0-rc2` |
-| Latest Git Commit | RC2 release hardening prepared from `2d9b7c38a4c4a9c12032f3ecc87d7e0c23c582a2`; exact final SHA must be recorded after these changes are committed. |
+| Current Sprint | Final Production Hardening and Release Certification |
+| Release Version | `v1.0.0-rc3` |
+| Latest Git Commit | Final production certification prepared on top of pushed rc2 commit `6272d7edfdc7299a728cb0e606b523a55b1248ee`; exact final SHA is reported in the release handoff after commit. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `fe069b609009b8a042f58d1143407998407f3c64`, not current release branch HEAD; env still reports `development` and `applicationVersion: 0.1.0`. |
-| Build Date | 2026-07-07 |
-| Verification Status | RC2 repository-side typecheck, lint, build, operational smoke, local `/api/release-info`, and `git diff --check` passed. `validate:prod-env` fails locally only for missing real production env values and non-HTTPS local app URL. Build retains the existing Firebase/protobuf dynamic dependency warning. |
-| Scope | Production release certification and repository-side closure only: release tag strategy, env matrix, production fallback cleanup, safe diagnostics, deployment package, and documentation. No UI redesign, repository, Firestore collection, schema, or business workflow change. |
+| Build Date | 2026-07-08 |
+| Verification Status | Final certification typecheck, lint, build, analyze, operational smoke, `audit:release`, local release/health probe, and `git diff --check` passed. `validate:prod-env` fails locally only for missing real production env values and non-HTTPS local app URL. Build/analyze retain the existing Firebase/protobuf dynamic dependency warning. |
+| Scope | Final repository-side production health endpoints, diagnostics enrichment, rc3 release metadata, validation, documentation, commit, and immutable rc3 tag only. No UI redesign, Firestore collection, schema, or business workflow change. |
+
+## Final Production Hardening and Release Certification - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Scope | Final repository-side release certification only. Existing Customer, Owner, POS, Kitchen, QR, inventory, accounting, Menu Library, notifications, payment, repository, API, Firestore collection, schema, UI, and business workflows were preserved. |
+| Release Candidate | Active candidate advanced to `v1.0.0-rc3` with package metadata `1.0.0-rc.3`; existing `v1.0.0-rc1` and published `v1.0.0-rc2` tags remain immutable. |
+| Health Endpoints | Added public no-store `/health/live`, `/health/ready`, and `/health/startup` route handlers returning application version, git SHA, deployment environment, Firestore/storage status, SMTP/Cloudinary/Razorpay/Firebase configuration status, runtime status, memory, CPU estimate, build timestamp, and public request id only. |
+| Diagnostics | Owner and Admin diagnostics now include `operationalDiagnostics` with realtime listener ownership, cache status, pending queue state, notification queue, Kitchen/POS queue state, Firestore status, tenant/open-order/kitchen-load counts where authenticated, memory, CPU estimate, and slow-query signal. |
+| Firestore / Data | Public health uses a bounded `restaurants.limit(1)` readiness probe; Admin diagnostics use Firestore count aggregation for tenant, open-order, Kitchen, and unread-notification counts. No full collection scan, collection, schema, rule, or index change was added. |
+| Provider Readiness | Health and diagnostics report provider configuration shape only. No live SMTP send, Cloudinary upload, Razorpay payment/refund, WhatsApp/SMS send, Mapbox call, Google OAuth flow, or FCM push was executed from the repository. |
+| Security | Health responses expose booleans/status values and request ids only; provider secrets, private keys, OTPs, tokens, cookies, authorization headers, raw payment ids, and stack traces remain hidden. |
+| Documentation | Release notes, changelog, environment matrix, deployment package, runbook, and release report were aligned to rc3 and the new health/diagnostics surfaces. |
+| Local Release / Health Probe | Local `next start` on port `3099` returned `/api/release-info` `200` with `applicationVersion: v1.0.0-rc3`, `deploymentEnvironment: production`, and branch `release/production-nammude`; `/health/live` returned `200`; `/health/ready` and `/health/startup` returned safe `503` degraded responses because local Firebase Admin production env is not configured. |
+| Validation | Passed: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run smoke:operational`, `cmd /c npm run audit:release`, and `git diff --check`. `cmd /c npm run validate:prod-env` failed locally for missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`; these require Hostinger/Firebase/provider values. |
+| Remaining Manual Gates | Hostinger production env/redeploy/cache, Firebase rules/index deploy, authenticated browser smoke, provider console smoke, printer/device/multi-device smoke, Lighthouse/Core Web Vitals, and final hosted metadata/health verification. |
+| Release Readiness | Code readiness remains `99%`; production-release readiness remains `85%` until manual infrastructure/provider/hardware/browser gates pass. Recommendation remains No-Go before those gates. |
+
+## Repository Observability Hardening and Release Audit Closure - 2026-07-07
+
+| Field | Result |
+| --- | --- |
+| Scope | Production observability and repository-side release audit hardening only. Existing Customer, Owner, POS, Kitchen, QR, payment, provider, repository, Firestore collection, schema, UI, and business workflows were preserved. |
+| Trace Context | Added `src/lib/server/request-trace.ts` for server request ids, correlation ids, internal trace ids, transaction ids, tenant ids, restaurant ids, and user ids. Public API responses expose request ids only; internal trace ids stay in logs. |
+| Central Logger | Added `src/lib/server/production-logger.ts` with INFO, DEBUG, WARN, ERROR, SECURITY, AUDIT, PERFORMANCE, PAYMENT, QR, KITCHEN, POS, OWNER, and ADMIN categories plus production log-level filtering and automatic masking for passwords, JWTs, Firebase tokens, API keys, secrets, cookies, authorization headers, OTPs, card fields, and payment ids. |
+| Error Framework | Added `src/lib/server/api-response.ts` with unified API error classes for validation, business rule, authorization, payment, printer, Firestore, network, rate-limit, and unknown failures. |
+| Operational Logging | Existing `logOperationalEvent` and `logOperationalFailure` now delegate through the centralized production logger and allow trace/correlation/transaction/user/table context while continuing to filter unsafe fields. |
+| Routes Hardened | Owner Orders, POS, Kitchen, Kitchen stream, system diagnostics, owner master templates, loyalty rules, tables, analytics, customers, Razorpay order/verify/refund/webhook, auth session, email OTP, module auth, public order notification, public reviews, customer account/orders, public Firestore/cache/outage alerts, and push dispatch logs now use centralized masked server logging where touched. |
+| Owner Access Errors | `requireOwnerFeature` now returns safe request metadata on permission, rate-limit, and same-origin failures. |
+| Payment Observability | Razorpay create, verify, refund, webhook receive/process/duplicate/deferred, invalid signature, and push-dispatch paths now write sanitized payment/security logs without exposing provider secrets or raw payment ids. |
+| Diagnostics | Owner and Admin diagnostics now include safe request metadata and use centralized failure logging; no new diagnostics route or duplicate dashboard was added. |
+| Release Audit Automation | Added `npm run audit:release` and `scripts/release/repository-hardening-audit.mjs`; generated `scripts/release/repository-hardening-audit.md`. Current static result: `0` debt markers, `0` matching unbounded Firestore collection reads, remaining runtime console hits limited to client/browser diagnostic paths, and listener/API-envelope sites recorded for review. |
+| Runbook | Added `docs/production-operational-runbook.md` covering operational logging, disaster recovery, security checklist, performance checklist, provider checklist, and infrastructure checklist. |
+| Validation | Passed: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run smoke:operational`, `cmd /c npm run audit:release`, and `git diff --check`. `cmd /c npm run validate:prod-env` failed locally for missing `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`; these require Hostinger/Firebase/provider values. |
+| Tag Note | `v1.0.0-rc2` is already published at `6272d7edfdc7299a728cb0e606b523a55b1248ee`; do not move it without explicit approval. If this follow-up hardening pass is committed for deployment, create the next immutable release-candidate tag or explicitly approve retagging. |
+| Remaining Manual Gates | Hostinger production env/redeploy/cache, Firebase rules/index deploy, authenticated browser smoke, provider console smoke, printer/device/multi-device smoke, Lighthouse/Core Web Vitals, and final hosted metadata verification. |
+| Release Readiness | Code readiness remains `99%`; production-release readiness is `85%` until manual infrastructure/provider/hardware/browser gates pass. Recommendation remains No-Go before those gates. |
 
 ## RC2 Release Certification and Manual Deployment Package - 2026-07-07
 

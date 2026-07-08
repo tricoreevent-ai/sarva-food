@@ -13,15 +13,22 @@ import {
   subunitsToAmount,
 } from "@/lib/server/owner-payment-settings";
 import { OrderRepository } from "@/repositories/order-repository";
+import { apiError } from "@/lib/server/api-response";
+import { productionLogger } from "@/lib/server/production-logger";
+import { createTraceContext, extendTrace, publicTraceMeta, traceLogFields, type TraceContext } from "@/lib/server/request-trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  let trace = createTraceContext(request);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
+  try {
   const session = await getSessionFromRequest(request, "customer");
   if (!session || session.role !== "customer") {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return fail("Authentication required", 401);
   }
+  trace = extendTrace(trace, { userId: session.uid });
 
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } =
     (await request.json().catch(() => ({}))) as {
@@ -32,38 +39,40 @@ export async function POST(request: NextRequest) {
     };
 
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !orderId) {
-    return NextResponse.json({ error: "Missing Razorpay verification fields" }, { status: 400 });
+    return fail("Missing Razorpay verification fields");
   }
 
   const intentSnapshot = await adminDb().collection("paymentIntents").doc(razorpay_order_id).get();
   const intent = intentSnapshot.data() as { orderId?: string; uid?: string; status?: string; amountSubunits?: number } | undefined;
   if (!intent || intent.orderId !== orderId || intent.uid !== session.uid) {
-    return NextResponse.json({ error: "Payment session is invalid." }, { status: 403 });
+    return fail("Payment session is invalid.", 403);
   }
   if (intent.status === "paid") return NextResponse.json({ ok: true, status: "paid", duplicate: true });
 
   const { order, settings } = await getRazorpayRuntimeForOrder(orderId);
+  trace = extendTrace(trace, { tenantId: settings.tenantId, restaurantId: settings.restaurantId });
   if (order.customerId !== session.uid) {
-    return NextResponse.json({ error: "Payment is not available for this order." }, { status: 403 });
+    return fail("Payment is not available for this order.", 403);
   }
   try {
     assertRazorpayUsable(settings);
   } catch {
-    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+    return fail(restaurantPaymentGatewayNotConfigured, 422);
   }
   if (!verifyCheckoutSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature, settings.keySecret)) {
-    return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
+    productionLogger.security("razorpay.verify.invalid_signature", { ...traceLogFields(trace), orderId, status: "rejected" });
+    return fail("Invalid payment signature");
   }
 
   const payment = await createRazorpayClient(settings).payments.fetch(razorpay_payment_id).catch(() => null);
   if (!payment) {
-    return NextResponse.json({ error: "Payment gateway is unavailable. Please try again." }, { status: 502 });
+    return fail("Payment gateway is unavailable. Please try again.", 502);
   }
   if (payment.order_id !== razorpay_order_id) {
-    return NextResponse.json({ error: "Payment does not match this order." }, { status: 400 });
+    return fail("Payment does not match this order.");
   }
   if (intent.amountSubunits && Number(payment.amount ?? 0) !== Number(intent.amountSubunits)) {
-    return NextResponse.json({ error: "Payment amount mismatch." }, { status: 400 });
+    return fail("Payment amount mismatch.");
   }
 
   const scope = scopeFromRazorpayOrder(order, settings);
@@ -112,7 +121,15 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  productionLogger.payment("razorpay.verify.completed", { ...traceLogFields(trace), orderId, status });
   return NextResponse.json({ ok: true, status });
+  } catch (error) {
+    return paymentRouteError(error, trace, "Payment verification could not be completed.");
+  }
+}
+
+function paymentRouteError(error: unknown, trace: TraceContext, fallback: string) {
+  return apiError(error, trace, fallback, 502);
 }
 
 function verifyCheckoutSignature(orderId: string, paymentId: string, signature: string, secret: string) {

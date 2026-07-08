@@ -2,18 +2,25 @@ import { NextResponse, type NextRequest } from "next/server";
 import { CMS_COLLECTIONS, CMS_VERSION, REQUIRED_CMS_FIELDS } from "@/modules/shared/config/environment/cms.config";
 import { getServerEnvironmentConfig } from "@/modules/shared/config/environment/env.server";
 import { adminDb } from "@/firebase/admin";
+import { COLLECTIONS } from "@/firebase/collections";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { getOperationalDiagnostics } from "@/lib/server/production-health";
+import { productionLogger } from "@/lib/server/production-logger";
+import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields } from "@/lib/server/request-trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  let trace = createTraceContext(request);
   const session = await getSessionFromRequest(request);
   if (!session || session.role !== "admin") {
-    return NextResponse.json({ error: "Admin access is required." }, { status: 403 });
+    return NextResponse.json({ error: "Admin access is required.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 403 });
   }
+  trace = extendTrace(trace, { userId: session.uid });
 
+  try {
   const env = getServerEnvironmentConfig();
   const started = performance.now();
   const db = adminDb();
@@ -48,6 +55,12 @@ export async function GET(request: NextRequest) {
       }
     }),
   );
+  const [tenantCount, openOrders, kitchenLoad, notificationQueueCount] = await Promise.all([
+    readCount(db.collection(COLLECTIONS.restaurants)),
+    readCount(db.collection(COLLECTIONS.orders).where("status", "in", ["new", "accepted", "preparing", "ready", "served", "draft"])),
+    readCount(db.collection(COLLECTIONS.kitchenOrders).where("status", "in", ["new", "accepted", "preparing", "ready", "served"])),
+    readCount(db.collection(COLLECTIONS.notifications).where("read", "==", false)),
+  ]);
 
   return NextResponse.json({
     data: {
@@ -66,8 +79,20 @@ export async function GET(request: NextRequest) {
       googleOAuthConfigured: env.googleOAuthConfigured,
       buildVersion: process.env.NEXT_PUBLIC_BUILD_VERSION ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "local",
       deploymentTimestamp: process.env.NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP ?? process.env.VERCEL_GIT_COMMIT_REF ?? "not provided",
+      operationalDiagnostics: getOperationalDiagnostics({
+        tenantCount,
+        openOrders,
+        kitchenQueueCount: kitchenLoad,
+        notificationQueueCount,
+        firestoreLatencyMs: latencyMs,
+      }),
+      trace: publicTraceMeta(trace),
     },
   });
+  } catch (error) {
+    productionLogger.admin("admin.system-diagnostics.failed", { ...traceLogFields(trace), durationMs: traceDurationMs(trace), errorName: error instanceof Error ? error.name : typeof error });
+    return NextResponse.json({ error: "Unable to load system diagnostics.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 500 });
+  }
 }
 
 function hasDeepValue(input: Record<string, unknown> | undefined, path: string) {
@@ -83,4 +108,9 @@ function hasDeepValue(input: Record<string, unknown> | undefined, path: string) 
 
 function stringifyFirestoreDate(value: unknown) {
   return parseFirestoreDateIso(value);
+}
+
+async function readCount(query: FirebaseFirestore.Query) {
+  const snapshot = await query.count().get();
+  return snapshot.data().count;
 }

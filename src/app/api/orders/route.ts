@@ -3,6 +3,7 @@ import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
 import { OrderRepository } from "@/repositories/order-repository";
 import { AuditRepository } from "@/repositories/audit-repository";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import type { OrderDoc, OrderLineDoc, RestaurantDoc } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
       status: order.status,
     }, { status: 201 });
   } catch (error) {
-    console.error("[orders] create failed", { requestId: crypto.randomUUID(), reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.warn("orders.create_failed", { errorName: safeErrorName(error) });
     return NextResponse.json({ ok: false, error: "Unable to create order right now." }, { status: 500 });
   }
 }

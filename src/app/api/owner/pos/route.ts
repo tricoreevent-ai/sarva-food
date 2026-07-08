@@ -8,6 +8,8 @@ import { TableRepository } from "@/repositories/table-repository";
 import { tenantScope } from "@/repositories/shared";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { customerDocToLoyaltyCustomer, kitchenDocToTableOrder, menuDocToMenuItem, orderDocToDemoOrder, staffDocToStaffMember, tableDocToPosTable } from "@/lib/operational-api-mappers";
+import { logOperationalEvent, logOperationalFailure } from "@/lib/server/operational-logging";
+import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields, type TraceContext } from "@/lib/server/request-trace";
 import type { OrderDoc } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
@@ -42,32 +44,38 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const requestId = requestIdFor();
+  let trace = createTraceContext(request);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
     const access = await requireOwnerFeature(request, "pos", "update");
     if (access.error) return access.error;
     const body = await request.json().catch(() => ({}));
-    if (!body.bill || !Array.isArray(body.bill.lines)) return NextResponse.json({ error: "Valid POS draft is required." }, { status: 400 });
+    if (!body.bill || !Array.isArray(body.bill.lines)) return fail("Valid POS draft is required.");
     const scope = tenantScope(access.session, body.restaurantId);
+    trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
     const draft = await new OrderRepository().savePosDraft(scope, body);
+    logOperationalEvent("owner.pos.patch", { ...traceLogFields(trace), action: "draft", outcome: "ok", durationMs: traceDurationMs(trace), role: access.session.role });
     return NextResponse.json({ data: draft ? orderDocToPosDraft(draft) : null });
   } catch (error) {
-    return posError("draft", error, requestId);
+    return posError("draft", error, trace);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const requestId = requestIdFor();
+  let trace = createTraceContext(request);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
     const access = await requireOwnerFeature(request, "pos", "create");
     if (access.error) return access.error;
     const body = await request.json().catch(() => ({}));
-    if (!body.kitchenOrderId) return NextResponse.json({ error: "Kitchen ticket not found." }, { status: 400 });
+    if (!body.kitchenOrderId) return fail("Kitchen ticket not found.");
     const scope = tenantScope(access.session, body.restaurantId);
+    trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
     const order = await new OrderRepository().placePosDraft(scope, { kitchenOrderId: String(body.kitchenOrderId) });
+    logOperationalEvent("owner.pos.post", { ...traceLogFields(trace), action: "place", outcome: "ok", durationMs: traceDurationMs(trace), role: access.session.role, orderId: order.id, kitchenOrderId: body.kitchenOrderId });
     return NextResponse.json({ data: orderDocToOperationalDemoOrder(order), raw: order });
   } catch (error) {
-    return posError("place", error, requestId);
+    return posError("place", error, trace);
   }
 }
 
@@ -79,17 +87,16 @@ export async function DELETE(request: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-function posError(action: string, error: unknown, requestId: string) {
-  console.error("[owner-pos-api] request failed", { action, requestId, reason: error instanceof Error ? error.name : typeof error });
+function posError(action: string, error: unknown, trace: TraceContext) {
+  const requestId = trace.requestId;
+  const meta = publicTraceMeta(trace);
+  const response = (message: string, status: number) => NextResponse.json({ error: message, requestId, meta }, { status });
+  logOperationalFailure("owner.pos.request", error, { ...traceLogFields(trace), action, durationMs: traceDurationMs(trace) });
   const message = error instanceof Error ? error.message : "";
-  if (/POS draft not found|draft/i.test(message)) return NextResponse.json({ error: "This order is no longer active. Please refresh.", requestId }, { status: 409 });
-  if (/Kitchen ticket not found|Kitchen order/i.test(message)) return NextResponse.json({ error: "Kitchen ticket not found.", requestId }, { status: 404 });
-  if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return NextResponse.json({ error: "Unable to contact server. Please retry.", requestId }, { status: 503 });
-  return NextResponse.json({ error: `Unexpected error. Reference ID ${requestId}`, requestId }, { status: 500 });
-}
-
-function requestIdFor() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  if (/POS draft not found|draft/i.test(message)) return response("This order is no longer active. Please refresh.", 409);
+  if (/Kitchen ticket not found|Kitchen order/i.test(message)) return response("Kitchen ticket not found.", 404);
+  if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return response("Unable to contact server. Please retry.", 503);
+  return response(`Unexpected error. Reference ID ${requestId}`, 500);
 }
 
 function orderDocToOperationalDemoOrder(order: OrderDoc) {

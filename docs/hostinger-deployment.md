@@ -28,7 +28,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
 NEXT_PUBLIC_APP_NAME=Nammude
-NEXT_PUBLIC_APP_VERSION=v1.0.0-rc2
+NEXT_PUBLIC_APP_VERSION=v1.0.0-rc3
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
 
@@ -116,6 +116,18 @@ Run these locally before pushing:
 npm run typecheck
 npm run lint
 npm run build
+cmd /c npm run audit:release
+```
+
+The repository hardening audit report is generated at `scripts/release/repository-hardening-audit.md`.
+
+After deployment, verify release and health metadata:
+
+```bash
+curl.exe https://violet-squid-380447.hostingersite.com/api/release-info
+curl.exe https://violet-squid-380447.hostingersite.com/health/live
+curl.exe https://violet-squid-380447.hostingersite.com/health/ready
+curl.exe https://violet-squid-380447.hostingersite.com/health/startup
 ```
 
 Optional environment validation after setting a local production env file:

@@ -14,6 +14,7 @@ import {
 } from "@/lib/order-state-machine";
 import { hasOperationKey } from "@/lib/server/operation-idempotency";
 import { dispatchPendingTenantPushNotifications } from "@/lib/server/push-notifications";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import { resolveTenantId } from "@/lib/tenant";
 import type { MenuDoc, OfferDoc, OrderDoc, OrderLineDoc, PaymentStatus, RestaurantDoc } from "@/types/firebase";
 import { CustomerRepository } from "@/repositories/customer-repository";
@@ -1521,7 +1522,7 @@ function notificationSound(type: string) {
 }
 
 function logPushDispatchError(error: unknown) {
-  console.error("[push-notifications] dispatch failed", { reason: error instanceof Error ? error.name : typeof error });
+  productionLogger.warn("push-notifications.dispatch_failed", { errorName: safeErrorName(error) });
 }
 
 function notificationForEvent(event: string, orderId?: string, kitchenOrderId?: string) {

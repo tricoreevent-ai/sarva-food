@@ -6,6 +6,7 @@ import { adminDb, firebaseAdminPrivateKeyDiagnostics } from "@/firebase/admin";
 import { defaultAppCategories } from "@/lib/default-app-categories";
 import { defaultAppCuisines } from "@/lib/default-app-cuisines";
 import { parseFirestoreDateIso, parseFirestoreDateMillis } from "@/lib/firestore-date";
+import { productionLogger } from "@/lib/server/production-logger";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import type { AppCategoryDoc, AppCuisineDoc, MenuDoc, OfferDoc, RestaurantDoc, ReviewDoc } from "@/types/firebase";
 
@@ -13,7 +14,6 @@ const PUBLIC_RESTAURANT_LIMIT = 100;
 const PUBLIC_MENU_LIMIT = 200;
 const PUBLIC_MENU_FALLBACK_LIMIT = 500;
 const PUBLIC_REST_LIMIT = 500;
-const PUBLIC_DATA_LOG_PREFIX = "[Nammude public data]";
 const LEGACY_DEMO_TENANT_IDS = new Set(["test-owner", "demo-owner", "sample-owner"]);
 const CAFE_AL_ARAB_PUBLIC_TENANT_ALIASES = [
   DEFAULT_RESTAURANT_ID,
@@ -267,7 +267,7 @@ export function logPublicDataError(scope: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : undefined;
   const hint = publicDataErrorHint(message);
-  console.error("[Nammude public API] request failed", {
+  productionLogger.error("public-firestore.request_failed", {
     scope,
     reason: error instanceof Error ? error.name : typeof error,
     ...(code ? { code } : {}),
@@ -276,7 +276,7 @@ export function logPublicDataError(scope: string, error: unknown) {
 }
 
 export function logPublicDataInfo(scope: string, message: string, details?: Record<string, unknown>) {
-  console.info(`${PUBLIC_DATA_LOG_PREFIX} ${scope}: ${message}${details ? ` ${JSON.stringify(details)}` : ""}`);
+  productionLogger.info("public-firestore.info", { scope, message, ...details });
 }
 
 function publicDataErrorHint(message: string) {

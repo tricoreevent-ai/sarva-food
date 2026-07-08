@@ -2,26 +2,29 @@
 
 | Field | Value |
 | --- | --- |
-| Build Date | 2026-07-07 |
+| Build Date | 2026-07-08 |
 | Git Branch | release/production-nammude |
-| Base Commit SHA | 2d9b7c38a4c4a9c12032f3ecc87d7e0c23c582a2 |
-| Release Version | v1.0.0-rc2 |
+| Base Commit SHA | 6272d7edfdc7299a728cb0e606b523a55b1248ee |
+| Release Version | v1.0.0-rc3 |
 | Node Version | v22.16.0 |
-| Package Version | 1.0.0-rc.2 |
+| Package Version | 1.0.0-rc.3 |
 | Build Status | PASS |
 | Typecheck | PASS |
 | Lint | PASS |
 | Build | PASS |
+| Analyze | PASS |
 | Operational Smoke | PASS |
-| Local Release Info | PASS: v1.0.0-rc2, production env, release branch, HTTPS public URL |
+| Repository Hardening Audit | PASS: generated `scripts/release/repository-hardening-audit.md`; server console logs centralized in touched paths, `0` debt markers, `0` matching unbounded Firestore collection reads. |
+| Health Endpoints | PASS: local production server returned `/health/live` 200 and safe degraded `/health/ready`/`/health/startup` 503 because local Firebase Admin production env is absent. |
+| Local Release Info | PASS: local production server returned v1.0.0-rc3, production env, release branch, HTTPS public URL, and HTTP 200. |
 | Git Diff | PASS |
 | Production Env Validation | FAIL locally: requires real Hostinger/Firebase/provider values and HTTPS app URL. |
-| Production Readiness % | 84% pending manual infrastructure, provider, hardware, browser, and multi-device validation. |
+| Production Readiness % | 85% pending manual infrastructure, provider, hardware, browser, and multi-device validation. |
 
 ## Pending Manual Tasks
 - Hostinger env/cache/redeploy and hosted route smoke.
 - Firestore rules/index deployment.
-- Final `v1.0.0-rc2` tag after committing this release hardening pass.
+- Deploy the new immutable `v1.0.0-rc3` tag; do not move existing `v1.0.0-rc1` or `v1.0.0-rc2`.
 - Browser, tablet, mobile, Kitchen TV, and multi-device smoke.
 - Printer profile and physical output validation.
 

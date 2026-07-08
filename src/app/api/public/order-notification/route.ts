@@ -1,6 +1,8 @@
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { productionLogger } from "@/lib/server/production-logger";
+import { createTraceContext, publicTraceMeta, traceLogFields } from "@/lib/server/request-trace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,20 +40,22 @@ type OrderNotificationPayload = {
 };
 
 export async function POST(request: NextRequest) {
+  const trace = createTraceContext(request);
   const payload = (await request.json().catch(() => null)) as OrderNotificationPayload | null;
   if (!payload?.orderId || !payload.restaurantName || !payload.customer?.phone || !payload.lines?.length) {
-    return NextResponse.json({ error: "Order notification details are incomplete." }, { status: 400 });
+    return NextResponse.json({ error: "Order notification details are incomplete.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 400 });
   }
 
   const smtp = getSmtpConfig();
   if (!smtp) {
-    console.error("[Nammude order] Owner notification skipped because SMTP is not configured.");
+    productionLogger.warn("order-notification.smtp_not_configured", { ...traceLogFields(trace), orderId: payload.orderId, restaurantId: payload.restaurantId });
     return NextResponse.json({ ok: true, emailSent: false, reason: "smtp-not-configured" });
   }
 
   const ownerEmail = sanitizeEmail(payload.ownerEmail) || await loadOwnerEmail(payload.restaurantId);
   if (!ownerEmail) {
-    console.error("[Nammude order] Owner notification skipped because owner email is missing.", {
+    productionLogger.warn("order-notification.owner_email_missing", {
+      ...traceLogFields(trace),
       orderId: payload.orderId,
       restaurantId: payload.restaurantId,
     });
@@ -69,7 +73,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ ok: true, emailSent: true });
   } catch (error) {
-    console.error("[Nammude order] Owner notification email failed.", { reason: safeReason(error) });
+    productionLogger.warn("order-notification.email_failed", { ...traceLogFields(trace), orderId: payload.orderId, restaurantId: payload.restaurantId, reason: safeReason(error) });
     return NextResponse.json({ ok: true, emailSent: false, reason: "email-send-failed" });
   }
 }
@@ -85,7 +89,7 @@ async function loadOwnerEmail(restaurantId?: string) {
     } : null;
     return sanitizeEmail(data?.ownerProfile?.businessEmail) || sanitizeEmail(data?.contact?.supportEmail);
   } catch (error) {
-    console.error("[Nammude order] Could not load owner email from restaurant profile.", { reason: safeReason(error) });
+    productionLogger.warn("order-notification.owner_email_load_failed", { restaurantId: id, reason: safeReason(error) });
     return "";
   }
 }

@@ -50,6 +50,22 @@ To validate production environment variables directly:
 node scripts\release\validate-production.js
 ```
 
+For a repository-side hardening scan:
+
+```bat
+npm run audit:release
+```
+
+The report is written to `scripts\release\repository-hardening-audit.md`.
+
+Health endpoints after deployment:
+
+```bat
+curl.exe https://violet-squid-380447.hostingersite.com/health/live
+curl.exe https://violet-squid-380447.hostingersite.com/health/ready
+curl.exe https://violet-squid-380447.hostingersite.com/health/startup
+```
+
 ## How to Rollback
 
 1. Keep the last known-good deployment SHA.

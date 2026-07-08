@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomInt, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { adminAuth, adminDb } from "@/firebase/admin";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 
 type OtpPurpose = "signup" | "reset";
 type OtpAction = "request" | "verify" | "complete";
@@ -427,7 +428,7 @@ function jsonError(message: string, status: number, extra?: Record<string, unkno
 
 function logOtpFailure(scope: string, error: unknown) {
   const diagnostic = smtpDiagnosticMessage(error);
-  console.warn(`[Nammude] ${scope}: ${diagnostic}`);
+  productionLogger.security(`auth.email-otp.${scope}`, { errorName: safeErrorName(error), reason: diagnostic });
 }
 
 function smtpDiagnosticMessage(error: unknown) {

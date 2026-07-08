@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { OrderRepository } from "@/repositories/order-repository";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,10 +19,7 @@ export async function GET(request: NextRequest) {
     const data = await repository.listForCustomer(session.uid);
     return NextResponse.json({ data, count: data.length });
   } catch (error) {
-    console.error("[customer/orders] load failed", {
-      requestId: crypto.randomUUID(),
-      reason: error instanceof Error ? error.name : typeof error,
-    });
+    productionLogger.warn("customer.orders.load_failed", { errorName: safeErrorName(error) });
     return NextResponse.json({ error: "Could not load your order right now." }, { status: 400 });
   }
 }

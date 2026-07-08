@@ -3,6 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { dispatchPendingTenantPushNotifications } from "@/lib/server/push-notifications";
+import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
+import { createTraceContext, extendTrace, publicTraceMeta, traceLogFields } from "@/lib/server/request-trace";
 import {
   getRazorpayRuntimeForProviderOrder,
   paymentMethod,
@@ -32,10 +34,12 @@ type RazorpayWebhookEvent = {
 };
 
 export async function POST(request: NextRequest) {
+  let trace = createTraceContext(request);
+  const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   const body = await request.text();
   const signature = request.headers.get("x-razorpay-signature");
   const eventId = request.headers.get("x-razorpay-event-id") || createHash("sha256").update(body).digest("hex");
-  if (!signature) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+  if (!signature) return fail("Missing signature");
 
   const event = parseWebhook(body);
   const payment = event.payload?.payment?.entity;
@@ -44,15 +48,17 @@ export async function POST(request: NextRequest) {
   const orderEntity = event.payload?.order?.entity;
   const providerOrderId = payment?.order_id || orderEntity?.id || await providerOrderIdForPayment(refund?.payment_id || dispute?.payment_id) || "";
   const runtime = providerOrderId ? await getRazorpayRuntimeForProviderOrder(providerOrderId).catch(() => null) : null;
+  if (runtime?.settings) trace = extendTrace(trace, { tenantId: runtime.settings.tenantId, restaurantId: runtime.settings.restaurantId });
   const webhookSecret = runtime?.settings.webhookSecret || process.env.RAZORPAY_WEBHOOK_SECRET || "";
   if (runtime?.settings && !runtime.settings.webhookEnabled) {
-    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+    return fail(restaurantPaymentGatewayNotConfigured, 422);
   }
   if (!webhookSecret) {
-    return NextResponse.json({ error: restaurantPaymentGatewayNotConfigured }, { status: 422 });
+    return fail(restaurantPaymentGatewayNotConfigured, 422);
   }
   if (!verifyRazorpaySignature(body, signature, webhookSecret)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    productionLogger.security("razorpay.webhook.invalid_signature", { ...traceLogFields(trace), eventId, event: event.event, providerOrderId, status: "rejected" });
+    return fail("Invalid signature");
   }
 
   const webhookRef = adminDb().collection("paymentWebhooks").doc(`razorpay-${eventId}`);
@@ -72,19 +78,23 @@ export async function POST(request: NextRequest) {
       createdAt: FieldValue.serverTimestamp(),
     });
   } catch {
+    productionLogger.payment("razorpay.webhook.duplicate", { ...traceLogFields(trace), eventId, event: event.event, providerOrderId, status: "duplicate" });
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
   try {
+    productionLogger.payment("razorpay.webhook.received", { ...traceLogFields(trace), eventId, event: event.event, providerOrderId, status: "received" });
     await handleWebhookEvent(event, providerOrderId, runtime);
     await webhookRef.set({ status: "processed", processedAt: FieldValue.serverTimestamp() }, { merge: true });
+    productionLogger.payment("razorpay.webhook.processed", { ...traceLogFields(trace), eventId, event: event.event, providerOrderId, status: "processed" });
     return NextResponse.json({ ok: true });
   } catch (error) {
     await webhookRef.set({
       status: "failed",
-      error: error instanceof Error ? error.name : "WebhookProcessingFailed",
+      error: safeErrorName(error),
       processedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+    productionLogger.payment("razorpay.webhook.deferred", { ...traceLogFields(trace), eventId, event: event.event, providerOrderId, errorName: safeErrorName(error), status: "deferred" });
     return NextResponse.json({ ok: true, deferred: true });
   }
 }
@@ -290,7 +300,7 @@ async function recordRazorpayWebhookOperationalEvent(scope: TenantScope, order: 
   }
   await Promise.all(writes);
   await dispatchPendingTenantPushNotifications(scope).catch((error) => {
-    console.error("[razorpay-webhook] push dispatch failed", { reason: error instanceof Error ? error.name : typeof error });
+    productionLogger.warn("razorpay.webhook.push_dispatch_failed", { tenantId: scope.tenantId, restaurantId: scope.tenantId, errorName: safeErrorName(error) });
   });
 }
 

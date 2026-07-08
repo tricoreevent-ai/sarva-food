@@ -1,8 +1,8 @@
 # Production Environment Matrix
 
-Last updated: 2026-07-07
+Last updated: 2026-07-08
 
-Release: `v1.0.0-rc2`
+Release: `v1.0.0-rc3`
 
 ## Required
 
@@ -10,7 +10,7 @@ Release: `v1.0.0-rc2`
 | --- | --- | --- |
 | `NEXT_PUBLIC_APP_ENV` | Public runtime environment; must be `production`. | Hostinger |
 | `NEXT_PUBLIC_APP_URL` | Canonical HTTPS app URL. | Hostinger |
-| `NEXT_PUBLIC_APP_VERSION` | Release version; must be `v1.0.0-rc2`. | Release metadata |
+| `NEXT_PUBLIC_APP_VERSION` | Release version; must be `v1.0.0-rc3`. | Release metadata |
 | `NEXT_PUBLIC_USE_FIREBASE` | Enables Firebase-backed runtime; must be `true`. | Hostinger |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase client API key. | Firebase Console |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain. | Firebase Console |

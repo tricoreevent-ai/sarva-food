@@ -5,6 +5,7 @@ import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { AuditRepository } from "@/repositories/audit-repository";
 import { tableDocToPosTable } from "@/lib/operational-api-mappers";
 import { requestOrigin } from "@/lib/server/table-qr";
+import { logOperationalFailure } from "@/lib/server/operational-logging";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,7 +38,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (error) {
     const requestId = crypto.randomUUID();
-    console.error("[owner/tables] delete failed", { requestId, restaurantId: scope.tenantId, table: id, reason: error instanceof Error ? error.name : typeof error });
+    logOperationalFailure("owner.tables.delete", error, { requestId, restaurantId: scope.tenantId, table: id });
     return NextResponse.json({ error: "Table could not be deleted.", requestId }, { status: 409 });
   }
 }
@@ -69,7 +70,7 @@ async function upsert(request: NextRequest) {
       : NextResponse.json({ data: tableDocToPosTable(data), raw: data });
   } catch (error) {
     const requestId = crypto.randomUUID();
-    console.error("[owner/tables] save failed", { requestId, restaurantId: scope.tenantId, table: key || body.table, action: body.action || "upsert", reason: error instanceof Error ? error.name : typeof error });
+    logOperationalFailure("owner.tables.save", error, { requestId, restaurantId: scope.tenantId, table: key || body.table, action: body.action || "upsert" });
     return NextResponse.json({ error: "Table could not be saved.", requestId }, { status: 409 });
   }
 }

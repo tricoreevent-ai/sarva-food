@@ -3,6 +3,7 @@ import "server-only";
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { CMS_COLLECTIONS } from "@/modules/shared/config/environment/cms.config";
 import { adminDb } from "@/firebase/admin";
+import { productionLogger } from "@/lib/server/production-logger";
 import type { CmsSettings } from "@/lib/types";
 
 type PublicOutageAlertConfig = {
@@ -37,7 +38,7 @@ export async function notifyPublicDatabaseFailure(scope: string, error: unknown)
 
     const smtp = getSmtpConfig();
     if (!smtp) {
-      console.error("[Nammude] Database outage alert email skipped because SMTP is not configured.");
+      productionLogger.warn("public-outage-alert.smtp_not_configured", { scope });
       return;
     }
 
@@ -64,7 +65,7 @@ export async function notifyPublicDatabaseFailure(scope: string, error: unknown)
       ].join("\n"),
     });
   } catch (alertError) {
-    console.error("[Nammude] Database outage alert could not be sent.", { reason: safeErrorReason(alertError) });
+    productionLogger.error("public-outage-alert.send_failed", { scope, reason: safeErrorReason(alertError) });
   }
 }
 
