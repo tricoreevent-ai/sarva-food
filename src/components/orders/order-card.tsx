@@ -168,7 +168,7 @@ export function OrderCard({
         {isReady ? (
           <Button size="sm" className="border-emerald-500 bg-white text-emerald-700 hover:bg-emerald-50" variant="outline" onClick={onComplete}>
             <Check className="size-4" />
-            Mark Completed
+            Serve
           </Button>
         ) : null}
         <Button size="sm" variant="outline">

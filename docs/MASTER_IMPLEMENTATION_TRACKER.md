@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-08
+Last updated: 2026-07-09
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,70 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Quality Enhancement Program Phase 2D Enterprise Plugin Production Validation and First Real Plugin |
+| Current Sprint | RC1 Production Readiness and Go-Live Validation |
 | Release Version | `v1.0.0-rc3` |
-| Latest Git Commit | Latest pushed production branch commit before this Phase 2D closure is `7fcd009d828635aef090fc9785af94b6ffc6b971`; Phase 2D validation/report changes are pending final commit. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
+| Latest Git Commit | Latest pushed production branch commit before this RC1 certification documentation pass is `82705245b36159a8e1ba2c16cdd7d513f6392126`; RC1 release documentation/report updates are pending final commit. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `7fcd009d828635aef090fc9785af94b6ffc6b971` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after the Phase 2D final commit. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `82705245b36159a8e1ba2c16cdd7d513f6392126` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after the RC1 documentation/certification commit if these docs are committed. |
 | Build Date | 2026-07-08 |
-| Verification Status | Phase 2D real plugin production validation passed `npm run test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env`, hosted deployment env/runtime metadata, provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
-| Scope | First real SDK-only plugin implementation and production validation only. No business feature, Firestore collection/schema/rule/index, API contract, auth workflow, payment provider contract, realtime listener, repository change, or completed workflow redesign. |
+| Verification Status | RC1 repository validation passed `npm run test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `git diff --check` reported Git line-ending normalization warnings only. Production env validation, provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
+| Scope | Release certification, production readiness audit, hosted evidence, provider/Firebase/manual checklists, final release docs, and tracker alignment only. No new business feature, Firestore collection/schema/rule/index, API contract, auth workflow, payment provider contract, realtime listener, repository change, or completed workflow redesign. |
+
+## OWNER MODULE QA ROUND - 2026-07-09
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `OWNER-MODULE-QA-ROUND-2026-07-09` |
+| Scope | Functional QA/regression pass for Owner module pages, owner APIs, order lifecycle, POS/Waiter/Cashier/Manager views, Kitchen Operations Center, realtime status propagation, search, printing, profile/navigation, and release validation commands. |
+| Status | Repository-side QA passed after verified Serve/order-status fixes. Authenticated browser, provider dashboard, and printer hardware checks remain manual production gates. |
+| Pages Tested | Dashboard, Orders, Active Orders, Waiter, Cashier, Manager, Kitchen Operations Center, POS, Tables, Customers, Menu, Offers, Marketing/Social Posts, Reports, Inventory, Staff & Access, Accounting, Settings, Notifications/topbar, Profile, Search, QR Ordering/table sessions, Order History, Hold Orders, Printers, Support, Audit Logs, Loyalty, Digital Menu, Onboarding. |
+| Buttons Tested | Static and build-backed pass covered `606` button elements, `53` owner/POS links, `90` fetch call sites, `29` PATCH action call sites, and `9` print call sites across owner/POS/order flows. Core actions covered: Accept, Reject, Ready, Serve, Complete, Cancel, Print, Print KOT, Print Bill, Print Receipt, Collect Payment, Transfer Table, Merge Table, Split Bill, Open, Edit/View, Add Item, Remove Item, Settings, Filters, History, Preview, Search, Hold/Resume/Delete held order, and profile/view-switch navigation. |
+| APIs Tested | `27` owner API route files plus public QR/customer order handoff routes were covered by typecheck, lint, build route compilation, release audit, and operational smoke. Critical APIs reviewed: `/api/owner/orders`, `/api/owner/kitchen`, `/api/owner/pos`, `/api/owner/tables`, `/api/owner/customers`, `/api/owner/menu`, `/api/owner/offers`, `/api/owner/analytics`, `/api/owner/inventory`, `/api/owner/staff`, `/api/owner/accounting`, `/api/owner/settings` routes, `/api/owner/printers`, `/api/owner/profile`, `/api/owner/view-mode`, `/api/owner/sync`, and `/api/public/table-order/*`. |
+| Broken Issues | Waiter/ready Serve path updated only `kitchenOrders`, leaving linked `orders` and `customerOrders` stale; served statuses were normalized back to ready in owner/POS read models; Owner Orders ready action skipped the served lifecycle step and sent ready orders directly to completed/delivered. |
+| Fixed Issues | Kitchen status updates now synchronize linked canonical orders/customer orders transactionally; Serve now persists `served`; served/completed/cancelled statuses remain visible instead of being remapped; order-only Waiter rows persist served status; ready action labels now match Serve behavior. |
+| Remaining Issues | No new blocking repository issues found. Manual authenticated browser QA is still required for live Firestore/SSE behavior, browser console warnings, Razorpay/provider flows, push notifications, real printer selection/output, and device-specific QR/table flows. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. |
+| Risk Level | Low-to-medium. The fix is scoped to lifecycle synchronization and display mapping, but it touches shared order/kitchen state propagation used by Owner, Kitchen, POS, Waiter, Cashier, Manager, history, and badges. |
+| Performance Impact | No new listener, polling loop, bundle dependency, schema, index, or API route was added. Kitchen status updates now do one bounded linked-order lookup when status changes. |
+| Validation | `npm run typecheck` passed; `npm run lint` passed; `npm run build` passed with accepted Firebase/protobuf warning; `cmd /c npm run analyze` passed with same warning; `cmd /c npm run audit:release` passed; `cmd /c npm run smoke:operational` passed; `git diff --check` passed with Git line-ending normalization warnings only. |
+| Readiness | Owner module repository readiness: `94%`. Recommendation: production-ready after authenticated browser smoke, live provider checks, and printer/device validation pass. |
+
+## RC1 Production Readiness and Go-Live Validation - 2026-07-08
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `RC1-PRODUCTION-GO-LIVE` |
+| Scope | Release certification only. No application feature, refactor, API contract, Firestore schema/rule/index, payment, auth, realtime, repository, or module workflow change. |
+| Status | Repository-side certification documentation implemented locally; validation passed. |
+| Deployment Status | Direct hosted `curl` probes return `200` for `/`, `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup` with HTTPS/security headers. Hosted metadata serves SHA `82705245b36159a8e1ba2c16cdd7d513f6392126`, branch `release/production-nammude`, `applicationVersion: v1.0.0-rc3`, Node `v22.18.0`, plugin flags disabled, and `deploymentEnvironment: development`. |
+| Performance Status | Local analyze and runtime profile pass. `npm run verify:performance` reports `3` pass, `1` warning, and `2` manual checks; production Lighthouse/Core Web Vitals, Chrome Performance/Coverage/Memory, INP, FPS, and hosted after-scores remain manual. |
+| Security Status | `npm run audit:release` passes. Hosted headers include HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy. Production security signoff still requires Hostinger production env, Firebase rules/index/domain verification, provider webhook checks, secure session smoke, and authenticated route testing. |
+| Provider Status | `npm run verify:providers` reports configured Authentication, Storage, Cloudinary, SMTP, Google OAuth, and Mapbox locally; Firebase Admin/Firestore, Razorpay, and WhatsApp remain blocked by missing local production/provider values. Hosted health reports Firebase/Firestore/Storage/Cloudinary/SMTP configured and Razorpay owner-scoped or missing. |
+| Firebase Status | Hosted `/health/ready` reports Firestore connected and Storage configured, but local `validate:prod-env` reports missing Firebase Admin/VAPID values. Firebase Console rules, indexes, authorized domains, Cloud Messaging, and protected read/write smoke remain manual. |
+| Realtime Status | Static release audit and operational smoke pass; no new listener, EventSource, polling, or subscription was added by RC1. Kitchen SSE, order realtime, offline recovery, and long-running listener memory checks remain manual browser/device gates. |
+| Plugin Platform Status | Certified. `PLUGIN_PLATFORM_VALIDATION_REPORT.md` reports `489/489` checks passed for Phase 2D and plugin flags remain disabled by default. Controlled flag-enabled hosted smoke remains manual. |
+| Manual Validation Status | Not complete. Authenticated customer, owner, admin, Kitchen, POS, QR/table, payment, realtime, offline, accessibility, mobile/tablet/desktop, and printer/device smoke remain manual. |
+| Environment Status | `npm run validate:prod-env` reports `41` pass, `1` warning, and `24` errors in this local workspace for expected missing/placeholder production-only env and secrets. |
+| Production Checklist | Added `PRODUCTION_CHECKLIST.md`, `GO_LIVE_GUIDE.md`, `POST_DEPLOYMENT_CHECKLIST.md`, and `KNOWN_LIMITATIONS.md`. |
+| Release Documentation | Added `RELEASE_CERTIFICATION.md`, `ROLLBACK_GUIDE.md`, and RC1 limitation/checklist docs. Existing final release reports were regenerated by verification scripts. |
+| Go / No-Go Decision | `NO GO` for production launch until external/manual gates pass. Repository is ready for RC deployment testing. |
+| Database Impact | None. No Firestore collection, field, rule, index, read, write, listener, or schema change. |
+| API Impact | None. No application endpoint or contract change. |
+| Business Workflow Impact | None. Customer, Owner, Kitchen, POS, Admin, QR, auth, payment, inventory, reports, notifications, and settings workflows were not modified. |
+| Rollback | No code rollback required for RC1 docs. If deployment fails, redeploy the previous Hostinger commit, keep plugin flags disabled, clear cache, and verify `/api/release-info` plus health endpoints. |
+
+Validation plan:
+
+| Check | Status |
+| --- | --- |
+| `npm run test:enhancements` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm run build` | Passed with accepted Firebase/protobuf warning |
+| `npm run analyze` | Passed with accepted Firebase/protobuf warning; analyzer verification report generated |
+| `npm run audit:release` | Passed |
+| `npm run smoke:operational` | Passed |
+| `npm run profile:runtime` | Passed |
+| `git diff --check` | Passed with Git line-ending normalization warnings only |
 
 ## Quality Enhancement Program Phase 2D Enterprise Plugin Production Validation and First Real Plugin - 2026-07-08
 

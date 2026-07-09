@@ -73,7 +73,7 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   occupied: "accepted",
   accepted: "preparing",
   preparing: "ready",
-  ready: "completed",
+  ready: "served",
   served: "completed",
   completed: "completed",
   cancelled: "cancelled",
@@ -390,7 +390,7 @@ export function OwnerOrderManagementFlow() {
                 onAccept={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
                 onReject={(order) => void rejectKitchenOrder(order)}
                 onReady={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
-                onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "completed") : void updateOrder(order.id, "delivered")}
+                onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
                 onView={focusOrder}
               />
             ) : visibleOrders.map((order) => (
@@ -400,7 +400,7 @@ export function OwnerOrderManagementFlow() {
                   onAccept={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
                   onReject={() => void rejectKitchenOrder(order)}
                   onReady={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
-                  onComplete={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "completed") : void updateOrder(order.id, "delivered")}
+                  onComplete={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
                 />
               ))}
             {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={(order) => void updateKitchenOrder(order)} /> : null}
@@ -1117,7 +1117,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       previousOrderCount: 0,
       type: order.orderType ?? "dine-in",
       tableNumber: order.orderType === "dine-in" ? order.tableNumber : undefined,
-      status: order.status === "served" ? "ready" : order.status,
+      status: order.status,
       itemCount: order.lines.reduce((sum, line) => sum + line.quantity, 0),
       total: order.total ?? order.lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
       payment: "Pending",
@@ -1223,7 +1223,7 @@ function toDemoOrder(order: OrderDoc): DemoOrder {
     payment: "upi",
     paymentStatus: order.paymentStatus,
     channel: orderChannelLabel(order.channel),
-    status: order.status === "cancelled" ? "rejected" : order.status === "served" ? "ready" : order.status === "completed" ? "delivered" : order.status,
+    status: order.status === "draft" ? "new" : order.status,
     createdAt: formatFirestoreDateTime(order.createdAt) ?? new Date().toISOString(),
     deliveryOtp: order.deliveryOtp,
     kitchenOrderId: order.kitchenOrderId,

@@ -1,10 +1,10 @@
 import "server-only";
 
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
 import { assertLegalKitchenTransition } from "@/lib/order-state-machine";
 import { hasOperationKey } from "@/lib/server/operation-idempotency";
-import type { KitchenOrderDoc, KitchenOrderStatus, OrderDoc, OrderLineDoc } from "@/types/firebase";
+import type { KitchenOrderDoc, KitchenOrderStatus, OrderDoc, OrderLineDoc, OrderStatus, PaymentStatus } from "@/types/firebase";
 import { dataWithId, dateMs, readTenantDocs, type TenantScope } from "@/repositories/shared";
 
 type KitchenOrderPatch = Partial<KitchenOrderDoc> & { printedCountIncrement?: number; operationKey?: string };
@@ -86,7 +86,11 @@ export class KitchenRepository {
         unchanged = true;
         return;
       }
+      const statusChanged = Boolean(patch.status && current.status && patch.status !== current.status);
       if (patch.status && current.status && patch.status !== current.status) assertLegalKitchenTransition(current.status, patch.status);
+      const linkedOrders = statusChanged
+        ? await transaction.get(this.db.collection("orders").where("kitchenOrderId", "==", id).limit(1))
+        : null;
       const { printedCountIncrement, operationKey, ...safePatch } = patch;
       const printIncrement = Number(printedCountIncrement ?? 0);
       const lines = Array.isArray(patch.lines) ? patch.lines : undefined;
@@ -112,6 +116,11 @@ export class KitchenRepository {
         updatedAt: FieldValue.serverTimestamp(),
       }).filter(([, value]) => typeof value !== "undefined"));
       transaction.set(ref, next, { merge: true });
+      const linkedOrder = linkedOrders?.docs.find((doc) => {
+        const order = doc.data() as Partial<OrderDoc>;
+        return [order.tenantId, order.restaurantId].includes(scope.tenantId);
+      });
+      if (patch.status && linkedOrder) this.syncLinkedOrderStatus(transaction, scope, linkedOrder, patch.status, operationKey);
     });
     if (unchanged) return { ...dataWithId<KitchenOrderDoc>(id, current), unchanged: true } satisfies KitchenUpdateResult;
     if (patch.status === "ready" && (current as Partial<KitchenOrderDoc> & { parentKitchenOrderId?: string }).parentKitchenOrderId) {
@@ -131,6 +140,33 @@ export class KitchenRepository {
     const order = snapshot.data() as Partial<KitchenOrderDoc>;
     if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen order is outside the active restaurant.");
     return order;
+  }
+
+  private syncLinkedOrderStatus(transaction: Transaction, scope: TenantScope, doc: QueryDocumentSnapshot, kitchenStatus: KitchenOrderStatus, operationKey?: string) {
+    const order = dataWithId<OrderDoc>(doc.id, doc.data() ?? {});
+    const status = orderStatusForKitchenStatus(kitchenStatus);
+    if (!status || !shouldSyncOrderStatus(order.status, status, order.paymentStatus)) return;
+    if (operationKey && hasOperationKey(order, operationKey)) return;
+    const now = new Date();
+    const event = statusEventForKitchenStatus(status);
+    const actorPatch = status === "preparing"
+      ? { preparedBy: scope.uid ?? "" }
+      : status === "served"
+        ? { servedBy: scope.uid ?? "" }
+        : status === "completed"
+          ? { completedBy: scope.uid ?? "" }
+          : {};
+    const patch = cleanRecord({
+      status,
+      foodStatus: kitchenStatus,
+      auditTimeline: FieldValue.arrayUnion(cleanRecord({ type: event, timestamp: now, user: scope.uid ?? "", role: "kitchen", restaurant: scope.tenantId, status, kitchenOrderId: doc.id })),
+      statusHistory: FieldValue.arrayUnion(cleanRecord({ status, foodStatus: kitchenStatus, at: now, by: scope.uid, event })),
+      operationKeys: operationKey ? FieldValue.arrayUnion(operationKey) : undefined,
+      updatedAt: FieldValue.serverTimestamp(),
+      ...actorPatch,
+    });
+    transaction.set(doc.ref, patch, { merge: true });
+    transaction.set(this.db.collection("customerOrders").doc(doc.id), patch, { merge: true });
   }
 
   private async mergeIncrementalIntoParent(scope: TenantScope, childId: string, child: Partial<KitchenOrderDoc>) {
@@ -190,6 +226,36 @@ export class KitchenRepository {
       transaction.set(this.db.collection("customerOrders").doc(order.id), orderPatch, { merge: true });
     });
   }
+}
+
+const orderFlow: OrderStatus[] = ["new", "accepted", "preparing", "ready", "served", "delivered", "completed"];
+const terminalOrders = new Set<OrderStatus>(["cancelled", "rejected"]);
+const billClosedOrders = new Set<OrderStatus>(["delivered", "completed"]);
+const activePaymentStatuses = new Set<PaymentStatus>(["authorized", "partial", "paid"]);
+
+function orderStatusForKitchenStatus(status: KitchenOrderStatus): OrderStatus {
+  if (status === "cancelled") return "cancelled";
+  return status;
+}
+
+function statusEventForKitchenStatus(status: OrderStatus) {
+  if (status === "accepted") return "kitchen_accepted";
+  if (status === "ready") return "kitchen_ready";
+  if (status === "completed") return "completion";
+  return "order_status";
+}
+
+function shouldSyncOrderStatus(current: OrderStatus | undefined, next: OrderStatus, paymentStatus: PaymentStatus | undefined) {
+  if (!current || current === "draft" || current === next || terminalOrders.has(current)) return false;
+  if (next === "cancelled") return !billClosedOrders.has(current) && !activePaymentStatuses.has(paymentStatus ?? "pending");
+  if (billClosedOrders.has(current)) return false;
+  const currentIndex = orderFlow.indexOf(current);
+  const nextIndex = orderFlow.indexOf(next);
+  return currentIndex >= 0 && nextIndex >= 0 && nextIndex >= currentIndex;
+}
+
+function cleanRecord(input: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => typeof value !== "undefined"));
 }
 
 function mergeKitchenLines(parent: KitchenOrderDoc["lines"], child: KitchenOrderDoc["lines"]) {

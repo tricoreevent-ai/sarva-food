@@ -1143,7 +1143,7 @@ export function PosBillingFlow() {
       const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
       updatedKitchen = result.data;
     }
-    if (canonical && (status === "completed" || status === "cancelled")) {
+    if (canonical && ((order as OperationalOrder).hasKitchenTicket === false ? isOrderBackedTableStatus(status) : status === "completed" || status === "cancelled")) {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -1165,7 +1165,7 @@ export function PosBillingFlow() {
       tableOrders: current.tableOrders.map((item) => item.id === order.id ? updatedKitchen ?? { ...item, status } : item),
       orders: canonical ? current.orders.map((item) => item.id === canonical.id ? { ...item, status: demoStatusForTableStatus(status) } : item) : current.orders,
     }));
-    toast.success(status === "cancelled" ? "Order cancelled." : "Order completed.");
+    toast.success(activeStatusToast(status));
   }
 
   async function splitActiveBill(order: OperationalOrder, splits: SplitBillPayload[]) {
@@ -2979,6 +2979,19 @@ function demoStatusForTableStatus(status: TableOrder["status"]): DemoOrder["stat
   if (status === "ready") return "ready";
   if (status === "served") return "served";
   return "new";
+}
+
+function isOrderBackedTableStatus(status: TableOrder["status"]) {
+  return ["accepted", "preparing", "ready", "served", "completed", "cancelled"].includes(status);
+}
+
+function activeStatusToast(status: TableOrder["status"]) {
+  if (status === "cancelled") return "Order cancelled.";
+  if (status === "served") return "Order served.";
+  if (status === "ready") return "Order ready.";
+  if (status === "preparing") return "Cooking started.";
+  if (status === "accepted") return "Order accepted.";
+  return "Order completed.";
 }
 
 function paymentStateForOrder(order?: DemoOrder): TableOrder["paymentStatus"] | undefined {
