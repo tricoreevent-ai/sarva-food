@@ -803,6 +803,47 @@ textarea::selection,
   animation: order-delay-soft-blink 1.8s ease-in-out infinite;
 }
 
+.order-accordion-delay-yellow {
+  border-color: rgb(253 230 138);
+  box-shadow: 0 10px 28px rgb(245 158 11 / 0.08);
+}
+
+.order-accordion-delay-orange {
+  animation: order-accordion-pulse 2.6s ease-in-out infinite;
+  border-color: rgb(251 146 60);
+  box-shadow: 0 12px 34px rgb(249 115 22 / 0.12);
+}
+
+.order-accordion-delay-red {
+  animation: order-accordion-pulse 2.4s ease-in-out infinite;
+  border-color: rgb(248 113 113);
+  box-shadow: 0 14px 38px rgb(239 68 68 / 0.16);
+}
+
+.order-accordion-delay-critical {
+  animation: order-accordion-critical 2.8s ease-in-out infinite;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(120deg, #ef4444, #fb923c, #ef4444) border-box;
+  border-color: transparent;
+  box-shadow: 0 16px 42px rgb(220 38 38 / 0.18);
+}
+
+.order-accordion-delay-critical::after {
+  animation: order-accordion-left-rail 1.8s ease-in-out infinite;
+  background: linear-gradient(180deg, #ef4444, #fb923c, #dc2626);
+  bottom: 0;
+  content: "";
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 4px;
+}
+
+.order-accordion-warning-icon {
+  animation: order-accordion-warning 1.6s ease-in-out infinite;
+}
+
 @keyframes kitchen-delay-pulse {
   0%,
   100% {
@@ -849,13 +890,66 @@ textarea::selection,
   }
 }
 
+@keyframes order-accordion-pulse {
+  0%,
+  100% {
+    transform: translateZ(0);
+  }
+
+  50% {
+    transform: translate3d(0, -1px, 0);
+  }
+}
+
+@keyframes order-accordion-critical {
+  0%,
+  100% {
+    box-shadow: 0 16px 42px rgb(220 38 38 / 0.14);
+  }
+
+  50% {
+    box-shadow: 0 18px 48px rgb(220 38 38 / 0.24);
+  }
+}
+
+@keyframes order-accordion-left-rail {
+  0%,
+  100% {
+    opacity: 0.74;
+    transform: scaleY(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes order-accordion-warning {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.94);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sarva-toast-progress,
   .sarva-notification-card,
   .kitchen-delay-pulse,
   .kitchen-new-order-pulse,
   .kitchen-ready-pulse,
-  .order-delay-soft-blink {
+  .order-delay-soft-blink,
+  .order-accordion-delay-orange,
+  .order-accordion-delay-red,
+  .order-accordion-delay-critical,
+  .order-accordion-delay-critical::after,
+  .order-accordion-warning-icon {
     animation: none;
   }
 }

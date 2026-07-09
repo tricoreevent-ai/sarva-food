@@ -30,6 +30,7 @@ import {
   Users,
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
+import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { OrderCard, type OpsOrder } from "@/components/orders/order-card";
 import { OrderFilters } from "@/components/orders/order-filters";
 import { OrderMetricCard } from "@/components/orders/metric-card";
@@ -44,6 +45,7 @@ import { normalizePhone } from "@/services/restaurant-ops-service";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";
+import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 const IntegrationDialog = dynamic(() => import("@/components/orders/integration-dialog").then((module) => module.IntegrationDialog), { loading: () => null });
 const PartnerCard = dynamic(() => import("@/components/orders/partner-card").then((module) => module.PartnerCard), { loading: () => null });
@@ -535,26 +537,21 @@ function ActiveOrdersGrid({
   onView: (order: ActiveOpsOrder) => void;
 }) {
   const visible = orders.slice(0, 30);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="hidden grid-cols-[minmax(220px,1.4fr)_112px_150px_96px_88px_132px] gap-3 border-b bg-slate-50 px-3 py-2 text-[11px] font-black uppercase text-slate-500 xl:grid">
-        <span>Status</span>
-        <span>Priority</span>
-        <span>Progress</span>
-        <span>ETA</span>
-        <span>Quick View</span>
-        <span>Actions</span>
-      </div>
-      <div className="divide-y divide-slate-100">
+      <div className="grid gap-2 p-2 xl:p-3">
         {visible.map((order) => (
           <MemoActiveOrderCard
             key={order.id}
             order={order}
             highlighted={highlightedOrderIds.has(order.id)}
+            expanded={expandedOrderId === order.id}
             onAccept={() => onAccept(order)}
             onReject={() => onReject(order)}
             onReady={() => onReady(order)}
             onComplete={() => onComplete(order)}
+            onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
             onView={() => onView(order)}
           />
         ))}
@@ -567,18 +564,22 @@ function ActiveOrdersGrid({
 function ActiveOrderCard({
   order,
   highlighted,
+  expanded,
   onAccept,
   onReject,
   onReady,
   onComplete,
+  onExpandedChange,
   onView,
 }: {
   order: ActiveOpsOrder;
   highlighted: boolean;
+  expanded: boolean;
   onAccept: () => void;
   onReject: () => void;
   onReady: () => void;
   onComplete: () => void;
+  onExpandedChange: (open: boolean) => void;
   onView: () => void;
 }) {
   const delayed = Boolean(order.delay?.delayed);
@@ -595,7 +596,55 @@ function ActiveOrderCard({
         ? { label: "Serve", onClick: onComplete }
         : null;
   return (
-    <article className={cn("grid gap-3 px-3 py-2.5 transition xl:grid-cols-[minmax(220px,1.4fr)_112px_150px_96px_88px_132px] xl:items-center", isNew && "border-l-4 border-orange-500 bg-orange-50/45 kitchen-new-order-pulse", delayed && "bg-red-50/75", ready && "bg-emerald-50/65", critical && "ring-1 ring-inset ring-red-300", highlighted && "ring-2 ring-inset ring-orange-400")}>
+    <>
+      <div className="hidden xl:block">
+        <CompactOrderAccordion
+          id={`active-order-${order.id}`}
+          orderNumber={order.displayId ?? "Order"}
+          etaLabel={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel}
+          orderTypeLabel={order.type}
+          tableLabel={order.tableNumber || order.customer}
+          itemCountLabel={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"}`}
+          status={{ label: order.status, tone: ownerStatusTone(order.status) }}
+          priority={{ label: order.priorityLabel, tone: ownerPriorityTone(order.delay?.priority), icon: delayed || critical ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
+          badges={[
+            { label: order.source, tone: "muted" },
+            { label: order.paymentStatusLabel, tone: order.paymentStatusLabel.toLowerCase().includes("paid") ? "success" : "default" },
+          ]}
+          delay={ownerAccordionDelay(order)}
+          items={order.lines.map((line, index) => ({
+            id: `${order.id}-${index}`,
+            name: line.name,
+            quantity: line.quantity,
+            note: line.notes,
+            meta: line.modifiers?.join(", "),
+            warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
+          }))}
+          facts={[
+            { label: "Customer", value: order.customer },
+            { label: "Phone", value: order.phone || "Not provided" },
+            { label: "Kitchen", value: order.kitchenStatus },
+            { label: "Payment", value: order.paymentStatusLabel, tone: order.paymentStatusLabel.toLowerCase().includes("paid") ? "success" : "default" },
+            { label: "Waiting", value: order.age, tone: delayed ? "danger" : "default" },
+            { label: "Total", value: formatCurrency(order.total) },
+          ]}
+          notes={[order.instructions, order.scheduledLabel, order.prepSuggestion].filter(isStringValue)}
+          timeline={order.timeline.map((entry) => ({ label: entry.label, time: entry.at }))}
+          primaryAction={primaryAction ? {
+            id: "primary",
+            label: primaryAction.label,
+            icon: <CheckCircle2 className="size-4" />,
+            variant: "primary",
+            onClick: primaryAction.onClick,
+          } : undefined}
+          secondaryActions={[{ id: "view", label: "View", icon: <Eye className="size-4" />, onClick: onView }]}
+          moreActions={isNew ? [{ id: "reject", label: "Reject", icon: <AlertTriangle className="size-4" />, variant: "danger" as const, onClick: onReject }] : []}
+          isOpen={expanded}
+          highlighted={highlighted}
+          onOpenChange={onExpandedChange}
+        />
+      </div>
+      <article className={cn("grid gap-3 px-3 py-2.5 transition xl:hidden", isNew && "border-l-4 border-orange-500 bg-orange-50/45 kitchen-new-order-pulse", delayed && "bg-red-50/75", ready && "bg-emerald-50/65", critical && "ring-1 ring-inset ring-red-300", highlighted && "ring-2 ring-inset ring-orange-400")}>
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <p className="truncate text-base font-black text-slate-950">{order.displayId ?? "Order"}</p>
@@ -635,7 +684,8 @@ function ActiveOrderCard({
         />
       </div>
       {mobileQuickOpen ? <div className="xl:hidden"><QuickViewContent order={order} /></div> : null}
-    </article>
+      </article>
+    </>
   );
 }
 
@@ -1273,6 +1323,10 @@ function timestampMs(value: string) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+function isStringValue(value: string | undefined): value is string {
+  return Boolean(value);
+}
+
 function kitchenStatusLabel(status?: string) {
   if (!status) return "Not sent";
   return status.split("-").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
@@ -1325,6 +1379,38 @@ function priorityLabel(priority?: DelayPriority) {
   if (priority === "high") return "High priority";
   if (priority === "medium") return "Delayed";
   return "Normal";
+}
+
+function ownerAccordionDelay(order: ActiveOpsOrder): OrderAccordionDelay {
+  return {
+    delayed: Boolean(order.delay?.delayed),
+    level: ownerDelayLevel(order.delay?.priority, order.delay?.lateMinutes),
+    label: order.delay?.priority === "critical" ? "Critical delay" : "Delayed",
+    lateMinutes: order.delay?.lateMinutes,
+    waitingLabel: order.delay?.elapsedLabel ?? order.age,
+  };
+}
+
+function ownerDelayLevel(priority?: DelayPriority, lateMinutes = 0): OrderDelayLevel {
+  if (!priority || priority === "normal") return "none";
+  if (priority === "critical" || lateMinutes >= 30) return "critical";
+  if (priority === "high" || lateMinutes >= 15) return "red";
+  if (priority === "medium" || lateMinutes >= 5) return "orange";
+  return "yellow";
+}
+
+function ownerStatusTone(status: string): OrderBadgeTone {
+  if (status === "ready" || status === "served" || status === "delivered") return "success";
+  if (status === "new" || status === "occupied") return "warning";
+  if (status === "cancelled" || status === "rejected") return "danger";
+  if (status === "completed") return "muted";
+  return "info";
+}
+
+function ownerPriorityTone(priority?: DelayPriority): OrderBadgeTone {
+  if (priority === "critical" || priority === "high") return "danger";
+  if (priority === "medium") return "warning";
+  return "muted";
 }
 
 function priorityTone(priority?: DelayPriority) {

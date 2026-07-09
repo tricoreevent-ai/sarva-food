@@ -38,6 +38,24 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Validation | `npm run typecheck` passed; `npm run lint` passed; `npm run build` passed with accepted Firebase/protobuf warning; `cmd /c npm run analyze` passed with same warning; `cmd /c npm run audit:release` passed; `cmd /c npm run smoke:operational` passed; `git diff --check` passed with Git line-ending normalization warnings only. |
 | Readiness | Owner module repository readiness: `94%`. Recommendation: production-ready after authenticated browser smoke, live provider checks, and printer/device validation pass. |
 
+## Owner Order Card Accordion UI - 2026-07-09
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `OWN-UI-ORDERCARD-001` |
+| Scope | Reusable compact order accordion component for desktop Owner order surfaces. First adoption: Kitchen Operations Center desktop board. Second adoption: Owner Active Orders desktop list. Mobile Kitchen and Active Orders card layouts remain unchanged. |
+| Status | Implemented locally and validated. |
+| Components Added | `CompactOrderAccordion`, `CompactOrderAccordionHeader`, `CompactOrderAccordionBody`, `CompactOrderAccordionActions`, `OrderDelayIndicator`, `OrderPriorityBadge`, `OrderAccordionSkeleton`, typed props, and shared tone/action utilities under `src/components/orders`. |
+| Kitchen Integration | Desktop `KitchenOrderCard` now adapts existing `TableOrder` data into the shared accordion, preserves Preview/Print/Advance/Cancel/Details callbacks, supports one expanded ticket globally, and keeps column virtualization enabled except while an accordion is expanded. |
+| Active Orders Integration | Desktop `ActiveOrderCard` now reuses the same accordion for Active Orders with View/Accept/Ready/Serve/Reject actions. Existing mobile card markup and quick-view behavior remain under `xl:hidden`. |
+| Reusability Matrix | Kitchen Operations Center: adopted. Owner Active Orders: adopted. Future Order History, POS order queue, Waiter/Cashier/Manager queues: eligible via adapter props only. |
+| Delay UX | Delayed orders now use yellow/orange/red/critical levels, subtle motion, critical left rail, warning icon pulse, and `prefers-reduced-motion` disabling. Existing Firebase/protobuf build warning is unrelated. |
+| Business Logic Impact | None. No API, repository, Firestore schema/rule/index, realtime listener, status lifecycle, payment, printer backend, or order mutation logic was changed. |
+| Performance Impact | One memoized reusable UI dependency path was added. Kitchen keeps fixed-height virtualization for collapsed cards and disables virtualization only while a dynamic-height accordion is open. No new polling/listeners/network calls. |
+| Accessibility | Accordion headers expose expanded state, delayed warnings use status/live semantics, actions remain buttons with labels/titles, and reduced-motion users do not receive delay animations. |
+| Validation | `cmd /c npm run typecheck` passed; `cmd /c npm run lint` passed; `cmd /c npm run build` passed with accepted Firebase/protobuf warning; `cmd /c npm run analyze` passed with same warning after clearing stale `.next` cache; `cmd /c npm run audit:release` passed; `cmd /c npm run smoke:operational` passed; `git diff --check` passed with Git line-ending normalization warnings only. |
+| Rollback | Revert the new `src/components/orders/OrderAccordion*`/`CompactOrderAccordion*` files, the two desktop adapters in Kitchen and Owner flows, and the delay animation CSS block. No data rollback required. |
+
 ## RC1 Production Readiness and Go-Live Validation - 2026-07-08
 
 | Field | Result |

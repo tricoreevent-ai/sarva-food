@@ -25,12 +25,14 @@ import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { delaySortRank, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { readableTableOrderId } from "@/lib/order-display";
 import { cn } from "@/lib/utils";
 import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
+import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 type KitchenColumnId = "new" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
 type PaymentState = "unpaid" | "partial" | "paid" | "refunded";
@@ -96,6 +98,7 @@ export function KitchenDisplayFlow() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
   const busyOrders = useRef(new Set<string>());
   const ordersRef = useRef<TableOrder[]>([]);
@@ -618,10 +621,12 @@ export function KitchenDisplayFlow() {
                 column={column}
                 hidden={statusFilter !== "all" && !column.statuses.includes(statusFilter)}
                 highlightedOrderId={highlightedOrderId}
+                expandedOrderId={expandedOrderId}
                 nowBucket={nowBucket}
                 orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
                 orders={columnOrders}
                 onCancel={requestCancel}
+                onExpandedOrderChange={setExpandedOrderId}
                 onNext={(order, status) => void updateStatus(order, status)}
                 onOpen={(order) => setSelectedOrderId(order.id)}
                 onPreview={previewKot}
@@ -782,12 +787,14 @@ export function KitchenOrderHistoryFlow() {
 function KitchenOrderColumn({
   busyOrderId,
   column,
+  expandedOrderId,
   hidden,
   highlightedOrderId,
   nowBucket,
   orderDelayThresholdMinutes,
   orders,
   onCancel,
+  onExpandedOrderChange,
   onNext,
   onOpen,
   onPreview,
@@ -795,12 +802,14 @@ function KitchenOrderColumn({
 }: {
   busyOrderId: string | null;
   column: (typeof desktopColumns)[number];
+  expandedOrderId: string | null;
   hidden: boolean;
   highlightedOrderId: string | null;
   nowBucket: number;
   orderDelayThresholdMinutes: number;
   orders: TableOrder[];
   onCancel: (order: TableOrder) => void;
+  onExpandedOrderChange: (orderId: string | null) => void;
   onNext: (order: TableOrder, status: TableOrderStatus) => void;
   onOpen: (order: TableOrder) => void;
   onPreview: (order: TableOrder) => void;
@@ -809,9 +818,9 @@ function KitchenOrderColumn({
   const ref = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(720);
-  const itemHeight = 258;
+  const itemHeight = 96;
   const overscan = 3;
-  const virtual = orders.length > 18;
+  const virtual = orders.length > 18 && !expandedOrderId;
   const start = virtual ? Math.max(0, Math.floor(scrollTop / itemHeight) - overscan) : 0;
   const count = virtual ? Math.ceil(viewportHeight / itemHeight) + overscan * 2 : orders.length;
   const visible = virtual ? orders.slice(start, start + count) : orders;
@@ -850,6 +859,8 @@ function KitchenOrderColumn({
               orderDelayThresholdMinutes={orderDelayThresholdMinutes}
               busy={busyOrderId === order.id}
               highlighted={highlightedOrderId === order.id}
+              expanded={expandedOrderId === order.id}
+              onExpandedChange={(open) => onExpandedOrderChange(open ? order.id : null)}
               onPrint={(reprint) => onPrint(order, reprint)}
               onPreview={() => onPreview(order)}
               onOpen={() => onOpen(order)}
@@ -1390,6 +1401,8 @@ type KitchenOrderCardProps = {
   orderDelayThresholdMinutes: number;
   busy: boolean;
   highlighted?: boolean;
+  expanded: boolean;
+  onExpandedChange: (open: boolean) => void;
   onNext: (status: TableOrderStatus) => void;
   onPrint: (reprint: boolean) => void;
   onPreview: () => void;
@@ -1397,105 +1410,71 @@ type KitchenOrderCardProps = {
   onCancel: () => void;
 };
 
-function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, onNext, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [itemsOpen, setItemsOpen] = useState(false);
+function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, expanded, onExpandedChange, onNext, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
   const now = nowBucket * 60000;
-  const createdMs = Date.parse(order.createdAt);
-  const ageMinutes = Number.isFinite(createdMs) ? Math.max(0, Math.round((now - createdMs) / 60000)) : 0;
   const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
-  const delayed = delay.delayed;
   const next = nextStatus[order.status];
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const final = isCompleted(order.status);
   const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
-  const visibleLines = itemsOpen ? order.lines : order.lines.slice(0, 4);
-  const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
+
   return (
-    <Card className={cn("cursor-pointer border-slate-200 shadow-sm", order.priority === "rush" && "border-red-300", delayed && "border-red-400 bg-red-50/40 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/55 kitchen-ready-pulse", delay.priority === "critical" && "ring-2 ring-red-300", highlighted && "ring-2 ring-orange-400")} onClick={onOpen}>
-      <CardContent className="space-y-1.5 p-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-xl font-black text-slate-950">{displayOrderNumber(order)}</p>
-            <p className="mt-0.5 truncate text-xs font-black text-slate-600">{orderType} · {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <Badge variant={order.status === "ready" ? "success" : "outline"}>{statusLabel(order.status)}</Badge>
-            <Badge variant={delay.priority === "critical" || delay.priority === "high" ? "destructive" : delayed ? "warning" : "secondary"}>{priorityLabel(order, delay)}</Badge>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-1 text-xs font-black">
-          <span className="rounded-md bg-slate-50 px-2 py-1 text-slate-700">ETA {order.etaMinutes ?? 12}m</span>
-          <span className={cn("rounded-md px-2 py-1", delayed ? "bg-red-100 text-red-700" : "bg-slate-50 text-slate-700")}>{ageMinutes}m</span>
-          <span className="truncate rounded-md bg-slate-50 px-2 py-1 text-slate-700">{order.source}</span>
-        </div>
-        {delayed ? <DelayWarning delay={delay} compact /> : null}
-        <div className="space-y-1">
-          {visibleLines.map((line, index) => (
-            <div key={`${line.itemId}-${index}`} className="rounded-md bg-slate-50 px-2 py-1 text-sm">
-              <p className="truncate font-black text-slate-950">{line.quantity}x {line.name}</p>
-              {line.modifiers?.length ? <p className="truncate text-[11px] font-bold text-orange-600">{line.modifiers.join(", ")}</p> : null}
-              {line.allergyNote ? <p className="truncate text-[11px] font-black text-red-600">Allergy: {line.allergyNote}</p> : null}
-            </div>
-          ))}
-          {hiddenCount ? (
-            <button type="button" className="text-xs font-black text-orange-600" onClick={(event) => { event.stopPropagation(); setItemsOpen((value) => !value); }}>
-              {itemsOpen ? "Hide items" : `+${hiddenCount} more`}
-            </button>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="flex min-h-9 w-full items-center justify-between rounded-lg border border-slate-200 px-3 text-xs font-black text-slate-600 hover:bg-slate-50"
-          onClick={(event) => {
-            event.stopPropagation();
-            setDetailsOpen((value) => !value);
-          }}
-          aria-expanded={detailsOpen}
-        >
-          Details
-          <ChevronDown className={cn("size-4 transition", detailsOpen && "rotate-180")} />
-        </button>
-        {detailsOpen ? (
-          <div className="grid gap-1.5 rounded-lg border bg-white p-2 text-xs font-bold text-slate-600" onClick={(event) => event.stopPropagation()}>
-            <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
-            <span>Payment: {paymentLabel(order.paymentStatus)}</span>
-            <span>Waiter: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
-            <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
-            <span>Elapsed: {delay.elapsedLabel}</span>
-            {order.lines.some((line) => line.notes) ? <span>Notes: {order.lines.map((line) => line.notes).filter(Boolean).join(", ")}</span> : null}
-            {order.statusHistory?.length ? <span>Timeline: {order.statusHistory.slice(-2).map((entry) => `${statusLabel((entry.status || entry.foodStatus || "completed") as TableOrderStatus)} ${entry.at ? timeOnly(entry.at) : ""}`).join(" · ")}</span> : null}
-          </div>
-        ) : null}
-        <div className="grid grid-cols-[44px_44px_minmax(0,1fr)_44px] gap-2" role="group" aria-label={`Kitchen actions for ${order.tableNumber}`}>
-          <Button variant="outline" className="h-11 w-11 p-0" onClick={(event) => { event.stopPropagation(); onPreview(); }} title="Preview KOT" aria-label={`Preview KOT for ${order.tableNumber}`}>
-            <Eye className="size-4" />
-            <span className="sr-only">Preview KOT</span>
-          </Button>
-          <Button variant="outline" className="h-11 w-11 p-0" onClick={(event) => { event.stopPropagation(); onPrint(Boolean(order.printedCount)); }} title={order.printedCount ? "Reprint KOT" : "Print KOT"} aria-label={`${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`}>
-            <Printer className="size-4" />
-            <span className="sr-only">{order.printedCount ? "Reprint KOT" : "Print KOT"}</span>
-          </Button>
-          {final ? (
-            <Button className="col-span-2 h-11 min-w-0" disabled title={statusLabel(order.status)}>
-              <CheckCircle2 className="size-4 shrink-0" />
-              <span className="truncate">{statusLabel(order.status)}</span>
-            </Button>
-          ) : (
-            <>
-              <Button className="h-11 min-w-0" disabled={busy || !next} onClick={(event) => { event.stopPropagation(); if (next) onNext(next); }} title={label} aria-label={`${label} ${order.tableNumber}`}>
-                <UtensilsCrossed className="size-4 shrink-0" />
-                <span className="truncate">{label}</span>
-              </Button>
-              <Button variant="outline" className="h-11 w-11 p-0 text-red-600" disabled={busy} onClick={(event) => { event.stopPropagation(); onCancel(); }} title="Cancel ticket" aria-label={`Cancel kitchen ticket ${order.tableNumber}`}>
-                <XCircle className="size-4" />
-                <span className="sr-only">Cancel ticket</span>
-              </Button>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <CompactOrderAccordion
+      id={`kitchen-order-${order.id}`}
+      orderNumber={displayOrderNumber(order)}
+      etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
+      orderTypeLabel={orderType}
+      tableLabel={order.tableNumber}
+      itemCountLabel={`${order.lines.length} item${order.lines.length === 1 ? "" : "s"}`}
+      status={{ label: statusLabel(order.status), tone: kitchenStatusTone(order.status) }}
+      priority={{ label: priorityLabel(order, delay), tone: kitchenPriorityTone(order, delay), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
+      badges={[{ label: order.source || "POS", tone: "muted" }]}
+      delay={kitchenAccordionDelay(delay)}
+      items={order.lines.map((line, index) => ({
+        id: `${line.itemId ?? order.id}-${index}`,
+        name: line.name,
+        quantity: line.quantity,
+        note: line.notes,
+        meta: line.modifiers?.join(", "),
+        warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
+      }))}
+      facts={[
+        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
+        { label: "Payment", value: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
+        { label: "Staff", value: order.assignedStaffName || order.waiterName || "Unassigned" },
+        { label: "Station", value: order.kitchenStation || stationForOrder(order) },
+        { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
+        { label: "Total", value: typeof order.total === "number" ? `₹${order.total}` : "Pending" },
+      ]}
+      notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
+      timeline={[
+        { label: "Created", time: timeOnly(order.createdAt) },
+        ...(order.statusHistory ?? []).slice(-5).map((entry) => ({
+          label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
+          time: entry.at ? timeOnly(String(entry.at)) : undefined,
+        })),
+      ]}
+      primaryAction={final || !next ? undefined : {
+        id: "advance",
+        label,
+        icon: <UtensilsCrossed className="size-4" />,
+        variant: "primary",
+        disabled: busy,
+        title: `${label} ${order.tableNumber}`,
+        onClick: () => onNext(next),
+      }}
+      secondaryActions={[
+        { id: "preview", label: "Preview", icon: <Eye className="size-4" />, title: `Preview KOT for ${order.tableNumber}`, onClick: onPreview },
+        { id: "print", label: order.printedCount ? "Reprint" : "Print", icon: <Printer className="size-4" />, title: `${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`, onClick: () => onPrint(Boolean(order.printedCount)) },
+      ]}
+      moreActions={[
+        { id: "details", label: "Details", icon: <ChevronDown className="size-4" />, onClick: onOpen },
+        ...(final ? [] : [{ id: "cancel", label: "Cancel ticket", icon: <XCircle className="size-4" />, variant: "danger" as const, disabled: busy, onClick: onCancel }]),
+      ]}
+      isOpen={expanded}
+      highlighted={highlighted}
+      onOpenChange={onExpandedChange}
+    />
   );
 }
 
@@ -1504,7 +1483,8 @@ const MemoKitchenOrderCard = memo(KitchenOrderCard, (prev, next) => (
   prev.nowBucket === next.nowBucket &&
   prev.orderDelayThresholdMinutes === next.orderDelayThresholdMinutes &&
   prev.busy === next.busy &&
-  prev.highlighted === next.highlighted
+  prev.highlighted === next.highlighted &&
+  prev.expanded === next.expanded
 ));
 
 function KitchenOrderDrawer({ order, now, orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes, onClose, onPrint, onPreview, onNext }: { order: TableOrder; now: number; orderDelayThresholdMinutes?: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void }) {
@@ -1873,6 +1853,38 @@ function priorityLabel(order: TableOrder, delay: DelayState) {
   if (delay.priority === "high" || order.priority === "rush") return "High";
   if (delay.priority === "medium") return "Medium";
   return "Normal";
+}
+
+function kitchenAccordionDelay(delay: DelayState): OrderAccordionDelay {
+  return {
+    delayed: delay.delayed,
+    level: kitchenDelayLevel(delay),
+    label: delay.priority === "critical" ? "Critical delay" : "Delayed",
+    lateMinutes: delay.lateMinutes,
+    waitingLabel: delay.elapsedLabel,
+  };
+}
+
+function kitchenDelayLevel(delay: DelayState): OrderDelayLevel {
+  if (!delay.delayed) return "none";
+  if (delay.priority === "critical" || delay.lateMinutes >= 30) return "critical";
+  if (delay.priority === "high" || delay.lateMinutes >= 15) return "red";
+  if (delay.priority === "medium" || delay.lateMinutes >= 5) return "orange";
+  return "yellow";
+}
+
+function kitchenStatusTone(status: TableOrderStatus): OrderBadgeTone {
+  if (status === "ready" || status === "served") return "success";
+  if (status === "new" || status === "occupied") return "warning";
+  if (status === "cancelled") return "danger";
+  if (status === "completed" || status === "billed") return "muted";
+  return "info";
+}
+
+function kitchenPriorityTone(order: TableOrder, delay: DelayState): OrderBadgeTone {
+  if (delay.priority === "critical" || delay.priority === "high" || order.priority === "rush") return "danger";
+  if (delay.delayed) return "warning";
+  return "muted";
 }
 
 function kitchenActionToast(order: TableOrder, status: TableOrderStatus) {
