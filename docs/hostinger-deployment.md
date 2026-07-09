@@ -28,7 +28,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
 NEXT_PUBLIC_APP_NAME=Nammude
-NEXT_PUBLIC_APP_VERSION=v1.0.0-rc3
+NEXT_PUBLIC_APP_VERSION=v1.0.0-rc4
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
 
@@ -44,6 +44,7 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=
 NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_...
 NEXT_PUBLIC_ENABLE_DEV_LOGIN=false
 NEXT_PUBLIC_ENABLE_TEST_LOGIN=false
 
@@ -60,6 +61,10 @@ CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
 
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -72,10 +77,6 @@ DATABASE_ALERT_EMAIL=
 Optional production integrations:
 
 ```env
-NEXT_PUBLIC_RAZORPAY_KEY_ID=
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-RAZORPAY_WEBHOOK_SECRET=
 UPI_MERCHANT_ID=
 UPI_MERCHANT_VPA=
 WHATSAPP_CLOUD_API_TOKEN=
@@ -130,7 +131,7 @@ curl.exe https://violet-squid-380447.hostingersite.com/health/ready
 curl.exe https://violet-squid-380447.hostingersite.com/health/startup
 ```
 
-For rc3, hosted `/api/release-info` must report the final pushed `release/production-nammude` commit from the release handoff, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc3`.
+For rc4, hosted `/api/release-info` must report the final pushed `release/production-nammude` commit from the release handoff, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc4`.
 
 Optional environment validation after setting a local production env file:
 

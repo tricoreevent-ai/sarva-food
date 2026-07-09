@@ -1,9 +1,9 @@
 # Production Operational Runbook
 
-Release candidate: `v1.0.0-rc3`
+Release candidate: `v1.0.0-rc4`
 Branch: `release/production-nammude`
-Commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
-Tag: `v1.0.0-rc3`
+Commit: final tagged RC4 commit
+Tag: `v1.0.0-rc4`
 
 ## Operational Logging
 
@@ -92,8 +92,8 @@ Health responses are no-store and expose status booleans plus `requestId` only. 
 ## Infrastructure Checklist
 
 - Hostinger branch is `release/production-nammude`.
-- Hosted `/api/release-info` matches `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`.
+- Hosted `/api/release-info` matches the final `v1.0.0-rc4` commit.
 - Hosted metadata reports `deploymentEnvironment: production`.
-- Hosted metadata reports `applicationVersion: v1.0.0-rc3`.
+- Hosted metadata reports `applicationVersion: v1.0.0-rc4`.
 - Cache is cleared after redeploy.
 - `/robots.txt`, `/sitemap.xml`, and `/manifest.json` are checked after cache clear.

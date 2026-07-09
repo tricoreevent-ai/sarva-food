@@ -1,5 +1,35 @@
 # Release Notes
 
+## v1.0.0-rc4 - Release Candidate
+
+Commit: final tagged RC4 commit
+Branch: `release/production-nammude`
+Production URL: `https://violet-squid-380447.hostingersite.com`
+
+### Status
+
+- Active release metadata, package metadata, environment templates, and deployment docs now align on `v1.0.0-rc4` / `1.0.0-rc.4`.
+- The existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags remain immutable; create `v1.0.0-rc4` on the final committed candidate.
+- Production release remains blocked only by manual Hostinger, Firebase Console, provider dashboard, authenticated browser, Lighthouse, and hardware smoke gates.
+
+### Completed
+
+- Removed generated owner temporary passwords from admin API/browser responses; credentials are sent through the configured email path only.
+- Replaced TinyURL raw provider error echo with a safe generic fallback message.
+- Corrected production health metadata to avoid a stale `development` fallback when app env is absent.
+- Expanded the production environment matrix from the actual runtime/build env scan and aligned Razorpay as production-required with `validate:prod-env`.
+
+### Validation
+
+- `cmd /c npm run typecheck`: passed.
+- `cmd /c npm run lint`: passed.
+- `cmd /c npm run build`: passed with the accepted Firebase/protobuf dynamic dependency warning.
+- `cmd /c npm run audit:release`: passed.
+- `cmd /c npm run smoke:operational`: passed.
+- `git diff --check`: passed with Git line-ending normalization warnings only.
+- `cmd /c npm run validate:prod-env`: failed locally with `46` pass, `1` warning, and `24` errors requiring real production Hostinger/Firebase/Razorpay/provider secrets.
+- `cmd /c npm run verify:providers`: failed locally with `6` pass, `4` errors, and `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials.
+
 ## v1.0.0-rc3 - Release Candidate
 
 Commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`

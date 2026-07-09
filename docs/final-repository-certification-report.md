@@ -1,10 +1,10 @@
 # Final Repository Certification Report
 
-Release: `v1.0.0-rc3`
+Release: `v1.0.0-rc4`
 Branch: `release/production-nammude`
-Runtime release commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
-Final certification commit: reported in the release handoff after this docs-only commit is pushed
-Date: 2026-07-08
+Runtime release commit: final tagged RC4 commit
+Final certification commit: final tagged RC4 commit from the release handoff
+Date: 2026-07-09
 
 ## Certification Result
 
@@ -14,7 +14,7 @@ Date: 2026-07-08
 | Security | 98% | PASS: masked logging, request ids, correlation/trace context, safe errors, and health metadata are in place. |
 | Performance | 95% | PASS: bundle analysis, route splitting, lazy runtime ownership, and bounded Firestore probes are verified where repository-verifiable. |
 | Accessibility | 94% | PASS repository-side patterns; final viewport and screen-reader smoke remains manual browser validation. |
-| Production readiness | 85% | NO-GO until manual infrastructure, provider, browser, and hardware gates pass. |
+| Production readiness | 86% | NO-GO until manual infrastructure, provider, browser, and hardware gates pass. |
 
 ## Repository Health
 
@@ -22,12 +22,14 @@ Date: 2026-07-08
 - No duplicate API family, repository, Firestore collection, schema, UI redesign, or business workflow change was introduced.
 - Runtime `console` usage that remains is centralized server logging or scoped client/browser diagnostics; no `debugger` statement is present.
 - Legacy compatibility docs/code remain tracked as debt and were not renamed during release freeze.
+- RC4 local validation passed typecheck, lint, build, operational smoke, and `git diff --check`; production env validation remains external because real Hostinger/Firebase/Razorpay values are unavailable locally.
 
 ## Security Audit
 
 - Public responses expose request ids only; internal trace ids, correlation ids, transaction ids, tenant ids, restaurant ids, and user ids remain server-side.
 - Logs mask passwords, JWTs, Firebase tokens, API keys, secrets, cookies, authorization headers, OTPs, card fields, and payment ids.
 - Health endpoints return safe booleans/status metadata and never expose provider secrets, Firebase private keys, raw payment ids, cookies, authorization headers, OTPs, or stack traces.
+- Admin owner credential endpoints no longer return generated temporary passwords to the browser response.
 - Production env validation is expected to fail locally until Hostinger/Firebase/provider secrets are configured.
 
 ## Performance Audit
@@ -59,7 +61,7 @@ Date: 2026-07-08
 ## Bundle And Dependency Audit
 
 - `npm run build` and `npm run analyze` pass on Node `v22.16.0`.
-- Package metadata reports `1.0.0-rc.3`.
+- Package metadata reports `1.0.0-rc.4`.
 - No dependency installation, dependency upgrade, or new runtime package was added in the final certification pass.
 
 ## Technical Debt
@@ -72,6 +74,7 @@ Date: 2026-07-08
 ## Remaining Manual Deployment Tasks
 
 - Hostinger production env, redeploy the final pushed `release/production-nammude` commit, restart app, clear cache, and verify hosted `/api/release-info` plus `/health/*`.
+- Configure `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc4`, Firebase Admin/VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, live Razorpay keys, and HTTPS `NEXT_PUBLIC_APP_URL`.
 - Deploy Firestore rules and indexes in the target Firebase project.
 - Configure Firebase authorized domains and production secrets.
 - Smoke SMTP, Razorpay, WhatsApp, SMS, push/VAPID, Meta, Cloudinary, Mapbox, and Google OAuth with real provider access.

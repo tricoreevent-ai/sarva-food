@@ -1,29 +1,29 @@
 # Provider Verification Report
 
-Generated: 2026-07-08T17:01:01.746Z
+Generated: 2026-07-09T11:23:36.712Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 8 |
+| PASS | 6 |
 | WARNING | 0 |
-| ERROR | 0 |
+| ERROR | 4 |
 | FAIL | 0 |
-| MANUAL | 3 |
+| MANUAL | 1 |
 
 ## Checks
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| provider:Firebase | PASS | hosted public/admin Firebase configured |
-| provider:Firestore | PASS | hosted Firestore status: connected |
-| provider:Authentication | PASS | hosted Firebase public auth config present |
-| provider:Storage | PASS | hosted storage status: configured |
-| provider:Cloudinary | PASS | hosted Cloudinary status: configured |
-| provider:SMTP | PASS | hosted SMTP status: configured |
+| provider:Firebase | ERROR | local env missing/placeholder: FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY |
+| provider:Firestore | ERROR | local env missing/placeholder: FIREBASE_ADMIN_PROJECT_ID |
+| provider:Authentication | PASS | configured |
+| provider:Storage | PASS | configured |
+| provider:Cloudinary | PASS | configured |
+| provider:SMTP | PASS | configured |
 | provider:Google OAuth | PASS | configured |
 | provider:Mapbox | PASS | configured |
-| provider:Razorpay | MANUAL | hosted status owner_scoped_or_missing; verify owner-scoped settings and dashboard/webhook before enabling live payments |
-| provider:WhatsApp | MANUAL | requires Meta/WhatsApp dashboard env verification before Cloud API launch |
+| provider:Razorpay | ERROR | local env missing/placeholder: NEXT_PUBLIC_RAZORPAY_KEY_ID, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET |
+| provider:WhatsApp | ERROR | local env missing/placeholder: WHATSAPP_CLOUD_API_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_WEBHOOK_VERIFY_TOKEN |
 | provider:live-checks | MANUAL | Set PROVIDER_LIVE=1 and run provider dashboard/API smoke with real credentials. |

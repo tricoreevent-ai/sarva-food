@@ -1,12 +1,12 @@
 # Production Environment Validation Report
 
-Generated: 2026-07-08T17:00:48.272Z
+Generated: 2026-07-09T11:16:54.862Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 41 |
+| PASS | 46 |
 | WARNING | 1 |
 | ERROR | 24 |
 | FAIL | 0 |
@@ -51,7 +51,7 @@ Generated: 2026-07-08T17:00:48.272Z
 | required:RAZORPAY_KEY_ID | ERROR | missing or empty |
 | required:RAZORPAY_KEY_SECRET | ERROR | missing or empty |
 | required:RAZORPAY_WEBHOOK_SECRET | ERROR | missing or empty |
-| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc3 |
+| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc4 |
 | environment:NEXT_PUBLIC_APP_ENV | ERROR | must be production |
 | url:NEXT_PUBLIC_APP_URL | ERROR | must be a valid https URL |
 | firebase:NEXT_PUBLIC_USE_FIREBASE | PASS | must be true |
@@ -61,6 +61,11 @@ Generated: 2026-07-08T17:00:48.272Z
 | plugins:quality | PASS | quality diagnostics should stay disabled unless profiling |
 | plugins:dashboard | PASS | developer dashboard must stay disabled |
 | plugins:profiler | PASS | plugin profiler must stay disabled unless profiling |
+| plugins:restaurant-health | PASS | restaurant health plugin should stay disabled unless running controlled admin smoke |
+| plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET | PASS | example plugin flags must stay disabled in production |
+| plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET | PASS | example plugin flags must stay disabled in production |
+| plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET | PASS | example plugin flags must stay disabled in production |
+| plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET | PASS | example plugin flags must stay disabled in production |
 | firebase:api-key-format | PASS | client api key must look like a Firebase web key |
 | firebase:app-id-format | PASS | app id must match 1:<sender>:web:<hash> |
 | firebase:sender-format | PASS | messaging sender id must be numeric |

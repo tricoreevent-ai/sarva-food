@@ -1,10 +1,10 @@
 # Final Firestore Audit
 
-Date: 2026-07-08T16:48:19.354Z
+Date: 2026-07-09
 
 ## Scope
 
-No Firestore collection, schema, rule, index, repository contract, or API contract was changed in the final performance pass.
+No Firestore collection, schema, rule, index, repository contract, or API contract was changed in the RC4 release-readiness pass.
 
 ## Listener And Read Audit
 
@@ -16,7 +16,15 @@ No Firestore collection, schema, rule, index, repository contract, or API contra
 | App store mutations | Phase 2 loads Firestore mutation services only when mutation actions run. |
 | New final pass listeners | None. |
 | New final pass indexes | None. |
+| RC4 rules/index review | Existing `firestore.rules` keeps catch-all deny and provider-secret collections server-only; `firestore.indexes.json` already contains the active order, kitchen, public restaurant/menu, accounting, inventory, notification, campaign, catering, and delivery composites used by current repository queries. |
 
 ## Remaining Manual Firestore Gates
 
 Firestore rules/index deployment, Firebase Console diagnostics, authenticated production reads/writes, and provider-backed Firebase Admin readiness remain manual release gates.
+
+Deployment commands:
+
+```bat
+npx firebase-tools deploy --only firestore:rules
+npx firebase-tools deploy --only firestore:indexes
+```

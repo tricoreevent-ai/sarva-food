@@ -1,27 +1,25 @@
 # Final Release Readiness
 
-Date: 2026-07-08T16:48:19.354Z
+Date: 2026-07-09
 
 ## Local Validation
 
 | Check | Status |
 | --- | --- |
-| `cmd /c npm run test:enhancements` | Passed. |
 | `cmd /c npm run typecheck` | Passed. |
-| `cmd /c npm run lint` | Passed after removing three safe React hook suppression comments. |
+| `cmd /c npm run lint` | Passed. |
 | `cmd /c npm run build` | Passed with accepted Firebase/protobuf dynamic dependency warning. |
-| `cmd /c npm run analyze` | Passed with accepted Firebase/protobuf dynamic dependency warning. |
-| `cmd /c npm run profile:runtime` | Passed and regenerates Phase 3/final performance report pack. |
-| `cmd /c npm run audit:release` | Passed. |
 | `cmd /c npm run smoke:operational` | Passed. |
+| `cmd /c npm run audit:release` | Passed. |
+| `cmd /c npm run verify:providers` | Failed locally: `6` pass, `4` errors, `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials. |
+| `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors for missing/non-production Hostinger/Firebase/Razorpay/env secrets. |
 | `git diff --check` | Passed with Git line-ending normalization warnings only. |
-| `cmd /c npm run validate:prod-env` | Failed locally for expected missing production-only env/secrets and non-HTTPS local app URL. |
 
 ## Certification Audit
 
 | Area | Result |
 | --- | --- |
-| Latest pushed commit | `7fcd009d828635aef090fc9785af94b6ffc6b971` on `release/production-nammude` before this Phase 2D validation closure. |
+| Active release candidate | `v1.0.0-rc4`; use the final tagged RC4 commit for deployment. |
 | Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
 | Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
 | API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |
@@ -32,8 +30,8 @@ Date: 2026-07-08T16:48:19.354Z
 
 | Area | Status |
 | --- | --- |
-| Code readiness | 99% / Release Candidate certified for deployment testing |
-| Production-release readiness | 85% |
+| Code readiness | 99% / Release Candidate validated repository-side |
+| Production-release readiness | 86% |
 | Recommendation | No-Go until manual infrastructure, provider, hardware, authenticated browser, Lighthouse, and Chrome profiling gates pass. |
 
 ## Remaining Manual Gates
@@ -45,8 +43,8 @@ Date: 2026-07-08T16:48:19.354Z
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
-| Production env | Manual | Set `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. |
-| Hostinger redeploy | Manual | Redeploy the final Phase 2D commit, clear cache, and verify `/api/release-info` reports production env and the final SHA. |
+| Production env | Manual | Set `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc4`, Razorpay live keys, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. |
+| Hostinger redeploy | Manual | Redeploy the final RC4 commit, clear cache, and verify `/api/release-info` reports production env and the final SHA. |
 
 ## Accepted Warning
 

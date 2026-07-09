@@ -1,11 +1,11 @@
 # Final Manual Deployment Package
 
-Release: `v1.0.0-rc3`
+Release: `v1.0.0-rc4`
 Branch: `release/production-nammude`
-Base commit audited before this pass: `6272d7edfdc7299a728cb0e606b523a55b1248ee`
-Runtime release commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
-Final repository certification commit: reported in the final handoff after the docs-only certification commit is pushed
-Release tag: `v1.0.0-rc3` points to runtime release commit `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
+Base commit audited before this pass: `127a9c4064f936fc9d76fc0b56633068f3e6a403`
+Runtime release commit: final tagged RC4 commit
+Final repository certification commit: final tagged RC4 commit from the release handoff
+Release tag: create immutable `v1.0.0-rc4` on the final committed candidate; keep `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` unchanged.
 
 ## Files Changed
 
@@ -70,10 +70,12 @@ Release tag: `v1.0.0-rc3` points to runtime release commit `cd1c81435a1e535483b9
 
 ## Configuration Changes
 
-- Release version is `v1.0.0-rc3`.
-- Package version is `1.0.0-rc.3`.
-- Keep existing `v1.0.0-rc1`, published `v1.0.0-rc2`, and `v1.0.0-rc3` immutable; deploy the final pushed `release/production-nammude` commit.
-- `NEXT_PUBLIC_APP_VERSION` must be `v1.0.0-rc3` in production if set.
+- Release version is `v1.0.0-rc4`.
+- Package version is `1.0.0-rc.4`.
+- Keep existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` immutable; deploy the final pushed `release/production-nammude` commit.
+- `NEXT_PUBLIC_APP_VERSION` must be `v1.0.0-rc4` in production if set.
+- Health metadata now falls back to production-safe environment labels when app env is absent.
+- Admin owner credential actions no longer return generated temporary passwords to the browser.
 - Public no-store health endpoints are available at `/health/live`, `/health/ready`, and `/health/startup`.
 - `TABLE_QR_SECRET` is required in production and must be at least 32 characters.
 - `scripts/release/validate-production.js` now delegates to `scripts/validate-production-env.mjs`.
@@ -87,6 +89,10 @@ Minimum production validation command:
 ```bat
 cmd /c npm run validate:prod-env
 ```
+
+Latest local result: `46` pass, `1` warning, `24` errors because this workspace does not have real production Hostinger/Firebase/Razorpay secrets or HTTPS production env values.
+
+Latest provider verification result: `6` pass, `4` errors, `1` manual because Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials require external provider/dashboard access.
 
 ## Firebase Deployment Commands
 
@@ -107,7 +113,7 @@ npx firebase-tools deploy
 2. Set branch `release/production-nammude`.
 3. Configure production env from `.env.hostinger.example`.
 4. Confirm `NEXT_PUBLIC_APP_ENV=production`.
-5. Confirm `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc3`.
+5. Confirm `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc4`.
 6. Confirm `NEXT_PUBLIC_APP_URL` is the final HTTPS domain.
 7. Deploy the final pushed `release/production-nammude` commit.
 8. Restart the Node app after env changes.
@@ -214,8 +220,8 @@ Hostinger rollback:
 
 ## Release Certification Checklist
 
-- `v1.0.0-rc3` tag points to `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`.
-- `/api/release-info` reports final SHA, branch, `deploymentEnvironment: production`, HTTPS public URL, and `applicationVersion: v1.0.0-rc3`.
+- `v1.0.0-rc4` tag points to the final committed candidate.
+- `/api/release-info` reports final SHA, branch, `deploymentEnvironment: production`, HTTPS public URL, and `applicationVersion: v1.0.0-rc4`.
 - `/health/live`, `/health/ready`, and `/health/startup` return safe no-store health metadata with no exposed secrets.
 - Production env validation passes with real Hostinger values.
 - Firestore rules/indexes are deployed.

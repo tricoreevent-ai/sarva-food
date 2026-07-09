@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-07-08T17:00:52.384Z",
+  "generatedAt": "2026-07-08T17:24:06.415Z",
   "summary": {
     "counts": {
-      "PASS": 15,
-      "WARNING": 1,
-      "ERROR": 1,
+      "PASS": 0,
+      "WARNING": 0,
+      "ERROR": 4,
       "FAIL": 0,
       "MANUAL": 0
     },
@@ -13,88 +13,23 @@
   "checks": [
     {
       "name": "http:release-info",
-      "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com/api/release-info -> HTTP 200"
-    },
-    {
-      "name": "release:version",
-      "status": "PASS",
-      "detail": "expected v1.0.0-rc3, saw v1.0.0-rc3"
-    },
-    {
-      "name": "release:sha",
-      "status": "WARNING",
-      "detail": "hosted currently serves 7fcd009d828635aef090fc9785af94b6ffc6b971; final certification commit is pending and must be redeployed"
-    },
-    {
-      "name": "release:branch",
-      "status": "PASS",
-      "detail": "expected release/production-nammude"
-    },
-    {
-      "name": "release:environment",
       "status": "ERROR",
-      "detail": "saw development"
-    },
-    {
-      "name": "release:timestamp",
-      "status": "PASS",
-      "detail": "deployment timestamp present"
-    },
-    {
-      "name": "release:runtime",
-      "status": "PASS",
-      "detail": "runtime v22.18.0"
-    },
-    {
-      "name": "release:plugin-flags",
-      "status": "PASS",
-      "detail": "runtime dashboard/profiler disabled"
+      "detail": "fetch failed"
     },
     {
       "name": "http:health-live",
-      "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com/health/live -> HTTP 200"
-    },
-    {
-      "name": "health:live-status",
-      "status": "PASS",
-      "detail": "status ok"
+      "status": "ERROR",
+      "detail": "fetch failed"
     },
     {
       "name": "http:health-ready",
-      "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com/health/ready -> HTTP 200"
-    },
-    {
-      "name": "health:ready-http",
-      "status": "PASS",
-      "detail": "HTTP 200"
-    },
-    {
-      "name": "firebase:firestore",
-      "status": "PASS",
-      "detail": "connected"
-    },
-    {
-      "name": "firebase:admin",
-      "status": "PASS",
-      "detail": "Firebase Admin configured"
-    },
-    {
-      "name": "env:consistency",
-      "status": "PASS",
-      "detail": "release-info and health environment match"
+      "status": "ERROR",
+      "detail": "fetch failed"
     },
     {
       "name": "http:health-startup",
-      "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com/health/startup -> HTTP 200"
-    },
-    {
-      "name": "health:startup",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "ERROR",
+      "detail": "fetch failed"
     }
   ],
   "sections": []

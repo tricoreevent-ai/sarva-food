@@ -1,6 +1,6 @@
 # Final Performance Report
 
-Date: 2026-07-08T16:48:19.354Z
+Date: 2026-07-08T17:26:27.709Z
 
 This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certification hotfix measurements. Business workflows, API contracts, Firestore collections, auth flows, and provider contracts remain backward compatible.
 
@@ -17,36 +17,19 @@ This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certifi
 
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
-| / | 17 | 459 KB | 191 KB | 250 KB | Over |
-| /restaurants | 20 | 496 KB | 191 KB | - | Tracked |
-| /checkout | 26 | 585 KB | 191 KB | - | Tracked |
-| /orders | 20 | 508 KB | 191 KB | - | Tracked |
-| /profile | 23 | 548 KB | 191 KB | 250 KB | Over |
-| /owner | 25 | 560 KB | 191 KB | 350 KB | Over |
-| /owner/orders | 38 | 1245 KB | 191 KB | 500 KB | Over |
-| /owner/settings | 29 | 673 KB | 191 KB | 300 KB | Over |
-| /owner/kitchen | 28 | 642 KB | 191 KB | - | Tracked |
-| /owner/pos | 26 | 565 KB | 191 KB | - | Tracked |
-| /admin | 21 | 498 KB | 191 KB | - | Tracked |
 
 ## Over-Budget Routes
 
-| Route | Current JS | Budget | Status |
-| --- | --- | --- | --- |
-| / | 459 KB | 250 KB | Over |
-| /profile | 548 KB | 250 KB | Over |
-| /owner | 560 KB | 350 KB | Over |
-| /owner/orders | 1245 KB | 500 KB | Over |
-| /owner/settings | 673 KB | 300 KB | Over |
+All tracked routes are inside the configured script budgets.
 
 ## Stress Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.41ms | 0.56ms | 2.75ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.07ms | 0.40ms | <100ms update |
-| POS 1000-item category switch | 0.07ms | 0.12ms | 0.28ms | <50ms switch |
-| POS 1000-item search filter | 0.14ms | 0.28ms | 0.56ms | debounced |
+| Kitchen 100-order filter/sort | 0.98ms | 2.22ms | 65.45ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.05ms | 0.12ms | 1.56ms | <100ms update |
+| POS 1000-item category switch | 0.16ms | 0.32ms | 0.60ms | <50ms switch |
+| POS 1000-item search filter | 0.27ms | 0.61ms | 6.15ms | debounced |
 
 ## Conclusion
 

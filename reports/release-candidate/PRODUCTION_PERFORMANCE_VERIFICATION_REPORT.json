@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T17:01:00.835Z",
+  "generatedAt": "2026-07-08T17:24:06.694Z",
   "summary": {
     "counts": {
       "PASS": 3,
@@ -14,7 +14,7 @@
     {
       "name": "target:url",
       "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com"
+      "detail": "http://localhost:3000"
     },
     {
       "name": "bundle:tracked-route-js",

@@ -674,6 +674,7 @@ export function KitchenOrderHistoryFlow() {
   const [status, setStatus] = useState<TableOrderStatus | "all">("all");
   const [payment, setPayment] = useState<PaymentState | "all">("all");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
@@ -752,20 +753,17 @@ export function KitchenOrderHistoryFlow() {
           <option value="refunded">Refunded</option>
         </select>
       </section>
-      <section className="rounded-lg border bg-white shadow-sm">
-        <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 border-b px-4 py-3 text-xs font-black uppercase text-slate-500">
-          <span>Order</span><span>Table / Customer</span><span>Status</span><span>Payment</span><span>Staff</span><span>Print</span>
-        </div>
-        <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+      <section className="rounded-lg border bg-white p-3 shadow-sm">
+        <div className="grid max-h-[calc(100vh-280px)] gap-3 overflow-y-auto">
           {filtered.map((order) => (
-            <button key={order.id} type="button" onClick={() => setSelectedOrderId(order.id)} className="grid w-full grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto] gap-3 border-b px-4 py-3 text-left text-sm hover:bg-orange-50">
-              <span className="font-black text-slate-950">{displayOrderNumber(order)}<small className="mt-1 block font-semibold text-slate-500">{timeOnly(order.createdAt)}</small></span>
-              <span className="font-bold text-slate-700">{order.tableNumber}<small className="mt-1 block truncate font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"}</small></span>
-              <span><Badge variant={order.status === "cancelled" ? "destructive" : isCompleted(order.status) ? "success" : "warning"}>{statusLabel(order.status)}</Badge></span>
-              <span className="font-bold text-slate-700">{paymentLabel(order.paymentStatus)}</span>
-              <span className="truncate font-bold text-slate-700">{order.assignedStaffName || order.waiterName || "Unassigned"}</span>
-              <span className="text-right font-black text-slate-600">{order.printedCount ?? 0}</span>
-            </button>
+            <KitchenHistoryOrderAccordion
+              key={order.id}
+              order={order}
+              now={now}
+              expanded={expandedOrderId === order.id}
+              onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
+              onDetails={() => setSelectedOrderId(order.id)}
+            />
           ))}
           {!filtered.length ? <p className="p-8 text-center text-sm font-semibold text-slate-500">{loading ? "Loading kitchen history..." : "No kitchen orders match the selected filters."}</p> : null}
         </div>
@@ -781,6 +779,56 @@ export function KitchenOrderHistoryFlow() {
         />
       ) : null}
     </main>
+  );
+}
+
+function KitchenHistoryOrderAccordion({ order, now, expanded, onExpandedChange, onDetails }: { order: TableOrder; now: number; expanded: boolean; onExpandedChange: (open: boolean) => void; onDetails: () => void }) {
+  const delay = getKitchenDelay(order, now);
+  const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
+  return (
+    <CompactOrderAccordion
+      id={`kitchen-history-${order.id}`}
+      orderNumber={displayOrderNumber(order)}
+      etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
+      orderTypeLabel={orderType}
+      tableLabel={order.tableNumber || order.customerName || order.guestName}
+      itemCountLabel={`${order.lines.length} item${order.lines.length === 1 ? "" : "s"}`}
+      status={{ label: statusLabel(order.status), tone: kitchenStatusTone(order.status) }}
+      priority={{ label: priorityLabel(order, delay), tone: kitchenPriorityTone(order, delay), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
+      badges={[
+        { label: order.source || "POS", tone: "muted" },
+        { label: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
+        { label: `${order.printedCount ?? 0} prints`, tone: "muted" },
+      ]}
+      delay={kitchenAccordionDelay(delay)}
+      items={order.lines.map((line, index) => ({
+        id: `${line.itemId ?? order.id}-${index}`,
+        name: line.name,
+        quantity: line.quantity,
+        note: line.notes,
+        meta: line.modifiers?.join(", "),
+        warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
+      }))}
+      facts={[
+        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
+        { label: "Payment", value: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
+        { label: "Staff", value: order.assignedStaffName || order.waiterName || "Unassigned" },
+        { label: "Station", value: order.kitchenStation || stationForOrder(order) },
+        { label: "Created", value: timeOnly(order.createdAt) },
+        { label: "Total", value: typeof order.total === "number" ? `₹${order.total}` : "Pending" },
+      ]}
+      notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
+      timeline={[
+        { label: "Created", time: timeOnly(order.createdAt) },
+        ...(order.statusHistory ?? []).slice(-5).map((entry) => ({
+          label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
+          time: entry.at ? timeOnly(String(entry.at)) : undefined,
+        })),
+      ]}
+      secondaryActions={[{ id: "details", label: "Details", icon: <Eye className="size-4" />, onClick: onDetails }]}
+      isOpen={expanded}
+      onOpenChange={onExpandedChange}
+    />
   );
 }
 
@@ -1491,7 +1539,8 @@ function KitchenOrderDrawer({ order, now, orderDelayThresholdMinutes = defaultOp
   const closeRef = useRef<HTMLButtonElement>(null);
   const next = nextStatus[order.status];
   const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
-  const timeline = order.statusHistory ?? [];
+  const [open, setOpen] = useState(true);
+  const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -1513,63 +1562,58 @@ function KitchenOrderDrawer({ order, now, orderDelayThresholdMinutes = defaultOp
           </div>
           <Button ref={closeRef} variant="ghost" size="icon" onClick={onClose} aria-label="Close order details"><XCircle className="size-5" /></Button>
         </header>
-        <div className="space-y-4 p-4">
-          {delay.delayed ? <DelayWarning delay={delay} /> : null}
-          <section className="grid grid-cols-2 gap-2 text-sm font-bold text-slate-600">
-            <InfoTile label="Status" value={statusLabel(order.status)} />
-            <InfoTile label="Priority" value={priorityLabel(order, delay)} />
-            <InfoTile label="ETA" value={`${order.etaMinutes} min`} />
-            <InfoTile label="Source" value={order.source} />
-            <InfoTile label="Staff" value={order.assignedStaffName || order.waiterName || "Unassigned"} />
-            <InfoTile label="Total" value={typeof order.total === "number" ? `₹${order.total}` : "Pending"} />
-          </section>
-          <section className="rounded-lg border p-3">
-            <h3 className="text-sm font-black uppercase text-slate-700">Items</h3>
-            <div className="mt-3 space-y-2">
-              {order.lines.map((line, index) => (
-                <div key={`${line.itemId}-${index}`} className="rounded-lg bg-slate-50 p-3">
-                  <p className="font-black text-slate-950">{line.quantity}x {line.name}</p>
-                  {line.modifiers?.length ? <p className="mt-1 text-xs font-bold text-orange-600">{line.modifiers.join(", ")}</p> : null}
-                  {line.notes ? <p className="mt-1 text-xs font-semibold text-slate-600">Note: {line.notes}</p> : null}
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="rounded-lg border p-3">
-            <h3 className="text-sm font-black uppercase text-slate-700">Timeline</h3>
-            <div className="mt-3 space-y-2">
-              <TimelineRow label="Created" value={timeOnly(order.createdAt)} />
-              {timeline.slice(-8).map((entry, index) => (
-                <TimelineRow key={`${entry.event || entry.status || index}-${entry.at}`} label={statusLabel((entry.status || entry.foodStatus || "completed") as TableOrderStatus)} value={entry.at ? timeOnly(entry.at) : "Recorded"} />
-              ))}
-              {!timeline.length ? <p className="text-sm font-semibold text-slate-500">No additional timeline entries.</p> : null}
-            </div>
-          </section>
-          <section className="grid grid-cols-3 gap-2">
-            <Button variant="outline" onClick={onPreview}><Eye className="size-4" />Preview</Button>
-            <Button variant="outline" onClick={onPrint}><Printer className="size-4" />{order.printedCount ? "Reprint" : "Print"}</Button>
-            <Button disabled={!next || isCompleted(order.status)} onClick={() => next && onNext(next)}><CheckCircle2 className="size-4" />{actionLabel[order.status] ?? readyActionLabel(order)}</Button>
-          </section>
+        <div className="p-4">
+          <CompactOrderAccordion
+            id={`kitchen-drawer-${order.id}`}
+            orderNumber={displayOrderNumber(order)}
+            etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
+            orderTypeLabel={orderType}
+            tableLabel={order.tableNumber}
+            itemCountLabel={`${order.lines.length} item${order.lines.length === 1 ? "" : "s"}`}
+            status={{ label: statusLabel(order.status), tone: kitchenStatusTone(order.status) }}
+            priority={{ label: priorityLabel(order, delay), tone: kitchenPriorityTone(order, delay), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
+            badges={[{ label: order.source || "POS", tone: "muted" }, { label: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" }]}
+            delay={kitchenAccordionDelay(delay)}
+            items={order.lines.map((line, index) => ({
+              id: `${line.itemId ?? order.id}-${index}`,
+              name: line.name,
+              quantity: line.quantity,
+              note: line.notes,
+              meta: line.modifiers?.join(", "),
+              warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
+            }))}
+            facts={[
+              { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
+              { label: "Payment", value: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
+              { label: "Staff", value: order.assignedStaffName || order.waiterName || "Unassigned" },
+              { label: "Station", value: order.kitchenStation || stationForOrder(order) },
+              { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
+              { label: "Total", value: typeof order.total === "number" ? `₹${order.total}` : "Pending" },
+            ]}
+            notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
+            timeline={[
+              { label: "Created", time: timeOnly(order.createdAt) },
+              ...(order.statusHistory ?? []).slice(-8).map((entry) => ({
+                label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
+                time: entry.at ? timeOnly(String(entry.at)) : undefined,
+              })),
+            ]}
+            primaryAction={!next || isCompleted(order.status) ? undefined : {
+              id: "advance",
+              label: actionLabel[order.status] ?? readyActionLabel(order),
+              icon: <CheckCircle2 className="size-4" />,
+              variant: "primary",
+              onClick: () => onNext(next),
+            }}
+            secondaryActions={[
+              { id: "preview", label: "Preview", icon: <Eye className="size-4" />, onClick: onPreview },
+              { id: "print", label: order.printedCount ? "Reprint" : "Print", icon: <Printer className="size-4" />, onClick: onPrint },
+            ]}
+            isOpen={open}
+            onOpenChange={setOpen}
+          />
         </div>
       </aside>
-    </div>
-  );
-}
-
-function InfoTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-black text-slate-950">{value}</p>
-    </div>
-  );
-}
-
-function TimelineRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-      <span className="font-black text-slate-700">{label}</span>
-      <span className="font-semibold text-slate-500">{value}</span>
     </div>
   );
 }

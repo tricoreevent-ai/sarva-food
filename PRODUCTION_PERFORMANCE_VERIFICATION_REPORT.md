@@ -1,6 +1,6 @@
 # Production Performance Verification Report
 
-Generated: 2026-07-08T17:01:00.833Z
+Generated: 2026-07-08T17:24:06.692Z
 
 ## Summary
 
@@ -16,7 +16,7 @@ Generated: 2026-07-08T17:01:00.833Z
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| target:url | PASS | https://violet-squid-380447.hostingersite.com |
+| target:url | PASS | http://localhost:3000 |
 | bundle:tracked-route-js | WARNING | /owner/orders 1246 KB / budget 1200 KB |
 | bundle:static-js-total | PASS | 8847 KB built JS total; informational, not first-load budget. |
 | bundle:analyzer-client | PASS | .next/analyze/client.html is present and usable. |

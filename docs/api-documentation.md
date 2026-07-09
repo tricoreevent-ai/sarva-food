@@ -1,7 +1,7 @@
 # API Documentation
 
-Release: `v1.0.0-rc3`
-Runtime release commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
+Release: `v1.0.0-rc4`
+Runtime release commit: final tagged RC4 commit
 
 ## Production API Families
 
@@ -22,6 +22,7 @@ Runtime release commit: `cd1c81435a1e535483b94d66ffa1b1bf63494c0b`
 - API response contracts were preserved; no schema or Firestore collection was added.
 - Public metadata exposes request ids and safe status only.
 - Server diagnostics use centralized masked logging for touched high-risk routes.
+- Admin owner credential actions send generated temporary passwords by email only and do not return them in API responses.
 - Provider endpoints still require production credentials and provider-console smoke before launch signoff.
 
 ## Verification

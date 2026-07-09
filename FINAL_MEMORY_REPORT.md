@@ -1,12 +1,12 @@
 # Final Memory Report
 
-Date: 2026-07-08T16:48:19.354Z
+Date: 2026-07-08T17:26:27.709Z
 
 ## Synthetic Heap
 
 | Metric | Result |
 | --- | ---: |
-| Heap delta | 2428 KB |
+| Heap delta | 114 KB |
 
 ## Leak Controls
 

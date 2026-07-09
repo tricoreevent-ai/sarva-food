@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-07-08T17:00:48.273Z",
+  "generatedAt": "2026-07-09T11:16:54.864Z",
   "summary": {
     "counts": {
-      "PASS": 41,
+      "PASS": 46,
       "WARNING": 1,
       "ERROR": 24,
       "FAIL": 0,
@@ -189,7 +189,7 @@
     {
       "name": "version:NEXT_PUBLIC_APP_VERSION",
       "status": "ERROR",
-      "detail": "expected v1.0.0-rc3"
+      "detail": "expected v1.0.0-rc4"
     },
     {
       "name": "environment:NEXT_PUBLIC_APP_ENV",
@@ -235,6 +235,31 @@
       "name": "plugins:profiler",
       "status": "PASS",
       "detail": "plugin profiler must stay disabled unless profiling"
+    },
+    {
+      "name": "plugins:restaurant-health",
+      "status": "PASS",
+      "detail": "restaurant health plugin should stay disabled unless running controlled admin smoke"
+    },
+    {
+      "name": "plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET",
+      "status": "PASS",
+      "detail": "example plugin flags must stay disabled in production"
+    },
+    {
+      "name": "plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET",
+      "status": "PASS",
+      "detail": "example plugin flags must stay disabled in production"
+    },
+    {
+      "name": "plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET",
+      "status": "PASS",
+      "detail": "example plugin flags must stay disabled in production"
+    },
+    {
+      "name": "plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET",
+      "status": "PASS",
+      "detail": "example plugin flags must stay disabled in production"
     },
     {
       "name": "firebase:api-key-format",

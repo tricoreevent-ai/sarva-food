@@ -20,7 +20,7 @@ export const qualityDiagnosticsMetadata = {
   developmentDependencies: [],
   permissions: ["developer"],
   featureFlag: "QUALITY_DIAGNOSTICS",
-  minimumAppVersion: "v1.0.0-rc3",
+  minimumAppVersion: "v1.0.0-rc4",
   minimumPluginRuntime: "1.0.0",
   compatiblePlatforms: ["web"],
   supportedModules: ["developer"],

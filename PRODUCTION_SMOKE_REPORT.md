@@ -1,28 +1,28 @@
 # Production Smoke Report
 
-Generated: 2026-07-08T17:01:06.848Z
+Generated: 2026-07-08T17:24:12.797Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 7 |
+| PASS | 0 |
 | WARNING | 0 |
 | ERROR | 0 |
-| FAIL | 0 |
+| FAIL | 7 |
 | MANUAL | 18 |
 
 ## Checks
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| route:/ | PASS | HTTP 200 |
-| route:/restaurants | PASS | HTTP 200 |
-| route:/offers | PASS | HTTP 200 |
-| route:/api/release-info | PASS | HTTP 200 |
-| route:/health/live | PASS | HTTP 200 |
-| route:/health/ready | PASS | HTTP 200 |
-| route:/api/public/restaurants | PASS | HTTP 200 |
+| route:/ | FAIL | fetch failed |
+| route:/restaurants | FAIL | fetch failed |
+| route:/offers | FAIL | fetch failed |
+| route:/api/release-info | FAIL | fetch failed |
+| route:/health/live | FAIL | fetch failed |
+| route:/health/ready | FAIL | fetch failed |
+| route:/api/public/restaurants | FAIL | fetch failed |
 | manual:Customer authentication | MANUAL | Requires authenticated browser/provider/hardware validation. |
 | manual:Owner authentication | MANUAL | Requires authenticated browser/provider/hardware validation. |
 | manual:Kitchen flow | MANUAL | Requires authenticated browser/provider/hardware validation. |

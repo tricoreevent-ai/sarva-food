@@ -132,32 +132,32 @@ No blocking repository-side plugin platform gaps were found.
 
 | Operation | Duration ms |
 | --- | ---: |
-| discoveryMs | 0.132 |
-| registryLookupMs | 0.261 |
-| validationMs | 0.080 |
-| dependencyResolutionMs | 0.478 |
-| runtimeCreationMs | 0.072 |
-| contextInjectionMs | 0.117 |
-| sdkInjectionMs | 0.087 |
-| uiRegistrationMs | 0.090 |
-| routeRegistrationMs | 0.089 |
-| navigationRegistrationMs | 0.213 |
-| pluginEnableMs | 0.117 |
-| pluginDisableMs | 0.077 |
-| pluginDestroyMs | 0.054 |
-| eventPublishMs | 1.907 |
-| storageWriteMs | 0.786 |
-| storageReadMs | 2.295 |
-| rapidEnableDisableMs | 0.467 |
-| lazyLoadUnloadMs | 0.240 |
+| discoveryMs | 0.170 |
+| registryLookupMs | 0.309 |
+| validationMs | 0.086 |
+| dependencyResolutionMs | 0.597 |
+| runtimeCreationMs | 0.099 |
+| contextInjectionMs | 0.140 |
+| sdkInjectionMs | 0.105 |
+| uiRegistrationMs | 0.107 |
+| routeRegistrationMs | 0.113 |
+| navigationRegistrationMs | 0.242 |
+| pluginEnableMs | 0.113 |
+| pluginDisableMs | 0.052 |
+| pluginDestroyMs | 0.044 |
+| eventPublishMs | 2.013 |
+| storageWriteMs | 0.911 |
+| storageReadMs | 1.494 |
+| rapidEnableDisableMs | 0.303 |
+| lazyLoadUnloadMs | 0.181 |
 
 ## Memory Analysis
 
 | Metric | Value |
 | --- | ---: |
-| heapBefore | 7112960 |
-| heapAfter | 6211032 |
-| heapDelta | -901928 |
+| heapBefore | 7159912 |
+| heapAfter | 6213464 |
+| heapDelta | -946448 |
 | registryEntriesAfterCleanup | 0 |
 | eventTopicsAfterCleanup | 0 |
 | storageEntriesAfterCleanup | 0 |

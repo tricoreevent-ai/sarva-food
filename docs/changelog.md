@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-09
+
+- Advanced the active release-candidate metadata to `v1.0.0-rc4` / `1.0.0-rc.4` without moving existing `v1.0.0-rc1`, `v1.0.0-rc2`, or `v1.0.0-rc3` tags.
+- Removed generated owner temporary passwords from admin API/browser responses; owner credential delivery remains email-based.
+- Replaced TinyURL raw error echo with a generic safe fallback and corrected health metadata to avoid a stale `development` fallback when app env is absent.
+- Expanded the production environment matrix from the actual env scan and aligned Razorpay requirements across the validator, Hostinger template, and deployment docs.
+
 ## 2026-07-08
 
 - Completed Enterprise Performance Sprint Phase 2 with route-level bundle splitting and React startup optimization: `/` RSC route JS dropped from `1017 KB` to `455 KB`, `/profile` from `1714 KB` to `562 KB`, and Firestore/Auth route ownership from `94` manifests to `10`.

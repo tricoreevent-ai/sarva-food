@@ -12,6 +12,7 @@ import type { PosProduct } from "@/modules/owner/pos/components/product-card";
 import { CartPanel, type CompletedPosOrder, type PosProcessingState, type PosWizardStep } from "@/modules/owner/pos/components/cart-panel";
 import { CustomerSelector } from "@/modules/owner/pos/components/customer-selector";
 import { TableSelector } from "@/modules/owner/pos/components/table-selector";
+import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { RestaurantBill, KotTicket } from "@/components/printing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/or
 import { getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/services/restaurant-ops-service";
+import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 const posTabs = ["menu", "custom", "combos"] as const;
 const heldOrdersKey = "sarva-pos-held-orders:v1";
@@ -3268,6 +3270,7 @@ function ActiveOrdersPanel({
 }) {
   const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "operations");
   const [search, setSearch] = useState("");
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const activeKitchenOrders = useMemo(
     () => {
       const value = search.trim().toLowerCase();
@@ -3282,6 +3285,7 @@ function ActiveOrdersPanel({
   const readyOrders = activeKitchenOrders
     .filter((order) => order.status === "ready")
     .sort((first, second) => readySinceMillis(first) - readySinceMillis(second));
+  const displayedOrders = view === "waiter" ? readyOrders : activeKitchenOrders;
   const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
   const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
   const completedToday = orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length;
@@ -3378,63 +3382,40 @@ function ActiveOrdersPanel({
           {Object.entries(kitchenLoad).map(([status, count]) => <OperationalMetric key={status} label={status} value={String(count)} />)}
         </div>
       ) : null}
-      {view === "waiter" ? (
-        <ReadyToServePanel
-          orders={readyOrders}
-          onOpen={onOpen}
-          onAddItems={onAddItems}
-          onPrintBill={onPrintBill}
-          onCollectPayment={onCollectPayment}
-          onServe={onServe}
-          onTimeline={onTimeline}
-          onPaymentHistory={onPaymentHistory}
-        />
-      ) : (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[minmax(104px,3fr)_minmax(148px,5fr)_minmax(72px,2fr)_minmax(96px,3fr)_minmax(96px,3fr)_minmax(120px,4fr)_180px] gap-2 border-b bg-slate-50/90 px-3 py-2 text-[10px] font-black uppercase text-slate-500 xl:grid">
-            <span>Order</span>
-            <span>Status</span>
-            <span>ETA</span>
-            <span>Items</span>
-            <span>Payment</span>
-            <span>Table / Waiter</span>
-            <span>Actions</span>
+      <div className="mt-4 grid gap-3">
+        {displayedOrders.length ? displayedOrders.map((order, index) => (
+          <PosOrderAccordion
+            key={order.id}
+            index={index}
+            order={order}
+            view={view}
+            orderDelayThresholdMinutes={orderDelayThresholdMinutes}
+            canMerge={activeKitchenOrders.length >= 2}
+            busy={activeAction ?? ""}
+            expanded={expandedOrderId === order.id}
+            onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
+            onOpen={onOpen}
+            onAddItems={onAddItems}
+            onPrintBill={onPrintBill}
+            onPrintReceipt={onPrintReceipt}
+            onPrintKot={onPrintKot}
+            onCollectPayment={onCollectPayment}
+            onSplit={onSplit}
+            onTransfer={onTransfer}
+            onMerge={onMerge}
+            onTimeline={onTimeline}
+            onPaymentHistory={onPaymentHistory}
+            onReminder={onReminder}
+            onServe={onServe}
+            onComplete={onComplete}
+            onCancel={onCancel}
+          />
+        )) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">
+            {view === "waiter" ? "No ready orders for waiter service." : "No active orders right now."}
           </div>
-          {activeKitchenOrders.length ? (
-            <div className="divide-y divide-slate-100">
-              {activeKitchenOrders.map((order, index) => (
-                <ActiveOrderRow
-                  key={order.id}
-                  index={index}
-                  order={order}
-                  orderDelayThresholdMinutes={orderDelayThresholdMinutes}
-                  canMerge={activeKitchenOrders.length >= 2}
-                  busy={activeAction ?? ""}
-                  onOpen={onOpen}
-                  onAddItems={onAddItems}
-                  onPrintBill={onPrintBill}
-                  onPrintReceipt={onPrintReceipt}
-                  onPrintKot={onPrintKot}
-                  onCollectPayment={onCollectPayment}
-                  onSplit={onSplit}
-                  onTransfer={onTransfer}
-                  onMerge={onMerge}
-                  onTimeline={onTimeline}
-                  onPaymentHistory={onPaymentHistory}
-                  onReminder={onReminder}
-                  onServe={onServe}
-                  onComplete={onComplete}
-                  onCancel={onCancel}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="p-10 text-center text-sm font-semibold text-slate-500">
-              No active orders right now.
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

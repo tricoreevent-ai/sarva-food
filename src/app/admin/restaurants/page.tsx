@@ -274,12 +274,11 @@ export default function AdminRestaurantsPage() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
     });
-    const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; uid?: string; error?: string; emailSent?: boolean; temporaryPassword?: string };
+    const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; uid?: string; error?: string; emailSent?: boolean };
     if (!response.ok || !payload.ok) throw new Error(payload.error || "Credential action failed.");
     return {
       uid: payload.uid || `owner-${slugify(input.email)}`,
       emailSent: Boolean(payload.emailSent),
-      temporaryPassword: payload.temporaryPassword,
     };
   }
 
@@ -304,8 +303,7 @@ export default function AdminRestaurantsPage() {
         forcePasswordReset: action === "reset-password" ? true : selected.forcePasswordReset,
         lastCredentialsSentAt: action === "send-credentials" || action === "reset-password" ? new Date().toISOString() : selected.lastCredentialsSentAt,
       });
-      const note = action === "reset-password" && result.temporaryPassword ? ` Temporary password: ${result.temporaryPassword}` : "";
-      toast.success(`${credentialActionLabel(action)} completed.${result.emailSent ? "" : " Email skipped because SMTP is not configured."}${note}`);
+      toast.success(`${credentialActionLabel(action)} completed.${result.emailSent ? "" : " Email skipped because SMTP is not configured."}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Credential action failed.");
     } finally {

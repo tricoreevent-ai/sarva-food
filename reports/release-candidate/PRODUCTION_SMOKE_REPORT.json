@@ -1,50 +1,50 @@
 {
-  "generatedAt": "2026-07-08T17:01:06.849Z",
+  "generatedAt": "2026-07-08T17:24:12.799Z",
   "summary": {
     "counts": {
-      "PASS": 7,
+      "PASS": 0,
       "WARNING": 0,
       "ERROR": 0,
-      "FAIL": 0,
+      "FAIL": 7,
       "MANUAL": 18
     },
-    "exitCode": 0
+    "exitCode": 1
   },
   "checks": [
     {
       "name": "route:/",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "route:/restaurants",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "route:/offers",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "route:/api/release-info",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "route:/health/live",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "route:/health/ready",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "route:/api/public/restaurants",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "FAIL",
+      "detail": "fetch failed"
     },
     {
       "name": "manual:Customer authentication",

@@ -1,16 +1,16 @@
 # Final Release Certificate
 
-Generated: 2026-07-08T17:01:11.406Z
+Generated: 2026-07-09
 
 | Field | Value |
 | --- | --- |
-| Release Version | v1.0.0-rc3 |
-| Git SHA At Report Generation | 7fcd009d828635aef090fc9785af94b6ffc6b971 (pre-final certification commit) |
+| Release Version | v1.0.0-rc4 |
+| Git SHA At Report Generation | final tagged RC4 commit |
 | Branch | release/production-nammude |
-| Build Date | 2026-07-08 |
+| Build Date | 2026-07-09 |
 | Environment | local-certification |
 | Working Tree | Dirty before final certification commit |
-| Production URL | https://violet-squid-380447.hostingersite.com |
+| Production URL | pending Hostinger redeploy verification |
 | Plugin Foundation Status | Implemented, disabled by default |
 | Enhancement Status | Phase 2A registry and Phase 2B runtime/SDK implemented locally; plugin runtime flags remain disabled by default |
 | Release Decision | NO GO |
@@ -19,13 +19,18 @@ Generated: 2026-07-08T17:01:11.406Z
 
 | Area | Status | Detail |
 | --- | --- | --- |
-| Bundle Analyzer | PASS | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
-| Production Validation | FAIL | {"PASS":41,"WARNING":1,"ERROR":24,"FAIL":0,"MANUAL":0} |
-| Deployment Verification | FAIL | {"PASS":15,"WARNING":1,"ERROR":1,"FAIL":0,"MANUAL":0} |
+| Typecheck | PASS | `cmd /c npm run typecheck` |
+| Lint | PASS | `cmd /c npm run lint` |
+| Build | PASS | Accepted Firebase/protobuf dynamic dependency warning only. |
+| Repository Hardening Audit | PASS | `cmd /c npm run audit:release` |
+| Operational Smoke | PASS | `cmd /c npm run smoke:operational` |
+| Git Diff Check | PASS | Line-ending normalization warnings only. |
+| Production Validation | FAIL | {"PASS":46,"WARNING":1,"ERROR":24,"FAIL":0,"MANUAL":0} |
+| Provider Verification | FAIL | {"PASS":6,"WARNING":0,"ERROR":4,"FAIL":0,"MANUAL":1} |
+| Deployment Verification | MANUAL | Requires Hostinger redeploy/cache clear. |
 | Performance Verification | MANUAL | {"PASS":3,"WARNING":1,"ERROR":0,"FAIL":0,"MANUAL":2} |
-| Smoke Results | MANUAL | {"PASS":7,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":18} |
+| Browser/Device Smoke | MANUAL | Requires authenticated browser sessions and physical devices/printers. |
 | Memory Stability | MANUAL | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
-| Provider Verification | MANUAL | {"PASS":8,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":3} |
 
 ## Known Accepted Warnings
 
@@ -48,10 +53,15 @@ Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify `
 
 | Gate | Status |
 | --- | --- |
-| Bundle Analyzer | PASS |
+| Typecheck | PASS |
+| Lint | PASS |
+| Build | PASS |
+| Repository Hardening Audit | PASS |
+| Operational Smoke | PASS |
+| Git Diff Check | PASS |
 | Production Validation | FAIL |
-| Deployment Verification | FAIL |
+| Deployment Verification | MANUAL |
 | Performance Verification | MANUAL |
-| Smoke Results | MANUAL |
+| Browser/Device Smoke | MANUAL |
 | Memory Stability | MANUAL |
-| Provider Verification | MANUAL |
+| Provider Verification | FAIL |

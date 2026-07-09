@@ -50,10 +50,10 @@ export async function shortenUrl(originalUrl: string, options: ShortenOptions = 
     };
     shortUrlCache.set(normalizedUrl, result);
     return result;
-  } catch (error) {
+  } catch {
     return {
       ...originalUrlResult(normalizedUrl),
-      error: error instanceof Error ? error.message : "TinyURL failed.",
+      error: "TinyURL failed.",
     };
   } finally {
     clearTimeout(timeout);

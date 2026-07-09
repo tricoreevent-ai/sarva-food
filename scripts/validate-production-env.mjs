@@ -76,6 +76,10 @@ checks.push(check("login:test", envValue("NEXT_PUBLIC_ENABLE_TEST_LOGIN") === "f
 checks.push(check("plugins:quality", envValue("NEXT_PUBLIC_ENABLE_QUALITY_DIAGNOSTICS") === "true" ? "WARNING" : "PASS", "quality diagnostics should stay disabled unless profiling"));
 checks.push(check("plugins:dashboard", envValue("NEXT_PUBLIC_ENABLE_PLUGIN_RUNTIME_DASHBOARD") === "true" ? "ERROR" : "PASS", "developer dashboard must stay disabled"));
 checks.push(check("plugins:profiler", envValue("NEXT_PUBLIC_ENABLE_PLUGIN_PROFILER") === "true" ? "ERROR" : "PASS", "plugin profiler must stay disabled unless profiling"));
+checks.push(check("plugins:restaurant-health", envValue("NEXT_PUBLIC_ENABLE_RESTAURANT_HEALTH_DASHBOARD") === "true" ? "WARNING" : "PASS", "restaurant health plugin should stay disabled unless running controlled admin smoke"));
+for (const key of ["NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET", "NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET", "NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET", "NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET"]) {
+  checks.push(check(`plugins:example:${key}`, envValue(key) === "true" ? "ERROR" : "PASS", "example plugin flags must stay disabled in production"));
+}
 
 validateFirebase();
 validateCloudinary();

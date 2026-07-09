@@ -71,7 +71,6 @@ export async function POST(request: NextRequest) {
     uid: user.uid,
     emailSent: emailResult.sent,
     emailSkippedReason: emailResult.skippedReason,
-    temporaryPassword,
   });
 }
 

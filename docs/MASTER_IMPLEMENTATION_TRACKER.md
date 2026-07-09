@@ -11,14 +11,28 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC1 Production Readiness and Go-Live Validation |
-| Release Version | `v1.0.0-rc3` |
-| Latest Git Commit | Latest pushed production branch commit before this RC1 certification documentation pass is `82705245b36159a8e1ba2c16cdd7d513f6392126`; RC1 release documentation/report updates are pending final commit. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
+| Current Sprint | RC4 Production Readiness and Go-Live Validation |
+| Release Version | `v1.0.0-rc4` |
+| Latest Git Commit | Local pre-RC4 base commit is `127a9c4064f936fc9d76fc0b56633068f3e6a403`; deploy the final tagged RC4 commit from this release handoff. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` currently serves `82705245b36159a8e1ba2c16cdd7d513f6392126` and `applicationVersion: v1.0.0-rc3`, but env still reports `development`; redeploy is required after the RC1 documentation/certification commit if these docs are committed. |
-| Build Date | 2026-07-08 |
-| Verification Status | RC1 repository validation passed `npm run test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `git diff --check` reported Git line-ending normalization warnings only. Production env validation, provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
-| Scope | Release certification, production readiness audit, hosted evidence, provider/Firebase/manual checklists, final release docs, and tracker alignment only. No new business feature, Firestore collection/schema/rule/index, API contract, auth workflow, payment provider contract, realtime listener, repository change, or completed workflow redesign. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` must be redeployed from the final RC4 commit with `NEXT_PUBLIC_APP_ENV=production` and `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc4`; hosted verification remains manual. |
+| Build Date | 2026-07-09 |
+| Verification Status | RC4 repository validation passed typecheck, lint, build, `audit:release`, smoke:operational, and `git diff --check`. Build retains the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env` failed locally with `46` pass, `1` warning, and `24` errors requiring real Hostinger/Firebase/Razorpay production values. `verify:providers` reported `6` pass, `4` errors, and `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials. Provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
+| Scope | Release metadata/env/security/docs hardening, production readiness audit, provider/Firebase/manual checklists, final release docs, and tracker alignment only. No new business feature, Firestore collection/schema/rule/index, payment provider contract, realtime listener, repository architecture change, or completed workflow redesign. |
+
+## RC4 Production Readiness Closure - 2026-07-09
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `RC4-PRODUCTION-READINESS-CLOSURE` |
+| Scope | Repository-side release closure for tag strategy, environment matrix, production-safe metadata, secret-response hardening, deployment docs, and validation. |
+| Status | Implemented locally; repository validation passed except production env secrets/config that require external access. |
+| Release Strategy | Do not move `v1.0.0-rc1`, `v1.0.0-rc2`, or `v1.0.0-rc3`. Create immutable `v1.0.0-rc4` on the final committed candidate. |
+| Metadata | `package.json`, `package-lock.json`, `src/lib/release.ts`, `.env*` templates, release notes, Hostinger guide, runbook, environment matrix, API docs, certification docs, and deployment package now align on `v1.0.0-rc4`. |
+| Security Fixes | Admin owner credential API no longer returns generated temporary passwords to the browser; TinyURL failures no longer echo raw provider errors; health metadata no longer falls back to `development` when app env is absent. |
+| Env Audit | Matrix expanded from actual `process.env` scan. Razorpay is production-required because `validate:prod-env` and live payment routes require live keys before launch signoff. |
+| Validation | `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `git diff --check` passed. `cmd /c npm run validate:prod-env` and `cmd /c npm run verify:providers` failed locally only for missing/non-production Hostinger/Firebase/Razorpay/WhatsApp/provider secrets. |
+| Remaining Manual Gates | Hostinger env/redeploy/cache, Firebase Console rules/indexes/authorized domains/VAPID, production credentials, provider dashboards, authenticated browser smoke, Lighthouse/Core Web Vitals, and physical printer/QR/device smoke. |
 
 ## OWNER MODULE QA ROUND - 2026-07-09
 
@@ -2754,10 +2768,10 @@ No fake values should be committed. Configure real values in Hostinger or the ta
 | Database alerts | `DATABASE_ALERT_EMAIL` and matching Admin CMS customer-data alert recipient. | Admin CMS and outage alert smoke. | Manual pending |
 | Google OAuth | `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`; public and server client ids must match. | Env validation and hosted Google sign-in smoke. | Manual pending |
 | Mapbox | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` with no spaces or line breaks. | Owner/admin map smoke. | Manual pending |
-| Razorpay | Optional until live payments launch; if enabled set `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` together. | Razorpay sandbox/live order, verify, webhook, refund/settlement smoke. | Provider pending |
+| Razorpay | Required for production launch: set `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` together with live keys. | Razorpay sandbox/live order, verify, webhook, refund/settlement smoke. | Provider pending |
 | WhatsApp Cloud API | `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` before Cloud API launch. | WhatsApp send/webhook event smoke. | Provider pending |
 | SMS | Provider, sender id, compliance rules, OTP/transactional env values after provider selection. | Future SMS adapter/provider smoke. | Provider pending |
-| Push | VAPID/provider values only after push implementation is approved. | Future push subscription/send smoke. | Future/provider pending |
+| Push | `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is required for production push readiness. | Push subscription, foreground/background notification, click deep link, and server send smoke. | Provider/device pending |
 | Meta/social | Meta app credentials and approved permissions before production publishing. | Meta OAuth/publish smoke. | Provider pending |
 | Build metadata | Optional `NEXT_PUBLIC_BUILD_VERSION`, `NEXT_PUBLIC_GIT_COMMIT_SHA`, `NEXT_PUBLIC_COMMIT_SHA`, `NEXT_PUBLIC_BUILD_DATE`, `NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP`. | `/api/release-info`, admin diagnostics. | Manual recommended |
 | Dev/test login | `NEXT_PUBLIC_ENABLE_DEV_LOGIN=false`, `NEXT_PUBLIC_ENABLE_TEST_LOGIN=false` in production. | Hosted auth smoke. | Manual required |

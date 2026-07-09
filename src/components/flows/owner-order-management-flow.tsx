@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
-import { OrderCard, type OpsOrder } from "@/components/orders/order-card";
 import { OrderFilters } from "@/components/orders/order-filters";
 import { OrderMetricCard } from "@/components/orders/metric-card";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
@@ -54,6 +53,29 @@ type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
 type SourceFilter = "all" | "website" | "pos" | "zomato" | "swiggy" | "dine-in" | "parcel" | "catering";
 type DatePreset = "today" | "yesterday" | "last7" | "week" | "last30" | "month" | "custom";
 type DateRange = { preset: DatePreset; from: string; to: string };
+type OpsOrder = {
+  id: string;
+  displayId?: string;
+  age: string;
+  actualTime?: string;
+  source: string;
+  customer: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  previousOrderCount?: number;
+  customerRating?: number;
+  type: string;
+  tableNumber?: string;
+  status: string;
+  itemCount: number;
+  total: number;
+  payment: string;
+  instructions?: string;
+  scheduledLabel?: string;
+  prepSuggestion?: string;
+  delay?: { delayed: boolean; lateMinutes: number; priority: DelayPriority; elapsedLabel: string };
+};
 type ActiveOpsOrder = OpsOrder & {
   createdAtMs: number;
   etaLabel: string;
@@ -395,16 +417,18 @@ export function OwnerOrderManagementFlow() {
                 onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
                 onView={focusOrder}
               />
-            ) : visibleOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onAccept={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
-                  onReject={() => void rejectKitchenOrder(order)}
-                  onReady={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
-                  onComplete={() => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
-                />
-              ))}
+            ) : visibleOrders.length ? (
+              <ActiveOrdersGrid
+                orders={visibleOrders}
+                highlightedOrderIds={highlightedOrderIds}
+                limit={80}
+                onAccept={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
+                onReject={(order) => void rejectKitchenOrder(order)}
+                onReady={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
+                onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
+                onView={focusOrder}
+              />
+            ) : null}
             {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={(order) => void updateKitchenOrder(order)} /> : null}
             {!visibleOrders.length && !visibleCatering.length && tab !== "kot" && !activeView ? <EmptyOrders /> : null}
             {activeView && !activeOrders.length && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
@@ -522,6 +546,7 @@ function DateRangePicker({ open, range, onChange, onOpenChange }: { open: boolea
 function ActiveOrdersGrid({
   orders,
   highlightedOrderIds,
+  limit = 30,
   onAccept,
   onReject,
   onReady,
@@ -530,13 +555,14 @@ function ActiveOrdersGrid({
 }: {
   orders: ActiveOpsOrder[];
   highlightedOrderIds: Set<string>;
+  limit?: number;
   onAccept: (order: ActiveOpsOrder) => void;
   onReject: (order: ActiveOpsOrder) => void;
   onReady: (order: ActiveOpsOrder) => void;
   onComplete: (order: ActiveOpsOrder) => void;
   onView: (order: ActiveOpsOrder) => void;
 }) {
-  const visible = orders.slice(0, 30);
+  const visible = orders.slice(0, limit);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -876,31 +902,80 @@ function OrderCell({ label, value, subvalue, strong, tone = "default", blink, ch
 
 function KitchenCards({ orders, onNext }: { orders: TableOrder[]; onNext: (order: TableOrder) => void }) {
   const active = orders.filter((order) => !["completed", "billed"].includes(order.status));
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   if (!active.length) return <EmptyOrders title="No active kitchen tickets" />;
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3">
       {active.map((order, index) => (
-        <DashboardCard key={order.id}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xl font-black text-neutral-950">{readableTableOrderId(order, index + 1)}</p>
-              <p className="text-sm text-slate-500">{relativeOrderTime(order.createdAt)} • {actualOrderTime(order.createdAt)} • {order.tableNumber} • {order.source}</p>
-            </div>
-            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">{order.status}</span>
-          </div>
-          <div className="mt-4 space-y-2">
-            {order.lines.map((line) => (
-              <div key={line.itemId} className="rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">
-                {line.quantity} x {line.name}
-              </div>
-            ))}
-          </div>
-          <Button className="mt-4 w-full" onClick={() => onNext(order)} disabled={["completed", "billed"].includes(order.status)}>
-            Mark {nextKitchenStatus[order.status]}
-          </Button>
-        </DashboardCard>
+        <KitchenTabOrderAccordion
+          key={order.id}
+          index={index}
+          order={order}
+          expanded={expandedOrderId === order.id}
+          onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
+          onNext={() => onNext(order)}
+        />
       ))}
     </div>
+  );
+}
+
+function KitchenTabOrderAccordion({
+  order,
+  index,
+  expanded,
+  onExpandedChange,
+  onNext,
+}: {
+  order: TableOrder;
+  index: number;
+  expanded: boolean;
+  onExpandedChange: (open: boolean) => void;
+  onNext: () => void;
+}) {
+  const delay = getKitchenDelay(order);
+  const next = nextKitchenStatus[order.status];
+  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  return (
+    <CompactOrderAccordion
+      id={`owner-kot-${order.id}`}
+      orderNumber={readableTableOrderId(order, index + 1)}
+      etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
+      orderTypeLabel={order.orderType ?? order.source}
+      tableLabel={order.tableNumber}
+      itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
+      status={{ label: kitchenStatusLabel(order.status), tone: ownerStatusTone(order.status) }}
+      priority={{ label: priorityLabel(delay.priority), tone: ownerPriorityTone(delay.priority), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
+      badges={[{ label: order.source, tone: "muted" }, { label: paymentStatusLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" }]}
+      delay={tableOrderAccordionDelay(delay)}
+      items={order.lines.map((line, lineIndex) => ({
+        id: `${line.itemId ?? order.id}-${lineIndex}`,
+        name: line.name,
+        quantity: line.quantity,
+        note: line.notes,
+        meta: line.modifiers?.join(", "),
+        warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
+      }))}
+      facts={[
+        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
+        { label: "Source", value: order.source },
+        { label: "Payment", value: paymentStatusLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
+        { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
+        { label: "Created", value: actualOrderTime(order.createdAt) },
+        { label: "Total", value: formatCurrency(Number(order.total ?? 0)) },
+      ]}
+      notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
+      timeline={compactTimeline(order.status, order.createdAt, actualOrderTime(order.createdAt), order.statusHistory).map((entry) => ({ label: entry.label, time: entry.at }))}
+      primaryAction={next && next !== order.status ? {
+        id: "advance",
+        label: `Mark ${kitchenStatusLabel(next)}`,
+        icon: <CheckCircle2 className="size-4" />,
+        variant: "primary",
+        onClick: onNext,
+      } : undefined}
+      isOpen={expanded}
+      onOpenChange={onExpandedChange}
+    />
   );
 }
 
