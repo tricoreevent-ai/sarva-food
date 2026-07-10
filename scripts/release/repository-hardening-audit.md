@@ -1,6 +1,6 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-09T11:22:47.414Z
+Generated: 2026-07-10T05:51:21.923Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
@@ -8,7 +8,7 @@ Generated: 2026-07-09T11:22:47.414Z
 | raw-error-message | 40 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 47 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| listener-lifecycle | 43 | Realtime/listener site; verify cleanup and reconnect bounds. |
 | api-error-envelope | 160 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
@@ -65,7 +65,7 @@ Generated: 2026-07-09T11:22:47.414Z
 - `src/components/flows/kitchen-display-flow.tsx` (9)
 - `src/components/flows/owner-order-management-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (1)
-- `src/components/flows/pos-billing-flow.tsx` (14)
+- `src/components/flows/pos-billing-flow.tsx` (10)
 - `src/components/flows/restaurant-browser-flow.tsx` (1)
 - `src/components/flows/restaurant-detail-flow.tsx` (3)
 - `src/components/flows/table-qr-ordering-flow.tsx` (3)

@@ -1,9 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { toast } from "@/lib/client-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
@@ -2426,6 +2425,10 @@ function OrderDetailsDrawer({
   const entries = timelineEntries(canonical, order);
   const corrections = canonical?.corrections ?? order.corrections ?? [];
   const prints = printHistoryEntries(canonical, order, printLogs);
+  const [open, setOpen] = useState(true);
+  const delay = getKitchenDelay(order);
+  const total = Number(order.total ?? canonical?.totals.total ?? 0);
+  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -2442,28 +2445,44 @@ function OrderDetailsDrawer({
           <Button variant="ghost" size="icon" aria-label="Close details" onClick={onClose}><X className="size-4" /></Button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DrawerBlock title="Customer" rows={[order.customerName || order.guestName || canonical?.customer.name || "Walk-in", order.customerPhone || canonical?.customer.phone || "No phone"]} />
-            <DrawerBlock title="Kitchen" rows={[`Status: ${order.status}`, `ETA: ${order.etaMinutes ?? 12} min`, `Priority: ${order.priority ?? "normal"}`]} />
-            <DrawerBlock title="Payment" rows={[`Status: ${paymentLabel(order.paymentStatus)}`, `Paid: ${formatCurrency(orderPaidAmount(canonical, order))}`, `Balance: ${formatCurrency(orderBalanceDue(canonical, order))}`]} />
-            <DrawerBlock title="Notes" rows={[canonical?.statusNote || (order as OperationalOrder & { notes?: string }).notes || "No notes recorded"]} />
-          </div>
-          <section className="mt-4 rounded-xl border border-slate-200 p-4">
-            <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Items</h3>
-            <div className="grid gap-2">
-              {order.lines.map((line, index) => (
-                <div key={`${line.itemId}-${index}`} className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold">
-                  <span className="truncate">{line.name}</span>
-                  <span>{line.quantity}x</span>
-                  <span>{formatCurrency(line.price * line.quantity)}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="mt-4 rounded-xl border border-slate-200 p-4">
-            <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Timeline</h3>
-            <TimelineList entries={entries.slice(-12)} empty="No timeline events recorded." compact />
-          </section>
+          <CompactOrderAccordion
+            id={`pos-details-${order.id}`}
+            orderNumber={readableTableOrderId(order)}
+            etaLabel={delay.delayed ? `${delay.lateMinutes}m late` : `ETA ${order.etaMinutes ?? 12}m`}
+            orderTypeLabel={readablePosOrderType(order.orderType ?? "dine-in")}
+            tableLabel={order.tableNumber || canonical?.customer.name}
+            itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
+            status={{ label: posOrderStatusLabel(order.status, order.paymentStatus), tone: posStatusTone(order.status, order.paymentStatus) }}
+            priority={{ label: posPriorityLabel(order, delay), tone: posPriorityTone(order, delay), icon: delay.delayed ? <BellRing className="size-3.5" /> : <Clock3 className="size-3.5" /> }}
+            badges={[{ label: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" }]}
+            delay={posAccordionDelay(delay)}
+            items={order.lines.map((line, index) => ({
+              id: `${line.itemId ?? order.id}-${index}`,
+              name: line.name,
+              quantity: line.quantity,
+              note: line.notes,
+              meta: formatCurrency(line.price * line.quantity),
+            }))}
+            facts={[
+              { label: "Customer", value: order.customerName || order.guestName || canonical?.customer.name || "Walk-in" },
+              { label: "Phone", value: order.customerPhone || canonical?.customer.phone || "No phone" },
+              { label: "Payment", value: `${paymentLabel(order.paymentStatus)} · ${formatCurrency(orderBalanceDue(canonical, order))} due`, tone: order.paymentStatus === "paid" ? "success" : "default" },
+              { label: "Paid", value: formatCurrency(orderPaidAmount(canonical, order)), tone: order.paymentStatus === "paid" ? "success" : "default" },
+              { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
+              { label: "Total", value: formatCurrency(total) },
+            ]}
+            notes={[canonical?.statusNote, (order as OperationalOrder & { notes?: string }).notes].filter((item): item is string => Boolean(item))}
+            timeline={entries.length ? entries.slice(-12).map((entry) => ({ label: timelineLabel(entry), time: formatTimelineTime(entryTimeValue(entry)) })) : [{ label: "Created", time: actualOrderTime(order.createdAt) }]}
+            primaryAction={{ id: "collect", label: "Collect", icon: <CircleDollarSign className="size-4" />, variant: "primary", disabled: order.paymentStatus === "paid", onClick: onCollectPayment }}
+            secondaryActions={[
+              { id: "add", label: "Add", icon: <PlusCircle className="size-4" />, onClick: onAddItems },
+              { id: "bill", label: "Bill", icon: <ReceiptText className="size-4" />, onClick: onPrintBill },
+              { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: onTimeline },
+              { id: "history", label: "History", icon: <History className="size-4" />, onClick: onPaymentHistory },
+            ]}
+            isOpen={open}
+            onOpenChange={setOpen}
+          />
           <section className="mt-4 rounded-xl border border-slate-200 p-4">
             <h3 className="mb-3 text-sm font-black uppercase text-slate-400">Corrections</h3>
             {corrections.length ? corrections.map((item, index) => (
@@ -2477,26 +2496,8 @@ function OrderDetailsDrawer({
             <TimelineList entries={prints} empty="No print history recorded." compact />
           </section>
         </div>
-        <div className="grid gap-2 border-t border-slate-100 p-4 sm:grid-cols-5">
-          <Button variant="outline" onClick={onAddItems}><PlusCircle className="size-4" />Add</Button>
-          <Button variant="outline" onClick={onPrintBill}><ReceiptText className="size-4" />Bill</Button>
-          <Button onClick={onCollectPayment}><CircleDollarSign className="size-4" />Collect</Button>
-          <Button variant="outline" onClick={onTimeline}><Clock3 className="size-4" />Timeline</Button>
-          <Button variant="outline" onClick={onPaymentHistory}><History className="size-4" />History</Button>
-        </div>
       </aside>
     </div>
-  );
-}
-
-function DrawerBlock({ title, rows }: { title: string; rows: Array<string | number | undefined> }) {
-  return (
-    <section className="rounded-xl border border-slate-200 p-4">
-      <h3 className="text-xs font-black uppercase text-slate-400">{title}</h3>
-      <div className="mt-2 grid gap-1 text-sm font-semibold text-slate-700">
-        {rows.filter(Boolean).map((row, index) => <p key={`${title}-${index}`} className="truncate">{row}</p>)}
-      </div>
-    </section>
   );
 }
 
@@ -3029,12 +3030,6 @@ function readySinceMillis(order: OperationalOrder) {
   return ready || Date.parse(order.createdAt) || 0;
 }
 
-function serveSlaLabel(minutes: number) {
-  if (minutes < 5) return "On time";
-  if (minutes < 10) return "Watch";
-  return "Late";
-}
-
 function withBillCopy(context: BillContext, copy: BillCopy): BillContext {
   return { ...context, copyLabel: copy, duplicate: copy === "Duplicate Copy" };
 }
@@ -3271,6 +3266,7 @@ function ActiveOrdersPanel({
   const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "operations");
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const activeKitchenOrders = useMemo(
     () => {
       const value = search.trim().toLowerCase();
@@ -3309,6 +3305,11 @@ function ActiveOrdersPanel({
     const id = window.setTimeout(() => setView("waiter"), 0);
     return () => window.clearTimeout(id);
   }, [waiterView]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   return (
     <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 p-4 shadow-sm">
@@ -3389,6 +3390,7 @@ function ActiveOrdersPanel({
             index={index}
             order={order}
             view={view}
+            now={now}
             orderDelayThresholdMinutes={orderDelayThresholdMinutes}
             canMerge={activeKitchenOrders.length >= 2}
             busy={activeAction ?? ""}
@@ -3420,12 +3422,16 @@ function ActiveOrdersPanel({
   );
 }
 
-function ActiveOrderRow({
+function PosOrderAccordion({
   order,
   orderDelayThresholdMinutes,
   index,
+  view,
+  now,
   canMerge,
   busy,
+  expanded,
+  onExpandedChange,
   onOpen,
   onAddItems,
   onPrintBill,
@@ -3445,8 +3451,12 @@ function ActiveOrderRow({
   order: OperationalOrder;
   orderDelayThresholdMinutes: number;
   index: number;
+  view: "operations" | "waiter" | "cashier" | "manager";
+  now: number;
   canMerge: boolean;
   busy: string;
+  expanded: boolean;
+  onExpandedChange: (open: boolean) => void;
   onOpen: (order: TableOrder) => void;
   onAddItems: (order: TableOrder) => void;
   onPrintBill: (order: TableOrder) => void;
@@ -3463,392 +3473,102 @@ function ActiveOrderRow({
   onComplete: (order: TableOrder) => void;
   onCancel: (order: TableOrder) => void;
 }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
   const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
-  const delayed = isDelayedTableOrder(order, orderDelayThresholdMinutes);
   const table = order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in");
   const waiter = order.waiterName || order.assignedStaffName || "Unassigned";
+  const total = Number(order.total ?? order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0));
+  const paid = order.paymentStatus === "paid";
+  const ready = order.status === "ready";
+  const served = order.status === "served";
+  const canCollect = ["ready", "served"].includes(order.status) && !paid;
+  const preview = { id: "preview", label: "Preview", icon: <Eye className="size-4" />, onClick: () => onOpen(order) };
+  const bill = { id: "bill", label: "Print Bill", icon: <ReceiptText className="size-4" />, onClick: () => onPrintBill(order) };
+  const receipt = { id: "receipt", label: "Receipt", icon: <Printer className="size-4" />, onClick: () => onPrintReceipt(order) };
+  const collect = { id: "collect", label: "Collect Payment", icon: <CircleDollarSign className="size-4" />, disabled: !canCollect || busy === `payment:${order.id}`, onClick: () => onCollectPayment(order) };
+  const serve = { id: "serve", label: "Serve", icon: <Utensils className="size-4" />, variant: "primary" as const, disabled: !ready, onClick: () => onServe(order) };
+  const edit = { id: "edit", label: "Edit", icon: <PlusCircle className="size-4" />, variant: "primary" as const, onClick: () => onAddItems(order) };
+  const complete = { id: "complete", label: "Complete", icon: <CheckCircle2 className="size-4" />, disabled: !served && order.status !== "ready", onClick: () => onComplete(order) };
+  const transfer = { id: "transfer", label: "Transfer", icon: <ArrowRightLeft className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
+  const merge = { id: "merge", label: "Merge", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy === `merge:${order.id}`, onClick: () => onMerge(order) };
+  const cancel = { id: "cancel", label: "Cancel", icon: <XCircle className="size-4" />, variant: "danger" as const, onClick: () => onCancel(order) };
+  const primaryAction = view === "waiter"
+    ? serve
+    : view === "cashier"
+      ? paid ? receipt : { ...collect, variant: "primary" as const }
+      : view === "manager"
+        ? edit
+        : ready ? serve : served ? { ...complete, variant: "primary" as const } : canCollect ? { ...collect, variant: "primary" as const } : preview;
+  const secondaryActions = view === "waiter"
+    ? [collect, bill, preview]
+    : view === "cashier"
+      ? [bill, receipt, preview]
+      : view === "manager"
+        ? [transfer, merge, preview]
+        : [bill, { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" />, onClick: () => onPrintKot(order) }, collect, preview];
+  const moreActions = view === "waiter"
+    ? [
+        { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
+        { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
+        { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
+      ]
+    : view === "cashier"
+      ? [{ id: "history", label: "Payment History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) }]
+      : view === "manager"
+        ? [
+            cancel,
+            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: busy === `split:${order.id}`, onClick: () => onSplit(order) },
+            { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
+            { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
+          ]
+        : [
+            { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
+            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: busy === `split:${order.id}`, onClick: () => onSplit(order) },
+            transfer,
+            merge,
+            { id: "reminder", label: "Reminder", icon: <BellRing className="size-4" />, onClick: () => onReminder(order) },
+            complete,
+            cancel,
+            { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
+            { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
+          ];
+  const timeline = timelineEntries(undefined, order).slice(-6);
   return (
-    <article className={cn("grid gap-2 px-3 py-2 transition xl:grid-cols-[minmax(104px,3fr)_minmax(148px,5fr)_minmax(72px,2fr)_minmax(96px,3fr)_minmax(96px,3fr)_minmax(120px,4fr)_180px] xl:items-center", delayed && "bg-red-50/70 kitchen-delay-pulse", order.status === "ready" && "bg-emerald-50/70 kitchen-ready-pulse")}>
-      <button type="button" className="min-w-0 text-left" onClick={() => setDetailsOpen((value) => !value)} aria-expanded={detailsOpen}>
-        <h3 className="truncate text-base font-black text-slate-950">{readableTableOrderId(order, index + 1)}</h3>
-        <p className="truncate text-xs font-semibold text-slate-500">{order.customerName || order.guestName || "Walk-in"} · {actualOrderTime(order.createdAt)}</p>
-      </button>
-      <div className="min-w-0 rounded-lg bg-slate-50 px-2.5 py-1.5 xl:bg-transparent xl:px-0 xl:py-0">
-        <p className="text-[10px] font-black uppercase text-slate-400 xl:hidden">Status</p>
-        <div className="flex items-center justify-between gap-2">
-          <span className={cn("truncate rounded-full px-2 py-1 text-xs font-black capitalize", orderStatusTone(order.status, order.paymentStatus).chip)}>{order.status}</span>
-          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
-            <span className={cn("block h-full rounded-full", orderStatusTone(order.status, order.paymentStatus).bar)} style={{ width: `${statusStepPercent(order.status)}%` }} />
-          </span>
-        </div>
-      </div>
-      <ActiveInfoRow label="ETA" value={`${order.etaMinutes ?? 12} min`} />
-      <ActiveInfoRow label="Items" value={`${itemCount} item${itemCount === 1 ? "" : "s"}`} subvalue={posCompactItems(order.lines)} />
-      <ActiveInfoRow label="Payment" value={paymentLabel(order.paymentStatus)} tone={paymentInfoTone(order.paymentStatus)} />
-      <ActiveInfoRow label="Table / Waiter" value={table} subvalue={waiter} />
-      <div className="flex min-w-0 items-center gap-2 xl:justify-end">
-        <Button size="sm" variant="outline" className="min-h-9 shrink-0 whitespace-nowrap" onClick={() => onOpen(order)}>
-          <Eye className="size-4" />
-          Open
-        </Button>
-        <PosActiveOrderMenu
-          canMerge={canMerge}
-          busy={busy}
-          order={order}
-          onOpen={onOpen}
-          onAddItems={onAddItems}
-          onPrintBill={onPrintBill}
-          onPrintReceipt={onPrintReceipt}
-          onPrintKot={onPrintKot}
-          onCollectPayment={onCollectPayment}
-          onSplit={onSplit}
-          onTransfer={onTransfer}
-          onMerge={onMerge}
-          onTimeline={onTimeline}
-          onPaymentHistory={onPaymentHistory}
-          onReminder={onReminder}
-          onServe={onServe}
-          onComplete={onComplete}
-          onCancel={onCancel}
-        />
-      </div>
-      {detailsOpen ? (
-        <div className="rounded-lg border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-600 xl:col-span-7">
-          <div className="grid gap-2 sm:grid-cols-4">
-            <span><strong className="text-slate-950">Type:</strong> {readablePosOrderType(order.orderType ?? "dine-in")}</span>
-            <span><strong className="text-slate-950">Waiter:</strong> {waiter}</span>
-            <span><strong className="text-slate-950">Payment:</strong> {paymentLabel(order.paymentStatus)}</span>
-            <span><strong className="text-slate-950">Created:</strong> {actualOrderTime(order.createdAt)}</span>
-          </div>
-          <p className="mt-2 truncate"><strong className="text-slate-950">Items:</strong> {order.lines.map((line) => `${line.quantity}x ${line.name}`).join(", ")}</p>
-        </div>
-      ) : null}
-    </article>
+    <CompactOrderAccordion
+      id={`pos-active-${order.id}`}
+      orderNumber={readableTableOrderId(order, index + 1)}
+      etaLabel={delay.delayed ? `${delay.lateMinutes}m late` : `ETA ${order.etaMinutes ?? 12}m`}
+      orderTypeLabel={readablePosOrderType(order.orderType ?? "dine-in")}
+      tableLabel={table}
+      itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
+      status={{ label: posOrderStatusLabel(order.status, order.paymentStatus), tone: posStatusTone(order.status, order.paymentStatus) }}
+      priority={{ label: posPriorityLabel(order, delay), tone: posPriorityTone(order, delay), icon: delay.delayed ? <BellRing className="size-3.5" /> : <Clock3 className="size-3.5" /> }}
+      badges={[{ label: order.source, tone: "muted" }, { label: paymentLabel(order.paymentStatus), tone: paid ? "success" : "default" }]}
+      delay={posAccordionDelay(delay)}
+      items={order.lines.map((line, lineIndex) => ({
+        id: `${line.itemId ?? order.id}-${lineIndex}`,
+        name: line.name,
+        quantity: line.quantity,
+        note: line.notes,
+        meta: line.modifiers?.join(", "),
+      }))}
+      facts={[
+        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
+        { label: "Phone", value: order.customerPhone || "Not provided" },
+        { label: "Table / Waiter", value: `${table} · ${waiter}` },
+        { label: "Payment", value: `${paymentLabel(order.paymentStatus)} · ${formatCurrency(orderBalanceDue(undefined, order))} due`, tone: paid ? "success" : "default" },
+        { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
+        { label: "Total", value: formatCurrency(total) },
+      ]}
+      timeline={timeline.length ? timeline.map((entry) => ({ label: timelineLabel(entry), time: formatTimelineTime(entryTimeValue(entry)) })) : [{ label: "Created", time: actualOrderTime(order.createdAt) }]}
+      primaryAction={primaryAction}
+      secondaryActions={secondaryActions}
+      moreActions={moreActions}
+      isOpen={expanded}
+      highlighted={delay.delayed || order.status === "ready"}
+      onOpenChange={onExpandedChange}
+    />
   );
-}
-
-function ReadyToServePanel({
-  orders,
-  onOpen,
-  onAddItems,
-  onPrintBill,
-  onCollectPayment,
-  onServe,
-  onTimeline,
-  onPaymentHistory,
-}: {
-  orders: OperationalOrder[];
-  onOpen: (order: TableOrder) => void;
-  onAddItems: (order: TableOrder) => void;
-  onPrintBill: (order: TableOrder) => void;
-  onCollectPayment: (order: TableOrder) => void;
-  onServe: (order: TableOrder) => void;
-  onTimeline: (order: OperationalOrder) => void;
-  onPaymentHistory: (order: OperationalOrder) => void;
-}) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  return (
-    <div className="mt-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-3 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-black text-emerald-900">Ready To Serve</h3>
-          <p className="text-xs font-bold text-emerald-700">Kitchen-ready orders for waiter action.</p>
-        </div>
-        <Badge variant="success">{orders.length} ready</Badge>
-      </div>
-      <div className="grid gap-2">
-        {orders.map((order, index) => (
-          <ReadyOrderAccordion
-            key={order.id}
-            index={index}
-            now={now}
-            order={order}
-            onOpen={onOpen}
-            onAddItems={onAddItems}
-            onPrintBill={onPrintBill}
-            onCollectPayment={onCollectPayment}
-            onServe={onServe}
-            onTimeline={onTimeline}
-            onPaymentHistory={onPaymentHistory}
-          />
-        ))}
-        {!orders.length ? (
-          <div className="rounded-xl border border-dashed border-emerald-200 bg-white/75 p-8 text-center text-sm font-bold text-slate-500">
-            No ready orders for waiter service.
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ReadyOrderAccordion({
-  order,
-  index,
-  now,
-  onOpen,
-  onAddItems,
-  onPrintBill,
-  onCollectPayment,
-  onServe,
-  onTimeline,
-  onPaymentHistory,
-}: {
-  order: OperationalOrder;
-  index: number;
-  now: number;
-  onOpen: (order: TableOrder) => void;
-  onAddItems: (order: TableOrder) => void;
-  onPrintBill: (order: TableOrder) => void;
-  onCollectPayment: (order: TableOrder) => void;
-  onServe: (order: TableOrder) => void;
-  onTimeline: (order: OperationalOrder) => void;
-  onPaymentHistory: (order: OperationalOrder) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const readyAt = readySinceMillis(order) || Date.parse(order.createdAt);
-  const elapsed = Number.isFinite(readyAt) ? Math.max(0, Math.round((now - readyAt) / 60000)) : 0;
-  const readySeconds = Number.isFinite(readyAt) ? Math.max(0, Math.round((now - readyAt) / 1000)) : 0;
-  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
-  return (
-    <article className={cn("overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm", readySeconds < 60 ? "animate-pulse ring-2 ring-emerald-300" : "kitchen-ready-pulse")}>
-      <button type="button" className="grid w-full gap-2 p-3 text-left sm:grid-cols-[120px_minmax(0,1fr)_100px_120px] sm:items-center" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        <span className="text-lg font-black text-slate-950">{readableTableOrderId(order, index + 1)}</span>
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-black text-emerald-700">{order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in")}</span>
-          <span className="block truncate text-xs font-semibold text-slate-500">{itemCount} item{itemCount === 1 ? "" : "s"} · Ready since {elapsed}m · SLA {serveSlaLabel(elapsed)}</span>
-        </span>
-        <Badge variant={order.priority === "rush" ? "destructive" : "success"}>{order.priority === "rush" ? "Priority" : "Ready"}</Badge>
-        <span className="flex items-center justify-between gap-2 text-xs font-black text-slate-500">
-          {order.paymentStatus === "paid" ? "Paid" : "Payment pending"}
-          <Clock3 className={cn("size-4 transition", open && "rotate-180")} />
-        </span>
-      </button>
-      <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-        <div className="overflow-hidden">
-          <div className="space-y-3 border-t border-emerald-100 bg-emerald-50/40 p-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              {order.lines.map((line, lineIndex) => (
-                <p key={`${line.itemId}-${lineIndex}`} className="truncate rounded-lg bg-white px-3 py-2 text-sm font-black text-slate-800">{line.quantity}x {line.name}</p>
-              ))}
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <Button size="sm" onClick={() => onServe(order)}><Utensils className="size-4" />Serve</Button>
-              <Button size="sm" variant="outline" onClick={() => onOpen(order)}><Eye className="size-4" />Open</Button>
-              <Button size="sm" variant="outline" onClick={() => onCollectPayment(order)}><CircleDollarSign className="size-4" />Collect</Button>
-              <Button size="sm" variant="outline" onClick={() => onAddItems(order)}><PlusCircle className="size-4" />Add</Button>
-              <Button size="sm" variant="outline" onClick={() => onPrintBill(order)}><ReceiptText className="size-4" />Bill</Button>
-              <Button size="sm" variant="outline" onClick={() => onTimeline(order)}><Clock3 className="size-4" />Timeline</Button>
-              <Button size="sm" variant="outline" className="sm:col-span-3 lg:col-span-6" onClick={() => onPaymentHistory(order)}><History className="size-4" />History</Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ActiveInfoRow({ label, value, subvalue, tone }: { label: string; value: string; subvalue?: string; tone?: string }) {
-  return (
-    <div className="min-w-0 xl:bg-transparent xl:px-0 xl:py-0 rounded-lg bg-slate-50 px-3 py-2">
-      <p className="text-[11px] font-black uppercase text-slate-400 xl:hidden">{label}</p>
-      <p className={cn("truncate text-sm font-black text-slate-800", tone)}>{value}</p>
-      {subvalue ? <p className="truncate text-xs font-semibold text-slate-500">{subvalue}</p> : null}
-    </div>
-  );
-}
-
-function PosActiveOrderMenu({
-  order,
-  canMerge,
-  busy,
-  onOpen,
-  onAddItems,
-  onPrintBill,
-  onPrintReceipt,
-  onPrintKot,
-  onCollectPayment,
-  onSplit,
-  onTransfer,
-  onMerge,
-  onTimeline,
-  onPaymentHistory,
-  onReminder,
-  onServe,
-  onComplete,
-  onCancel,
-}: {
-  order: OperationalOrder;
-  canMerge: boolean;
-  busy: string;
-  onOpen: (order: TableOrder) => void;
-  onAddItems: (order: TableOrder) => void;
-  onPrintBill: (order: TableOrder) => void;
-  onPrintReceipt: (order: TableOrder) => void;
-  onPrintKot: (order: TableOrder) => void;
-  onCollectPayment: (order: TableOrder) => void;
-  onSplit: (order: OperationalOrder) => void;
-  onTransfer: (order: OperationalOrder) => void;
-  onMerge: (order: OperationalOrder) => void;
-  onTimeline: (order: OperationalOrder) => void;
-  onPaymentHistory: (order: OperationalOrder) => void;
-  onReminder: (order: TableOrder) => void;
-  onServe: (order: TableOrder) => void;
-  onComplete: (order: TableOrder) => void;
-  onCancel: (order: TableOrder) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number; width: number; mobile: boolean }>({ top: 0, left: 0, width: 248, mobile: false });
-  const ref = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const close = () => setOpen(false);
-  const act = (fn: () => void) => () => {
-    close();
-    fn();
-  };
-  const actions = [
-    { label: "Open", icon: Eye, onClick: () => onOpen(order) },
-    { label: "Kitchen", icon: ChefHat, onClick: () => onOpen(order) },
-    { label: "Print Bill", icon: ReceiptText, onClick: () => onPrintBill(order) },
-    { label: "Print Receipt", icon: Printer, onClick: () => onPrintReceipt(order) },
-    { label: "Print KOT", icon: ClipboardList, onClick: () => onPrintKot(order) },
-    { label: "Add Items", icon: PlusCircle, onClick: () => onAddItems(order) },
-    { label: "Collect Payment", icon: CircleDollarSign, onClick: () => onCollectPayment(order), disabled: busy === `payment:${order.id}` },
-    { label: "Serve", icon: Utensils, onClick: () => onServe(order), disabled: order.status !== "ready" },
-    { label: "Split Bill", icon: Scissors, onClick: () => onSplit(order), disabled: busy === `split:${order.id}` },
-    { label: "Merge Table", icon: GitMerge, onClick: () => onMerge(order), disabled: !canMerge || busy === `merge:${order.id}` },
-    { label: "Transfer Table", icon: ArrowRightLeft, onClick: () => onTransfer(order), disabled: busy === `transfer:${order.id}` },
-    { label: "Timeline", icon: Clock3, onClick: () => onTimeline(order) },
-    { label: "History", icon: History, onClick: () => onPaymentHistory(order) },
-    { label: "Reminder", icon: BellRing, onClick: () => onReminder(order) },
-    { label: "Complete", icon: CheckCircle2, onClick: () => onComplete(order) },
-    { label: "Cancel", icon: XCircle, onClick: () => onCancel(order), danger: true },
-  ] satisfies Array<{ label: string; icon: LucideIcon; onClick: () => void; disabled?: boolean; danger?: boolean }>;
-
-  const updatePosition = useCallback(() => {
-    const rect = ref.current?.getBoundingClientRect();
-    if (!rect) return;
-    const mobile = window.innerWidth < 640;
-    const width = Math.min(248, window.innerWidth - 24);
-    const height = Math.min(420, window.innerHeight - 32);
-    const left = Math.min(Math.max(12, rect.right - width), window.innerWidth - width - 12);
-    const below = rect.bottom + 8;
-    const top = below + height > window.innerHeight ? Math.max(12, rect.top - height - 8) : below;
-    setPosition({ top, left, width, mobile });
-  }, []);
-
-  const toggle = () => {
-    updatePosition();
-    setOpen((value) => !value);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    updatePosition();
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!ref.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    const onReposition = () => updatePosition();
-    window.addEventListener("pointerdown", onPointer);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onReposition);
-    window.addEventListener("scroll", onReposition, true);
-    return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onReposition);
-      window.removeEventListener("scroll", onReposition, true);
-    };
-  }, [open, updatePosition]);
-
-  return (
-    <div ref={ref} className="relative">
-      <Button size="sm" variant="outline" className="min-h-9 shrink-0 whitespace-nowrap" onClick={toggle} aria-haspopup="menu" aria-expanded={open}>
-        <MoreHorizontal className="size-4" />
-        More
-      </Button>
-      {open ? createPortal(
-        position.mobile ? (
-          <div className="fixed inset-0 z-[90] bg-slate-950/35 sm:hidden" role="presentation" onClick={close}>
-            <div ref={menuRef} role="menu" className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl border bg-white p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-              <div className="mb-2 h-1.5 w-12 rounded-full bg-slate-200 mx-auto" />
-              <p className="px-2 pb-2 text-sm font-black text-slate-900">{readableTableOrderId(order)}</p>
-              <ActionMenuButtons actions={actions} act={act} />
-            </div>
-          </div>
-        ) : (
-          <div
-            ref={menuRef}
-            role="menu"
-            className="fixed z-[90] max-h-[min(420px,calc(100vh-2rem))] overflow-y-auto rounded-xl border bg-white p-1.5 shadow-2xl"
-            style={{ top: position.top, left: position.left, width: position.width }}
-          >
-            <ActionMenuButtons actions={actions} act={act} />
-          </div>
-        ),
-        document.body,
-      ) : null}
-    </div>
-  );
-}
-
-function ActionMenuButtons({
-  actions,
-  act,
-}: {
-  actions: Array<{ label: string; icon: LucideIcon; onClick: () => void; disabled?: boolean; danger?: boolean }>;
-  act: (fn: () => void) => () => void;
-}) {
-  return (
-    <div className="grid gap-1">
-      {actions.map((action) => {
-        const Icon = action.icon;
-        return (
-          <button
-            key={action.label}
-            type="button"
-            role="menuitem"
-            disabled={action.disabled}
-            className={cn("flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-xs font-black hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45", action.danger ? "text-red-600" : "text-slate-700")}
-            onClick={act(action.onClick)}
-          >
-            <Icon className="size-4 shrink-0" />
-            <span className="truncate">{action.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function posCompactItems(lines: TableOrder["lines"]) {
-  const summary = lines.slice(0, 2).map((line) => `${line.quantity}x ${line.name}`).join(", ");
-  return `${summary}${lines.length > 2 ? ` +${lines.length - 2}` : ""}`;
-}
-
-function statusStepPercent(status: TableOrder["status"]) {
-  if (status === "ready" || status === "served") return 82;
-  if (status === "preparing") return 58;
-  if (status === "accepted") return 34;
-  if (status === "completed" || status === "billed") return 100;
-  return 18;
-}
-
-function paymentInfoTone(status?: TableOrder["paymentStatus"]) {
-  if (status === "paid") return "text-emerald-700";
-  if (status === "partial" || status === "authorized") return "text-amber-700";
-  if (status === "refunded") return "text-blue-700";
-  return "text-slate-900";
 }
 
 function orderStatusTone(status?: string, payment?: string) {
@@ -3861,6 +3581,51 @@ function orderStatusTone(status?: string, payment?: string) {
   if (status === "billing" || status === "billed") return { chip: "bg-purple-50 text-purple-700", bar: "bg-purple-500", dot: "bg-purple-500" };
   if (status === "cancelled" || status === "rejected") return { chip: "bg-red-50 text-red-700", bar: "bg-red-500", dot: "bg-red-500" };
   return { chip: "bg-slate-100 text-slate-700", bar: "bg-slate-400", dot: "bg-slate-400" };
+}
+
+function posOrderStatusLabel(status: TableOrder["status"], payment?: TableOrder["paymentStatus"]) {
+  if (payment === "paid" && !["cancelled", "completed", "billed"].includes(status)) return "Paid";
+  return status.split("-").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
+}
+
+function posStatusTone(status: TableOrder["status"], payment?: TableOrder["paymentStatus"]): OrderBadgeTone {
+  if (payment === "paid") return "success";
+  if (status === "ready" || status === "served") return "success";
+  if (status === "new" || status === "occupied") return "warning";
+  if (status === "cancelled") return "danger";
+  if (status === "completed" || status === "billed") return "muted";
+  return "info";
+}
+
+function posPriorityLabel(order: TableOrder, delay: ReturnType<typeof getKitchenDelay>) {
+  if (delay.priority === "critical") return "Critical";
+  if (delay.priority === "high" || order.priority === "rush") return "High";
+  if (delay.priority === "medium") return "Delayed";
+  return "Normal";
+}
+
+function posPriorityTone(order: TableOrder, delay: ReturnType<typeof getKitchenDelay>): OrderBadgeTone {
+  if (delay.priority === "critical" || delay.priority === "high" || order.priority === "rush") return "danger";
+  if (delay.delayed) return "warning";
+  return "muted";
+}
+
+function posAccordionDelay(delay: ReturnType<typeof getKitchenDelay>): OrderAccordionDelay {
+  return {
+    delayed: delay.delayed,
+    level: posDelayLevel(delay),
+    label: delay.priority === "critical" ? "Critical delay" : "Delayed",
+    lateMinutes: delay.lateMinutes,
+    waitingLabel: delay.elapsedLabel,
+  };
+}
+
+function posDelayLevel(delay: ReturnType<typeof getKitchenDelay>): OrderDelayLevel {
+  if (!delay.delayed) return "none";
+  if (delay.priority === "critical" || delay.lateMinutes >= 30) return "critical";
+  if (delay.priority === "high" || delay.lateMinutes >= 15) return "red";
+  if (delay.priority === "medium" || delay.lateMinutes >= 5) return "orange";
+  return "yellow";
 }
 
 function activeOrderSearchText(order: OperationalOrder) {

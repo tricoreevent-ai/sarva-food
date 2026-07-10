@@ -32,12 +32,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { QuickActionButton } from "@/components/owner/quick-action";
-import { StatusBadge } from "@/components/owner/status-badge";
+import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { Button } from "@/components/ui/button";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import type { DemoOrder, MenuItem, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
+import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const dashboardPrefsKey = "sarva-owner-dashboard-prefs:v2";
@@ -705,31 +706,46 @@ type TopDashboardItem = {
 type DashboardMetrics = ReturnType<typeof buildDashboardMetrics>;
 
 function LiveOrderRow({ order }: { order: DashboardOrder }) {
+  const [open, setOpen] = useState(false);
+  const elapsed = elapsedMinutes(order.createdAt);
   const delayed = elapsedMinutes(order.createdAt) >= 15 && !isTerminal(order.status);
   return (
-    <Link
-      href={`/owner/orders?search=${encodeURIComponent(order.id)}`}
-      className={cn(
-        "grid grid-cols-[1fr_auto] gap-3 rounded-xl border p-3 transition hover:border-orange-200 hover:bg-orange-50/40",
-        delayed ? "border-red-200 bg-red-50/50 shadow-[0_0_0_1px_rgba(239,68,68,0.08)]" : "border-neutral-200 bg-white",
-      )}
-      title="Open this order in the owner orders module."
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("size-2.5 rounded-full", delayed ? "animate-pulse bg-red-500" : "bg-orange-500")} />
-          <p className="truncate font-black text-neutral-950">{order.id}</p>
-          <StatusBadge status={order.status} />
-        </div>
-        <p className="mt-1 truncate text-sm font-semibold text-slate-600">{order.table ?? order.source} · {order.customer}</p>
-        <p className="mt-1 text-xs font-bold text-slate-400">{relativeOrderTime(order.createdAt)} · {actualOrderTime(order.createdAt)}</p>
-      </div>
-      <div className="self-center text-right">
-        <p className="font-black text-neutral-950">{formatCurrency(order.amount)}</p>
-        <p className={cn("text-xs font-black", delayed ? "text-red-600" : "text-slate-400")}>{elapsedMinutes(order.createdAt)} min</p>
-      </div>
-    </Link>
+    <CompactOrderAccordion
+      id={`dashboard-order-${order.id}`}
+      orderNumber={order.id}
+      etaLabel={delayed ? `${elapsed}m waiting` : relativeOrderTime(order.createdAt)}
+      orderTypeLabel={order.type}
+      tableLabel={order.table ?? order.source}
+      itemCountLabel={`${order.lines.reduce((sum, line) => sum + line.quantity, 0)} items`}
+      status={{ label: order.status, tone: dashboardStatusTone(order.status) }}
+      priority={{ label: delayed ? "Delayed" : "Normal", tone: delayed ? "warning" : "muted", icon: delayed ? <AlertTriangle className="size-3.5" /> : <ReceiptText className="size-3.5" /> }}
+      badges={[{ label: order.source, tone: "muted" }]}
+      delay={{ delayed, level: delayed ? "orange" : "none", label: "Delayed", lateMinutes: Math.max(0, elapsed - 15), waitingLabel: `${elapsed} min` }}
+      items={order.lines.map((line, index) => ({
+        id: `${order.id}-${line.itemId}-${index}`,
+        name: line.name,
+        quantity: line.quantity,
+        note: line.notes,
+        meta: formatCurrency(line.price * line.quantity),
+      }))}
+      facts={[
+        { label: "Customer", value: order.customer },
+        { label: "Source", value: order.source },
+        { label: "Created", value: actualOrderTime(order.createdAt) },
+        { label: "Total", value: formatCurrency(order.amount) },
+      ]}
+      secondaryActions={[{ id: "open", label: "Open", icon: <ArrowUpRight className="size-4" />, onClick: () => { window.location.href = `/owner/orders?search=${encodeURIComponent(order.id)}`; } }]}
+      isOpen={open}
+      onOpenChange={setOpen}
+    />
   );
+}
+
+function dashboardStatusTone(status: string): OrderBadgeTone {
+  if (["ready", "served", "delivered", "completed"].includes(status)) return "success";
+  if (["new", "occupied"].includes(status)) return "warning";
+  if (["cancelled", "rejected"].includes(status)) return "danger";
+  return "info";
 }
 
 function MiniMetric({ label, value, tone, pulse = false }: { label: string; value: number; tone: "green" | "orange" | "blue" | "red"; pulse?: boolean }) {

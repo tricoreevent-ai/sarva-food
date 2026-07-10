@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -69,6 +69,20 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Accessibility | Accordion headers expose expanded state, delayed warnings use status/live semantics, actions remain buttons with labels/titles, and reduced-motion users do not receive delay animations. |
 | Validation | `cmd /c npm run typecheck` passed; `cmd /c npm run lint` passed; `cmd /c npm run build` passed with accepted Firebase/protobuf warning; `cmd /c npm run analyze` passed with same warning after clearing stale `.next` cache; `cmd /c npm run audit:release` passed; `cmd /c npm run smoke:operational` passed; `git diff --check` passed with Git line-ending normalization warnings only. |
 | Rollback | Revert the new `src/components/orders/OrderAccordion*`/`CompactOrderAccordion*` files, the two desktop adapters in Kitchen and Owner flows, and the delay animation CSS block. No data rollback required. |
+
+## BUILD RECOVERY - 2026-07-10
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `BUILD-RECOVERY-OWNER-ACCORDION-2026-07-10` |
+| Scope | Restore clean production build after the Owner reusable accordion migration. No feature, API, Firestore, repository, realtime listener, permission, or mobile layout change. |
+| Root Cause | The failed production build referenced a stale `tableOrderAccordionDelay` owner adapter. The current Owner flow uses `ownerTableAccordionDelay`, which maps kitchen delay data into the shared `OrderAccordionDelay` shape through the existing owner delay-level helper. A detached stale Next build process also left a partial `.next` tree and caused one false nonzero build run. |
+| Files Fixed | `src/components/flows/owner-order-management-flow.tsx`, `src/components/flows/pos-billing-flow.tsx`, `src/app/owner/page.tsx`, `src/app/owner/customers/page.tsx`, removed stale `src/components/orders/order-card.tsx`, and removed stale `src/components/owner/order-list.tsx`. |
+| Compile Errors Resolved | No remaining `tableOrderAccordionDelay` reference, broken accordion import, missing export, unused import, or stale deleted-card import remains. |
+| Regression Check | Verified Owner Orders, Kitchen, POS, Waiter/Cashier/Manager queues, Dashboard recent orders, customer history, kitchen history, preview drawer, delay indicator, sequential order number display, expand/collapse, Serve, Ready, Complete, Print, and Preview bindings through static review plus typecheck/lint/build route compilation. |
+| Shared Component Usage | Desktop order surfaces now route through `CompactOrderAccordion` adapters. Mobile-only `ActiveOrderCard` and `CompactKitchenOrderCard` markup remains intentionally unchanged. |
+| Performance Impact | One shared memoized accordion implementation remains. Expanded bodies stay lazy-rendered, no listener/polling/network path changed, and stale duplicate order-card components were removed. |
+| Validation | `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `git diff --check` passed. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. |
 
 ## RC1 Production Readiness and Go-Live Validation - 2026-07-08
 

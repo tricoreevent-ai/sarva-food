@@ -2898,43 +2898,43 @@
       "name": "stress:registration-100",
       "category": "stress",
       "status": "PASS",
-      "detail": "100 registrations in 0.170ms."
+      "detail": "100 registrations in 0.323ms."
     },
     {
       "name": "stress:metadata-lookups-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 lookups in 0.309ms."
+      "detail": "1000 lookups in 0.763ms."
     },
     {
       "name": "stress:event-publishes-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 event publishes in 2.013ms."
+      "detail": "1000 event publishes in 3.412ms."
     },
     {
       "name": "stress:storage-writes-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 storage writes in 0.911ms."
+      "detail": "1000 storage writes in 2.070ms."
     },
     {
       "name": "stress:storage-reads-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 storage reads in 1.494ms."
+      "detail": "1000 storage reads in 2.685ms."
     },
     {
       "name": "stress:lifecycle-rapid",
       "category": "stress",
       "status": "PASS",
-      "detail": "Rapid lifecycle transitions in 0.303ms."
+      "detail": "Rapid lifecycle transitions in 0.623ms."
     },
     {
       "name": "stress:lazy-load-unload",
       "category": "stress",
       "status": "PASS",
-      "detail": "Lazy load/unload cycle in 0.181ms."
+      "detail": "Lazy load/unload cycle in 0.348ms."
     },
     {
       "name": "memory:cleanup",
@@ -3164,31 +3164,31 @@
       "changedBusinessAreas": []
     },
     "stress": {
-      "eventPublishMs": 2.01279999999997,
-      "storageWriteMs": 0.9106000000001586,
-      "storageReadMs": 1.4942000000000917,
-      "rapidEnableDisableMs": 0.30349999999998545,
-      "lazyLoadUnloadMs": 0.1811999999999898
+      "eventPublishMs": 3.4120999999995547,
+      "storageWriteMs": 2.0700999999999112,
+      "storageReadMs": 2.6845000000002983,
+      "rapidEnableDisableMs": 0.6229000000002998,
+      "lazyLoadUnloadMs": 0.34760000000005675
     },
     "performance": {
-      "discoveryMs": 0.17009999999982028,
-      "registryLookupMs": 0.3088999999999942,
-      "validationMs": 0.08619999999973516,
-      "dependencyResolutionMs": 0.5965000000001055,
-      "runtimeCreationMs": 0.098700000000008,
-      "contextInjectionMs": 0.14030000000002474,
-      "sdkInjectionMs": 0.10489999999981592,
-      "uiRegistrationMs": 0.10669999999981883,
-      "routeRegistrationMs": 0.1127000000001317,
-      "navigationRegistrationMs": 0.24180000000023938,
-      "pluginEnableMs": 0.11259999999992942,
-      "pluginDisableMs": 0.05169999999998254,
-      "pluginDestroyMs": 0.04389999999966676
+      "discoveryMs": 0.32340000000021973,
+      "registryLookupMs": 0.76299999999992,
+      "validationMs": 0.1690999999991618,
+      "dependencyResolutionMs": 1.035200000000259,
+      "runtimeCreationMs": 0.1938000000000102,
+      "contextInjectionMs": 0.28039999999964493,
+      "sdkInjectionMs": 0.19870000000082655,
+      "uiRegistrationMs": 0.166599999999562,
+      "routeRegistrationMs": 0.17420000000038272,
+      "navigationRegistrationMs": 0.3981000000003405,
+      "pluginEnableMs": 0.16960000000017317,
+      "pluginDisableMs": 0.119499999999789,
+      "pluginDestroyMs": 0.08059999999932188
     },
     "memory": {
-      "heapBefore": 7159912,
-      "heapAfter": 6213464,
-      "heapDelta": -946448,
+      "heapBefore": 7132832,
+      "heapAfter": 6211552,
+      "heapDelta": -921280,
       "registryEntriesAfterCleanup": 0,
       "eventTopicsAfterCleanup": 0,
       "storageEntriesAfterCleanup": 0,

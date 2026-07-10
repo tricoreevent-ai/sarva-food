@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { History, IndianRupee, Star, Users } from "lucide-react";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
+import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 
 type Customer = {
   id: string;
@@ -109,6 +111,7 @@ export default function OwnerCustomersPage() {
 
 function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => void }) {
   const { customer, orders, loyalty } = detail;
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
@@ -123,10 +126,50 @@ function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => v
           <ProfileValue label="Tier" value={String(loyalty.tier ?? customer.tier)} />
         </div>
         <div><p className="text-sm font-black">Favorite items</p><p className="mt-1 text-sm text-muted-foreground">{customer.favoriteItems?.join(", ") || "No order history yet"}</p></div>
-        <div className="space-y-2"><p className="flex items-center gap-2 text-sm font-black"><History className="size-4" />Order history</p>{orders.length ? orders.slice(0, 10).map((order) => <div key={order.id} className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{order.id} · {order.lines?.map((line) => line.name).join(", ") || "Order"}</span><span className="font-bold">{formatCurrency(Number(order.total ?? 0))}</span></div>) : <p className="text-sm text-muted-foreground">No orders recorded.</p>}</div>
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-sm font-black"><History className="size-4" />Order history</p>
+          {orders.length ? orders.slice(0, 10).map((order) => (
+            <CompactOrderAccordion
+              key={order.id}
+              id={`customer-order-${order.id}`}
+              orderNumber={order.id}
+              etaLabel={formatProfileOrderTime(order.createdAt)}
+              orderTypeLabel="Customer"
+              itemCountLabel={`${order.lines?.length ?? 0} item${order.lines?.length === 1 ? "" : "s"}`}
+              status={{ label: order.status ?? "Order", tone: customerOrderStatusTone(order.status) }}
+              badges={[{ label: formatCurrency(Number(order.total ?? 0)), tone: "muted" }]}
+              items={(order.lines?.length ? order.lines : [{ name: "Order" }]).map((line, index) => ({
+                id: `${order.id}-${index}`,
+                name: line.name,
+                quantity: 1,
+              }))}
+              facts={[
+                { label: "Customer", value: customer.name },
+                { label: "Phone", value: customer.phone },
+                { label: "Created", value: formatProfileOrderTime(order.createdAt) },
+                { label: "Total", value: formatCurrency(Number(order.total ?? 0)) },
+              ]}
+              isOpen={expandedOrderId === order.id}
+              onOpenChange={(open) => setExpandedOrderId(open ? order.id : null)}
+            />
+          )) : <p className="text-sm text-muted-foreground">No orders recorded.</p>}
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+function customerOrderStatusTone(status?: string): OrderBadgeTone {
+  if (["completed", "delivered", "paid"].includes(String(status))) return "success";
+  if (["cancelled", "rejected", "failed"].includes(String(status))) return "danger";
+  if (["new", "pending"].includes(String(status))) return "warning";
+  return "muted";
+}
+
+function formatProfileOrderTime(value?: string) {
+  if (!value) return "Time not recorded";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : value;
 }
 
 function Metric({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {

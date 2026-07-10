@@ -947,7 +947,7 @@ function KitchenTabOrderAccordion({
       status={{ label: kitchenStatusLabel(order.status), tone: ownerStatusTone(order.status) }}
       priority={{ label: priorityLabel(delay.priority), tone: ownerPriorityTone(delay.priority), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
       badges={[{ label: order.source, tone: "muted" }, { label: paymentStatusLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" }]}
-      delay={tableOrderAccordionDelay(delay)}
+      delay={ownerTableAccordionDelay(delay)}
       items={order.lines.map((line, lineIndex) => ({
         id: `${line.itemId ?? order.id}-${lineIndex}`,
         name: line.name,
@@ -1463,6 +1463,16 @@ function ownerAccordionDelay(order: ActiveOpsOrder): OrderAccordionDelay {
     label: order.delay?.priority === "critical" ? "Critical delay" : "Delayed",
     lateMinutes: order.delay?.lateMinutes,
     waitingLabel: order.delay?.elapsedLabel ?? order.age,
+  };
+}
+
+function ownerTableAccordionDelay(delay: ReturnType<typeof getKitchenDelay>): OrderAccordionDelay {
+  return {
+    delayed: delay.delayed,
+    level: ownerDelayLevel(delay.priority, delay.lateMinutes),
+    label: delay.priority === "critical" ? "Critical delay" : "Delayed",
+    lateMinutes: delay.lateMinutes,
+    waitingLabel: delay.elapsedLabel,
   };
 }
 
