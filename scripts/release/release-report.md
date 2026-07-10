@@ -2,12 +2,12 @@
 
 | Field | Value |
 | --- | --- |
-| Build Date | 2026-07-09 |
+| Build Date | 2026-07-10 |
 | Git Branch | release/production-nammude |
 | Base Commit SHA | 127a9c4064f936fc9d76fc0b56633068f3e6a403 |
-| Runtime Release Commit SHA | final tagged RC4 commit |
-| Final Certification Commit SHA | final tagged RC4 commit |
-| Release Tag | PENDING: create immutable `v1.0.0-rc4` on the final committed candidate; do not move `v1.0.0-rc1`, `v1.0.0-rc2`, or `v1.0.0-rc3`. |
+| Runtime Release Commit SHA | `v1.0.0-rc4` tag target |
+| Final Certification Commit SHA | `v1.0.0-rc4` tag target |
+| Release Tag | `v1.0.0-rc4`; do not move `v1.0.0-rc1`, `v1.0.0-rc2`, or `v1.0.0-rc3`. |
 | Release Version | v1.0.0-rc4 |
 | Node Version | v22.16.0 |
 | Package Version | 1.0.0-rc.4 |

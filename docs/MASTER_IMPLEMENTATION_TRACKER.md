@@ -13,11 +13,11 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC4 Production Readiness and Go-Live Validation |
 | Release Version | `v1.0.0-rc4` |
-| Latest Git Commit | Local pre-RC4 base commit is `127a9c4064f936fc9d76fc0b56633068f3e6a403`; deploy the final tagged RC4 commit from this release handoff. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
+| Latest Git Commit | RC4 build-recovery baseline pushed at `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38`; deploy the final `v1.0.0-rc4` tag target from this release handoff. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` must be redeployed from the final RC4 commit with `NEXT_PUBLIC_APP_ENV=production` and `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc4`; hosted verification remains manual. |
-| Build Date | 2026-07-09 |
-| Verification Status | RC4 repository validation passed typecheck, lint, build, `audit:release`, smoke:operational, and `git diff --check`. Build retains the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env` failed locally with `46` pass, `1` warning, and `24` errors requiring real Hostinger/Firebase/Razorpay production values. `verify:providers` reported `6` pass, `4` errors, and `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials. Provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
+| Build Date | 2026-07-10 |
+| Verification Status | RC4 finalization passed `test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env` failed locally with `46` pass, `1` warning, and `24` errors requiring real Hostinger/Firebase/Razorpay production values. `verify:providers` reported `6` pass, `4` errors, and `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials. Provider dashboard checks, Firebase Console, authenticated browser smoke, production Lighthouse, Chrome Performance/Coverage/Memory, and hardware checks remain external/manual gates. |
 | Scope | Release metadata/env/security/docs hardening, production readiness audit, provider/Firebase/manual checklists, final release docs, and tracker alignment only. No new business feature, Firestore collection/schema/rule/index, payment provider contract, realtime listener, repository architecture change, or completed workflow redesign. |
 
 ## RC4 Production Readiness Closure - 2026-07-09
@@ -33,6 +33,24 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Env Audit | Matrix expanded from actual `process.env` scan. Razorpay is production-required because `validate:prod-env` and live payment routes require live keys before launch signoff. |
 | Validation | `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `git diff --check` passed. `cmd /c npm run validate:prod-env` and `cmd /c npm run verify:providers` failed locally only for missing/non-production Hostinger/Firebase/Razorpay/WhatsApp/provider secrets. |
 | Remaining Manual Gates | Hostinger env/redeploy/cache, Firebase Console rules/indexes/authorized domains/VAPID, production credentials, provider dashboards, authenticated browser smoke, Lighthouse/Core Web Vitals, and physical printer/QR/device smoke. |
+
+## RC4 Finalization and Push Closure - 2026-07-10
+
+| Field | Result |
+| --- | --- |
+| Feature ID | `RC4-FINALIZATION-001` |
+| Scope | Complete interrupted RC4 release finalization from the current repository state; preserve completed work; validate, refresh reports, retarget `v1.0.0-rc4`, and push branch/tag. |
+| Files Included in RC4 | Owner Dashboard, Owner Customers, Owner Orders/Kitchen, POS accordion build recovery, stale order-card deletion, regenerated analysis/env/provider/performance/firestore/runtime reports, repository hardening audit, and tracker/readiness alignment. |
+| Files Left Out | None. No unrelated parallel feature work was found in the working tree during final audit. |
+| Validation | `cmd /c npm run test:enhancements`, `cmd /c npm run typecheck`, `cmd /c npm run lint`, `cmd /c npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` passed. |
+| Accepted Warnings | Build/analyze retain the known Firebase/protobuf dynamic dependency warning; Git reports CRLF normalization warnings only. |
+| Environment Status | `cmd /c npm run validate:prod-env` failed locally with `46` pass, `1` warning, and `24` errors for expected missing production-only env/secrets and non-production local values. |
+| Provider Status | `cmd /c npm run verify:providers` failed locally with `6` pass, `4` errors, and `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider dashboard checks. |
+| Security Status | Admin owner credential API does not return generated temporary passwords to browser responses; TinyURL provider errors are sanitized; production health metadata does not default to development; plugin flags remain disabled by default. |
+| Plugin Platform Status | Phase 2D validation remains passed through `npm run test:enhancements`; Restaurant Health Dashboard and sample plugin flags remain default-off in production templates and validation checks. |
+| Git / Tag Status | Historical RC tags remain immutable. `v1.0.0-rc4` must point to the final validated RC4 commit and be verified with `git rev-parse v1.0.0-rc4^{}` plus `git ls-remote` after push. |
+| Remaining Manual Gates | Hostinger production env/redeploy/cache, Firebase Console rules/indexes/authorized domains/VAPID, Razorpay/WhatsApp/provider dashboards, authenticated browser smoke, Lighthouse/Core Web Vitals, Chrome profiling, physical printer, QR/table, and device checks. |
+| Recommendation | Repository GO for RC4 deployment testing; production launch remains NO-GO until all manual/external gates pass. |
 
 ## OWNER MODULE QA ROUND - 2026-07-09
 

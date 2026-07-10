@@ -1,25 +1,28 @@
 # Final Release Readiness
 
-Date: 2026-07-09
+Date: 2026-07-10
 
 ## Local Validation
 
 | Check | Status |
 | --- | --- |
+| `cmd /c npm run test:enhancements` | Passed. |
 | `cmd /c npm run typecheck` | Passed. |
 | `cmd /c npm run lint` | Passed. |
 | `cmd /c npm run build` | Passed with accepted Firebase/protobuf dynamic dependency warning. |
-| `cmd /c npm run smoke:operational` | Passed. |
+| `cmd /c npm run analyze` | Passed with accepted Firebase/protobuf dynamic dependency warning. |
+| `cmd /c npm run profile:runtime` | Passed and regenerates Phase 3/final performance report pack. |
 | `cmd /c npm run audit:release` | Passed. |
-| `cmd /c npm run verify:providers` | Failed locally: `6` pass, `4` errors, `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider credentials. |
-| `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors for missing/non-production Hostinger/Firebase/Razorpay/env secrets. |
+| `cmd /c npm run smoke:operational` | Passed. |
 | `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors for expected missing production-only env/secrets and non-HTTPS local app URL. |
+| `cmd /c npm run verify:providers` | Failed locally: `6` pass, `4` errors, `1` manual for missing Firebase Admin/Firestore, Razorpay, WhatsApp, and live provider checks. |
 
 ## Certification Audit
 
 | Area | Result |
 | --- | --- |
-| Active release candidate | `v1.0.0-rc4`; use the final tagged RC4 commit for deployment. |
+| Active release candidate | `v1.0.0-rc4`; use the final pushed tag target for deployment. |
 | Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
 | Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
 | API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |
@@ -30,7 +33,7 @@ Date: 2026-07-09
 
 | Area | Status |
 | --- | --- |
-| Code readiness | 99% / Release Candidate validated repository-side |
+| Code readiness | 99% / Release Candidate certified for deployment testing |
 | Production-release readiness | 86% |
 | Recommendation | No-Go until manual infrastructure, provider, hardware, authenticated browser, Lighthouse, and Chrome profiling gates pass. |
 

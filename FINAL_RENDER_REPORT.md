@@ -1,6 +1,6 @@
 # Final Render Report
 
-Date: 2026-07-08T17:26:27.709Z
+Date: 2026-07-10T07:08:25.318Z
 
 ## Hot Source Snapshot
 
@@ -8,10 +8,10 @@ Date: 2026-07-08T17:26:27.709Z
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | src/components/flows/customer-discovery-home.tsx | 696 | 10 | 0 | 1 | 0 | 1 | 11/6/4 |
 | src/app/profile/page.tsx | 1371 | 0 | 0 | 0 | 0 | 2 | 10/4/0 |
-| src/components/flows/owner-order-management-flow.tsx | 1379 | 9 | 5 | 1 | 0 | 4 | 22/20/2 |
+| src/components/flows/owner-order-management-flow.tsx | 1550 | 9 | 5 | 1 | 0 | 4 | 24/22/2 |
 | src/components/flows/owner-settings-flow.tsx | 2101 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
-| src/components/flows/kitchen-display-flow.tsx | 1991 | 16 | 5 | 2 | 8 | 3 | 45/37/5 |
-| src/components/flows/pos-billing-flow.tsx | 4116 | 23 | 7 | 0 | 13 | 12 | 85/60/9 |
+| src/components/flows/kitchen-display-flow.tsx | 2047 | 16 | 5 | 2 | 8 | 3 | 46/39/5 |
+| src/components/flows/pos-billing-flow.tsx | 3875 | 23 | 6 | 0 | 9 | 12 | 83/60/9 |
 | src/modules/owner/pos/components/product-grid.tsx | 48 | 0 | 0 | 1 | 0 | 0 | 1/0/0 |
 | src/modules/owner/pos/components/product-card.tsx | 79 | 0 | 0 | 1 | 0 | 0 | 0/0/0 |
 
