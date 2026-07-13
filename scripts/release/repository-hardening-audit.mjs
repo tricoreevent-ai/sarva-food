@@ -1,9 +1,10 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const root = process.cwd();
 const targets = ["src/app/api", "src/repositories", "src/lib/server", "src/hooks", "src/components/flows", "public/sw.js"];
-const out = join(root, "scripts/release/repository-hardening-audit.md");
+const out = join(root, "docs/validation/repository-hardening-audit.md");
+mkdirSync(join(root, "docs/validation"), { recursive: true });
 const files = targets.flatMap((target) => walk(join(root, target)))
   .filter((file) => /\.(ts|tsx|js|mjs)$/.test(file))
   .filter((file) => !file.endsWith("src\\lib\\server\\production-logger.ts"));

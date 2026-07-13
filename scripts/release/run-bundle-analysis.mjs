@@ -180,6 +180,8 @@ function hasWorkspaceBuildProcess() {
 
 function writeAnalyzerReport(reportStatus, artifacts, result) {
   mkdirSync(reportDir, { recursive: true });
+  const mdPath = path.join(root, "docs", "validation", "ANALYZE_VERIFICATION_REPORT.md");
+  mkdirSync(path.dirname(mdPath), { recursive: true });
   const usable = reportsAreUsable(reportStatus);
   const status = usable ? "PASS" : "ERROR";
   const generatedAt = new Date().toISOString();
@@ -222,6 +224,6 @@ function writeAnalyzerReport(reportStatus, artifacts, result) {
       bytes: report.bytes,
     })),
   };
-  writeFileSync(path.join(root, "ANALYZE_VERIFICATION_REPORT.md"), md);
+  writeFileSync(mdPath, md);
   writeFileSync(path.join(reportDir, "ANALYZE_VERIFICATION_REPORT.json"), JSON.stringify(json, null, 2));
 }

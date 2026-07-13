@@ -1,45 +1,45 @@
 {
-  "generatedAt": "2026-07-10T07:09:24.121Z",
+  "generatedAt": "2026-07-10T15:16:10.441Z",
   "summary": {
     "counts": {
-      "PASS": 6,
+      "PASS": 8,
       "WARNING": 0,
-      "ERROR": 4,
+      "ERROR": 0,
       "FAIL": 0,
-      "MANUAL": 1
+      "MANUAL": 3
     },
-    "exitCode": 1
+    "exitCode": 0
   },
   "checks": [
     {
       "name": "provider:Firebase",
-      "status": "ERROR",
-      "detail": "local env missing/placeholder: FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY"
+      "status": "PASS",
+      "detail": "hosted public/admin Firebase configured"
     },
     {
       "name": "provider:Firestore",
-      "status": "ERROR",
-      "detail": "local env missing/placeholder: FIREBASE_ADMIN_PROJECT_ID"
+      "status": "PASS",
+      "detail": "hosted Firestore status: connected"
     },
     {
       "name": "provider:Authentication",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "hosted Firebase public auth config present"
     },
     {
       "name": "provider:Storage",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "hosted storage status: configured"
     },
     {
       "name": "provider:Cloudinary",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "hosted Cloudinary status: configured"
     },
     {
       "name": "provider:SMTP",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "hosted SMTP status: configured"
     },
     {
       "name": "provider:Google OAuth",
@@ -53,13 +53,13 @@
     },
     {
       "name": "provider:Razorpay",
-      "status": "ERROR",
-      "detail": "local env missing/placeholder: NEXT_PUBLIC_RAZORPAY_KEY_ID, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET"
+      "status": "MANUAL",
+      "detail": "hosted status owner_scoped_or_missing; verify owner-scoped settings and dashboard/webhook before enabling live payments"
     },
     {
       "name": "provider:WhatsApp",
-      "status": "ERROR",
-      "detail": "local env missing/placeholder: WHATSAPP_CLOUD_API_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_WEBHOOK_VERIFY_TOKEN"
+      "status": "MANUAL",
+      "detail": "requires Meta/WhatsApp dashboard env verification before Cloud API launch"
     },
     {
       "name": "provider:live-checks",

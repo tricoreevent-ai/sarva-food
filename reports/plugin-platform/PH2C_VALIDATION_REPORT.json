@@ -507,7 +507,7 @@
       "detail": "Required platform file is present."
     },
     {
-      "name": "platform:file:docs/enhancement-plugin-architecture.md",
+      "name": "platform:file:docs/architecture/enhancement-plugin-architecture.md",
       "category": "platform",
       "status": "PASS",
       "detail": "Required platform file is present."

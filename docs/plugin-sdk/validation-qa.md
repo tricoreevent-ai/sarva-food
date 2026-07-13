@@ -19,7 +19,7 @@ Phase 2C validates the completed Phase 1, Phase 2A, and Phase 2B plugin platform
 
 The audit writes:
 
-- `PLUGIN_PLATFORM_VALIDATION_REPORT.md`
+- `docs/validation/PLUGIN_PLATFORM_VALIDATION_REPORT.md`
 - `reports/plugin-platform/PH2C_VALIDATION_REPORT.md`
 - `reports/plugin-platform/PH2C_VALIDATION_REPORT.json`
 

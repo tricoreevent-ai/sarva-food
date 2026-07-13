@@ -4,6 +4,17 @@ import path from "node:path";
 
 export const root = process.cwd();
 export const reportDir = path.join(root, "reports", "release-candidate");
+export const docsDir = path.join(root, "docs");
+
+const markdownReports = {
+  ANALYZE_VERIFICATION_REPORT: ["validation", "ANALYZE_VERIFICATION_REPORT.md"],
+  DEPLOYMENT_VERIFICATION_REPORT: ["validation", "DEPLOYMENT_VERIFICATION_REPORT.md"],
+  MEMORY_STABILITY_REPORT: ["performance", "MEMORY_STABILITY_REPORT.md"],
+  PRODUCTION_ENV_VALIDATION_REPORT: ["validation", "PRODUCTION_ENV_VALIDATION_REPORT.md"],
+  PRODUCTION_PERFORMANCE_VERIFICATION_REPORT: ["performance", "PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md"],
+  PRODUCTION_SMOKE_REPORT: ["validation", "PRODUCTION_SMOKE_REPORT.md"],
+  PROVIDER_VERIFICATION_REPORT: ["validation", "PROVIDER_VERIFICATION_REPORT.md"],
+};
 
 export function ensureReportDir() {
   mkdirSync(reportDir, { recursive: true });
@@ -39,9 +50,16 @@ export function writeReport(baseName, title, checks, sections = []) {
     "",
   ].join("\n");
   const json = { generatedAt: new Date().toISOString(), summary, checks, sections };
-  writeFileSync(path.join(root, `${baseName}.md`), md);
+  const mdPath = reportMarkdownPath(baseName);
+  mkdirSync(path.dirname(mdPath), { recursive: true });
+  writeFileSync(mdPath, md);
   writeFileSync(path.join(reportDir, `${baseName}.json`), JSON.stringify(json, null, 2));
   return { summary, md, json };
+}
+
+export function reportMarkdownPath(baseName) {
+  const mapped = markdownReports[baseName] ?? ["validation", `${baseName}.md`];
+  return path.join(docsDir, ...mapped);
 }
 
 export function table(headers, rows) {

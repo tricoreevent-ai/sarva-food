@@ -8,8 +8,9 @@ const generatedAt = "2026-07-08";
 const featureId = "PH2D-PRODUCTION-001";
 const reportDir = join(root, "reports", "plugin-platform");
 const reportJson = join(reportDir, "PH2D_PRODUCTION_VALIDATION_REPORT.json");
-const reportMd = join(reportDir, "PH2D_PRODUCTION_VALIDATION_REPORT.md");
-const rootReportMd = join(root, "PLUGIN_PLATFORM_VALIDATION_REPORT.md");
+const validationDir = join(root, "docs", "validation");
+const reportMd = join(validationDir, "PH2D_PRODUCTION_VALIDATION_REPORT.md");
+const rootReportMd = join(validationDir, "PLUGIN_PLATFORM_VALIDATION_REPORT.md");
 const checks = [];
 const details = {
   plugins: [],
@@ -145,7 +146,7 @@ const requiredFiles = [
   "src/plugins/restaurant-health-dashboard/ui/extensions.ts",
   "src/plugins/restaurant-health-dashboard/docs/README.md",
   "src/plugins/restaurant-health-dashboard/tests/README.md",
-  "docs/enhancement-plugin-architecture.md",
+  "docs/architecture/enhancement-plugin-architecture.md",
   "docs/plugin-platform/registry.md",
   "docs/plugin-platform/metadata.md",
   "docs/plugin-platform/dependency-manager.md",
@@ -251,7 +252,7 @@ function runArchitectureAudit() {
   const ui = source("src/plugins/core/ui/index.ts");
   const sandbox = source("src/plugins/core/sandbox/index.ts");
   const generator = source("scripts/plugins/create-plugin.mjs");
-  const tracker = source("docs/MASTER_IMPLEMENTATION_TRACKER.md");
+  const tracker = source("docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md");
 
   includes(registry, "PH1-QD-001", "architecture:registry:quality", "Registry tracks the quality diagnostics plugin.");
   includes(runtime, "manager.initialize", "architecture:runtime:initialize", "Enhancement runtime initializes lifecycle before rendering.");
@@ -824,6 +825,7 @@ function runStressAndPerformance() {
 
 function writeReports() {
   mkdirSync(reportDir, { recursive: true });
+  mkdirSync(validationDir, { recursive: true });
   const summary = summarize();
   const report = {
     generatedAt,

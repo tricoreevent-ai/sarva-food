@@ -1,35 +1,20 @@
 {
-  "generatedAt": "2026-07-08T17:24:14.967Z",
+  "generatedAt": "2026-07-10T15:16:13.674Z",
   "summary": {
     "counts": {
       "PASS": 1,
       "WARNING": 0,
       "ERROR": 0,
-      "FAIL": 3,
+      "FAIL": 0,
       "MANUAL": 2
     },
-    "exitCode": 1
+    "exitCode": 0
   },
   "checks": [
     {
-      "name": "sample:1",
-      "status": "FAIL",
-      "detail": "fetch failed"
-    },
-    {
-      "name": "sample:2",
-      "status": "FAIL",
-      "detail": "fetch failed"
-    },
-    {
-      "name": "sample:3",
-      "status": "FAIL",
-      "detail": "fetch failed"
-    },
-    {
       "name": "server:heap-growth",
       "status": "PASS",
-      "detail": "0.00 MB growth / budget 64 MB"
+      "detail": "5.57 MB growth / budget 64 MB"
     },
     {
       "name": "browser:listeners",
@@ -45,7 +30,7 @@
   "sections": [
     {
       "title": "Samples",
-      "body": "| Time | Heap MB | RSS MB | Status |\n| --- | --- | --- | --- |"
+      "body": "| Time | Heap MB | RSS MB | Status |\n| --- | --- | --- | --- |\n| 2026-07-10T15:16:10.512Z | 90.58 | 190.81 | ok |\n| 2026-07-10T15:16:12.037Z | 93.23 | 191.45 | ok |\n| 2026-07-10T15:16:13.673Z | 96.15 | 194.01 | ok |"
     }
   ]
 }

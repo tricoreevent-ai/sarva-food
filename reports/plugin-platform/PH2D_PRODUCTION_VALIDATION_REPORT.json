@@ -621,7 +621,7 @@
       "detail": "Required platform file is present."
     },
     {
-      "name": "platform:file:docs/enhancement-plugin-architecture.md",
+      "name": "platform:file:docs/architecture/enhancement-plugin-architecture.md",
       "category": "platform",
       "status": "PASS",
       "detail": "Required platform file is present."
@@ -2898,43 +2898,43 @@
       "name": "stress:registration-100",
       "category": "stress",
       "status": "PASS",
-      "detail": "100 registrations in 0.323ms."
+      "detail": "100 registrations in 0.194ms."
     },
     {
       "name": "stress:metadata-lookups-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 lookups in 0.763ms."
+      "detail": "1000 lookups in 0.347ms."
     },
     {
       "name": "stress:event-publishes-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 event publishes in 3.412ms."
+      "detail": "1000 event publishes in 2.949ms."
     },
     {
       "name": "stress:storage-writes-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 storage writes in 2.070ms."
+      "detail": "1000 storage writes in 1.624ms."
     },
     {
       "name": "stress:storage-reads-1000",
       "category": "stress",
       "status": "PASS",
-      "detail": "1000 storage reads in 2.685ms."
+      "detail": "1000 storage reads in 2.800ms."
     },
     {
       "name": "stress:lifecycle-rapid",
       "category": "stress",
       "status": "PASS",
-      "detail": "Rapid lifecycle transitions in 0.623ms."
+      "detail": "Rapid lifecycle transitions in 0.515ms."
     },
     {
       "name": "stress:lazy-load-unload",
       "category": "stress",
       "status": "PASS",
-      "detail": "Lazy load/unload cycle in 0.348ms."
+      "detail": "Lazy load/unload cycle in 0.290ms."
     },
     {
       "name": "memory:cleanup",
@@ -3164,31 +3164,31 @@
       "changedBusinessAreas": []
     },
     "stress": {
-      "eventPublishMs": 3.4120999999995547,
-      "storageWriteMs": 2.0700999999999112,
-      "storageReadMs": 2.6845000000002983,
-      "rapidEnableDisableMs": 0.6229000000002998,
-      "lazyLoadUnloadMs": 0.34760000000005675
+      "eventPublishMs": 2.9494999999999436,
+      "storageWriteMs": 1.6239000000000487,
+      "storageReadMs": 2.8001999999999043,
+      "rapidEnableDisableMs": 0.5154999999999745,
+      "lazyLoadUnloadMs": 0.2898999999999887
     },
     "performance": {
-      "discoveryMs": 0.32340000000021973,
-      "registryLookupMs": 0.76299999999992,
-      "validationMs": 0.1690999999991618,
-      "dependencyResolutionMs": 1.035200000000259,
-      "runtimeCreationMs": 0.1938000000000102,
-      "contextInjectionMs": 0.28039999999964493,
-      "sdkInjectionMs": 0.19870000000082655,
-      "uiRegistrationMs": 0.166599999999562,
-      "routeRegistrationMs": 0.17420000000038272,
-      "navigationRegistrationMs": 0.3981000000003405,
-      "pluginEnableMs": 0.16960000000017317,
-      "pluginDisableMs": 0.119499999999789,
-      "pluginDestroyMs": 0.08059999999932188
+      "discoveryMs": 0.19409999999993488,
+      "registryLookupMs": 0.3471999999999298,
+      "validationMs": 0.09220000000004802,
+      "dependencyResolutionMs": 0.64650000000006,
+      "runtimeCreationMs": 0.11860000000001492,
+      "contextInjectionMs": 0.14689999999995962,
+      "sdkInjectionMs": 0.12010000000009313,
+      "uiRegistrationMs": 0.13170000000013715,
+      "routeRegistrationMs": 0.1492000000000644,
+      "navigationRegistrationMs": 0.2521999999999025,
+      "pluginEnableMs": 0.1070999999999458,
+      "pluginDisableMs": 0.048400000000128784,
+      "pluginDestroyMs": 0.042799999999942884
     },
     "memory": {
-      "heapBefore": 7132832,
-      "heapAfter": 6211552,
-      "heapDelta": -921280,
+      "heapBefore": 7150656,
+      "heapAfter": 6241760,
+      "heapDelta": -908896,
       "registryEntriesAfterCleanup": 0,
       "eventTopicsAfterCleanup": 0,
       "storageEntriesAfterCleanup": 0,

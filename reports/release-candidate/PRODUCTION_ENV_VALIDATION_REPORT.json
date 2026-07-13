@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T07:09:23.935Z",
+  "generatedAt": "2026-07-13T06:11:52.214Z",
   "summary": {
     "counts": {
       "PASS": 46,
@@ -189,7 +189,7 @@
     {
       "name": "version:NEXT_PUBLIC_APP_VERSION",
       "status": "ERROR",
-      "detail": "expected v1.0.0-rc4"
+      "detail": "expected v1.0.0-rc5"
     },
     {
       "name": "environment:NEXT_PUBLIC_APP_ENV",

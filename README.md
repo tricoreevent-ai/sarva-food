@@ -2,6 +2,12 @@
 
 Nammude is a direct restaurant-to-customer food ordering platform. This release branch is intended for production deployment and keeps the public application name hardcoded/fallback-safe as `Nammude`.
 
+## Documentation Hub
+
+Start at `docs/README.md` for trackers, release evidence, deployment guides, validation reports, performance reports, plugin documentation, and runbooks.
+
+Future AI agents must read `docs/AI_HANDOFF.md` before making repository changes.
+
 ## Release Branch
 
 Use `release/production-nammude` for Hostinger production deployments.

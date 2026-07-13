@@ -1,5 +1,5 @@
 import nextEnv from "@next/env";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { appUrl, gitInfo, readReport, releaseVersion, root, table } from "./verification-utils.mjs";
 
@@ -66,6 +66,8 @@ Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify \
 ${table(["Gate", "Status"], rows.map(([area, status]) => [area, status]))}
 `;
 
-writeFileSync(path.join(root, "FINAL_RELEASE_CERTIFICATE.md"), md);
-console.log(`FINAL_RELEASE_CERTIFICATE.md generated: ${go ? "GO" : "NO GO"}`);
+const outDir = path.join(root, "docs", "release");
+mkdirSync(outDir, { recursive: true });
+writeFileSync(path.join(outDir, "FINAL_RELEASE_CERTIFICATE.md"), md);
+console.log(`docs/release/FINAL_RELEASE_CERTIFICATE.md generated: ${go ? "GO" : "NO GO"}`);
 process.exit(go ? 0 : 1);

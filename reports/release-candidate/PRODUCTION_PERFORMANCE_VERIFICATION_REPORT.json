@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T17:24:06.694Z",
+  "generatedAt": "2026-07-13T06:23:52.967Z",
   "summary": {
     "counts": {
       "PASS": 3,
@@ -14,7 +14,7 @@
     {
       "name": "target:url",
       "status": "PASS",
-      "detail": "http://localhost:3000"
+      "detail": "https://violet-squid-380447.hostingersite.com"
     },
     {
       "name": "bundle:tracked-route-js",
@@ -24,7 +24,7 @@
     {
       "name": "bundle:static-js-total",
       "status": "PASS",
-      "detail": "8847 KB built JS total; informational, not first-load budget."
+      "detail": "8776 KB built JS total; informational, not first-load budget."
     },
     {
       "name": "bundle:analyzer-client",
@@ -49,11 +49,11 @@
     },
     {
       "title": "Bundle Snapshot",
-      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 393 |\n| staticJsKb | 8847 |\n| staticCssKb | 191 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 191 KB CSS |\n| maxTrackedRoute | /owner/orders 1246 KB JS / 191 KB CSS |"
+      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 394 |\n| staticJsKb | 8776 |\n| staticCssKb | 190 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 190 KB CSS |\n| maxTrackedRoute | /owner/orders 1246 KB JS / 190 KB CSS |"
     },
     {
       "title": "Tracked Routes",
-      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 191 | 19 |\n| /owner | 561 | 191 | 27 |\n| /owner/kitchen | 642 | 191 | 30 |\n| /owner/orders | 1246 | 191 | 40 |\n| /owner/pos | 565 | 191 | 28 |\n| /owner/settings | 674 | 191 | 31 |\n| /profile | 548 | 191 | 25 |"
+      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 190 | 19 |\n| /owner | 571 | 190 | 29 |\n| /owner/kitchen | 647 | 190 | 32 |\n| /owner/orders | 1246 | 190 | 42 |\n| /owner/pos | 576 | 190 | 30 |\n| /owner/settings | 685 | 190 | 33 |\n| /profile | 549 | 190 | 25 |"
     }
   ]
 }

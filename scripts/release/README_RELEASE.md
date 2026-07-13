@@ -56,7 +56,7 @@ For a repository-side hardening scan:
 npm run audit:release
 ```
 
-The report is written to `scripts\release\repository-hardening-audit.md`.
+The report is written to `docs/validation/repository-hardening-audit.md`.
 
 Health endpoints after deployment:
 
