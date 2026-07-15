@@ -2,7 +2,7 @@
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Runtime image closure commit: `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`
+Pushed RC5 baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
 Final certification commit: final RC5 validation commit after local gates pass
 Date: 2026-07-15
 

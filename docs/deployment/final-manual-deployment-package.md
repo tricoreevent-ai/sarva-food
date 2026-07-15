@@ -2,7 +2,7 @@
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Current image closure commit: `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`
+Current pushed baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
 Runtime release commit: final pushed RC5 commit after local gates pass
 Final repository certification commit: final RC5 validation commit after local gates pass
 Release tag: keep `v1.0.0-rc4` unchanged; create immutable `v1.0.0-rc5` on the final committed candidate.

@@ -3,7 +3,8 @@
 ## 2026-07-15
 
 - Completed the RC5 image optimization closure: shared Cloudinary presets, AVIF-first browser upload compression with WebP/JPEG fallback, signed incoming Cloudinary transforms, right-sized `SafeImage` delivery, CMS/public thumbnail reuse, and legacy `dpr_auto` cleanup.
-- Recorded image closure commit `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`; hosted production still serves `dcff59e050de1dace19460198cb2909372bce7d5`, `applicationVersion=v1.0.0-rc4`, and `deploymentEnvironment=development` until GitHub push, Hostinger redeploy, env correction, and cache clear complete.
+- Recorded image closure commit `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`; hosted production still serves `dcff59e050de1dace19460198cb2909372bce7d5`, `applicationVersion=v1.0.0-rc4`, and `deploymentEnvironment=development` until Hostinger redeploy, env correction, and cache clear complete.
+- Pushed RC5 production testing baseline `2b8a348c416b0d952ab80d80083202280548c4d9` to `origin/release/production-nammude`; Hostinger still requires redeploy/env correction/cache clear before RC5 hosted verification can pass.
 - Regenerated analyzer and bundle evidence; `/owner/orders` is `697 KB`, static JS is `8837 KB`, and static CSS is `191 KB`.
 - Verified `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational`; build/analyze retain the accepted Firebase/protobuf warning.
 

@@ -1,6 +1,6 @@
 # Deployment Verification Report
 
-Generated: 2026-07-13T06:11:59.937Z
+Generated: 2026-07-15T11:57:26.283Z
 
 ## Summary
 
@@ -18,7 +18,7 @@ Generated: 2026-07-13T06:11:59.937Z
 | --- | --- | --- |
 | http:release-info | PASS | https://violet-squid-380447.hostingersite.com/api/release-info -> HTTP 200 |
 | release:version | ERROR | expected v1.0.0-rc5, saw v1.0.0-rc4 |
-| release:sha | WARNING | hosted currently serves dcff59e050de1dace19460198cb2909372bce7d5; current RC5 image closure commit is fc0986e9ba5dedb302dedcdd5eb9e20346844dba and must be pushed, deployed, and verified |
+| release:sha | WARNING | hosted currently serves dcff59e050de1dace19460198cb2909372bce7d5; pushed baseline 2b8a348c416b0d952ab80d80083202280548c4d9 must be deployed and verified |
 | release:branch | PASS | expected release/production-nammude |
 | release:environment | ERROR | saw development |
 | release:timestamp | PASS | deployment timestamp present |

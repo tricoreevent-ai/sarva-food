@@ -60,7 +60,7 @@ Last updated: 2026-07-15
 | --- | --- |
 | Branch | `release/production-nammude` |
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38` |
-| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
+| Current pushed baseline | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
 | Production readiness | `86%` |
 | Current decision | Repository `GO`; production launch `NO GO` |

@@ -1,6 +1,6 @@
 # Production Performance Verification Report
 
-Generated: 2026-07-13T08:42:35.243Z
+Generated: 2026-07-15T11:57:51.319Z
 
 ## Summary
 
@@ -16,9 +16,9 @@ Generated: 2026-07-13T08:42:35.243Z
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| target:url | PASS | https://violet-squid-380447.hostingersite.com |
-| bundle:tracked-route-js | PASS | /owner/orders 692 KB / budget 1200 KB |
-| bundle:static-js-total | PASS | 8760 KB built JS total; informational, not first-load budget. |
+| target:url | PASS | http://localhost:3000 |
+| bundle:tracked-route-js | PASS | /owner/orders 697 KB / budget 1200 KB |
+| bundle:static-js-total | PASS | 8837 KB built JS total; informational, not first-load budget. |
 | bundle:analyzer-client | PASS | .next/analyze/client.html is present and usable. |
 | lighthouse:desktop | MANUAL | Chrome/Lighthouse unavailable or RUN_LIGHTHOUSE=1 not set. |
 | lighthouse:mobile | MANUAL | Run with RUN_LIGHTHOUSE=1 PRODUCTION_URL=https://... |
@@ -39,21 +39,21 @@ Generated: 2026-07-13T08:42:35.243Z
 
 | Metric | Value |
 | --- | --- |
-| staticFiles | 395 |
-| staticJsKb | 8760 |
-| staticCssKb | 190 |
-| routeCount | 102 |
-| maxRoute | /handler/[...stack] 1968 KB JS / 190 KB CSS |
-| maxTrackedRoute | /owner/orders 692 KB JS / 190 KB CSS |
+| staticFiles | 398 |
+| staticJsKb | 8837 |
+| staticCssKb | 191 |
+| routeCount | 103 |
+| maxRoute | /handler/[...stack] 1971 KB JS / 191 KB CSS |
+| maxTrackedRoute | /owner/orders 697 KB JS / 191 KB CSS |
 
 ## Tracked Routes
 
 | Route | JS KB | CSS KB | Chunks |
 | --- | --- | --- | --- |
-| / | 459 | 190 | 19 |
-| /owner | 571 | 190 | 29 |
-| /owner/kitchen | 647 | 190 | 32 |
-| /owner/orders | 692 | 190 | 34 |
-| /owner/pos | 576 | 190 | 30 |
-| /owner/settings | 685 | 190 | 33 |
-| /profile | 549 | 190 | 25 |
+| / | 462 | 191 | 19 |
+| /owner | 576 | 191 | 29 |
+| /owner/kitchen | 651 | 191 | 32 |
+| /owner/orders | 697 | 191 | 34 |
+| /owner/pos | 581 | 191 | 30 |
+| /owner/settings | 690 | 191 | 33 |
+| /profile | 553 | 191 | 25 |

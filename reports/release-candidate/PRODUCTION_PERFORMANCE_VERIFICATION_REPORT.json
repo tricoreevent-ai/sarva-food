@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-13T08:42:35.244Z",
+  "generatedAt": "2026-07-15T11:57:51.320Z",
   "summary": {
     "counts": {
       "PASS": 4,
@@ -14,17 +14,17 @@
     {
       "name": "target:url",
       "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com"
+      "detail": "http://localhost:3000"
     },
     {
       "name": "bundle:tracked-route-js",
       "status": "PASS",
-      "detail": "/owner/orders 692 KB / budget 1200 KB"
+      "detail": "/owner/orders 697 KB / budget 1200 KB"
     },
     {
       "name": "bundle:static-js-total",
       "status": "PASS",
-      "detail": "8760 KB built JS total; informational, not first-load budget."
+      "detail": "8837 KB built JS total; informational, not first-load budget."
     },
     {
       "name": "bundle:analyzer-client",
@@ -49,11 +49,11 @@
     },
     {
       "title": "Bundle Snapshot",
-      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 395 |\n| staticJsKb | 8760 |\n| staticCssKb | 190 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 190 KB CSS |\n| maxTrackedRoute | /owner/orders 692 KB JS / 190 KB CSS |"
+      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 398 |\n| staticJsKb | 8837 |\n| staticCssKb | 191 |\n| routeCount | 103 |\n| maxRoute | /handler/[...stack] 1971 KB JS / 191 KB CSS |\n| maxTrackedRoute | /owner/orders 697 KB JS / 191 KB CSS |"
     },
     {
       "title": "Tracked Routes",
-      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 190 | 19 |\n| /owner | 571 | 190 | 29 |\n| /owner/kitchen | 647 | 190 | 32 |\n| /owner/orders | 692 | 190 | 34 |\n| /owner/pos | 576 | 190 | 30 |\n| /owner/settings | 685 | 190 | 33 |\n| /profile | 549 | 190 | 25 |"
+      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 462 | 191 | 19 |\n| /owner | 576 | 191 | 29 |\n| /owner/kitchen | 651 | 191 | 32 |\n| /owner/orders | 697 | 191 | 34 |\n| /owner/pos | 581 | 191 | 30 |\n| /owner/settings | 690 | 191 | 33 |\n| /profile | 553 | 191 | 25 |"
     }
   ]
 }

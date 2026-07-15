@@ -1,138 +1,57 @@
 # Final Release Certificate
 
-Generated: 2026-07-13T00:00:00Z
+Generated: 2026-07-15T11:58:05.226Z
 
 | Field | Value |
 | --- | --- |
-| Release Version | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
-| Branch | `release/production-nammude` |
-| Local image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
-| Tag Recommendation | Keep existing `v1.0.0-rc4` unchanged; tag the final RC5 validation commit as `v1.0.0-rc5` |
-| Hosted URL | `https://violet-squid-380447.hostingersite.com` |
-| Hosted SHA | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` currently served |
-| Hosted Environment | `development` reported by `/api/release-info` and `/health/ready` |
-| Release Decision | `NO GO` for production launch; `GO` for RC5 candidate commit/tag |
-| Production Readiness Score | `86%` |
-| Risk Level | Medium-high until Hostinger env and manual gates pass |
+| Release Version | v1.0.0-rc5 |
+| Git SHA At Report Generation | 2b8a348c416b0d952ab80d80083202280548c4d9 (pre-final certification commit) |
+| Branch | release/production-nammude |
+| Build Date | 2026-07-15 |
+| Environment | local-certification |
+| Working Tree | Dirty before final certification commit |
+| Production URL | http://localhost:3000 |
+| Plugin Foundation Status | Implemented, disabled by default |
+| Enhancement Status | Phase 2A registry and Phase 2B runtime/SDK implemented locally; plugin runtime flags remain disabled by default |
+| Release Decision | NO GO |
 
-## Executive Summary
+## Verification
 
-RC4 repository-side hardening is complete for build, typecheck, lint, analyzer, runtime profiling, provider/readiness reports, public smoke, health endpoints, cache/header review, bundle audit, and release documentation. The current workspace also contains the already-implemented POS/Active Orders operational UX fixes audited on 2026-07-12. Production go-live remains blocked by one confirmed hosted configuration error: `deploymentEnvironment` still reports `development`.
-
-No Firestore schema, repository contract, payment provider contract, or production data migration was introduced in this continuation.
-
-## Production Environment Status
-
-| Area | Status | Evidence |
+| Area | Status | Detail |
 | --- | --- | --- |
-| `NODE_ENV` | ✅ Completed | Hosted release info reports Node runtime and production Node process through health metadata. |
-| `NEXT_PUBLIC_APP_VERSION` | 🔴 Blocking | Hostinger must be updated to `v1.0.0-rc5`; hosted `/api/release-info` currently reports the previous RC value until redeploy/cache clear. |
-| `NEXT_PUBLIC_APP_ENV` / `deploymentEnvironment` | 🔴 Blocking | `docs/validation/DEPLOYMENT_VERIFICATION_REPORT.md`: `release:environment ERROR saw development`. |
-| Health endpoints | ✅ Completed | `/health/live`, `/health/ready`, `/health/startup` returned HTTP 200. |
-| Local production env validation | 🔴 Blocking | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `46` pass, `1` warning, `24` errors for missing production-only secrets/local placeholder values. |
+| Bundle Analyzer | PASS | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
+| Production Validation | FAIL | {"PASS":46,"WARNING":1,"ERROR":24,"FAIL":0,"MANUAL":0} |
+| Deployment Verification | FAIL | {"PASS":14,"WARNING":1,"ERROR":2,"FAIL":0,"MANUAL":0} |
+| Performance Verification | MANUAL | {"PASS":4,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
+| Smoke Results | MANUAL | {"PASS":7,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":18} |
+| Memory Stability | MANUAL | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
+| Provider Verification | MANUAL | {"PASS":8,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":3} |
 
-## Performance Status
+## Known Accepted Warnings
 
-| Area | Status | Evidence |
-| --- | --- | --- |
-| Build/analyze | ✅ Completed | `npm run build` and `npm run analyze` passed with accepted Firebase/protobuf warning. |
-| Bundle budget | ✅ Completed | `docs/performance/FINAL_BUNDLE_REPORT.md`: `/owner/orders` `692 KB`, under the `1200 KB` verification budget and below the preferred `1000 KB` target. |
-| Lighthouse | 🟡 Pending Manual | Chrome/Lighthouse unavailable locally; hosted run must happen after Hostinger env correction. |
-| Runtime profile | ✅ Completed | `docs/performance/RUNTIME_PROFILE.md`, `docs/performance/FINAL_RUNTIME_REPORT.md`, `docs/performance/FINAL_MEMORY_REPORT.md`, and `docs/performance/FINAL_RENDER_REPORT.md` regenerated. |
-| RC5 pending-work audit | ✅ Completed | No repository-side code blocker found; deeper `/owner/orders` splitting is no longer required for the RC5 bundle target. |
-| Final repository optimization | ✅ Completed | Shared duplicated client error-reason helper, added explicit accessible names to compact order action controls, and extracted pure phone normalization away from Firebase-backed service imports. |
-
-## Security Status
-
-| Area | Status | Evidence |
-| --- | --- | --- |
-| Security headers/cache rules | ✅ Completed | `next.config.ts` keeps no-store on HTML/dynamic/release routes and immutable public assets. |
-| Release metadata leakage | ✅ Completed | Health/release endpoints expose safe metadata only; no secrets in reports. |
-| CSP/HSTS/cookie behavior | 🟡 Pending Manual | Requires hosted browser/header inspection after env correction and final domain/cert confirmation. |
-| Auth/role protection | 🟡 Pending Manual | Protected route/API repository checks pass; authenticated owner/admin/customer browser smoke remains manual. |
-
-## Provider Status
-
-| Provider | Status | Evidence |
-| --- | --- | --- |
-| Firebase/Admin/Firestore | ✅ Completed | Hosted provider verification reports Firebase configured and Firestore connected. |
-| Cloudinary | ✅ Completed | Hosted provider verification reports configured. |
-| SMTP | ✅ Completed | Hosted provider verification reports configured. |
-| Google OAuth/Mapbox | ✅ Completed | Provider report says configured. |
-| Razorpay | 🟡 Pending Manual | Hosted status is owner-scoped or missing; live dashboard/webhook/payment/refund smoke required. |
-| WhatsApp/SMS/Push | 🟡 Pending Manual | Provider dashboards and VAPID/device smoke required before launch. |
-
-## Bundle Analysis
-
-| Metric | Result |
-| --- | --- |
-| Static JS total | `8760 KB` |
-| Static CSS total | `190 KB` |
-| App routes with client manifests | `102` |
-| Largest route owner | `/handler/[...stack]` `1968 KB` |
-| Largest operational route | `/owner/orders` `692 KB` |
-| Largest client chunk | `mapbox-gl` async chunk `1704 KB parsed / 460 KB gzip` |
-| Largest vendor contributors | `mapbox-gl`, `next`, `@stackframe/stack`, `xlsx`, `lucide-react`, Firebase |
-
-See `docs/performance/FINAL_BUNDLE_REPORT.md` / `docs/performance/BUNDLE_DEEP_ANALYSIS.md` for largest 20 bundles, modules, vendors, duplicate imports, and dependency usage.
-
-## Lighthouse Summary
-
-| Warning | Category | Reason | Impact | Expected Gain | Action | Risk |
-| --- | --- | --- | --- | --- | --- | --- |
-| Hosted Lighthouse unavailable in workspace | Manual validation required | No local Chrome/Lighthouse runner and hosted env still reports `development`. | Blocks final CWV score. | Unknown until hosted run. | Run mobile/desktop Lighthouse after env correction/redeploy. | Low code risk; external validation only. |
-| `/owner/orders` route JS | Resolved locally | Current analyzer reports `692 KB`, under the verification budget and preferred target after pure helper extraction. | Manual hosted profiling still required. | Low unless authenticated smoke reveals route-specific regressions. | Run Chrome/Lighthouse after deployment. | Low. |
-| Firebase/protobuf dynamic dependency warning | Third-party limitation | Trace originates in upstream Firebase/protobuf server dependency code. | Build warning only; no confirmed runtime bug. | None without unsafe aliasing. | Document and accept. | High if rewritten during release freeze. |
-
-## Browser Compatibility
-
-| Target | Status | Required Manual Result |
-| --- | --- | --- |
-| Chrome/Edge/Firefox/Safari | 🟡 Pending Manual | Hydration, responsive layouts, dark mode, clipboard, print, QR, upload, offline, notifications. |
-| Android Chrome/iPhone Safari/Tablet | 🟡 Pending Manual | Customer QR/order, owner views, POS/tablet, camera/upload, PWA/offline. |
-| Kitchen TV/Desktop | 🟡 Pending Manual | KDS layout, sound, realtime, KOT preview/print, long-running display. |
-
-## API And Firestore Status
-
-| Area | Status | Evidence |
-| --- | --- | --- |
-| Public routes | ✅ Completed | `docs/validation/PRODUCTION_SMOKE_REPORT.md`: `/`, `/restaurants`, `/offers`, `/api/release-info`, `/health/*`, `/api/public/restaurants` passed. |
-| Protected APIs | 🟡 Pending Manual | Static/build checks pass; authenticated role smoke required. |
-| Firestore connectivity | ✅ Completed | Hosted `/health/ready` reports connected. |
-| Rules/index deployment | 🟡 Pending Manual | Requires Firebase Console deployment/state verification. |
-
-## Release Dashboard
-
-| Status | Item | Evidence / Action |
-| --- | --- | --- |
-| ✅ Completed | Typecheck, lint, build, analyze | Passed; build/analyze retain accepted Firebase/protobuf warning. |
-| ✅ Completed | 2026-07-13 RC5 closure validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed. |
-| ✅ Completed | Public production smoke | `7` pass, `0` fail, `18` manual. |
-| ✅ Completed | Provider readiness probe | `8` pass, `0` error, `3` manual. |
-| ✅ Completed | Memory probe | `1` pass, `0` fail, `2` manual. |
-| ✅ Completed | Bundle audit | `docs/performance/FINAL_BUNDLE_REPORT.md` regenerated with route/chunk/module/vendor tables. |
-| 🟡 Pending Manual | Lighthouse/Core Web Vitals | Run after Hostinger env correction. |
-| 🟡 Pending Manual | Authenticated browser/device QA | Customer, owner, admin, POS, Kitchen, QR, tablet, mobile, Kitchen TV. |
-| 🟡 Pending Manual | Razorpay/WhatsApp/SMS/push/printer QA | Requires provider dashboards, live/sandbox credentials, devices, and hardware. |
-| 🔴 Blocking | Hostinger `deploymentEnvironment` | Set `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart, clear cache, rerun deployment verification. |
-| 🔴 Blocking | Production env validation | Configure production-only secrets and rerun `npm run validate:prod-env` in production-equivalent env. |
-
-## Go / No-Go Recommendation
-
-Repository handoff: `GO` for a new RC5 candidate after commit/tag.
-
-Production launch: `NO GO` until Hostinger reports `deploymentEnvironment: production`, production env validation passes with real values, hosted Lighthouse/browser/device/provider/printer checks pass, and final deployment metadata points to the committed RC5 candidate.
+- Firebase/protobuf dynamic dependency warning from upstream Firebase server dependency code.
+- Manual provider/hardware/browser gates remain NO GO until completed.
 
 ## Rollback Strategy
 
-Redeploy the previous known-good Hostinger commit or the last signed RC4 SHA, keep plugin/diagnostics flags disabled, restore the previous Hostinger env snapshot if changed, clear cache, then verify `/api/release-info`, `/health/live`, `/health/ready`, `/health/startup`, and public route smoke.
+Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify `/api/release-info` SHA/version after cache clear.
 
-## Post-release Monitoring Checklist
+## Deployment Steps
 
-| Check | Status |
+1. Set production env vars.
+2. Run `npm run validate:prod-env`.
+3. Run `npm run build` and `npm run analyze`.
+4. Deploy final commit to Hostinger.
+5. Run deployment, provider, performance, memory, and smoke verification.
+
+## Sign-off Checklist
+
+| Gate | Status |
 | --- | --- |
-| `/health/live`, `/health/ready`, `/health/startup` every deployment | Required |
-| Server logs for unhandled exceptions/rejections | Required |
-| Slow API and Firestore latency review | Required |
-| Provider dashboards: Firebase, Cloudinary, SMTP, Razorpay, WhatsApp/SMS/push | Required |
-| Browser console and Core Web Vitals after launch | Required |
+| Bundle Analyzer | PASS |
+| Production Validation | FAIL |
+| Deployment Verification | FAIL |
+| Performance Verification | MANUAL |
+| Smoke Results | MANUAL |
+| Memory Stability | MANUAL |
+| Provider Verification | MANUAL |

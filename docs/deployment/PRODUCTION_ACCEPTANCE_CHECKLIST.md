@@ -30,7 +30,7 @@ Production readiness score: `86%`.
 
 | Endpoint | Status | Current Result | Required Result |
 | --- | --- | --- | --- |
-| `/api/release-info` | FAIL | Hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node `v22.18.0`, but `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`. | Deploy `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`, report `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, and Node 22. |
+| `/api/release-info` | FAIL | Hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node `v22.18.0`, but `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`. | Deploy pushed baseline `2b8a348c416b0d952ab80d80083202280548c4d9`, report `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, and Node 22. |
 | `/health/live` | PASS | Endpoint returns `ok` with safe public metadata. | Endpoint returns `ok` after final RC5 redeploy. |
 | `/health/ready` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok`; provider gaps are either configured or explicitly accepted for production scope. |
 | `/health/startup` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok` after final RC5 redeploy/restart. |

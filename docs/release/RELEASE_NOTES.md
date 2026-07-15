@@ -2,7 +2,7 @@
 
 ## v1.0.0-rc5 - Release Candidate
 
-Commit: current RC5 image closure commit `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`; existing RC4 tag remains unchanged
+Commit: pushed RC5 production testing baseline `2b8a348c416b0d952ab80d80083202280548c4d9`; existing RC4 tag remains unchanged
 Branch: `release/production-nammude`
 Production URL: `https://violet-squid-380447.hostingersite.com`
 

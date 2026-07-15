@@ -8,7 +8,7 @@ Decision: `NO GO` for production launch, `GO` for RC5 candidate commit/tag
 
 ## Executive Summary
 
-RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current RC5 image closure commit is `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`; push that commit before tagging RC5 after local gates pass.
+RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current RC5 production testing baseline `2b8a348c416b0d952ab80d80083202280548c4d9` is pushed to `origin/release/production-nammude`; deploy it before tagging RC5 after hosted gates pass.
 
 Production go-live remains blocked by hosted configuration: `/api/release-info` and health metadata still report `deploymentEnvironment: development`. Manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke remain required.
 

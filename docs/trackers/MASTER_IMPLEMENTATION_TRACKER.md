@@ -13,11 +13,11 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC5 Production Closure Sprint |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Current local RC5 image closure commit is `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`; push is blocked from this workspace by missing non-interactive GitHub credentials. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
+| Latest Git Commit | RC5 production testing baseline `2b8a348c416b0d952ab80d80083202280548c4d9` is pushed to `origin/release/production-nammude`. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and still serves SHA `dcff59e050de1dace19460198cb2909372bce7d5`; `/api/release-info` reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`. Push and deploy `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`, set `NEXT_PUBLIC_APP_ENV=production`, set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, redeploy/restart if needed, clear cache, and reverify. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and still serves SHA `dcff59e050de1dace19460198cb2909372bce7d5`; `/api/release-info` reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`. Deploy pushed baseline `2b8a348c416b0d952ab80d80083202280548c4d9`, set `NEXT_PUBLIC_APP_ENV=production`, set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, redeploy/restart if needed, clear cache, and reverify. |
 | Build Date | 2026-07-15 |
-| Verification Status | RC5 image optimization closure passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` on 2026-07-15. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. Direct hosted probes on 2026-07-15 returned 200 for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`; hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, Firestore is connected on ready/startup, but hosted version is still `v1.0.0-rc4` and `deploymentEnvironment=development`. Production readiness is `86%`, production launch remains NO-GO. |
+| Verification Status | RC5 image optimization closure passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` on 2026-07-15 after the push. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. Direct hosted probes on 2026-07-15 returned 200 for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`; hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, Firestore is connected on ready/startup, but hosted version is still `v1.0.0-rc4` and `deploymentEnvironment=development`. Production readiness is `86%`, production launch remains NO-GO. |
 | Scope | Current workspace contains RC4 release hardening, POS/Active Orders operational UX fixes, performance evidence, RC5 production observability, and RC5 image optimization. No Firestore collection/schema/rule/index, payment provider contract, business workflow, repository contract, or architecture rewrite was introduced by this continuation; the only new route is internal monitoring signal ingestion. |
 
 ## Documentation Architecture
@@ -42,7 +42,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Audit Source | Interrupted production-branch audit request resumed from `C:\Users\DINESH\.codex\attachments\5bc0417a-88d8-4741-9c2f-4d0c3bdfb2b4\pasted-text.txt`. |
 | RC4 Tag | `v1.0.0-rc4` currently resolves to `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38`; do not move it. |
-| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`. |
+| Current pushed baseline | `2b8a348c416b0d952ab80d80083202280548c4d9`. |
 | Recommendation | Keep RC4 immutable and create `v1.0.0-rc5` from the final RC5 validation commit after local gates pass. |
 | Validation | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `cmd /c npm run verify:performance` passed on 2026-07-13. Build/analyze retain the accepted Firebase/protobuf warning. |
 | Code Fix During Continuation | `CompactOrderAccordionActions` hook order was corrected by moving the empty-action return below all hooks and memoizing the action runner. |
@@ -52,7 +52,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Area | Finding | Repository Action | Remaining Gate |
 | --- | --- | --- | --- |
-| Trackers and release docs | Current trackers agree on RC5, repository readiness `99%`, production readiness `86%`, current committed handoff base `dcff59e050de1dace19460198cb2909372bce7d5`, and immutable RC4 tag. | Added this pending-work matrix, refreshed RC5 report references, corrected the production environment matrix from RC4 to RC5, and synchronized final handoff commit references. | Commit final validation/performance evidence, tag RC5, and keep RC4 unchanged. |
+| Trackers and release docs | Current trackers agree on RC5, repository readiness `99%`, production readiness `86%`, pushed baseline `2b8a348c416b0d952ab80d80083202280548c4d9`, hosted stale SHA `dcff59e050de1dace19460198cb2909372bce7d5`, and immutable RC4 tag. | Added this pending-work matrix, refreshed RC5 report references, corrected the production environment matrix from RC4 to RC5, and synchronized final handoff commit references. | Deploy pushed baseline, verify hosted RC5 metadata, tag RC5 only after gates pass, and keep RC4 unchanged. |
 | TODO/FIXME/debt markers | Runtime source scan found no actionable TODO/FIXME/HACK/XXX markers outside release-audit script patterns and generated report text. | No code change required. | None. |
 | Console cleanup | No runtime `console.log` in app source; remaining runtime console warnings/errors are sanitized diagnostics in client catch paths or centralized logging. | No freeze-safe replacement required; `audit:release` keeps the sites listed for review. | Browser console smoke after deployment. |
 | Technical debt cleanup | Duplicated `safeClientReason` helpers existed across customer/profile/order client flows. | Added shared `src/lib/client-diagnostics.ts` and reused it from affected client modules. | None. |
