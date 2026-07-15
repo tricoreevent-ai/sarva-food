@@ -15,7 +15,7 @@ export function ScheduleRestaurantCard({
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="relative aspect-[1.8] bg-slate-100">
-        <SafeImage src={restaurant.image} alt={restaurant.name} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="320px" className="object-cover" />
+        <SafeImage src={restaurant.image} alt={restaurant.name} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="restaurantCard" sizes="320px" className="object-cover" />
         <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-orange-600">
           {mode === "catering" ? "Catering Quote Available" : "Scheduled Delivery Available"}
         </span>

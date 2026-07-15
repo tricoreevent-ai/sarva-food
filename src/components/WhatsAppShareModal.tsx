@@ -57,6 +57,7 @@ export function WhatsAppShareModal({
                   alt={item.name}
                   fill
                   fallbackSrc={IMAGE_FALLBACKS.food}
+                  cloudinaryPreset="productGrid"
                   sizes="320px"
                   className="object-cover"
                 />

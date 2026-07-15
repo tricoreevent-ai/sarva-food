@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { safeClientReason } from "@/lib/client-diagnostics";
 import type { CustomerAddressDoc, CustomerLoyaltyDoc, CustomerOrderDoc, CustomerProfileDoc, FirestoreDate } from "@/types/firebase";
 import type { CateringQuote } from "@/lib/types";
 
@@ -59,8 +60,4 @@ export function useCustomerData(customerId?: string | null) {
   }, [retry]);
 
   return { ...data, status, error, retry };
-}
-
-function safeClientReason(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
 }

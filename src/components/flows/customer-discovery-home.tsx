@@ -34,6 +34,7 @@ import { getCartSubtotal, useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
 import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
+import { safeClientReason } from "@/lib/client-diagnostics";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -294,6 +295,7 @@ export function CustomerDiscoveryHome() {
                 fill
                 priority
                 fallbackSrc={CUSTOMER_HERO_FALLBACK_IMAGE}
+                cloudinaryPreset="hero"
                 sizes="130px"
                 className="object-cover"
               />
@@ -387,6 +389,7 @@ export function CustomerDiscoveryHome() {
                   loading="eager"
                   fetchPriority="high"
                   fallbackSrc={CUSTOMER_HERO_FALLBACK_IMAGE}
+                  cloudinaryPreset="hero"
                   sizes="460px"
                   className="object-cover"
                 />
@@ -436,6 +439,7 @@ export function CustomerDiscoveryHome() {
                 width={50}
                 height={50}
                 fallbackSrc={IMAGE_FALLBACKS.food}
+                cloudinaryPreset="categoryIcon"
                 className="size-11 rounded-full object-cover"
               />
             </span>
@@ -469,6 +473,7 @@ export function CustomerDiscoveryHome() {
                 width={40}
                 height={40}
                 fallbackSrc={IMAGE_FALLBACKS.food}
+                cloudinaryPreset="categoryIcon"
                 className="size-10 rounded-full object-cover"
               />
             </span>
@@ -492,7 +497,7 @@ export function CustomerDiscoveryHome() {
                 {banner.ctaLabel ? <span className="mt-3 inline-flex text-xs font-black text-orange-600">{banner.ctaLabel}</span> : null}
               </span>
               <span className="relative overflow-hidden rounded-xl bg-orange-50">
-                <SafeImage src={banner.mobileImageUrl || banner.imageUrl || IMAGE_FALLBACKS.food} alt={banner.title} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="120px" className="object-cover" />
+                <SafeImage src={banner.mobileImageUrl || banner.imageUrl || IMAGE_FALLBACKS.food} alt={banner.title} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="offerCard" sizes="120px" className="object-cover" />
               </span>
             </Link>
           ))}
@@ -570,11 +575,6 @@ export function CustomerDiscoveryHome() {
     </main>
   );
 }
-
-function safeClientReason(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
-}
-
 function MobileSectionHeader({ title, href }: { title: string; href: string }) {
   return (
     <div className="container-page flex w-full items-center justify-between pb-3 pt-5 md:pb-5 md:pt-2">
@@ -645,7 +645,7 @@ function PopularDishCard({ item, onAdd }: { item: MenuItem; onAdd: () => void })
   return (
     <article className="render-contain grid min-h-24 w-[18rem] shrink-0 grid-cols-[5.25rem_1fr_auto] items-center gap-3 rounded-2xl border bg-card p-2 shadow-sm md:w-auto">
       <div className="relative size-[5.25rem] overflow-hidden rounded-xl bg-muted">
-        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="96px" className="object-cover" />
+        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="96px" className="object-cover" />
       </div>
       <div className="min-w-0">
         <h3 className="line-clamp-2 text-sm font-black leading-5">{item.name}</h3>

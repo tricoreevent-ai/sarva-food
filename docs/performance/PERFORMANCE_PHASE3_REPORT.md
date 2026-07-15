@@ -26,7 +26,7 @@ Final runtime smoothness pass for Customer, Owner, Kitchen, and POS without chan
 | /orders | 20 | 509 KB | 190 KB | - | Tracked |
 | /profile | 23 | 548 KB | 190 KB | 250 KB | Over |
 | /owner | 27 | 569 KB | 190 KB | 350 KB | Over |
-| /owner/orders | 42 | 1246 KB | 190 KB | 500 KB | Over |
+| /owner/orders | 34 | 692 KB | 190 KB | 500 KB | Over |
 | /owner/settings | 31 | 683 KB | 190 KB | 300 KB | Over |
 | /owner/kitchen | 29 | 644 KB | 190 KB | - | Tracked |
 | /owner/pos | 28 | 574 KB | 190 KB | - | Tracked |

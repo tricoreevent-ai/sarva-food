@@ -1,6 +1,6 @@
 # Project Tracker
 
-Last updated: 2026-07-13
+Last updated: 2026-07-15
 
 | Feature | Status | Progress % | Pending Work | Owner | Date |
 | --- | --- | ---: | --- | --- | --- |
@@ -39,6 +39,8 @@ Last updated: 2026-07-13
 | TASK-10 Project Tracking | Tested | 100 | None | Codex | 2026-06-22 |
 | Kitchen Operations Center Redesign | Completed | 100 | Manual Kitchen TV/tablet/printer smoke remains a release gate | Codex | 2026-07-13 |
 | Enterprise Staff & Access Sprint | Completed | 100 | Production validation passed on Hostinger | Codex | 2026-06-26 |
+| RC5 Production Observability | Implemented | 95 | Hosted Admin/Owner monitoring smoke, export check, and long-run alert verification remain manual | Codex | 2026-07-13 |
+| RC5 Image Optimization | Repository Complete | 95 | Hosted visual smoke, Cloudinary credential upload check, and real-device image quality review remain manual | Codex | 2026-07-15 |
 
 ## Final Enterprise Release
 
@@ -58,15 +60,17 @@ Last updated: 2026-07-13
 | --- | --- |
 | Branch | `release/production-nammude` |
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38` |
-| Current HEAD | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` plus synchronized dirty workspace |
+| Current HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files |
 | Repository readiness | `99%` |
 | Production readiness | `86%` |
 | Current decision | Repository `GO`; production launch `NO GO` |
-| Recommendation | Keep RC4 unchanged; commit this workspace as RC5 after final review |
+| Recommendation | Keep RC4 unchanged; tag the final RC5 validation commit after local gates pass |
 | Pending work matrix | Repository-side audit found no remaining code blocker; current pending work is external/manual only. |
-| Final optimization cleanup | Shared duplicated client error-reason helper and added explicit accessible names for compact order action controls; no business logic/API/schema changes. |
+| Final optimization cleanup | Shared duplicated client error-reason helper, added explicit accessible names for compact order action controls, and moved pure phone normalization into `src/lib/phone.ts` to avoid unnecessary Firebase-heavy service ownership in client bundles; no business logic/API/schema changes. |
+| Production monitoring | Internal monitoring store, grouped error/log viewer, Admin Production Monitoring dashboard, Owner diagnostics expansion, alert rules, provider/performance/self-test views, and client/server signal capture added without Firestore schema or business workflow changes. |
+| Image optimization | Shared Cloudinary presets, AVIF/WebP browser upload optimization, incoming Cloudinary transforms, and right-sized `SafeImage` thumbnails added without business logic/API/schema/repository changes. |
 | Release package verification | Production environment matrix, deployment reports, and active runbook/signoff docs now expect `v1.0.0-rc5`; historical RC4 references remain only as immutable tag/history notes or current hosted stale-version evidence. |
-| Remaining work | Hostinger production env/secrets, Firebase Console, provider, browser/device, Lighthouse, Chrome profiling, and hardware validation |
+| Remaining work | Hostinger version/env correction (`NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, `NEXT_PUBLIC_APP_ENV=production`), production secrets, Firebase Console, provider, browser/device, Lighthouse, Chrome profiling, and hardware validation |
 
 ## Sprint 1 Repository Migration
 

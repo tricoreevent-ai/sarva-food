@@ -23,7 +23,7 @@ This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certifi
 | /orders | 20 | 509 KB | 190 KB | - | Tracked |
 | /profile | 23 | 548 KB | 190 KB | 250 KB | Over |
 | /owner | 27 | 569 KB | 190 KB | 350 KB | Over |
-| /owner/orders | 42 | 1246 KB | 190 KB | 500 KB | Over |
+| /owner/orders | 34 | 692 KB | 190 KB | 500 KB | Over |
 | /owner/settings | 31 | 683 KB | 190 KB | 300 KB | Over |
 | /owner/kitchen | 29 | 644 KB | 190 KB | - | Tracked |
 | /owner/pos | 28 | 574 KB | 190 KB | - | Tracked |
@@ -36,7 +36,7 @@ This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certifi
 | / | 459 KB | 250 KB | Over |
 | /profile | 548 KB | 250 KB | Over |
 | /owner | 569 KB | 350 KB | Over |
-| /owner/orders | 1246 KB | 500 KB | Over |
+| /owner/orders | 692 KB | 500 KB | Over |
 | /owner/settings | 683 KB | 300 KB | Over |
 
 ## Stress Snapshot

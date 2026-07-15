@@ -1,13 +1,13 @@
 # Production Performance Verification Report
 
-Generated: 2026-07-13T06:23:52.966Z
+Generated: 2026-07-13T08:42:35.243Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 3 |
-| WARNING | 1 |
+| PASS | 4 |
+| WARNING | 0 |
 | ERROR | 0 |
 | FAIL | 0 |
 | MANUAL | 2 |
@@ -17,8 +17,8 @@ Generated: 2026-07-13T06:23:52.966Z
 | Check | Status | Detail |
 | --- | --- | --- |
 | target:url | PASS | https://violet-squid-380447.hostingersite.com |
-| bundle:tracked-route-js | WARNING | /owner/orders 1246 KB / budget 1200 KB |
-| bundle:static-js-total | PASS | 8776 KB built JS total; informational, not first-load budget. |
+| bundle:tracked-route-js | PASS | /owner/orders 692 KB / budget 1200 KB |
+| bundle:static-js-total | PASS | 8760 KB built JS total; informational, not first-load budget. |
 | bundle:analyzer-client | PASS | .next/analyze/client.html is present and usable. |
 | lighthouse:desktop | MANUAL | Chrome/Lighthouse unavailable or RUN_LIGHTHOUSE=1 not set. |
 | lighthouse:mobile | MANUAL | Run with RUN_LIGHTHOUSE=1 PRODUCTION_URL=https://... |
@@ -39,12 +39,12 @@ Generated: 2026-07-13T06:23:52.966Z
 
 | Metric | Value |
 | --- | --- |
-| staticFiles | 394 |
-| staticJsKb | 8776 |
+| staticFiles | 395 |
+| staticJsKb | 8760 |
 | staticCssKb | 190 |
 | routeCount | 102 |
 | maxRoute | /handler/[...stack] 1968 KB JS / 190 KB CSS |
-| maxTrackedRoute | /owner/orders 1246 KB JS / 190 KB CSS |
+| maxTrackedRoute | /owner/orders 692 KB JS / 190 KB CSS |
 
 ## Tracked Routes
 
@@ -53,7 +53,7 @@ Generated: 2026-07-13T06:23:52.966Z
 | / | 459 | 190 | 19 |
 | /owner | 571 | 190 | 29 |
 | /owner/kitchen | 647 | 190 | 32 |
-| /owner/orders | 1246 | 190 | 42 |
+| /owner/orders | 692 | 190 | 34 |
 | /owner/pos | 576 | 190 | 30 |
 | /owner/settings | 685 | 190 | 33 |
 | /profile | 549 | 190 | 25 |

@@ -76,4 +76,4 @@ Flagged chunks checked: Firestore `02df5fe5`, Firebase Auth `2bfc466f`, Stack au
 
 ## RC5 Addendum
 
-Current analyzer evidence was refreshed for RC5. `/owner/orders` remains the only tracked route over the verification budget at `1246 KB`; no release-freeze-safe split was applied because the route owns active order actions, payment history, timeline, split/merge/transfer, waiter/cashier/manager views, and compact accordion behavior that require authenticated browser regression coverage.
+Current analyzer evidence was refreshed for RC5. `/owner/orders` now measures `692 KB`, under the `1200 KB` verification budget and preferred `1000 KB` target after pure phone-helper extraction. Deeper authenticated owner-flow splitting remains deferred because it is no longer required for the RC5 bundle target.

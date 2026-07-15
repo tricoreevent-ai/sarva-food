@@ -377,7 +377,7 @@ For comprehensive feature details, refer to the following documentation files:
 - `docs/guides/roadmap.md` - Product roadmap and feature priorities.
 - `docs/trackers/changelog.md` - Release notes and version history.
 - `docs/validation/final-production-readiness-report.md` - Final production readiness validation.
-- `docs/docs/release/FINAL_RELEASE_REPORT.md` - Final release with validation results.
+- `docs/release/FINAL_RELEASE_REPORT.md` - Final release with validation results.
 
 ## Recommended Reference Map
 

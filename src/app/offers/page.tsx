@@ -169,6 +169,7 @@ function FeaturedDealCard({
           alt=""
           fill
           fallbackSrc={IMAGE_FALLBACKS.food}
+          cloudinaryPreset="offerCard"
           sizes="220px"
           className="object-cover transition duration-500 group-hover:scale-105"
         />

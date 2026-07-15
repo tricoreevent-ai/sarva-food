@@ -1,14 +1,12 @@
 import { CMS_IMAGE_PRESETS } from "@/modules/shared/config/environment/cms.config";
 import type { CmsBanner } from "@/lib/types";
+import { withCloudinaryTransform } from "@/lib/cloudinary-images";
 
 export type CmsImagePreset = keyof typeof CMS_IMAGE_PRESETS;
 
 export function optimizeCmsImageUrl(url?: string, preset: CmsImagePreset = "banner") {
   if (!url) return "";
-  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
-  const transform = CMS_IMAGE_PRESETS[preset].transform;
-  if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(url)) return url;
-  return url.replace("/upload/", `/upload/${transform}/`);
+  return withCloudinaryTransform(url, CMS_IMAGE_PRESETS[preset].transform);
 }
 
 export function normalizeCmsBanner(item: CmsBanner, index: number, preset: CmsImagePreset = "banner"): CmsBanner {

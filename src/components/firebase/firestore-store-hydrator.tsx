@@ -9,6 +9,7 @@ import { listenInventory, listenLoyaltyCustomers } from "@/services/production-d
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
 import { RELEASE_VERSION } from "@/lib/release";
+import { safeClientReason } from "@/lib/client-diagnostics";
 import type { InventoryItem, LoyaltyCustomer } from "@/lib/types";
 
 declare global {
@@ -158,8 +159,4 @@ export function FirestoreStoreHydrator() {
   }, [adminSurface, loginSurface, ownerInventorySurface, ownerLoyaltySurface, ownerRestaurantId, ownerSurface, publicCmsSurface, publicDiscoverySurface, publicOffersSurface]);
 
   return null;
-}
-
-function safeClientReason(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
 }

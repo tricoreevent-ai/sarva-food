@@ -586,7 +586,7 @@ function RestaurantHeader({ restaurant, scheduleDays }: { restaurant: Restaurant
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-4">
         <div className="relative h-24 w-32 overflow-hidden rounded-xl bg-slate-100">
-          <SafeImage src={restaurant.image} alt={restaurant.name} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="160px" className="object-cover" />
+          <SafeImage src={restaurant.image} alt={restaurant.name} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="restaurantCard" sizes="160px" className="object-cover" />
         </div>
         <div>
           <h1 className="text-2xl font-black">{restaurant.displayName ?? restaurant.name}</h1>
@@ -612,7 +612,7 @@ function MenuProductCard({ item, quantity, onAdd, onQuantity }: { item: MenuItem
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="relative aspect-[1.18] bg-orange-50">
-        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="220px" className="object-cover" />
+        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="productGrid" sizes="220px" className="object-cover" />
         <span className={item.isVeg ? "absolute left-2 top-2 size-3 rounded-full bg-emerald-500 ring-4 ring-white" : "absolute left-2 top-2 size-3 rounded-full bg-red-500 ring-4 ring-white"} />
         {item.isPopular ? <span className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[10px] font-black text-white">Bestseller</span> : null}
       </div>

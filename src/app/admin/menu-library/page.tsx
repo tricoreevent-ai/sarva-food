@@ -341,7 +341,7 @@ export default function AdminMenuLibraryPage() {
                     <td className="p-3">
                       <div className="flex gap-3">
                         <div className="relative size-14 overflow-hidden rounded-md bg-muted">
-                          <SafeImage src={row.primaryImage || row.thumbnail || IMAGE_FALLBACKS.food} alt={row.displayName || "Menu template"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="56px" className="object-cover" />
+                          <SafeImage src={row.primaryImage || row.thumbnail || IMAGE_FALLBACKS.food} alt={row.displayName || "Menu template"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="adminTable" sizes="56px" className="object-cover" />
                         </div>
                         <div>
                           <p className="font-black">{row.displayName}</p>
@@ -453,7 +453,7 @@ export default function AdminMenuLibraryPage() {
                     <tr key={`${row.id}-${row.importStatus}`} className="border-t">
                       <td className="p-3">
                         <div className="relative size-12 overflow-hidden rounded-md bg-muted">
-                          <SafeImage src={row.primaryImage || row.thumbnail || IMAGE_FALLBACKS.food} alt={row.displayName || "Import item"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="48px" className="object-cover" />
+                          <SafeImage src={row.primaryImage || row.thumbnail || IMAGE_FALLBACKS.food} alt={row.displayName || "Import item"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="adminTable" sizes="48px" className="object-cover" />
                         </div>
                       </td>
                       <td className="p-3 font-black">{row.displayName}</td>
@@ -481,7 +481,7 @@ export default function AdminMenuLibraryPage() {
             <Button type="button" variant="outline" onClick={() => setPreview(null)}>Close</Button>
           </div>
           <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-md bg-muted">
-            <SafeImage src={preview.primaryImage || preview.thumbnail || IMAGE_FALLBACKS.food} alt={preview.displayName || "Template image"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="540px" className="object-cover" />
+            <SafeImage src={preview.primaryImage || preview.thumbnail || IMAGE_FALLBACKS.food} alt={preview.displayName || "Template image"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="large" sizes="540px" className="object-cover" />
           </div>
           <p className="mt-4 text-sm leading-6">{preview.description}</p>
           <div className="mt-4 grid gap-2 text-sm">

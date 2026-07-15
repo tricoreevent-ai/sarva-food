@@ -2,9 +2,9 @@
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Runtime release commit: `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` plus synchronized dirty workspace
-Final certification commit: pending RC5 commit
-Date: 2026-07-13
+Runtime release commit: `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files
+Final certification commit: final RC5 validation commit after local gates pass
+Date: 2026-07-15
 
 ## RC4 / RC5 Current Status
 
@@ -13,9 +13,9 @@ Date: 2026-07-13
 | Repository readiness | `99%` |
 | Production readiness | `86%` |
 | Decision | Repository `GO`; production launch `NO GO`. |
-| Tag recommendation | Keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5` after commit. |
+| Tag recommendation | Keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5` from the final RC5 validation commit. |
 | Hosted blocker | `/api/release-info` reports `deploymentEnvironment=development`. |
-| Latest validation | 2026-07-13 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed. Prior hosted public smoke, provider probe, memory probe, and bundle evidence passed or produced expected manual gates. |
+| Latest validation | 2026-07-15 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed. Prior hosted public smoke, provider probe, memory probe, and bundle evidence passed or produced expected manual gates. |
 | Required before launch | Hostinger env correction, production env validation, Lighthouse, Firebase Console checks, provider dashboard checks, authenticated browser/device smoke, and printer/hardware smoke. |
 
 ## Certification Result
@@ -34,7 +34,7 @@ Date: 2026-07-13
 - No duplicate API family, repository, Firestore collection, schema, payment provider contract, or production data migration was introduced. The current workspace includes documented POS/Active Orders operational UX fixes.
 - Runtime `console` usage that remains is centralized server logging or scoped client/browser diagnostics; no `debugger` statement is present.
 - Legacy compatibility docs/code remain tracked as debt and were not renamed during release freeze.
-- 2026-07-13 local validation passed typecheck, lint, build, analyze, release audit, and operational smoke; production env validation remains external because real Hostinger/Firebase/Razorpay values are unavailable locally.
+- 2026-07-15 local validation passed typecheck, lint, build, analyze, release audit, and operational smoke; production env validation remains external because real Hostinger/Firebase/Razorpay values are unavailable locally.
 
 ## Security Audit
 
@@ -47,6 +47,7 @@ Date: 2026-07-13
 ## Performance Audit
 
 - `npm run analyze` passes; build/analyze retain only the known Firebase/protobuf dynamic dependency warning.
+- RC5 image optimization is complete repository-side: Cloudinary presets, AVIF/WebP upload handling, `dpr_auto` delivery cleanup, and right-sized thumbnails are documented in `docs/performance/IMAGE_OPTIMIZATION_REPORT.md`.
 - Existing route-level skeletons, dynamic boundaries, lazy toast/runtime ownership, lazy import/export paths, no-store public data, and bounded health probes remain intact.
 - No new listener, polling loop, high-volume collection scan, duplicate route family, or N+1 repository pattern was confirmed by the release audit.
 - Lighthouse/Core Web Vitals must be rerun after Hostinger serves the current commit with production env.

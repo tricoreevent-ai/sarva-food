@@ -3,6 +3,7 @@
 import Image, { type ImageProps } from "next/image";
 import { useMemo, useState } from "react";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
+import { cloudinaryImageUrl, type CloudinaryImagePreset } from "@/lib/cloudinary-images";
 
 export const IMAGE_FALLBACKS = {
   food: "/images/fallback-food.svg",
@@ -13,10 +14,11 @@ export const IMAGE_FALLBACKS = {
 type SafeImageProps = Omit<ImageProps, "src"> & {
   src?: ImageProps["src"] | null;
   fallbackSrc?: string;
+  cloudinaryPreset?: CloudinaryImagePreset;
 };
 
-export function SafeImage({ src, fallbackSrc = IMAGE_FALLBACKS.food, onError, unoptimized, alt, ...props }: SafeImageProps) {
-  const initialSrc = useMemo(() => normalizeImageSrc(src, fallbackSrc), [src, fallbackSrc]);
+export function SafeImage({ src, fallbackSrc = IMAGE_FALLBACKS.food, onError, unoptimized, alt, cloudinaryPreset = "auto", ...props }: SafeImageProps) {
+  const initialSrc = useMemo(() => normalizeImageSrc(src, fallbackSrc, cloudinaryPreset), [src, fallbackSrc, cloudinaryPreset]);
   const [failedSrc, setFailedSrc] = useState<ImageProps["src"] | null>(null);
   const currentSrc = failedSrc === initialSrc ? fallbackSrc : initialSrc;
 
@@ -39,7 +41,7 @@ export function SafeImage({ src, fallbackSrc = IMAGE_FALLBACKS.food, onError, un
   );
 }
 
-function normalizeImageSrc(src: SafeImageProps["src"], fallbackSrc: string): ImageProps["src"] {
+function normalizeImageSrc(src: SafeImageProps["src"], fallbackSrc: string, cloudinaryPreset: CloudinaryImagePreset): ImageProps["src"] {
   if (!src) return fallbackSrc;
   if (typeof src !== "string") return src;
   if (src.startsWith("/")) return src;
@@ -49,7 +51,7 @@ function normalizeImageSrc(src: SafeImageProps["src"], fallbackSrc: string): Ima
     if (!["https:", "http:", "blob:", "data:"].includes(url.protocol)) return fallbackSrc;
     if (process.env.NODE_ENV === "production" && url.protocol === "http:") return fallbackSrc;
     if (isKnownMissingSeedCloudinaryAsset(url)) return fallbackSrc;
-    return src;
+    return cloudinaryImageUrl(src, cloudinaryPreset);
   } catch {
     return fallbackSrc;
   }

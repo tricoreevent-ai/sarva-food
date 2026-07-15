@@ -117,7 +117,11 @@ Run these locally before pushing:
 npm run typecheck
 npm run lint
 npm run build
+cmd /c npm run analyze
 cmd /c npm run audit:release
+cmd /c npm run smoke:operational
+cmd /c npm run verify:performance
+git diff --check
 ```
 
 The repository hardening audit report is generated at `docs/validation/repository-hardening-audit.md`.

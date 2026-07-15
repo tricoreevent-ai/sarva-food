@@ -6,6 +6,7 @@ import { CalendarClock, Eye, EyeOff, Loader2, MessageCircle, Pause, Pencil, Plus
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { OfferBadge } from "@/components/commerce/offer-badge";
 import { SectionHeader } from "@/components/layout/section-header";
+import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -598,7 +599,11 @@ function OfferLibraryCard({
   const active = isOfferActive(offer) && (offer.status ?? "active") === "active";
   return (
     <Card className={active ? "overflow-hidden border-emerald-200" : "overflow-hidden border-slate-200 opacity-90"}>
-      {offer.banner ? <div className="h-24 bg-cover bg-center" style={{ backgroundImage: `url(${offer.banner})` }} /> : null}
+      {offer.banner ? (
+        <div className="relative h-24 overflow-hidden bg-muted">
+          <SafeImage src={offer.banner} alt="" fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="offerCard" sizes="420px" className="object-cover" />
+        </div>
+      ) : null}
       <CardContent className="space-y-3 p-5">
         <div className="flex flex-wrap items-center gap-2">
           <OfferBadge offer={offer} />

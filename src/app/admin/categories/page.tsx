@@ -178,7 +178,7 @@ export default function AdminCategoriesPage() {
               Active on customer surfaces
             </label>
             <div className="relative aspect-square overflow-hidden rounded-full border bg-muted">
-              <SafeImage src={draft.image || IMAGE_FALLBACKS.food} alt={draft.name || "Category preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="280px" className="object-cover" />
+              <SafeImage src={draft.image || IMAGE_FALLBACKS.food} alt={draft.name || "Category preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="medium" sizes="280px" className="object-cover" />
             </div>
             <div className="flex gap-2">
               <Button type="button" onClick={() => void saveCategory(draft)} disabled={saving}>
@@ -201,7 +201,7 @@ export default function AdminCategoriesPage() {
               {sortedCategories.map((category) => (
                 <article key={category.id} className="grid grid-cols-[64px_1fr_auto] items-center gap-3 rounded-2xl border p-3">
                   <div className="relative size-16 overflow-hidden rounded-full border bg-muted">
-                    <SafeImage src={category.image || IMAGE_FALLBACKS.food} alt={category.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="64px" className="object-cover" />
+                    <SafeImage src={category.image || IMAGE_FALLBACKS.food} alt={category.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="categoryIcon" sizes="64px" className="object-cover" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

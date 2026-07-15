@@ -15,6 +15,7 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data";
 import { useAppStore } from "@/lib/app-store";
+import { cloudinaryImageUrl } from "@/lib/cloudinary-images";
 import { useThemeMode } from "@/lib/theme-provider";
 import { getConnectivitySnapshot, offlineQueueManager, startOfflineSyncEngine, subscribeConnectivity, subscribeOfflineQueue, type ConnectivitySnapshot, type OfflineQueueEntry } from "@/lib/offline";
 import { defaultOperationalSettings, normalizeOperationalSettings, orderDelayThresholdOptions, type OperationalSettings } from "@/lib/order-delay-settings";
@@ -1603,7 +1604,7 @@ function ImagePreview({ title, src, shape, fallback }: { title: string; src: str
     <div className="space-y-2">
       <p className="text-sm font-black text-muted-foreground">{title}</p>
       <div className={shape === "circle" ? "relative size-28 overflow-hidden rounded-full border bg-slate-100" : "relative aspect-[16/9] overflow-hidden rounded-2xl border bg-slate-100"}>
-        <SafeImage src={imageSrc} alt={title} fill fallbackSrc={fallback} sizes={shape === "circle" ? "112px" : "720px"} className="object-cover" onError={() => setInvalidSrc(src)} />
+        <SafeImage src={imageSrc} alt={title} fill fallbackSrc={fallback} cloudinaryPreset={shape === "circle" ? "logo" : "hero"} sizes={shape === "circle" ? "112px" : "720px"} className="object-cover" onError={() => setInvalidSrc(src)} />
       </div>
       {!src ? <p className="text-xs font-semibold text-slate-500">Placeholder shown until an image is added.</p> : null}
       {invalid ? <p className="text-xs font-semibold text-red-600">Image could not be loaded. Check the URL or upload again.</p> : null}
@@ -1666,7 +1667,7 @@ function BannerManager({
           {normalizedImages.map((image, index) => (
             <div key={image} className="overflow-hidden rounded-xl border border-input bg-muted">
               <div className="relative aspect-[16/7]">
-                <SafeImage src={image} alt={`Restaurant banner ${index + 1}`} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="320px" className="object-cover" />
+                <SafeImage src={image} alt={`Restaurant banner ${index + 1}`} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="restaurantCard" sizes="320px" className="object-cover" />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 p-2">
                 <Button type="button" size="sm" variant={primary === image ? "secondary" : "outline"} onClick={() => onPrimary(image)}>
@@ -1733,12 +1734,12 @@ function CustomerBannerPreview({
   return (
     <div className="overflow-hidden rounded-2xl border border-input bg-slate-950 text-white shadow-sm">
       <div className="relative min-h-[280px]">
-        <SafeImage src={activeImage} alt={`${restaurantName} customer banner preview`} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="900px" className="object-cover opacity-70 transition-opacity duration-500" />
+        <SafeImage src={activeImage} alt={`${restaurantName} customer banner preview`} fill fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="hero" sizes="900px" className="object-cover opacity-70 transition-opacity duration-500" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
         <div className="relative z-10 flex min-h-[280px] flex-col justify-end gap-4 p-5">
           <div className="flex items-end gap-3">
             <span className="relative grid size-16 place-items-center overflow-hidden rounded-2xl border border-white/25 bg-white/15 text-lg font-black backdrop-blur">
-              {logo ? <SafeImage src={logo} alt={`${restaurantName} logo preview`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="64px" className="object-cover" /> : restaurantName.slice(0, 2).toUpperCase()}
+              {logo ? <SafeImage src={logo} alt={`${restaurantName} logo preview`} fill fallbackSrc={IMAGE_FALLBACKS.logo} cloudinaryPreset="logo" sizes="64px" className="object-cover" /> : restaurantName.slice(0, 2).toUpperCase()}
             </span>
             <div>
               <p className="text-xs font-black uppercase text-emerald-200">Customer restaurant page preview</p>
@@ -2003,9 +2004,7 @@ function formatHour(value: string) {
 
 function optimizeCloudinaryUrl(value: string) {
   const trimmed = value.trim();
-  if (!trimmed || !trimmed.includes("res.cloudinary.com") || !trimmed.includes("/upload/")) return trimmed;
-  if (trimmed.includes("/upload/f_auto") || trimmed.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(trimmed)) return trimmed;
-  return trimmed.replace("/upload/", "/upload/f_auto,q_auto/");
+  return cloudinaryImageUrl(trimmed);
 }
 
 function parseSettingsTab(value: string | null): SettingsTab {

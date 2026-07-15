@@ -53,6 +53,7 @@ import { readableOrderId } from "@/lib/order-display";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
 import { formatScheduleDate, formatScheduleSlot, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { useThemeMode } from "@/lib/theme-provider";
+import { safeClientReason } from "@/lib/client-diagnostics";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerAddressDoc } from "@/types/firebase";
@@ -850,7 +851,7 @@ function MobileRestaurantLanding({
   return (
     <div className="xl:hidden">
       <section className="relative min-h-[220px] overflow-hidden bg-slate-950 text-white">
-        <SafeImage src={heroImage} alt={`${title} food banner`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="(max-width: 1279px) 100vw, 50vw" className="object-cover opacity-80" />
+        <SafeImage src={heroImage} alt={`${title} food banner`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="hero" sizes="(max-width: 1279px) 100vw, 50vw" className="object-cover opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-black/82" />
 
         <div className="relative z-10 flex items-start justify-between gap-3 px-4 pt-4">
@@ -901,7 +902,7 @@ function MobileRestaurantLanding({
           </div>
           {restaurant.logo ? (
             <div className="relative mb-3 size-14 overflow-hidden rounded-full border-2 border-white bg-white shadow-lg">
-              <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="56px" className="object-cover" />
+              <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} cloudinaryPreset="logo" sizes="56px" className="object-cover" />
             </div>
           ) : null}
           <h1 className="flex items-center gap-2 text-4xl font-black tracking-tight">
@@ -1010,7 +1011,7 @@ function MobileOfferRail({ offers, onApply }: { offers: Offer[]; onApply: (code:
             className="relative min-h-28 w-[min(82vw,360px)] shrink-0 overflow-hidden rounded-2xl bg-emerald-50 p-4 text-left shadow-sm"
           >
             {(offer.mobileBanner ?? offer.banner ?? offer.image) ? (
-              <SafeImage src={offer.mobileBanner ?? offer.banner ?? offer.image} alt={offer.title} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="360px" className="object-cover opacity-25" />
+              <SafeImage src={offer.mobileBanner ?? offer.banner ?? offer.image} alt={offer.title} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="offerCard" sizes="360px" className="object-cover opacity-25" />
             ) : (
               <div className="absolute -right-8 -top-8 size-32 rounded-full bg-white/60" />
             )}
@@ -1070,7 +1071,7 @@ function MobileMenuItemCard({
       </div>
       <div className="flex flex-col items-end gap-2">
         <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="relative block size-20 overflow-hidden rounded-xl bg-orange-50" aria-label={`View ${item.name} details`}>
-          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="80px" className="object-cover" />
+          <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="80px" className="object-cover" />
           {item.soldOut ? <span className="absolute inset-0 grid place-items-center bg-white/75 text-xs font-black text-slate-700">Unavailable</span> : null}
         </Link>
         <MobileQtyButton quantity={quantity} soldOut={item.soldOut} onAdd={onAdd} onQty={onQty} />
@@ -1361,7 +1362,7 @@ function HeroSection({
           </div>
           {restaurant.logo ? (
             <div className="relative mt-2 size-12 overflow-hidden rounded-full border-2 border-white/80 bg-white shadow-xl md:mt-5 md:size-20 md:border-4">
-              <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} sizes="80px" className="object-cover" />
+              <SafeImage src={restaurant.logo} alt={`${title} logo`} fill fallbackSrc={IMAGE_FALLBACKS.logo} cloudinaryPreset="logo" sizes="80px" className="object-cover" />
             </div>
           ) : null}
           <h1 className="mt-2 text-3xl font-black tracking-tight md:mt-4 md:text-7xl">{title}</h1>
@@ -1540,6 +1541,7 @@ function HeroBannerCarousel({ images, title }: { images: string[]; title: string
           loading={index <= 1 ? "eager" : "lazy"}
           fetchPriority={index === 0 ? "high" : "auto"}
           fallbackSrc={IMAGE_FALLBACKS.restaurant}
+          cloudinaryPreset="hero"
           sizes="(max-width: 767px) 100vw, (max-width: 1279px) 100vw, 80vw"
           className={`object-cover opacity-0 transition-opacity duration-700 ease-out ${index === activeIndex ? "opacity-70" : ""}`}
         />
@@ -1613,7 +1615,7 @@ function OfferStrip({ offers, onApply }: { offers: Offer[]; onApply: (code: stri
           >
             <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-emerald-50" />
             {(offer.mobileBanner ?? offer.banner ?? offer.image) ? (
-              <SafeImage src={offer.mobileBanner ?? offer.banner ?? offer.image} alt={offer.title} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="300px" className="object-cover opacity-35 transition group-hover:scale-105" />
+              <SafeImage src={offer.mobileBanner ?? offer.banner ?? offer.image} alt={offer.title} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="offerCard" sizes="300px" className="object-cover opacity-35 transition group-hover:scale-105" />
             ) : (
               <div className={`absolute -right-8 -top-8 size-32 rounded-full ${index % 2 ? "bg-emerald-200/70" : "bg-orange-200/70"}`} />
             )}
@@ -1694,7 +1696,7 @@ function MenuCard({
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} prefetch={false} className="relative block aspect-[1.18/1] overflow-hidden bg-orange-50" aria-label={`View ${item.name} details`}>
-        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="(max-width: 768px) 50vw, 260px" className="object-cover transition duration-300 group-hover:scale-105" />
+        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="productGrid" sizes="(max-width: 768px) 50vw, 260px" className="object-cover transition duration-300 group-hover:scale-105" />
         <span className={`absolute left-2 top-2 grid size-5 place-items-center rounded-md border bg-white ${item.isVeg ? "text-emerald-600" : "text-red-600"}`}>
           <span className="size-2 rounded-full bg-current" />
         </span>
@@ -1723,7 +1725,7 @@ function MenuCard({
 function MenuImage({ item, className }: { item: MenuItem; className: string }) {
   return (
     <div className={`relative overflow-hidden rounded-xl bg-orange-50 ${className}`}>
-      <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="96px" className="object-cover" />
+      <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="96px" className="object-cover" />
     </div>
   );
 }
@@ -2442,11 +2444,6 @@ async function notifyOwnerAboutOrder(payload: Record<string, unknown>) {
     console.warn("[Nammude order] Owner email notification request failed.", { reason: safeClientReason(error) });
   }
 }
-
-function safeClientReason(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
-}
-
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {
   if (disabled) return null;
   return (

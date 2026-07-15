@@ -2,14 +2,14 @@
 
 ## v1.0.0-rc5 - Release Candidate
 
-Commit: pending RC5 commit from the synchronized workspace; existing RC4 tag remains unchanged
+Commit: final RC5 validation commit after local gates pass; current handoff base `dcff59e050de1dace19460198cb2909372bce7d5`; existing RC4 tag remains unchanged
 Branch: `release/production-nammude`
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
 ### Status
 
 - Active release metadata, package metadata, environment templates, and deployment docs now align on `v1.0.0-rc5` / `1.0.0-rc.5`.
-- The existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags remain immutable; commit the current synchronized workspace as a new `v1.0.0-rc5` candidate.
+- The existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags remain immutable; tag the final RC5 validation commit as the new `v1.0.0-rc5` candidate.
 - Phase 4 hardening and report synchronization are complete repository-side.
 - Production release remains blocked by hosted `deploymentEnvironment=development`, production env validation, Firebase Console, provider dashboard, authenticated browser, Lighthouse, and hardware smoke gates.
 
@@ -26,6 +26,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - Fixed the More actions component hook order found during the interrupted audit continuation.
 - Consolidated duplicated client error-reason helpers into `src/lib/client-diagnostics.ts`.
 - Added explicit accessible names to compact order icon-only action controls.
+- Completed RC5 image optimization: shared Cloudinary presets, AVIF-first upload compression, WebP/JPEG fallback, incoming Cloudinary transforms, `dpr_auto` delivery cleanup, and right-sized `SafeImage` thumbnails.
 - Corrected the production environment matrix to require `v1.0.0-rc5`.
 - Regenerated bundle, runtime, render, network, memory, provider, smoke, deployment, env, performance, and certification reports.
 - Completed the RC5 pending-work audit: no repository-side code blocker remains; remaining work is Hostinger/Firebase/provider/browser/Lighthouse/hardware validation.
@@ -47,6 +48,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - `PRODUCTION_URL=... cmd /c npm run verify:performance`: `3` pass, `1` warning, `2` manual.
 - 2026-07-13 RC5 closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; build/analyze retain the accepted Firebase/protobuf warning.
 - 2026-07-13 pending-work audit: runtime source scan found no actionable TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read requiring a release-freeze code change.
+- 2026-07-15 image optimization closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; analyzer timeout resolved and bundle evidence regenerated.
 
 ## v1.0.0-rc3 - Release Candidate
 

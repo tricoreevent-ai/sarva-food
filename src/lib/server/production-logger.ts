@@ -1,5 +1,7 @@
 import "server-only";
 
+import { recordMonitoringLog } from "@/lib/server/production-monitoring";
+
 type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "SECURITY" | "AUDIT" | "PERFORMANCE" | "PAYMENT" | "QR" | "KITCHEN" | "POS" | "OWNER" | "ADMIN";
 
 const priority: Record<LogLevel, number> = {
@@ -54,6 +56,7 @@ export function maskLogData(data: Record<string, unknown>) {
 function logProduction(level: LogLevel, event: string, data: Record<string, unknown> = {}) {
   if (!shouldLog(level)) return;
   const payload = sanitize({ level, event, ...data, timestamp: new Date().toISOString() });
+  recordMonitoringLog(level, event, data);
   if (level === "ERROR" || level === "SECURITY" || level === "PAYMENT") return console.error("[nammude]", payload);
   if (level === "WARN") return console.warn("[nammude]", payload);
   console.info("[nammude]", payload);

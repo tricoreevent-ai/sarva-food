@@ -1,4 +1,11 @@
 import { compressImageFile } from "@/lib/image-optimization";
+import {
+  cloudinaryImageUrl,
+  cloudinaryIncomingTransform,
+  cloudinaryThumbnailUrl,
+  withCloudinaryTransform as applyCloudinaryTransform,
+  type CloudinaryUploadKind,
+} from "@/lib/cloudinary-images";
 
 export type CloudinaryUploadFolder =
   | "menu"
@@ -31,7 +38,8 @@ type UploadOptions = {
   maxHeight?: number;
   aspectRatio?: number;
   quality?: number;
-  type?: "image/webp" | "image/jpeg";
+  type?: "image/avif" | "image/webp" | "image/jpeg";
+  kind?: CloudinaryUploadKind;
   tags?: string[];
 };
 
@@ -56,16 +64,20 @@ type CloudinaryUploadResponse = {
 };
 
 export async function uploadImageToCloudinary(file: File, options: UploadOptions): Promise<CloudinaryUploadResult> {
+  const uploadTarget = imageUploadTarget(options);
   const optimizedFile = await compressImageFile(file, {
-    maxWidth: options.maxWidth ?? 1600,
-    maxHeight: options.maxHeight ?? 1200,
+    maxWidth: options.maxWidth ?? uploadTarget.maxWidth,
+    maxHeight: options.maxHeight ?? uploadTarget.maxHeight,
     aspectRatio: options.aspectRatio,
-    quality: options.quality ?? 0.86,
-    type: options.type ?? "image/webp",
+    quality: options.quality ?? uploadTarget.quality,
+    type: options.type,
+    kind: uploadTarget.kind,
   });
+  const uploadParams = cloudinaryUploadParams(uploadTarget);
   const signature = await getCloudinarySignature({
     folder: buildFolder(options.folder, options.restaurantId),
     tags: ["sarva-food", options.folder, options.restaurantId, ...(options.tags ?? [])].filter(Boolean) as string[],
+    params: uploadParams,
   });
 
   const formData = new FormData();
@@ -77,15 +89,19 @@ export async function uploadImageToCloudinary(file: File, options: UploadOptions
   formData.set("tags", signature.tags);
   formData.set("use_filename", "true");
   formData.set("unique_filename", "true");
+  applyFormDataParams(formData, uploadParams);
 
   return uploadSignedFormData(signature.cloudName, formData);
 }
 
 export async function uploadRemoteImageToCloudinary(url: string, options: UploadOptions): Promise<CloudinaryUploadResult> {
   const remoteUrl = normalizeRemoteImageUrl(url);
+  const uploadTarget = imageUploadTarget(options);
+  const uploadParams = cloudinaryUploadParams(uploadTarget);
   const signature = await getCloudinarySignature({
     folder: buildFolder(options.folder, options.restaurantId),
     tags: ["sarva-food", options.folder, options.restaurantId, ...(options.tags ?? [])].filter(Boolean) as string[],
+    params: uploadParams,
   });
 
   const formData = new FormData();
@@ -97,6 +113,7 @@ export async function uploadRemoteImageToCloudinary(url: string, options: Upload
   formData.set("tags", signature.tags);
   formData.set("use_filename", "true");
   formData.set("unique_filename", "true");
+  applyFormDataParams(formData, uploadParams);
 
   return uploadSignedFormData(signature.cloudName, formData);
 }
@@ -117,13 +134,11 @@ export function buildFolder(folder: CloudinaryUploadFolder | string, restaurantI
 }
 
 function buildThumbnailUrl(url: string) {
-  return withCloudinaryTransform(url, "c_fill,w_320,h_240,q_auto,f_auto");
+  return cloudinaryThumbnailUrl(url);
 }
 
-export function withCloudinaryTransform(url: string, transform = "f_auto,q_auto") {
-  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
-  if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || url.match(/\/upload\/[^/]+,q_auto/)) return url;
-  return url.replace("/upload/", `/upload/${transform}/`);
+export function withCloudinaryTransform(url: string, transform = "f_auto,q_auto,dpr_auto") {
+  return applyCloudinaryTransform(url, transform);
 }
 
 async function uploadSignedFormData(cloudName: string, formData: FormData): Promise<CloudinaryUploadResult> {
@@ -138,8 +153,8 @@ async function uploadSignedFormData(cloudName: string, formData: FormData): Prom
 
   return {
     imagePath: data.public_id,
-    downloadUrl: withCloudinaryTransform(data.secure_url),
-    secureUrl: withCloudinaryTransform(data.secure_url),
+    downloadUrl: cloudinaryImageUrl(data.secure_url),
+    secureUrl: cloudinaryImageUrl(data.secure_url),
     publicId: data.public_id,
     width: data.width,
     height: data.height,
@@ -147,6 +162,37 @@ async function uploadSignedFormData(cloudName: string, formData: FormData): Prom
     bytes: data.bytes,
     thumbnailUrl: buildThumbnailUrl(data.secure_url),
   };
+}
+
+function imageUploadTarget(options: UploadOptions) {
+  const kind = options.kind ?? inferImageKind(options);
+  const heroLike = Number(options.aspectRatio ?? 0) > 2;
+  return {
+    kind,
+    maxWidth: kind === "logo" || kind === "avatar" ? 1024 : heroLike ? 2200 : 1800,
+    maxHeight: kind === "logo" || kind === "avatar" ? 1024 : 1600,
+    quality: kind === "logo" ? 0.95 : undefined,
+  };
+}
+
+function inferImageKind(options: UploadOptions): CloudinaryUploadKind {
+  const text = `${options.folder} ${(options.tags ?? []).join(" ")}`.toLowerCase();
+  if (/logo|branding/.test(text)) return "logo";
+  if (/profile|avatar|staff/.test(text)) return "avatar";
+  return "photo";
+}
+
+function cloudinaryUploadParams(target: ReturnType<typeof imageUploadTarget>) {
+  return {
+    transformation: cloudinaryIncomingTransform(target.kind, target.maxWidth, target.maxHeight),
+    quality_analysis: "false",
+  };
+}
+
+function applyFormDataParams(formData: FormData, params: Record<string, string | number | boolean | undefined>) {
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) formData.set(key, String(value));
+  });
 }
 
 function normalizeRemoteImageUrl(value: string) {

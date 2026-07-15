@@ -23,7 +23,7 @@ export function AdminSocialQueueFlow() {
           <Card key={post.id}>
             <CardContent className="grid gap-4 p-4 sm:grid-cols-[160px_1fr]">
               <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
-                <SafeImage src={post.foodImage} alt={post.headline} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="160px" className="object-cover" />
+                <SafeImage src={post.foodImage} alt={post.headline} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="160px" className="object-cover" />
               </div>
               <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">

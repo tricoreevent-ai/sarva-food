@@ -68,6 +68,7 @@ export function RestaurantBannerCarousel({
           loading="lazy"
           decoding="async"
           fallbackSrc={IMAGE_FALLBACKS.restaurant}
+          cloudinaryPreset="restaurantCard"
           sizes={sizes}
           className="object-cover"
         />
@@ -81,6 +82,7 @@ export function RestaurantBannerCarousel({
             loading="lazy"
             decoding="async"
             fallbackSrc={IMAGE_FALLBACKS.restaurant}
+            cloudinaryPreset="restaurantCard"
             sizes={sizes}
             className={cn(
               "object-cover opacity-0 transition-opacity duration-700 ease-out",

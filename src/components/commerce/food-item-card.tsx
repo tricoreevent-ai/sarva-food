@@ -23,7 +23,7 @@ export function FoodItemCard({ item }: { item: MenuItem }) {
       className="mobile-premium-card flex h-full flex-col overflow-hidden rounded-xl bg-card"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="(min-width: 1536px) 16vw, (min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" className="object-cover" />
+        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="productGrid" sizes="(min-width: 1536px) 16vw, (min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" className="object-cover" />
         <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
           <Badge variant={item.isVeg ? "success" : "warning"}>{item.isVeg ? "Veg" : "Non-veg"}</Badge>
           {item.isPopular ? <Badge className="bg-secondary text-secondary-foreground">Popular</Badge> : null}

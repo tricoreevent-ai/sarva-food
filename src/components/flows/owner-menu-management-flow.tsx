@@ -1246,7 +1246,7 @@ export function OwnerMenuManagementFlow() {
                     <div className="grid gap-5">
                       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_170px]">
                         <div className="relative min-h-64 overflow-hidden rounded-lg bg-muted">
-                          <SafeImage src={imagePreview} alt="Menu image preview" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="720px" className="object-cover" />
+                          <SafeImage src={imagePreview} alt="Menu image preview" fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="large" sizes="720px" className="object-cover" />
                           <Badge className="absolute left-3 top-3 bg-primary text-primary-foreground">Cover</Badge>
                           {imagePreview !== fallbackImage ? (
                             <Button type="button" size="icon" variant="secondary" className="absolute right-3 top-3" aria-label="Remove image" onClick={() => removeMenuImage(imagePreview)}>
@@ -1256,7 +1256,7 @@ export function OwnerMenuManagementFlow() {
                         </div>
                         <div className="grid gap-3">
                           <div className="relative min-h-24 overflow-hidden rounded-md bg-muted">
-                            <SafeImage src={imagePreview} alt="Menu thumbnail" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="170px" className="object-cover" />
+                            <SafeImage src={imagePreview} alt="Menu thumbnail" fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="170px" className="object-cover" />
                           </div>
                           <CloudinaryUploadWidget
                             folder="menu"
@@ -1294,7 +1294,7 @@ export function OwnerMenuManagementFlow() {
                                       aria-label="Set primary image"
                                       title="Set primary image"
                                     >
-                                      <SafeImage src={url} alt="Menu item gallery image" fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="80px" className="object-cover" />
+                                      <SafeImage src={url} alt="Menu item gallery image" fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="80px" className="object-cover" />
                                     </button>
                                     {url === imagePreview ? <span className="absolute left-1 top-1 z-10 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black text-primary-foreground">Primary</span> : null}
                                     <button
@@ -1544,7 +1544,7 @@ export function OwnerMenuManagementFlow() {
                     <div className="grid gap-4">
                       <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-[140px_1fr]">
                         <div className="relative min-h-32 overflow-hidden rounded-md bg-muted">
-                          <SafeImage src={imagePreview} alt={watchedName || "Menu item preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="160px" className="object-cover" />
+                          <SafeImage src={imagePreview} alt={watchedName || "Menu item preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="160px" className="object-cover" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap gap-2">
@@ -1571,7 +1571,7 @@ export function OwnerMenuManagementFlow() {
                     <p className="text-xs font-black uppercase text-muted-foreground">Live preview</p>
                     <div className="mt-3 overflow-hidden rounded-md border bg-card">
                       <div className="relative aspect-[4/3] bg-muted">
-                        <SafeImage src={imagePreview} alt={watchedName || "Menu preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="320px" className="object-cover" />
+                        <SafeImage src={imagePreview} alt={watchedName || "Menu preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="productGrid" sizes="320px" className="object-cover" />
                         <Badge className="absolute left-3 top-3 bg-primary text-primary-foreground">{formatFoodTypeLabel(watchedFoodType)}</Badge>
                       </div>
                       <div className="space-y-2 p-3">
@@ -1891,7 +1891,7 @@ export function OwnerMenuManagementFlow() {
                 <DialogDescription>Image preview</DialogDescription>
               </DialogHeader>
               <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
-                <SafeImage src={imagePreviewItem?.image} alt={imagePreviewItem?.name ?? "Menu item"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="720px" className="object-cover" />
+                <SafeImage src={imagePreviewItem?.image} alt={imagePreviewItem?.name ?? "Menu item"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="large" sizes="720px" className="object-cover" />
               </div>
             </DialogContent>
           </Dialog>
@@ -1955,7 +1955,7 @@ export function OwnerMenuManagementFlow() {
                         itemIds: event.target.checked ? [...current.itemIds, item.id] : current.itemIds.filter((id) => id !== item.id),
                       }))} />
                       <span className="relative size-12 overflow-hidden rounded-md bg-muted">
-                        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="48px" className="object-cover" />
+                        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="adminTable" sizes="48px" className="object-cover" />
                       </span>
                       <span>
                         <span className="block font-bold">{item.name}</span>
@@ -1978,7 +1978,7 @@ export function OwnerMenuManagementFlow() {
               {combos.map((combo) => (
                 <div key={combo.id} className="grid gap-3 rounded-md border p-3 sm:grid-cols-[72px_1fr_auto] sm:items-center">
                   <span className="relative size-16 overflow-hidden rounded-md bg-muted">
-                    <SafeImage src={combo.image || fallbackImage} alt={combo.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="72px" className="object-cover" />
+                    <SafeImage src={combo.image || fallbackImage} alt={combo.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="72px" className="object-cover" />
                   </span>
                   <div>
                     <p className="font-bold">{combo.name}</p>
@@ -2156,7 +2156,7 @@ export function OwnerMenuManagementFlow() {
               ) : templatePickerRows.length ? templatePickerRows.map((template) => (
                 <Card key={template.id} className="overflow-hidden">
                   <div className="relative aspect-[4/3] bg-muted">
-                    <SafeImage src={template.primaryImage || template.thumbnail || IMAGE_FALLBACKS.food} alt={template.displayName || "Menu template"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="320px" className="object-cover" />
+                    <SafeImage src={template.primaryImage || template.thumbnail || IMAGE_FALLBACKS.food} alt={template.displayName || "Menu template"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="productGrid" sizes="320px" className="object-cover" />
                   </div>
                   <CardContent className="grid gap-3 p-4">
                     <div>
@@ -2798,7 +2798,7 @@ function MenuItemRow({
         <input type="checkbox" className="size-4" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.name}`} />
         <Tip label="Click to preview image">
           <button type="button" className="relative size-[60px] overflow-hidden rounded-md bg-muted" onClick={onPreviewImage} aria-label={`Preview ${item.name} image`}>
-            <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="60px" className="object-cover" />
+            <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="adminTable" sizes="60px" className="object-cover" />
           </button>
         </Tip>
         <DisplayOrderControls value={item.displayOrder ?? 0} onMoveUp={onMoveUp} onMoveDown={onMoveDown} saving={orderSaving} />
@@ -2831,7 +2831,7 @@ function MenuItemRow({
         <input type="checkbox" className="mt-6 size-4" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.name}`} />
         <Tip label="Click to preview image">
           <button type="button" className="relative size-[72px] overflow-hidden rounded-md bg-muted" onClick={onPreviewImage} aria-label={`Preview ${item.name} image`}>
-            <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="72px" className="object-cover" />
+            <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="72px" className="object-cover" />
           </button>
         </Tip>
         <div className="min-w-0">

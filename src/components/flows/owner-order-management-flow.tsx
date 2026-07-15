@@ -40,7 +40,7 @@ import { useAlert } from "@/hooks/useAlert";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
-import { normalizePhone } from "@/services/restaurant-ops-service";
+import { normalizePhone } from "@/lib/phone";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";

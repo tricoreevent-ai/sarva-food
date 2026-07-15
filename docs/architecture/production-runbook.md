@@ -2,7 +2,7 @@
 
 Release candidate: `v1.0.0-rc5`; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Commit: pending RC5 commit from `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` plus synchronized workspace
+Commit: `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files
 Tag: keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5`
 
 ## Current Phase 4 Snapshot
@@ -16,7 +16,7 @@ Tag: keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5`
 | Memory probe | `1` pass, `2` manual. |
 | Production readiness | `86%`; production launch remains `NO GO`. |
 
-Immediate operator action: commit/tag the synchronized workspace as RC5, set Hostinger `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart the RC5 commit, clear cache, and rerun deployment/performance/provider/smoke reports with `PRODUCTION_URL=https://violet-squid-380447.hostingersite.com`.
+Immediate operator action: commit final validation/performance evidence if present, tag the final RC5 validation commit as RC5, set Hostinger `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart the RC5 commit, clear cache, and rerun deployment/performance/provider/smoke reports with `PRODUCTION_URL=https://violet-squid-380447.hostingersite.com`.
 
 ## Operational Logging
 

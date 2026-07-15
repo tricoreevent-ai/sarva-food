@@ -2,11 +2,9 @@
 
 import { useCallback, useEffect, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { subscribeToAuth, syncAuthSession } from "@/services/auth-service";
-import { shouldEnableDevLogin, shouldUseFirebase } from "@/lib/env";
+import { shouldEnableDevLogin } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
-import { getStackCustomer, isStackAuthConfigured } from "@/services/auth/stack-auth-client";
 import type { MockUser } from "@/lib/types";
 import type { UserRole } from "@/types/firebase";
 
@@ -21,6 +19,25 @@ type SessionResponse = {
 };
 type SessionSurface = "customer" | "owner" | "admin";
 
+function shouldUseFirebaseAuth() {
+  return process.env.NEXT_PUBLIC_USE_FIREBASE === "true";
+}
+
+function isStackAuthEnabled() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_STACK_PROJECT_ID?.trim() &&
+      process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY?.trim(),
+  );
+}
+
+function loadFirebaseAuthService() {
+  return import("@/services/auth-service");
+}
+
+function loadStackAuthService() {
+  return import("@/services/auth/stack-auth-client");
+}
+
 export function AuthSessionBridge() {
   const pathname = usePathname();
   const setAuthUser = useAppStore((state) => state.setAuthUser);
@@ -33,31 +50,44 @@ export function AuthSessionBridge() {
   useEffect(() => {
     void hydrateCookieSession(setScopedAuthUser, surface);
 
-    if (!shouldUseFirebase() || surface !== "customer") return;
+    if (!shouldUseFirebaseAuth() || surface !== "customer") return;
 
-    return subscribeToAuth(async (user) => {
-      if (!user) {
-        if (isStackAuthConfigured()) {
-          const stackUser = await getStackCustomer().catch(() => null);
-          if (stackUser?.id) {
-            setScopedAuthUser({
-              id: stackUser.id,
-              name: stackUser.displayName || stackUser.primaryEmail || "Nammude Customer",
-              role: "customer",
-              restaurantSlug: DEFAULT_TENANT_ID,
-            });
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    void loadFirebaseAuthService()
+      .then(({ subscribeToAuth, syncAuthSession }) => {
+        if (!active) return;
+        unsubscribe = subscribeToAuth(async (user) => {
+          if (!user) {
+            if (isStackAuthEnabled()) {
+              const { getStackCustomer } = await loadStackAuthService();
+              const stackUser = await getStackCustomer().catch(() => null);
+              if (stackUser?.id) {
+                setScopedAuthUser({
+                  id: stackUser.id,
+                  name: stackUser.displayName || stackUser.primaryEmail || "Nammude Customer",
+                  role: "customer",
+                  restaurantSlug: DEFAULT_TENANT_ID,
+                });
+                return;
+              }
+            }
+            if (shouldEnableDevLogin()) return;
+            await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
+            setScopedAuthUser(anonymousCustomer());
             return;
           }
-        }
-        if (shouldEnableDevLogin()) return;
-        await fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined);
-        setScopedAuthUser(anonymousCustomer());
-        return;
-      }
 
-      await syncAuthSession("customer", { ensureCustomer: true }).catch(() => undefined);
-      await hydrateCookieSession(setScopedAuthUser, "customer");
-    });
+          await syncAuthSession("customer", { ensureCustomer: true }).catch(() => undefined);
+          await hydrateCookieSession(setScopedAuthUser, "customer");
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
   }, [setScopedAuthUser, surface]);
 
   return null;

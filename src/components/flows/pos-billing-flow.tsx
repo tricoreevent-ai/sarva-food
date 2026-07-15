@@ -25,12 +25,13 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
-import { normalizePhone } from "@/services/restaurant-ops-service";
+import { normalizePhone } from "@/lib/phone";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 const posTabs = ["menu", "custom", "combos"] as const;
 const heldOrdersKey = "sarva-pos-held-orders:v1";
 const paymentDraftKey = "sarva-pos-payment-draft:v1";
+const posPanels = new Set<PosPanel>(["new", "active", "held", "past", "customers"]);
 
 type HeldPosOrder = {
   id: string;
@@ -180,7 +181,7 @@ export function PosBillingFlow() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof posTabs)[number]>("menu");
   const [activeCategory, setActiveCategory] = useState("");
-  const [panel, setPanel] = useState<PosPanel>("new");
+  const [panel, setPanel] = useState<PosPanel>(() => initialPosPanel());
   const [wizardStep, setWizardStep] = useState<PosWizardStep>(1);
   const [processingState, setProcessingState] = useState<PosProcessingState>("idle");
   const [completedOrder, setCompletedOrder] = useState<CompletedPosOrder | null>(null);
@@ -193,6 +194,7 @@ export function PosBillingFlow() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [compactGrid, setCompactGrid] = useState(false);
   const [showKot, setShowKot] = useState(false);
+  const [kotPrintLines, setKotPrintLines] = useState<PosBill["lines"] | null>(null);
   const [printCopies, setPrintCopies] = useState<BillCopy[]>(["Customer Copy"]);
   const [billPreviewOpen, setBillPreviewOpen] = useState(false);
   const [previewPaper, setPreviewPaper] = useState<PaperWidth>("80mm");
@@ -492,7 +494,14 @@ export function PosBillingFlow() {
     restaurantName: ownerBusinessProfile?.hotelName,
     createdAt: ticketCreatedAt ?? new Date(),
   }), [bill, branch, effectiveTaxSettings, ownerBusinessProfile?.hotelName, ticketCreatedAt]);
-  const kotContext = useMemo(() => buildKotContext(billContext), [billContext]);
+  const kotBillContext = useMemo(() => buildBillContext({
+    bill: kotPrintLines ? { ...bill, lines: kotPrintLines } : bill,
+    branch,
+    taxSettings: effectiveTaxSettings,
+    restaurantName: ownerBusinessProfile?.hotelName,
+    createdAt: ticketCreatedAt ?? new Date(),
+  }), [bill, branch, effectiveTaxSettings, kotPrintLines, ownerBusinessProfile?.hotelName, ticketCreatedAt]);
+  const kotContext = useMemo(() => buildKotContext(kotBillContext), [kotBillContext]);
   const billTemplate = useMemo(() => printerSettings.templates?.find((item) => item.type === "bill") ?? defaultBillTemplate, [printerSettings.templates]);
   const kotTemplate = useMemo(() => printerSettings.templates?.find((item) => item.type === "kot") ?? defaultKotTemplate, [printerSettings.templates]);
   const selectedBillTemplate = useMemo(() => ({ ...billTemplate, paperWidth: previewPaper }), [billTemplate, previewPaper]);
@@ -651,6 +660,7 @@ export function PosBillingFlow() {
         toast.success("Kitchen already has the latest items.");
         return activeKitchenOrder;
       }
+      setKotPrintLines(lines);
       const operationKey = clientOperationKey(["incremental-kot", bill.linkedKitchenOrderId, lines.map((line) => [line.itemId ?? line.name, line.quantity])]);
       const response = await fetch("/api/owner/kitchen", {
         method: "POST",
@@ -673,6 +683,7 @@ export function PosBillingFlow() {
     const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen ticket could not be created.");
     if (!result.data) throw new Error("Kitchen ticket could not be created.");
     const order = result.data;
+    setKotPrintLines(null);
     setReadModel((current) => ({ ...current, tableOrders: [order, ...current.tableOrders] }));
     setPosBill({ ...bill, linkedKitchenOrderId: order.id, applyGst, waiveParcelCharge });
     setShowKot(true);
@@ -758,6 +769,10 @@ export function PosBillingFlow() {
       setWizardStep(2);
       return;
     }
+    if (bill.linkedKitchenOrderId) {
+      await processExistingOrderUpdate(capturePayment);
+      return;
+    }
 
     try {
       setWizardStep(4);
@@ -813,8 +828,75 @@ export function PosBillingFlow() {
     }
   }
 
+  async function processExistingOrderUpdate(capturePayment = false) {
+    const parent = activeKitchenOrder;
+    if (!parent) {
+      toast.error("Kitchen ticket not found. Refresh Active Orders and retry.");
+      return;
+    }
+    const canonical = canonicalForKitchenOrder(parent as OperationalOrder);
+    const addedLines = incrementalLines(bill.lines, parent.lines ?? []);
+    if (!addedLines.length) {
+      await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
+      if (capturePayment) {
+        setPanel("active");
+        await collectActivePayment(parent);
+        return;
+      }
+      toast.success("No new kitchen items to send.");
+      setPanel("active");
+      setWizardStep(3);
+      return;
+    }
+    try {
+      setWizardStep(4);
+      setProcessingState("kitchen");
+      const incrementalKot = await sendKot();
+      if (!incrementalKot || incrementalKot.id === parent.id) {
+        setProcessingState("idle");
+        setWizardStep(3);
+        return;
+      }
+      if (canonical) {
+        await fetch("/api/owner/orders", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "event",
+            operationKey: clientOperationKey(["order-event", canonical.id, "incremental-kot", incrementalKot.id]),
+            event: "kitchen_sent",
+            orderId: canonical.id,
+            kitchenOrderId: incrementalKot.id,
+            note: `Incremental KOT created for ${addedLines.reduce((sum, line) => sum + line.quantity, 0)} new item${addedLines.length === 1 ? "" : "s"}.`,
+          }),
+        }).catch(() => undefined);
+      }
+      await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
+      await refreshPosReadModel({ applyDraft: false });
+      setProcessingState("done");
+      setCompletedOrder({
+        orderId: canonical ? readableOrderId(canonical) : readableTableOrderId(parent),
+        kotId: readableTableOrderId(incrementalKot, tableOrders.length + 1),
+        total: totals.total,
+        table: bill.orderType === "dine-in" ? bill.table : undefined,
+        customer: bill.customerName,
+        payment: bill.payment,
+        orderType: bill.orderType,
+      });
+      await wait(180);
+      setWizardStep(5);
+      toast.success("Incremental KOT sent with only the new items.");
+      if (capturePayment) toast("Collect payment after the new items are prepared.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Incremental KOT could not be created.");
+      setProcessingState("idle");
+      setWizardStep(3);
+    }
+  }
+
   function startNewOrder() {
     resetPosBill();
+    setKotPrintLines(null);
     setDeliveryAddress("");
     setLandmark("");
     setOrderNote("");
@@ -913,6 +995,7 @@ export function PosBillingFlow() {
     }
     setTicketCreatedAt(new Date());
     setShowKot(target === "kot");
+    if (target === "bill") setKotPrintLines(null);
     setPrintCopies(copies);
     void logPrint(target, duplicate);
     window.document.body.classList.add("print-ticket-mode");
@@ -3052,6 +3135,12 @@ function clientOperationKey(parts: unknown[]) {
   return `pos-${(hash >>> 0).toString(36)}`;
 }
 
+function initialPosPanel(): PosPanel {
+  if (typeof window === "undefined") return "new";
+  const panel = new URLSearchParams(window.location.search).get("panel") as PosPanel | null;
+  return panel && posPanels.has(panel) ? panel : "new";
+}
+
 async function readPosPayload<T>(response: Response, fallback: string) {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(toSafePosError(payload.error, fallback));
@@ -3315,7 +3404,7 @@ function ActiveOrdersPanel({
     <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <h2 className="text-2xl font-black text-slate-950">Active Orders</h2>
+          <h2 className="text-2xl font-black text-slate-950">{view === "waiter" ? "Ready To Serve" : "Active Orders"}</h2>
           <div className="flex rounded-xl border border-slate-200 bg-white/85 p-1 shadow-sm">
             {views.map(([key, label, Icon]) => (
               <button
@@ -3565,6 +3654,7 @@ function PosOrderAccordion({
       secondaryActions={secondaryActions}
       moreActions={moreActions}
       isOpen={expanded}
+      className={ready ? "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 ring-emerald-300 kitchen-ready-pulse" : undefined}
       highlighted={delay.delayed || order.status === "ready"}
       onOpenChange={onExpandedChange}
     />

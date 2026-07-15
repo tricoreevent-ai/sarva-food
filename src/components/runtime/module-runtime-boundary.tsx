@@ -2,6 +2,7 @@
 
 import { Component, Suspense, useEffect, useTransition, type ReactNode } from "react";
 import { ModuleLoading, OwnerLoadingScreen, PageError } from "@/components/state/page-state";
+import { captureException } from "@/services/analytics-service";
 
 export type ModuleSurface = "customer" | "owner" | "admin";
 
@@ -34,6 +35,10 @@ class ModuleCrashBoundary extends Component<BoundaryProps, BoundaryState> {
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    void captureException(error, { module: this.props.module, boundary: true });
   }
 
   reset = () => {

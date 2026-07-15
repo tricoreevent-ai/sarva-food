@@ -1,11 +1,23 @@
 # Changelog
 
+## 2026-07-15
+
+- Completed the RC5 image optimization closure: shared Cloudinary presets, AVIF-first browser upload compression with WebP/JPEG fallback, signed incoming Cloudinary transforms, right-sized `SafeImage` delivery, CMS/public thumbnail reuse, and legacy `dpr_auto` cleanup.
+- Regenerated analyzer and bundle evidence; `/owner/orders` is `697 KB`, static JS is `8837 KB`, and static CSS is `191 KB`.
+- Verified `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational`; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## 2026-07-13
 
 - Synchronized the active RC5 release metadata across package files, release constants, environment templates, deployment docs, trackers, and validation reports.
-- Confirmed the existing `v1.0.0-rc4` tag remains immutable and the current synchronized workspace should become `v1.0.0-rc5` after commit.
+- Confirmed the existing `v1.0.0-rc4` tag remains immutable and the final RC5 validation commit should become `v1.0.0-rc5` after local gates pass.
 - Preserved production readiness at `86%` and repository readiness at `99%`; production launch remains `NO GO` until Hostinger, provider, Firebase Console, browser/device, Lighthouse, and hardware gates pass.
 - Re-ran the repository pending-work and performance audit: no actionable runtime TODO/FIXME, app-source `console.log`, duplicate order components, incomplete repository feature, duplicate listener, or unbounded Firestore read was found; bundle evidence refreshed from current analyzer output.
+- Documented `dcff59e050de1dace19460198cb2909372bce7d5` as the committed RC5 handoff base after documentation centralization.
+- Extracted pure phone normalization into `src/lib/phone.ts` so Owner Orders and POS no longer import the Firebase-backed restaurant operations service for phone formatting only.
+- Certified the centralized documentation links and added `verify:performance` to the canonical RC5 validation command set.
+- Re-probed Hostinger after the RC5 handoff deployment: hosted SHA now matches `dcff59e050de1dace19460198cb2909372bce7d5`, Node reports `v22.18.0`, and health endpoints return 200 with Firestore connected on ready/startup; production signoff remains blocked because hosted metadata still reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`.
+- Added RC5 production observability: bounded in-memory monitoring, grouped last-100 errors/logs, client runtime/API/performance signal ingestion, Admin Production Monitoring dashboard, Owner diagnostics expansion, alert rules, provider status, and PASS/FAIL self-tests without Firestore schema or business workflow changes.
+- Added RC5 image optimization: shared Cloudinary presets, AVIF-first browser upload compression with WebP/JPEG fallback, signed incoming Cloudinary transforms, and right-sized `SafeImage` delivery for high-volume customer, owner, and admin image surfaces.
 
 ## 2026-07-12
 

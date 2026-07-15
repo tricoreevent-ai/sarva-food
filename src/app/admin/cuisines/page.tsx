@@ -183,7 +183,7 @@ export default function AdminCuisinesPage() {
               Active for owner selection
             </label>
             <div className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
-              <SafeImage src={draft.image || IMAGE_FALLBACKS.food} alt={draft.name || "Cuisine preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="360px" className="object-cover" />
+              <SafeImage src={draft.image || IMAGE_FALLBACKS.food} alt={draft.name || "Cuisine preview"} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="medium" sizes="360px" className="object-cover" />
             </div>
             <div className="flex gap-2">
               <Button type="button" onClick={() => void saveCuisine(draft)} disabled={saving}>
@@ -206,7 +206,7 @@ export default function AdminCuisinesPage() {
               {sortedCuisines.map((cuisine) => (
                 <article key={cuisine.id} className="grid grid-cols-[72px_1fr_auto] items-start gap-3 rounded-2xl border p-3">
                   <div className="relative size-[72px] overflow-hidden rounded-xl border bg-muted">
-                    <SafeImage src={cuisine.image || IMAGE_FALLBACKS.food} alt={cuisine.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="72px" className="object-cover" />
+                    <SafeImage src={cuisine.image || IMAGE_FALLBACKS.food} alt={cuisine.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="categoryIcon" sizes="72px" className="object-cover" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

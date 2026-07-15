@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { cloudinaryThumbnailUrl } from "@/lib/cloudinary-images";
 import { persist } from "zustand/middleware";
 import { shouldUseFirebase } from "@/lib/env";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -340,27 +341,7 @@ async function saveInventoryDoc(item: InventoryWrite) {
 }
 
 function toRestaurantThumbnailUrl(url: string) {
-  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  const marker = "/upload/";
-  if (!url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
-  const [prefix, rest = ""] = url.split(marker);
-  const parts = rest.split("/").filter(Boolean);
-  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
-  return `${prefix}${marker}w_400,h_225,c_fill,f_auto,q_auto/${parts.join("/")}`;
-}
-
-function withUnsplashThumbnail(url: string) {
-  try {
-    const nextUrl = new URL(url);
-    nextUrl.searchParams.set("auto", "format");
-    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
-    nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("h", "225");
-    nextUrl.searchParams.set("q", "75");
-    return nextUrl.toString();
-  } catch {
-    return url;
-  }
+  return cloudinaryThumbnailUrl(url);
 }
 
 function createAuditLogEntry(

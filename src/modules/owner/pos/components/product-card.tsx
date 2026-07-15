@@ -36,7 +36,7 @@ function ProductCardComponent({
   return (
     <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="relative aspect-[1.75] bg-slate-100">
-        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="260px" className="object-cover" />
+        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="productGrid" sizes="260px" className="object-cover" />
         <div className="absolute left-2 top-2 flex gap-1">
           {item.isPopular ? <span className="rounded-md bg-amber-400 px-2 py-1 text-[11px] font-black text-slate-950">Bestseller</span> : null}
           <span className={item.isVeg === false ? "grid size-5 place-items-center rounded-md bg-red-50 text-red-600" : "grid size-5 place-items-center rounded-md bg-emerald-50 text-emerald-600"}>

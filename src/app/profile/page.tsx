@@ -53,6 +53,7 @@ import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
 import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
+import { safeClientReason } from "@/lib/client-diagnostics";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatCurrency, getInitials } from "@/lib/utils";
 import type { CateringQuote } from "@/lib/types";
@@ -1345,11 +1346,6 @@ function profileTabFromUrl(tab: string | null) {
   const allowed = new Set(["overview", "addresses", "payments", "orders", "catering", "saved", "reviews", "offers", "settings"]);
   return tab && allowed.has(tab) ? tab : "overview";
 }
-
-function safeClientReason(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
-}
-
 async function signOutProfileServices() {
   const [{ signOutUser }, { signOutStackCustomer }] = await Promise.all([
     import("@/services/auth-service"),

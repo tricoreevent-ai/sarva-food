@@ -78,6 +78,8 @@ const nextConfig: NextConfig = {
       { key: "Expires", value: "0" },
     ];
     const publicHtmlHeaders = [...securityHeaders, ...htmlNoStoreHeaders];
+    const immutableAssetHeaders = [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }];
+    const manifestHeaders = [...securityHeaders, { key: "Cache-Control", value: "public, max-age=3600, must-revalidate" }];
 
     return [
       {
@@ -102,7 +104,7 @@ const nextConfig: NextConfig = {
       { source: "/orders/:path*", headers: publicHtmlHeaders },
       { source: "/profile/:path*", headers: publicHtmlHeaders },
       { source: "/checkout/:path*", headers: publicHtmlHeaders },
-      { source: "/manifest.json", headers: publicHtmlHeaders },
+      { source: "/manifest.json", headers: manifestHeaders },
       { source: "/api/release-info", headers: publicHtmlHeaders },
       {
         source: "/_next/static/css/:path*",
@@ -116,15 +118,15 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/icons/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: immutableAssetHeaders,
       },
       {
         source: "/images/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: immutableAssetHeaders,
       },
       {
         source: "/fonts/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: immutableAssetHeaders,
       },
       {
         source: "/sw.js",

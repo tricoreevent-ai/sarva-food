@@ -2,9 +2,9 @@
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Local HEAD before RC5 commit: `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132`
-Runtime release commit: pending RC5 commit from the synchronized workspace
-Final repository certification commit: pending RC5 commit
+Current committed handoff base: `dcff59e050de1dace19460198cb2909372bce7d5`
+Runtime release commit: final RC5 validation commit after local gates pass
+Final repository certification commit: final RC5 validation commit after local gates pass
 Release tag: keep `v1.0.0-rc4` unchanged; create immutable `v1.0.0-rc5` on the final committed candidate.
 
 ## Files Changed

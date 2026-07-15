@@ -97,6 +97,7 @@ export function CartPanel({
   const subtotal = useMemo(() => bill.lines.reduce((sum, line) => sum + line.price * line.quantity, 0), [bill.lines]);
   const itemCount = useMemo(() => bill.lines.reduce((sum, line) => sum + line.quantity, 0), [bill.lines]);
   const processing = processingState !== "idle";
+  const linkedKitchen = Boolean(bill.linkedKitchenOrderId);
 
   function applyDiscount() {
     const value = Math.max(0, Number(discountValue) || 0);
@@ -186,13 +187,13 @@ export function CartPanel({
                 <OrderSummary subtotal={totals.subtotal} discount={totals.discount} cgst={totals.cgst} sgst={totals.sgst} packing={totals.packingCharge} service={totals.serviceCharge} total={totals.total} />
               </div>
               <div className="grid gap-2">
-                <Button className="h-12 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onProcessOrder(false)} disabled={!bill.lines.length || processing} title="Send this order to kitchen without collecting payment">
+                <Button className="h-12 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onProcessOrder(false)} disabled={!bill.lines.length || processing} title={linkedKitchen ? "Generate a kitchen ticket only for newly added items" : "Send this order to kitchen without collecting payment"}>
                   <Send className="size-4" />
-                  Send To Kitchen
+                  {linkedKitchen ? "Generate Incremental KOT" : "Send To Kitchen"}
                 </Button>
-                <Button variant="outline" className="h-11" onClick={() => onProcessOrder(true)} disabled={!bill.lines.length || bill.paid || processing} title="Send to kitchen and mark payment collected">
+                <Button variant="outline" className="h-11" onClick={() => onProcessOrder(true)} disabled={!bill.lines.length || bill.paid || processing} title={linkedKitchen ? "Open payment collection when no new kitchen ticket is needed" : "Send to kitchen and mark payment collected"}>
                   <Banknote className="size-4" />
-                  Send + Collect {formatCurrency(totals.total)}
+                  {linkedKitchen ? "Verify Payment" : `Send + Collect ${formatCurrency(totals.total)}`}
                 </Button>
               </div>
               <Button variant="ghost" className="w-full" onClick={() => onStep(2)}>Back to details</Button>
@@ -263,7 +264,7 @@ export function CartPanel({
           {bill.linkedKitchenOrderId ? (
             <div className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">
               <ChefHat className="mr-2 inline size-4" />
-              Kitchen ticket is active. You can still edit items before billing.
+              Active kitchen ticket. Only newly added items generate the next KOT.
             </div>
           ) : null}
         </div>
@@ -432,7 +433,7 @@ function ToggleTile({ label, checked, onChange, title }: { label: string; checke
 function ProcessingList({ state }: { state: PosProcessingState }) {
   const rows: Array<{ key: PosProcessingState; label: string; detail: string }> = [
     { key: "saving", label: "Saving order", detail: "Order details are being saved locally and synced." },
-    { key: "kitchen", label: "Creating kitchen ticket", detail: "KOT is being sent to Kitchen Queue." },
+    { key: "kitchen", label: "Creating kitchen ticket", detail: "Only new items are sent when this is an active order." },
     { key: "syncing", label: "Updating live screens", detail: "POS, owner orders, and kitchen status are being refreshed." },
   ];
   const activeIndex = Math.max(0, rows.findIndex((row) => row.key === state));

@@ -5,7 +5,8 @@ import { adminDb } from "@/firebase/admin";
 import { COLLECTIONS } from "@/firebase/collections";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
-import { getOperationalDiagnostics } from "@/lib/server/production-health";
+import { buildHealthSnapshot, getOperationalDiagnostics } from "@/lib/server/production-health";
+import { getProductionMonitoringSnapshot } from "@/lib/server/production-monitoring";
 import { productionLogger } from "@/lib/server/production-logger";
 import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields } from "@/lib/server/request-trace";
 
@@ -62,6 +63,42 @@ export async function GET(request: NextRequest) {
     readCount(db.collection(COLLECTIONS.notifications).where("read", "==", false)),
   ]);
 
+  const operationalDiagnostics = getOperationalDiagnostics({
+    tenantCount,
+    openOrders,
+    kitchenQueueCount: kitchenLoad,
+    notificationQueueCount,
+    firestoreLatencyMs: latencyMs,
+  });
+  const health = await buildHealthSnapshot("ready");
+  const productionMonitoring = getProductionMonitoringSnapshot({
+    applicationStatus: health.status,
+    applicationVersion: health.applicationVersion,
+    commitSha: health.gitSha,
+    deploymentEnvironment: health.deploymentEnvironment,
+    nodeVersion: health.runtimeStatus.nodeVersion,
+    responseTimeMs: health.durationMs,
+    firestoreStatus: health.firestoreConnectivity.status,
+    storageStatus: health.storageConnectivity.status,
+    smtpStatus: health.smtpAvailability.status,
+    cloudinaryStatus: health.cloudinaryAvailability.status,
+    googleOAuthConfigured: env.googleOAuthConfigured,
+    mapboxConfigured: Boolean(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN),
+    razorpayStatus: health.razorpayConfiguration.status,
+    razorpayWebhookConfigured: health.razorpayConfiguration.webhookConfigured,
+    pushConfigured: health.firebaseConfiguration.vapidConfigured,
+    whatsappConfigured: Boolean(process.env.WHATSAPP_CLOUD_API_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+    smsConfigured: Boolean(process.env.SMS_PROVIDER),
+    memoryUsage: health.runtimeStatus.memoryUsage,
+    cpuEstimation: health.runtimeStatus.cpuEstimation,
+    openOrders,
+    kitchenLoad,
+    notificationQueue: notificationQueueCount,
+    pendingQueue: operationalDiagnostics.pendingQueueCount,
+    realtimeStatus: operationalDiagnostics.realtimeListenerCount.note,
+    backgroundJobsStatus: "idle; route-owned queues only",
+  });
+
   return NextResponse.json({
     data: {
       firebaseProjectId: env.adminFirebaseProjectId || env.publicFirebaseProjectId || "not configured",
@@ -79,13 +116,8 @@ export async function GET(request: NextRequest) {
       googleOAuthConfigured: env.googleOAuthConfigured,
       buildVersion: process.env.NEXT_PUBLIC_BUILD_VERSION ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "local",
       deploymentTimestamp: process.env.NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP ?? process.env.VERCEL_GIT_COMMIT_REF ?? "not provided",
-      operationalDiagnostics: getOperationalDiagnostics({
-        tenantCount,
-        openOrders,
-        kitchenQueueCount: kitchenLoad,
-        notificationQueueCount,
-        firestoreLatencyMs: latencyMs,
-      }),
+      operationalDiagnostics,
+      productionMonitoring,
       trace: publicTraceMeta(trace),
     },
   });

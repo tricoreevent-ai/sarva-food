@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-13
+Last updated: 2026-07-15
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -13,12 +13,12 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC5 Production Closure Sprint |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Local HEAD before final RC5 commit is `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` with synchronized audit/report/code changes; commit this workspace as the final RC5 candidate. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
+| Latest Git Commit | Current committed RC5 handoff base is `dcff59e050de1dace19460198cb2909372bce7d5`; commit only final validation/performance evidence on top before tagging. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable from prior hosted checks, but `/api/release-info` still reports `deploymentEnvironment=development`; set `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, redeploy/restart, clear cache, and verify final RC5 SHA. |
-| Build Date | 2026-07-13 |
-| Verification Status | RC5 closure validation passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` on 2026-07-13. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. `validate:prod-env` failed locally with `46` pass, `1` warning, and `24` errors. Hosted deployment verification reported `14` pass, `1` warning, and `2` errors because hosted version is still `v1.0.0-rc4` and `deploymentEnvironment=development`. Provider probe reported `8` pass and `3` manual. Production readiness is `86%`, production launch remains NO-GO. |
-| Scope | Current workspace contains RC4 release hardening plus already-implemented POS/Active Orders operational UX fixes. No Firestore collection/schema/rule/index, payment provider contract, realtime listener, or repository architecture change was introduced by this continuation. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and now serves SHA `dcff59e050de1dace19460198cb2909372bce7d5`, but `/api/release-info` still reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`; set `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, redeploy/restart if needed, clear cache, and reverify. |
+| Build Date | 2026-07-15 |
+| Verification Status | RC5 image optimization closure passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` on 2026-07-15. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. Direct hosted probes on 2026-07-13 returned 200 for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`; hosted SHA is current, Node is `v22.18.0`, Firestore is connected on ready/startup, but hosted version is still `v1.0.0-rc4` and `deploymentEnvironment=development`. Production readiness is `86%`, production launch remains NO-GO. |
+| Scope | Current workspace contains RC4 release hardening, POS/Active Orders operational UX fixes, performance evidence, RC5 production observability, and RC5 image optimization. No Firestore collection/schema/rule/index, payment provider contract, business workflow, repository contract, or architecture rewrite was introduced by this continuation; the only new route is internal monitoring signal ingestion. |
 
 ## Documentation Architecture
 
@@ -30,7 +30,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Release | `docs/release/` | Release notes, certificates, readiness, signoff, rollback, risk, and go-live docs. |
 | Deployment | `docs/deployment/` | Hostinger guide, environment matrix, production checklist, post-deploy checklist, acceptance checklist, and pending manual tasks. |
 | Validation | `docs/validation/` | Environment, deployment, provider, smoke, analyzer, hardening, Firestore, and plugin validation reports. |
-| Performance | `docs/performance/` | Bundle, dependency, route-load, runtime, memory, stress, and performance reports. |
+| Performance | `docs/performance/` | Bundle, dependency, route-load, runtime, memory, stress, image optimization, and performance reports. |
 | Architecture | `docs/architecture/` | System architecture, runbook, API, Firestore schema, state, security, and operational flow docs. |
 | Plugin platform | `docs/plugin-platform/`, `docs/plugin-sdk/` | Plugin authoring, registry, metadata, runtime SDK, and validation docs. |
 | Operational guides | `docs/guides/` | Developer, owner, customer, POS, roadmap, and PWA guides. |
@@ -42,9 +42,9 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Audit Source | Interrupted production-branch audit request resumed from `C:\Users\DINESH\.codex\attachments\5bc0417a-88d8-4741-9c2f-4d0c3bdfb2b4\pasted-text.txt`. |
 | RC4 Tag | `v1.0.0-rc4` currently resolves to `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38`; do not move it. |
-| Current HEAD | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` with uncommitted audit/report/code changes. |
-| Recommendation | Keep RC4 immutable and create `v1.0.0-rc5` after committing this synchronized workspace. |
-| Validation | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed on 2026-07-13. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Current HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files. |
+| Recommendation | Keep RC4 immutable and create `v1.0.0-rc5` from the final RC5 validation commit after local gates pass. |
+| Validation | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `cmd /c npm run verify:performance` passed on 2026-07-13. Build/analyze retain the accepted Firebase/protobuf warning. |
 | Code Fix During Continuation | `CompactOrderAccordionActions` hook order was corrected by moving the empty-action return below all hooks and memoizing the action runner. |
 | Current Readiness | Repository readiness `99%`; production readiness `86%`; production launch `NO GO` until Hostinger env, production secrets, provider, Firebase Console, browser/device, Lighthouse, and hardware gates pass. |
 
@@ -52,7 +52,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Area | Finding | Repository Action | Remaining Gate |
 | --- | --- | --- | --- |
-| Trackers and release docs | Current trackers agree on RC5, repository readiness `99%`, production readiness `86%`, current HEAD `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` plus synchronized workspace, and immutable RC4 tag. | Added this pending-work matrix, refreshed RC5 report references, and corrected the production environment matrix from RC4 to RC5. | Commit RC5 workspace and keep RC4 unchanged. |
+| Trackers and release docs | Current trackers agree on RC5, repository readiness `99%`, production readiness `86%`, current committed handoff base `dcff59e050de1dace19460198cb2909372bce7d5`, and immutable RC4 tag. | Added this pending-work matrix, refreshed RC5 report references, corrected the production environment matrix from RC4 to RC5, and synchronized final handoff commit references. | Commit final validation/performance evidence, tag RC5, and keep RC4 unchanged. |
 | TODO/FIXME/debt markers | Runtime source scan found no actionable TODO/FIXME/HACK/XXX markers outside release-audit script patterns and generated report text. | No code change required. | None. |
 | Console cleanup | No runtime `console.log` in app source; remaining runtime console warnings/errors are sanitized diagnostics in client catch paths or centralized logging. | No freeze-safe replacement required; `audit:release` keeps the sites listed for review. | Browser console smoke after deployment. |
 | Technical debt cleanup | Duplicated `safeClientReason` helpers existed across customer/profile/order client flows. | Added shared `src/lib/client-diagnostics.ts` and reused it from affected client modules. | None. |
@@ -61,8 +61,10 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Duplicate/dead code | No stale duplicate order-card/order-list source files found; current order surfaces route through compact accordion components and POS modules. | No revert required. | None. |
 | Listener/timer lifecycle | Reviewed high-risk Kitchen SSE, POS online/offline/popup listeners, Active Orders menu listeners, order polling, and offline sync singleton. Cleanup or singleton scope is present. | No code change required. | Long-running browser memory/device smoke. |
 | Operational flow | Customer/order/owner/Kitchen/Ready/Waiter/Serve/Bill/Payment/Completed paths retain idempotency keys, busy guards, status history, audit timeline, payment timeline, and incremental KOT positive-delta logic. | No code change required. | Authenticated multi-device/provider/printer smoke. |
-| Bundle/performance | Current bundle evidence regenerated from `.next/analyze`; static JS `8776 KB`, CSS `190 KB`, `/owner/orders` `1246 KB` against `1200 KB` warning. | Refreshed bundle reports; no deeper split applied during release freeze. | Authenticated visual/regression and Chrome/Lighthouse profiling. |
+| Bundle/performance | Current bundle evidence regenerated from `.next/analyze`; static JS `8837 KB`, CSS `191 KB`, `/owner/orders` `697 KB`, under the `1200 KB` verification budget and below the preferred `1000 KB` target. | Extracted the pure `normalizePhone` helper so Owner Orders and POS no longer import the Firebase-backed restaurant operations service for phone normalization only. No deeper route splitting was required. | Authenticated visual/regression and Chrome/Lighthouse profiling. |
 | Loading/error states | Existing App Router loading/error boundaries cover current tracked release surfaces; static audit did not find a new repository blocker. | No code change required. | Browser/device smoke. |
+| Production observability | Admin/Owner diagnostics needed a single live monitoring view for health, grouped errors, logs, performance, providers, alerts, and self-tests. | Added a bounded in-memory production monitor, client/server signal ingestion, Admin Production Monitoring page, Owner diagnostics expansion, alert rules, and exportable grouped error/log views without Firestore schema or business workflow changes. | Hosted Admin/Owner smoke and long-run production monitoring QA. |
+| Image optimization | Upload and delivery paths needed consistent AVIF/WebP strategy, Cloudinary auto-format/quality/DPR transforms, and right-sized thumbnails without changing business logic or APIs. | Added shared Cloudinary presets, AVIF-first browser compression fallback, signed incoming transforms through existing upload signing, CMS/public thumbnail helper reuse, and `SafeImage` presets across high-volume image surfaces. | Hosted Cloudinary upload smoke, visual quality review, and browser/network image waterfall QA. |
 
 ### Implementation Matrix
 
@@ -72,7 +74,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Accordion Migration | Shared compact accordion for owner/kitchen/POS active surfaces with safe action menu. | Yes | No | No | Authenticated browser/device QA | No | No | Yes |
 | Kitchen Module | Queue, history, status lifecycle, KOT print, compact UI, ready notifications. | Yes | No | No | Kitchen TV/tablet/printer QA | No | Manual long-run memory | Yes |
 | Waiter Module | Ready-to-Serve view, service actions, waiter-safe navigation. | Yes | No | No | Waiter device QA | No | No | Yes |
-| Active Orders | Operations/Waiter/Cashier/Manager views, compact rows, drawer/actions. | Yes | No | No | Authenticated owner/POS QA | No | `/owner/orders` JS budget warning remains | Yes |
+| Active Orders | Operations/Waiter/Cashier/Manager views, compact rows, drawer/actions. | Yes | No | No | Authenticated owner/POS QA | No | Manual Chrome profiling after deployment | Yes |
 | POS | New/active/held/history/customer panels, payment, split/merge/transfer, incremental KOT. | Yes | No | No | Full operator workflow QA | No | Manual Chrome profiling | Yes |
 | Owner Dashboard | Repository-backed dashboard metrics and navigation. | Yes | No | No | Authenticated browser QA | No | No | Yes |
 | Analytics | Owner/admin analytics and reports through repository/API paths. | Yes | No | No | Authenticated browser QA | No | No | Yes |
@@ -88,6 +90,8 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Lazy Loading | Auth/toast/provider deferral and route-owned startup cleanup. | Yes | No | No | Browser regression QA | No | Yes | Yes |
 | Bundle Optimization | Analyzer reports and current route/chunk evidence. | Yes | No | No | No | No | Hosted Lighthouse/Chrome | Yes |
 | Runtime Diagnostics | Runtime, render, memory, network, provider, smoke reports. | Yes | No | No | Hosted/authenticated checks | No | Manual heap profiling | Yes |
+| Production Monitoring | Internal Admin/Developer production health, errors, logs, performance, providers, alerts, owner diagnostics, and self-test view. | Yes | No | No | Admin/Owner hosted smoke | Yes | Manual long-run monitoring | Yes |
+| Image Optimization | Upload compression, Cloudinary delivery presets, thumbnail sizing, and `SafeImage` rendering. | Yes | No | No | Hosted visual/upload QA | Yes | Browser network/Lighthouse image audit | Yes |
 | Floating Action Menu | Active-order More actions portal, edge repositioning, mobile bottom sheet. | Yes | No | No | Browser/device QA | No | No | Yes |
 | Incremental KOT Generation | Add-items-after-ready sends only new quantities as rush KOT. | Yes | No | No | POS/Kitchen workflow QA | No | No | Yes |
 | Past Orders / History Merge | POS Past Orders renamed Order History with range/status/search filters. | Yes | No | No | Browser QA | No | No | Yes |
@@ -100,6 +104,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- | --- |
 | Completed operational workflow | `src/components/flows/pos-billing-flow.tsx`, `src/modules/owner/pos/components/cart-panel.tsx`, `src/components/orders/CompactOrderAccordionActions.tsx` | Include in RC5. |
 | Performance hardening | `src/components/flows/auth-login-flow.tsx`, `src/components/auth/auth-session-bridge.tsx`, `src/components/ui/lazy-app-toaster.tsx`, auth pages, `src/components/brand/brand-logo.tsx`, `src/app/layout.tsx`, `next.config.ts` | Include in RC5. |
+| Image optimization | `src/lib/cloudinary-images.ts`, `src/lib/image-optimization.ts`, `src/services/cloudinary-upload-service.ts`, `src/components/media/safe-image.tsx`, public/CMS image helpers, and high-volume customer/owner/admin image surfaces. | Include in RC5. |
 | Release evidence/report regeneration | `docs/release/*`, `docs/performance/*`, `docs/validation/*`, `reports/release-candidate/*`, `reports/plugin-platform/*` | Include in RC5 as evidence. |
 | Tracker/checklist synchronization | `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md`, `docs/release/RELEASE_NOTES.md`, `docs/release/RELEASE_CERTIFICATION.md`, `docs/deployment/PRODUCTION_CHECKLIST.md`, `docs/deployment/POST_DEPLOYMENT_CHECKLIST.md`, `docs/release/ROLLBACK_GUIDE.md`, `docs/deployment/PENDING_MANUAL_TASKS.md`, `docs/release/RISK_REGISTER.md`, `docs/deployment/PRODUCTION_ACCEPTANCE_CHECKLIST.md`, release readiness/runbook docs | Include in RC5. |
 | Experimental/unrelated | None found in the audited dirty workspace. | No revert recommended. |
@@ -145,8 +150,8 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Code Boundaries | No Firestore schema/rule/index, repository contract, API contract, Owner/Kitchen/POS business flow, payment contract, or auth architecture rewrite was introduced. |
 | Completed Optimizations | Deferred Firebase/Stack/toast runtime from auth/session startup where safe, removed unconditional Cloudinary/Firebase Storage global preconnects, prevented duplicate same-source brand logo image requests, and changed manifest caching to short public revalidation while preserving no-store dynamic/release routes. |
 | Validation | `test:enhancements`, typecheck, lint, build, analyze, `audit:release`, `smoke:operational`, `profile:runtime`, hosted public smoke, provider probe, memory probe, bundle evidence generation, and performance verification completed. |
-| Hosted Deployment | Hosted release info/health are reachable and versioned as `v1.0.0-rc4`; `deploymentEnvironment=development` remains a blocking Hostinger env issue. |
-| Bundle Evidence | `docs/performance/FINAL_BUNDLE_REPORT.md` and `docs/performance/BUNDLE_DEEP_ANALYSIS.md` list largest 20 route owners, chunks, modules, vendors, duplicate imports, and dependency scan. Static JS total is `8776 KB`; CSS total is `190 KB`; `/owner/orders` is `1246 KB`. |
+| Hosted Deployment | Hosted release info/health are reachable at current SHA `dcff59e050de1dace19460198cb2909372bce7d5` and Node `v22.18.0`, but remain versioned as `v1.0.0-rc4`; `deploymentEnvironment=development` remains a blocking Hostinger env issue. |
+| Bundle Evidence | `docs/performance/FINAL_BUNDLE_REPORT.md` and `docs/performance/BUNDLE_DEEP_ANALYSIS.md` list largest 20 route owners, chunks, modules, vendors, duplicate imports, and dependency scan. Static JS total is `8760 KB`; CSS total is `190 KB`; `/owner/orders` is `692 KB`. |
 | Provider Evidence | Hosted provider probe reports Firebase/Admin/Firestore, Cloudinary, SMTP, Google OAuth, and Mapbox configured; Razorpay, WhatsApp/SMS/push, and live provider dashboards remain manual. |
 | Documentation | `docs/release/FINAL_RELEASE_CERTIFICATE.md`, `docs/release/FINAL_RELEASE_REPORT.md`, `docs/release/RELEASE_CERTIFICATION.md`, `docs/release/FINAL_DEPLOYMENT_SIGNOFF.md`, `docs/release/FINAL_RELEASE_READINESS.md`, `docs/deployment/PENDING_MANUAL_TASKS.md`, `docs/release/RISK_REGISTER.md`, `docs/deployment/PRODUCTION_ACCEPTANCE_CHECKLIST.md`, release notes, checklist, rollback guide, runbook, and this tracker are synchronized. |
 | Readiness | Repository readiness `99%`; production readiness `86%`; risk medium-high; production launch `NO GO` until blocking env and manual gates pass. |
@@ -210,9 +215,9 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Completed Tasks | Deferred Firebase Auth and Stack Auth service imports from customer auth pages and the session bridge; lazy-loaded auth-page toaster runtime; removed duplicate same-source brand logo image rendering; removed unconditional Cloudinary/Firebase Storage global preconnects; changed manifest caching from no-store to short public revalidation while preserving no-store for HTML, owner/admin/customer dynamic routes, and `/api/release-info`. |
 | Pending Tasks | Hosted redeploy of this commit, Hostinger `NEXT_PUBLIC_APP_ENV=production` correction, hosted Lighthouse/PageSpeed after-score capture, Chrome Performance/Coverage/Memory traces, authenticated browser smoke, device/browser QA, provider validation, and any deeper CSS/component splitting that requires visual regression coverage. |
 | Measured Improvements | Local route-owned JS for `/login`, `/signup`, and `/forgot-password` dropped from about `1641 KB` each to `496.8 KB` each, saving about `1144 KB` per route by moving Firebase Auth, Stack Auth, and toast runtime to action-time chunks. Analyzer client report dropped from `1582101` bytes to `1574166` bytes. Total `.next/static` JS changed from about `8820 KB` to `8770.5 KB`; global CSS changed from about `190 KB` to `189.5 KB`. |
-| Bundle Size Comparison | Before top route pressure included `/login`, `/signup`, and `/forgot-password` at about `1641 KB` JS each. After, those routes are no longer in the top route list. Remaining largest local route-owned JS: `/handler/[...stack]` `1968.2 KB`, `/owner/orders` `1243.3 KB`, `/admin/settings/map` `1079.9 KB`, `/admin/system/firebase-diagnostics` `1075.7 KB`, and `/restaurant/[slug]/item/[itemId]` `1075.4 KB`. |
+| Bundle Size Comparison | Before top route pressure included `/login`, `/signup`, and `/forgot-password` at about `1641 KB` JS each. After the auth-route split those routes left the top route list; after the final phone-helper extraction, `/owner/orders` is `692 KB` and under the RC5 verification target. Remaining non-operational oversized routes require separate authenticated/browser validation before deeper splitting. |
 | Lighthouse Comparison | Before from Phase 3 brief: Hostinger desktop `82`, mobile `65`; Google Lighthouse desktop performance `60`, accessibility `90`, best practices `92`, SEO `100`, mobile below target. After Lighthouse is pending because these local changes are not deployed and browser/PageSpeed verification requires hosted redeploy. |
-| Hostinger Comparison | Hosted `/api/release-info` on 2026-07-10 serves `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132`, `applicationVersion=v1.0.0-rc4`, `nodeEnv=production`, and `deploymentEnvironment=development`. This confirms the remaining environment correction is Hostinger-side, not a repository code fix. |
+| Hostinger Comparison | Hosted `/api/release-info` on 2026-07-13 serves `dcff59e050de1dace19460198cb2909372bce7d5`, `applicationVersion=v1.0.0-rc4`, Node `v22.18.0`, `nodeEnv=production`, and `deploymentEnvironment=development`. `/health/ready` and `/health/startup` report Firestore connected. This confirms the remaining version/environment correction is Hostinger-side, not a repository code fix. |
 | Core Web Vitals Impact | Expected local impact: less initial auth-route JavaScript parse/execute work, fewer early third-party connections on generic routes, and one fewer duplicate logo image request where light/dark logo assets are identical. LCP/INP/FCP after-scores remain manual hosted browser measurements. CLS was not intentionally changed. |
 | Firebase Impact | Firebase Auth imports now load only for email-link callback handling or explicit Firebase sign-in/reset/magic-link actions. The session bridge imports auth services only after confirming customer surface plus Firebase-enabled config. Firestore/Admin server paths were not changed. |
 | Third-party Impact | Stack Auth imports now load only for customer Stack actions or Stack fallback session lookup. Google Tag Manager remains lazy-loaded through `afterInteractive`/`lazyOnload` behavior already present. Cloudinary/Firebase Storage are no longer globally preconnected from every route. |
@@ -228,7 +233,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Feature ID | `RC1-PRODUCTION-GO-LIVE` |
 | Scope | Release certification only. No application feature, refactor, API contract, Firestore schema/rule/index, payment, auth, realtime, repository, or module workflow change. |
 | Status | Repository-side certification documentation implemented locally; validation passed. |
-| Deployment Status | Direct hosted `curl` probes return `200` for `/`, `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup` with HTTPS/security headers. Hosted metadata serves SHA `82705245b36159a8e1ba2c16cdd7d513f6392126`, branch `release/production-nammude`, `applicationVersion: v1.0.0-rc3`, Node `v22.18.0`, plugin flags disabled, and `deploymentEnvironment: development`. |
+| Deployment Status | Direct hosted probes return `200` for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`. Hosted metadata serves SHA `dcff59e050de1dace19460198cb2909372bce7d5`, branch `release/production-nammude`, Node `v22.18.0`, plugin flags disabled, and health readiness with Firestore connected, but `applicationVersion: v1.0.0-rc4` and `deploymentEnvironment: development` still block RC5 production signoff. |
 | Performance Status | Local analyze and runtime profile pass. `npm run verify:performance` reports `3` pass, `1` warning, and `2` manual checks; production Lighthouse/Core Web Vitals, Chrome Performance/Coverage/Memory, INP, FPS, and hosted after-scores remain manual. |
 | Security Status | `npm run audit:release` passes. Hosted headers include HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy. Production security signoff still requires Hostinger production env, Firebase rules/index/domain verification, provider webhook checks, secure session smoke, and authenticated route testing. |
 | Provider Status | `npm run verify:providers` reports configured Authentication, Storage, Cloudinary, SMTP, Google OAuth, and Mapbox locally; Firebase Admin/Firestore, Razorpay, and WhatsApp remain blocked by missing local production/provider values. Hosted health reports Firebase/Firestore/Storage/Cloudinary/SMTP configured and Razorpay owner-scoped or missing. |

@@ -7,6 +7,7 @@ import { readCachedPublicCmsSettings, writeCachedPublicCmsSettings } from "@/lib
 import { sortOffers } from "@/lib/offer-engine";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
+import { cloudinaryImageUrl, cloudinaryThumbnailUrl } from "@/lib/cloudinary-images";
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 
@@ -694,37 +695,11 @@ export function cuisineDocToUi(doc: AppCuisineDoc): AppCuisine {
 }
 
 function withCloudinaryAuto(url: string) {
-  if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
-  if (url.includes("/upload/f_auto") || url.includes("/upload/q_auto") || /\/upload\/[^/]*q_auto/.test(url)) return url;
-  return url.replace("/upload/", "/upload/f_auto,q_auto/");
+  return cloudinaryImageUrl(url);
 }
 
 function withCloudinaryThumbnail(url: string) {
-  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  return withCloudinaryTransform(url, "w_400,h_225,c_fill,f_auto,q_auto");
-}
-
-function withUnsplashThumbnail(url: string) {
-  try {
-    const nextUrl = new URL(url);
-    nextUrl.searchParams.set("auto", "format");
-    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
-    nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("h", "225");
-    nextUrl.searchParams.set("q", "75");
-    return nextUrl.toString();
-  } catch {
-    return url;
-  }
-}
-
-function withCloudinaryTransform(url: string, transform: string) {
-  const marker = "/upload/";
-  if (!url || !url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
-  const [prefix, rest = ""] = url.split(marker);
-  const parts = rest.split("/").filter(Boolean);
-  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
-  return `${prefix}${marker}${transform}/${parts.join("/")}`;
+  return cloudinaryThumbnailUrl(url);
 }
 
 export function offerDocToUi(doc: OfferDoc): Offer {

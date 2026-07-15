@@ -18,25 +18,39 @@ export function BrandLogo({
   sizes = "(max-width: 768px) 136px, 180px",
 }: BrandLogoProps) {
   const logo = BRAND_ASSETS.logos[language];
+  const sameLogo = logo.lightTheme === logo.darkTheme;
 
   return (
     <span className={cn("relative block h-10 w-36 shrink-0", className)} aria-label="Nammude">
-      <Image
-        src={logo.lightTheme}
-        alt="Nammude"
-        fill
-        sizes={sizes}
-        priority={priority}
-        className={cn("object-contain dark:hidden", imageClassName)}
-      />
-      <Image
-        src={logo.darkTheme}
-        alt="Nammude"
-        fill
-        sizes={sizes}
-        priority={priority}
-        className={cn("hidden object-contain dark:block", imageClassName)}
-      />
+      {sameLogo ? (
+        <Image
+          src={logo.lightTheme}
+          alt="Nammude"
+          fill
+          sizes={sizes}
+          priority={priority}
+          className={cn("object-contain", imageClassName)}
+        />
+      ) : (
+        <>
+          <Image
+            src={logo.lightTheme}
+            alt="Nammude"
+            fill
+            sizes={sizes}
+            priority={priority}
+            className={cn("object-contain dark:hidden", imageClassName)}
+          />
+          <Image
+            src={logo.darkTheme}
+            alt="Nammude"
+            fill
+            sizes={sizes}
+            priority={priority}
+            className={cn("hidden object-contain dark:block", imageClassName)}
+          />
+        </>
+      )}
     </span>
   );
 }

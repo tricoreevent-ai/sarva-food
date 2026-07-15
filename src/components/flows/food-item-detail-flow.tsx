@@ -433,6 +433,7 @@ function ImageGallery({
           fill
           priority
           fallbackSrc={IMAGE_FALLBACKS.food}
+          cloudinaryPreset="large"
           sizes="(min-width: 1024px) 520px, 100vw"
           className="object-cover"
         />
@@ -480,6 +481,7 @@ function ImageGallery({
                 alt={`${itemName} ${index + 1}`}
                 fill
                 fallbackSrc={IMAGE_FALLBACKS.food}
+                cloudinaryPreset="cart"
                 sizes="92px"
                 className="object-cover"
               />
@@ -828,6 +830,7 @@ function RecommendedItems({ restaurant, items }: { restaurant: Restaurant; items
                   alt={item.name}
                   fill
                   fallbackSrc={IMAGE_FALLBACKS.food}
+                  cloudinaryPreset="productGrid"
                   sizes="240px"
                   className="object-cover transition-transform group-hover:scale-105"
                 />

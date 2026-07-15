@@ -540,14 +540,14 @@ function DetailPanel({
   return (
     <aside className="min-w-0 rounded-2xl border border-white/10 bg-[#090e1d] shadow-2xl xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
       <div className="relative h-40 overflow-hidden rounded-t-2xl">
-        <SafeImage src={row.coverImage || row.coverImages?.[0] || row.image} fallbackSrc={IMAGE_FALLBACKS.restaurant} alt={row.name} fill sizes="430px" className="object-cover" />
+        <SafeImage src={row.coverImage || row.coverImages?.[0] || row.image} fallbackSrc={IMAGE_FALLBACKS.restaurant} alt={row.name} fill cloudinaryPreset="restaurantCard" sizes="430px" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#090e1d] via-[#090e1d]/30 to-transparent" />
         <StatusBadge className="absolute left-4 top-4" status={row.statusLabel} />
       </div>
       <div className="relative px-4 pb-4">
         <div className="-mt-10 flex items-end gap-3">
           <div className="grid size-20 place-items-center overflow-hidden rounded-2xl border border-emerald-400/40 bg-[#0b1020] text-xl font-black text-emerald-300 shadow-xl">
-            {row.logo ? <SafeImage src={row.logo} alt={`${row.name} logo`} width={80} height={80} className="h-full w-full object-cover" /> : getInitials(row.name)}
+            {row.logo ? <SafeImage src={row.logo} alt={`${row.name} logo`} width={80} height={80} cloudinaryPreset="logo" className="h-full w-full object-cover" /> : getInitials(row.name)}
           </div>
           <div className="min-w-0 pb-1">
             <h2 className="truncate text-xl font-black text-white">{row.name}</h2>
@@ -864,7 +864,7 @@ function RestaurantIdentity({ row }: { row: RestaurantRow }) {
 function RestaurantThumb({ row }: { row: RestaurantRow }) {
   return (
     <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/10">
-      <SafeImage src={row.logo || row.image} fallbackSrc={IMAGE_FALLBACKS.restaurant} alt={row.name} fill sizes="56px" className="object-cover" />
+      <SafeImage src={row.logo || row.image} fallbackSrc={IMAGE_FALLBACKS.restaurant} alt={row.name} fill cloudinaryPreset="adminTable" sizes="56px" className="object-cover" />
     </div>
   );
 }

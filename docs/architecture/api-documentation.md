@@ -1,7 +1,7 @@
 # API Documentation
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Runtime release commit: pending RC5 commit from the synchronized workspace
+Runtime release commit: final RC5 validation commit after local gates pass; current handoff base `dcff59e050de1dace19460198cb2909372bce7d5`
 
 ## Production API Families
 

@@ -37,6 +37,7 @@ export async function trackAnalyticsEvent(
   payload: AnalyticsPayload,
 ) {
   if (typeof window === "undefined") return { event, payload, queued: false };
+  sendMonitoringSignal(event, payload);
 
   const [{ getFirebaseAnalytics }, { logEvent }] = await Promise.all([
     import("@/firebase/client"),
@@ -52,6 +53,7 @@ export async function trackAnalyticsEvent(
 export async function captureException(error: unknown, context?: Record<string, string | number | boolean | undefined>) {
   const message = error instanceof Error ? error.message : String(error);
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  sendMonitoringSignal("client_error", { ...context, error: message.slice(0, 180) });
 
   if (!dsn || typeof window === "undefined") {
     if (process.env.NODE_ENV !== "production") console.error(message, context);
@@ -84,4 +86,38 @@ async function sendSentryEnvelope(dsn: string, event: Record<string, unknown>) {
     body: envelope,
     keepalive: true,
   });
+}
+
+function sendMonitoringSignal(event: string, payload: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  const path = typeof payload.path === "string" ? payload.path : window.location.pathname;
+  if (String(path).startsWith("/api/monitoring/client")) return;
+  const body = JSON.stringify({
+    event,
+    path: window.location.pathname,
+    payload: sanitizeMonitoringPayload(payload),
+  });
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/monitoring/client", new Blob([body], { type: "application/json" }));
+      return;
+    }
+  } catch {
+    // Fall back to fetch below.
+  }
+  void fetch("/api/monitoring/client", {
+    method: "POST",
+    body,
+    headers: { "content-type": "application/json" },
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
+function sanitizeMonitoringPayload(payload: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(payload).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value.replace(/\s+/g, " ").slice(0, 240) : value,
+    ]),
+  );
 }

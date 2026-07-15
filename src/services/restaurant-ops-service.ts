@@ -19,6 +19,7 @@ import { refs, typedDoc } from "@/firebase/collections";
 import { calculateRestaurantTax } from "@/lib/menu-engine";
 import { shouldUseFirebase } from "@/lib/env";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
+import { normalizePhone } from "@/lib/phone";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
 import { createMetadata, updateMetadata } from "@/services/firestore-metadata";
 import type { OrderLine, PosBill, RestaurantBranch, TableOrder, TaxSettings } from "@/lib/types";
@@ -42,11 +43,7 @@ export function canUseOperationalFirestore() {
   return Boolean(getFirebaseAuth().currentUser);
 }
 
-export function normalizePhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length <= 10) return digits;
-  return digits.slice(-10);
-}
+export { normalizePhone };
 
 function effectiveTaxSettingsForBill(bill: PosBill, taxSettings: TaxSettings): TaxSettings {
   return bill.applyGst === false

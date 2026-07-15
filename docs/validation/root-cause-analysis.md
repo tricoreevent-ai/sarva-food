@@ -30,7 +30,7 @@ Hostinger diagnostics.
 
 See the runtime, tenant, collection, rule, and parity reports:
 
-- [firebase-runtime-audit.md](firebase-runtime-audit.md)
+- [firebase-runtime-audit.md](../performance/firebase-runtime-audit.md)
 - [tenant-trace.md](tenant-trace.md)
 - [firestore-collection-trace.md](firestore-collection-trace.md)
 - [firestore-rule-failures.md](firestore-rule-failures.md)

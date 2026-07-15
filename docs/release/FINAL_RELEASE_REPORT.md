@@ -1,15 +1,15 @@
 # Final Release Report
 
-Date: 2026-07-13
+Date: 2026-07-15
 
 | Field | Value |
 | --- | --- |
 | Release Candidate | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
 | Production Branch | `release/production-nammude` |
-| Local HEAD | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` plus synchronized audit/report/code changes |
+| Local HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
 | Certification Result | Repository certified for RC5 candidate commit/tag after synchronization; production signoff remains blocked. |
-| Feature Scope | Production hardening, validation, reports, cache/header tuning, auth/toast lazy loading, duplicate logo request prevention, POS/Active Orders operational UX fixes, and release documentation. |
+| Feature Scope | Production hardening, validation, reports, cache/header tuning, auth/toast lazy loading, duplicate logo request prevention, POS/Active Orders operational UX fixes, low-risk phone-helper bundle cleanup, RC5 image optimization, and release documentation. |
 
 ## Validation
 
@@ -30,6 +30,7 @@ Date: 2026-07-13
 | `PRODUCTION_URL=... cmd /c npm run monitor:memory` | `1` pass, `2` browser/manual checks pending |
 | `PRODUCTION_URL=... cmd /c npm run verify:performance` | `3` pass, `1` warning, `2` manual |
 | 2026-07-13 RC5 closure | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed; build/analyze retain accepted Firebase/protobuf warning |
+| 2026-07-15 image optimization closure | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed; analyzer timeout resolved, bundle evidence regenerated |
 
 ## Completed
 
@@ -39,11 +40,12 @@ Date: 2026-07-13
 | Cache review | Manifest now uses short public revalidation; immutable public assets share one header path; dynamic/release routes remain no-store. |
 | Third-party review | Removed unconditional Cloudinary/Firebase Storage preconnects; Google Tag Manager preconnect remains conditional. |
 | Image review | Duplicate same-source brand logo request prevented when light/dark logo assets are identical. |
+| Image optimization | Shared Cloudinary presets, AVIF-first upload compression, WebP/JPEG fallback, incoming Cloudinary transforms, `dpr_auto` delivery cleanup, and right-sized `SafeImage` variants completed repository-side. |
 | Auth bundle review | Firebase Auth, Stack Auth, and toast runtime are dynamically loaded only when auth actions/session bridge need them. |
 | Operational workflow | Incremental KOT, Ready To Serve waiter view, Order History filters, compact active rows, and portaled More actions are implemented; hook-order audit fix applied. |
 | Technical debt cleanup | Duplicated client error-reason helpers now use shared `src/lib/client-diagnostics.ts`; compact order icon-only action controls now expose explicit accessible names. |
 | Release package review | Production environment matrix now aligns on `v1.0.0-rc5`; historical RC4 references remain only for immutable tag and rollback context. |
-| Bundle audit | `docs/performance/FINAL_BUNDLE_REPORT.md` and `docs/performance/BUNDLE_DEEP_ANALYSIS.md` include largest route/chunk/module/vendor tables. |
+| Bundle audit | `docs/performance/FINAL_BUNDLE_REPORT.md` and `docs/performance/BUNDLE_DEEP_ANALYSIS.md` include largest route/chunk/module/vendor tables; latest `/owner/orders` route-owned JS is `697 KB`. |
 | Runtime profiling | Runtime, render, memory, network, performance, and stress reports regenerated. |
 | Pending-work audit | No actionable repository-side TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read remains. |
 

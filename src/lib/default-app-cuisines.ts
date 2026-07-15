@@ -2,7 +2,7 @@ import type { AppCuisine } from "@/lib/types";
 
 type CuisineSeed = Pick<AppCuisine, "name" | "icon" | "color" | "description" | "image">;
 
-const cloudinaryCuisineBase = "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,w_900,h_600,c_fill";
+const cloudinaryCuisineBase = "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,dpr_auto,w_900,h_600,c_fill";
 
 const cuisineSeeds: CuisineSeed[] = [
   { name: "Kerala", icon: "leaf", color: "#0f8a5f", description: "Kerala meals, appam, stew, seafood, and coconut-rich dishes." },

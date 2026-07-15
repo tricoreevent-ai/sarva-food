@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   Bike,
   CalendarClock,
@@ -81,6 +82,7 @@ export const adminNav: NavItem[] = [
   { label: "Social Queue", href: "/admin/social-queue", icon: ImagePlus },
   { label: "Meta Integrations", href: "/admin/meta", icon: Settings2 },
   { label: "Map Settings", href: "/admin/settings/map", icon: MapPin },
+  { label: "Production Monitoring", href: "/admin/system/monitoring", icon: Activity },
   { label: "System Diagnostics", href: "/admin/system/diagnostics", icon: ShieldCheck },
   { label: "Firebase Diagnostics", href: "/admin/system/firebase-diagnostics", icon: ShieldCheck },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },

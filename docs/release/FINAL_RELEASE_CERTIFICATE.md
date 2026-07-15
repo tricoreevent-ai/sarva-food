@@ -6,8 +6,8 @@ Generated: 2026-07-13T00:00:00Z
 | --- | --- |
 | Release Version | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
 | Branch | `release/production-nammude` |
-| Local HEAD | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` with synchronized audit/report/code changes |
-| Tag Recommendation | Keep existing `v1.0.0-rc4` unchanged; commit this workspace as `v1.0.0-rc5` |
+| Local HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files |
+| Tag Recommendation | Keep existing `v1.0.0-rc4` unchanged; tag the final RC5 validation commit as `v1.0.0-rc5` |
 | Hosted URL | `https://violet-squid-380447.hostingersite.com` |
 | Hosted SHA | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` currently served |
 | Hosted Environment | `development` reported by `/api/release-info` and `/health/ready` |
@@ -36,11 +36,11 @@ No Firestore schema, repository contract, payment provider contract, or producti
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Build/analyze | ✅ Completed | `npm run build` and `npm run analyze` passed with accepted Firebase/protobuf warning. |
-| Bundle budget | 🟡 Pending Manual | `docs/performance/FINAL_BUNDLE_REPORT.md`: `/owner/orders` `1246 KB` vs `1200 KB` warning; not a launch blocker without browser regression evidence. |
+| Bundle budget | ✅ Completed | `docs/performance/FINAL_BUNDLE_REPORT.md`: `/owner/orders` `692 KB`, under the `1200 KB` verification budget and below the preferred `1000 KB` target. |
 | Lighthouse | 🟡 Pending Manual | Chrome/Lighthouse unavailable locally; hosted run must happen after Hostinger env correction. |
 | Runtime profile | ✅ Completed | `docs/performance/RUNTIME_PROFILE.md`, `docs/performance/FINAL_RUNTIME_REPORT.md`, `docs/performance/FINAL_MEMORY_REPORT.md`, and `docs/performance/FINAL_RENDER_REPORT.md` regenerated. |
-| RC5 pending-work audit | ✅ Completed | No repository-side code blocker found; current `/owner/orders` bundle warning requires authenticated browser/profiling evidence before deeper split. |
-| Final repository optimization | ✅ Completed | Shared duplicated client error-reason helper and added explicit accessible names to compact order action controls. |
+| RC5 pending-work audit | ✅ Completed | No repository-side code blocker found; deeper `/owner/orders` splitting is no longer required for the RC5 bundle target. |
+| Final repository optimization | ✅ Completed | Shared duplicated client error-reason helper, added explicit accessible names to compact order action controls, and extracted pure phone normalization away from Firebase-backed service imports. |
 
 ## Security Status
 
@@ -66,11 +66,11 @@ No Firestore schema, repository contract, payment provider contract, or producti
 
 | Metric | Result |
 | --- | --- |
-| Static JS total | `8776 KB` |
+| Static JS total | `8760 KB` |
 | Static CSS total | `190 KB` |
 | App routes with client manifests | `102` |
 | Largest route owner | `/handler/[...stack]` `1968 KB` |
-| Largest operational route | `/owner/orders` `1246 KB` |
+| Largest operational route | `/owner/orders` `692 KB` |
 | Largest client chunk | `mapbox-gl` async chunk `1704 KB parsed / 460 KB gzip` |
 | Largest vendor contributors | `mapbox-gl`, `next`, `@stackframe/stack`, `xlsx`, `lucide-react`, Firebase |
 
@@ -81,7 +81,7 @@ See `docs/performance/FINAL_BUNDLE_REPORT.md` / `docs/performance/BUNDLE_DEEP_AN
 | Warning | Category | Reason | Impact | Expected Gain | Action | Risk |
 | --- | --- | --- | --- | --- | --- | --- |
 | Hosted Lighthouse unavailable in workspace | Manual validation required | No local Chrome/Lighthouse runner and hosted env still reports `development`. | Blocks final CWV score. | Unknown until hosted run. | Run mobile/desktop Lighthouse after env correction/redeploy. | Low code risk; external validation only. |
-| `/owner/orders` route JS over budget | Not worth changing before smoke | 1246 KB is 46 KB over verification budget; deeper split touches authenticated owner flow. | Possible parse cost on owner orders. | Small unless route is hot on low-end devices. | Defer until authenticated visual/regression smoke exists. | Medium if changed during freeze. |
+| `/owner/orders` route JS | Resolved locally | Current analyzer reports `692 KB`, under the verification budget and preferred target after pure helper extraction. | Manual hosted profiling still required. | Low unless authenticated smoke reveals route-specific regressions. | Run Chrome/Lighthouse after deployment. | Low. |
 | Firebase/protobuf dynamic dependency warning | Third-party limitation | Trace originates in upstream Firebase/protobuf server dependency code. | Build warning only; no confirmed runtime bug. | None without unsafe aliasing. | Document and accept. | High if rewritten during release freeze. |
 
 ## Browser Compatibility

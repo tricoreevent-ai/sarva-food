@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/client-toast";
 import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Italic, List, ListOrdered, Monitor, Plus, Save, Smartphone, Tablet, Trash2, Type, type LucideIcon } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
+import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -587,7 +587,7 @@ function HomepagePreview({ settings, mode }: { settings: CmsSettings; mode: Prev
         </div>
         <div className={mode === "mobile" ? "mt-4 aspect-[16/9] overflow-hidden rounded-2xl bg-orange-100" : "aspect-[16/10] overflow-hidden rounded-2xl bg-orange-100"}>
           {settings.homepage.backgroundImage || banner?.imageUrl ? (
-            <Image src={settings.homepage.backgroundImage || banner?.imageUrl || ""} alt="Homepage preview" width={640} height={360} className="h-full w-full object-cover" sizes={mode === "mobile" ? "360px" : "420px"} />
+            <SafeImage src={settings.homepage.backgroundImage || banner?.imageUrl || ""} alt="Homepage preview" width={640} height={360} fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="hero" className="h-full w-full object-cover" sizes={mode === "mobile" ? "360px" : "420px"} />
           ) : null}
         </div>
       </div>

@@ -56,12 +56,12 @@ function installClientMonitoring() {
   const cleanupFetch = monitorFetch();
   const cleanupErrors = monitorErrors();
   const cleanupLongTasks = monitorLongTasks();
-  const cleanupMemory = monitorDevelopmentMemory();
+  const cleanupBrowserPerformance = monitorBrowserPerformance();
   return () => {
     cleanupFetch();
     cleanupErrors();
     cleanupLongTasks();
-    cleanupMemory();
+    cleanupBrowserPerformance();
   };
 }
 
@@ -253,16 +253,66 @@ function monitorLongTasks() {
   }
 }
 
-function monitorDevelopmentMemory() {
-  if (process.env.NODE_ENV === "production") return () => undefined;
+function monitorBrowserPerformance() {
+  const cleanups = [monitorFps(), monitorPageLoad(), monitorMemory()];
+  return () => cleanups.forEach((cleanup) => cleanup());
+}
+
+function monitorFps() {
+  let frames = 0;
+  let raf = 0;
+  const started = performance.now();
+  const tick = () => {
+    frames += 1;
+    if (performance.now() - started < 3000) {
+      raf = window.requestAnimationFrame(tick);
+      return;
+    }
+    const fps = Math.round((frames * 1000) / Math.max(1, performance.now() - started));
+    void trackAnalyticsEvent("route_performance", {
+      route: location.pathname,
+      metricName: "FPS",
+      metricValue: fps,
+      source: "web",
+    }).catch(() => undefined);
+  };
+  raf = window.requestAnimationFrame(tick);
+  return () => window.cancelAnimationFrame(raf);
+}
+
+function monitorPageLoad() {
+  const cancel = scheduleIdle(() => {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (!nav) return;
+    void trackAnalyticsEvent("route_performance", {
+      route: location.pathname,
+      metricName: "page_load",
+      metricValue: Math.round(nav.loadEventEnd || nav.duration),
+      durationMs: Math.round(nav.duration),
+      source: "web",
+    }).catch(() => undefined);
+    void trackAnalyticsEvent("route_performance", {
+      route: location.pathname,
+      metricName: "hydration",
+      metricValue: Math.round(performance.now()),
+      source: "web",
+    }).catch(() => undefined);
+  }, 1800);
+  return cancel;
+}
+
+function monitorMemory() {
   const perf = performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } };
   if (!perf.memory) return () => undefined;
   const id = window.setInterval(() => {
     const usedMb = Math.round(perf.memory!.usedJSHeapSize / 1024 / 1024);
     const limitMb = Math.round(perf.memory!.jsHeapSizeLimit / 1024 / 1024);
-    if (usedMb > Math.max(256, limitMb * 0.65)) {
-      console.info("[Nammude diagnostics] JS heap usage", { usedMb, limitMb, path: location.pathname });
-    }
+    if (usedMb > Math.max(256, limitMb * 0.65)) void trackAnalyticsEvent("route_performance", {
+      route: location.pathname,
+      metricName: "memory",
+      metricValue: usedMb,
+      source: "web",
+    }).catch(() => undefined);
   }, 30_000);
   return () => window.clearInterval(id);
 }

@@ -148,7 +148,7 @@ export function CustomerMenuFlow({
   return (
     <main className="space-y-5 pb-28 md:pb-8">
       <section className="relative min-h-[22rem] overflow-hidden text-white">
-        <SafeImage src={activeRestaurant.image} alt={`${activeRestaurant.name} menu`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} sizes="100vw" className="object-cover" />
+        <SafeImage src={activeRestaurant.image} alt={`${activeRestaurant.name} menu`} fill priority fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="hero" sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/86 via-black/35 to-transparent" />
         <div className="container-page relative flex min-h-[22rem] flex-col justify-end py-5">
           <Badge className="w-fit rounded-full bg-white text-primary">{activeRestaurant.cuisine}</Badge>
@@ -376,7 +376,7 @@ function MenuListRow({ item }: { item: MenuItem }) {
   return (
     <article className="grid gap-3 rounded-2xl border bg-card p-3 shadow-sm sm:grid-cols-[96px_1fr_auto] sm:items-center">
       <div className="relative h-24 overflow-hidden rounded-xl bg-muted">
-        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="120px" className="object-cover" />
+        <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="120px" className="object-cover" />
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap gap-2">

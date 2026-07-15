@@ -90,7 +90,7 @@ export default function DigitalMenuPage() {
             <Card key={item.id} className="border-white/10 bg-white/10 text-inherit">
               <CardContent className="grid grid-cols-[112px_1fr] gap-4 p-4 sm:grid-cols-[140px_1fr]">
                 <div className="relative aspect-square overflow-hidden rounded-md bg-black/30">
-                  <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} sizes="140px" className="object-cover" />
+                  <SafeImage src={item.image} alt={item.name} fill fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="cart" sizes="140px" className="object-cover" />
                 </div>
                 <div>
                   <Badge variant={item.soldOut ? "destructive" : "success"}>{item.soldOut ? "Sold out" : item.category}</Badge>

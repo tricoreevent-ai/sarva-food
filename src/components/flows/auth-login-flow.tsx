@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -24,30 +23,9 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
-import { shouldUseFirebase } from "@/lib/env";
 import { DEFAULT_TENANT_ID, resolveTenantId } from "@/lib/tenant";
-import { toastManager } from "@/lib/toast-manager";
+import { toast } from "@/lib/client-toast";
 import { cn } from "@/lib/utils";
-import {
-  completeEmailLinkLogin,
-  getUserProfile,
-  resetPassword,
-  signInAdminWithEmail,
-  signInCustomerWithEmail,
-  signInOperationalWithEmail,
-  signInWithGoogle,
-  signUpWithEmail,
-  startEmailLinkLogin,
-} from "@/services/auth-service";
-import {
-  getStackCustomer,
-  isStackAuthConfigured,
-  sendStackMagicLink,
-  sendStackPasswordReset,
-  signInWithStackEmail,
-  signInWithStackGoogle,
-  signUpWithStackEmail,
-} from "@/services/auth/stack-auth-client";
 
 type AuthSurface = "customer-login" | "customer-signup" | "portal-login" | "admin-login";
 type CustomerMode = "sign-in" | "sign-up" | "forgot";
@@ -68,6 +46,31 @@ const operationalCopy = {
     icon: ShieldCheck,
   },
 } as const;
+
+function isFirebaseAuthConfigured() {
+  return process.env.NEXT_PUBLIC_USE_FIREBASE === "true";
+}
+
+function isStackAuthConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_STACK_PROJECT_ID?.trim() &&
+      process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY?.trim(),
+  );
+}
+
+function isFirebaseEmailLinkCallback() {
+  if (typeof window === "undefined") return false;
+  const url = window.location.href;
+  return /[?&]oobCode=/.test(url) && /[?&]mode=signIn\b/.test(url);
+}
+
+function loadFirebaseAuthService() {
+  return import("@/services/auth-service");
+}
+
+function loadStackAuthService() {
+  return import("@/services/auth/stack-auth-client");
+}
 
 export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSurface }) {
   const router = useRouter();
@@ -110,7 +113,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     const id = window.setTimeout(() => {
       setAuthCapabilities({
         ready: true,
-        firebaseEnabled: shouldUseFirebase(),
+        firebaseEnabled: isFirebaseAuthConfigured(),
         stackEnabled: isStackAuthConfigured(),
       });
     }, 0);
@@ -127,6 +130,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   }, [next, router]);
 
   const syncStoreUser = useCallback(async (uid: string, fallback?: { displayName?: string | null; email?: string | null; photoURL?: string | null }) => {
+    const { getUserProfile } = await loadFirebaseAuthService();
     const profile = await getUserProfile(uid).catch(() => null);
     const fallbackRole = isCustomerSurface ? "customer" : surface === "admin-login" ? "admin" : "owner";
     const role = profile?.role ?? fallbackRole;
@@ -142,7 +146,8 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
 
   useEffect(() => {
     if (!firebaseEnabled || !isCustomerSurface) return;
-    completeEmailLinkLogin("customer")
+    if (!isFirebaseEmailLinkCallback()) return;
+    loadFirebaseAuthService().then(({ completeEmailLinkLogin }) => completeEmailLinkLogin("customer"))
       .then((user) => {
         if (!user) return;
         setMessage("");
@@ -152,6 +157,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
   }, [firebaseEnabled, finish, isCustomerSurface, next, syncStoreUser]);
 
   async function syncStackCustomer() {
+    const { getStackCustomer } = await loadStackAuthService();
     const user = await getStackCustomer();
     setAuthUser({
       id: user?.id || email.trim().toLowerCase() || "stack-customer",
@@ -191,9 +197,11 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
 
       if (mode === "sign-up") {
         if (customerStackEnabled) {
+          const { signUpWithStackEmail } = await loadStackAuthService();
           await signUpWithStackEmail(email.trim(), password);
           await syncStackCustomer();
         } else {
+          const { signUpWithEmail } = await loadFirebaseAuthService();
           const user = await signUpWithEmail(email.trim(), password, "customer", name.trim());
           await syncStoreUser(user.uid, { displayName: user.displayName || name.trim(), email: user.email, photoURL: user.photoURL });
         }
@@ -202,9 +210,11 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       }
 
       if (customerStackEnabled) {
+        const { signInWithStackEmail } = await loadStackAuthService();
         await signInWithStackEmail(email.trim(), password);
         await syncStackCustomer();
       } else {
+        const { signInAdminWithEmail, signInCustomerWithEmail, signInOperationalWithEmail } = await loadFirebaseAuthService();
         const user = isCustomerSurface
           ? await signInCustomerWithEmail(email.trim(), password)
           : surface === "admin-login"
@@ -232,15 +242,17 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setMessage("Sending reset email...");
     try {
       if (customerStackEnabled) {
+        const { sendStackPasswordReset } = await loadStackAuthService();
         await sendStackPasswordReset(email.trim(), `${window.location.origin}/handler/password-reset`);
       } else {
+        const { resetPassword } = await loadFirebaseAuthService();
         await resetPassword(email.trim());
       }
       window.localStorage.setItem(resetKey, String(Date.now()));
     } catch {
       // Keep the response generic so the reset flow cannot be used to enumerate accounts.
     }
-    toastManager.successOnce(`password-reset-${emailKey}`, "If an account exists, a reset email has been sent.");
+    toast.success("If an account exists, a reset email has been sent.", { id: `password-reset-${emailKey}` });
     setMessage("If an account exists for this email, a reset link will arrive shortly.");
   }
 
@@ -253,8 +265,10 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setMessage("Sending secure magic link...");
     try {
       if (customerStackEnabled) {
+        const { sendStackMagicLink } = await loadStackAuthService();
         await sendStackMagicLink(email.trim(), `${window.location.origin}/handler/magic-link`);
       } else if (firebaseEnabled) {
+        const { startEmailLinkLogin } = await loadFirebaseAuthService();
         await startEmailLinkLogin(email.trim());
       } else {
         throw new Error("Magic link is not configured.");
@@ -274,10 +288,12 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     setMessage("Opening Google sign in...");
     try {
       if (!firebaseEnabled && customerStackEnabled) {
+        const { signInWithStackGoogle } = await loadStackAuthService();
         await signInWithStackGoogle(`${window.location.origin}${next}`);
         return;
       }
       if (!firebaseEnabled) throw new Error("Google sign-in is not configured.");
+      const { signInWithGoogle } = await loadFirebaseAuthService();
       const user = await signInWithGoogle("customer");
       await syncStoreUser(user.uid, { displayName: user.displayName, email: user.email, photoURL: user.photoURL });
       await finish(next);

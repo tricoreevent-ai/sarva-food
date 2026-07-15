@@ -26,9 +26,9 @@ export const REQUIRED_CMS_FIELDS = [
 ] as const;
 
 export const CMS_IMAGE_PRESETS = {
-  heroBanner: { aspectRatio: 16 / 6, transform: "c_fill,ar_16:6,w_1920,q_auto,f_auto" },
-  banner: { aspectRatio: 16 / 9, transform: "c_fill,ar_16:9,w_1400,q_auto,f_auto" },
-  offerCard: { aspectRatio: 4 / 3, transform: "c_fill,ar_4:3,w_900,q_auto,f_auto" },
-  categoryIcon: { aspectRatio: 1, transform: "c_fill,ar_1:1,w_320,q_auto,f_auto" },
-  mobileBanner: { aspectRatio: 4 / 5, transform: "c_fill,ar_4:5,w_800,q_auto,f_auto" },
+  heroBanner: { aspectRatio: 16 / 6, transform: "c_fill,ar_16:6,w_1920,q_auto:good,f_auto,dpr_auto" },
+  banner: { aspectRatio: 16 / 9, transform: "c_fill,ar_16:9,w_1400,q_auto,f_auto,dpr_auto" },
+  offerCard: { aspectRatio: 4 / 3, transform: "c_fill,ar_4:3,w_900,q_auto,f_auto,dpr_auto" },
+  categoryIcon: { aspectRatio: 1, transform: "c_fill,ar_1:1,w_320,q_auto:eco,f_auto,dpr_auto" },
+  mobileBanner: { aspectRatio: 4 / 5, transform: "c_fill,ar_4:5,w_800,q_auto,f_auto,dpr_auto" },
 } as const;

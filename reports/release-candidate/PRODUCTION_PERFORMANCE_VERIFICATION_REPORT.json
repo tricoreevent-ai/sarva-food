@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-07-13T06:23:52.967Z",
+  "generatedAt": "2026-07-13T08:42:35.244Z",
   "summary": {
     "counts": {
-      "PASS": 3,
-      "WARNING": 1,
+      "PASS": 4,
+      "WARNING": 0,
       "ERROR": 0,
       "FAIL": 0,
       "MANUAL": 2
@@ -18,13 +18,13 @@
     },
     {
       "name": "bundle:tracked-route-js",
-      "status": "WARNING",
-      "detail": "/owner/orders 1246 KB / budget 1200 KB"
+      "status": "PASS",
+      "detail": "/owner/orders 692 KB / budget 1200 KB"
     },
     {
       "name": "bundle:static-js-total",
       "status": "PASS",
-      "detail": "8776 KB built JS total; informational, not first-load budget."
+      "detail": "8760 KB built JS total; informational, not first-load budget."
     },
     {
       "name": "bundle:analyzer-client",
@@ -49,11 +49,11 @@
     },
     {
       "title": "Bundle Snapshot",
-      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 394 |\n| staticJsKb | 8776 |\n| staticCssKb | 190 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 190 KB CSS |\n| maxTrackedRoute | /owner/orders 1246 KB JS / 190 KB CSS |"
+      "body": "| Metric | Value |\n| --- | --- |\n| staticFiles | 395 |\n| staticJsKb | 8760 |\n| staticCssKb | 190 |\n| routeCount | 102 |\n| maxRoute | /handler/[...stack] 1968 KB JS / 190 KB CSS |\n| maxTrackedRoute | /owner/orders 692 KB JS / 190 KB CSS |"
     },
     {
       "title": "Tracked Routes",
-      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 190 | 19 |\n| /owner | 571 | 190 | 29 |\n| /owner/kitchen | 647 | 190 | 32 |\n| /owner/orders | 1246 | 190 | 42 |\n| /owner/pos | 576 | 190 | 30 |\n| /owner/settings | 685 | 190 | 33 |\n| /profile | 549 | 190 | 25 |"
+      "body": "| Route | JS KB | CSS KB | Chunks |\n| --- | --- | --- | --- |\n| / | 459 | 190 | 19 |\n| /owner | 571 | 190 | 29 |\n| /owner/kitchen | 647 | 190 | 32 |\n| /owner/orders | 692 | 190 | 34 |\n| /owner/pos | 576 | 190 | 30 |\n| /owner/settings | 685 | 190 | 33 |\n| /profile | 549 | 190 | 25 |"
     }
   ]
 }

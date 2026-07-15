@@ -8,7 +8,7 @@ Decision: `NO GO` for production launch, `GO` for RC5 candidate commit/tag
 
 ## Executive Summary
 
-RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current synchronized workspace adds audited POS/Active Orders operational UX fixes and passes local repository gates, so it should become RC5 after commit/tag.
+RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current RC5 handoff base is `dcff59e050de1dace19460198cb2909372bce7d5`; final validation/performance evidence should be committed on top only if this sprint changes files, then tagged as RC5 after local gates pass.
 
 Production go-live remains blocked by hosted configuration: `/api/release-info` and health metadata still report `deploymentEnvironment: development`. Manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke remain required.
 
@@ -27,7 +27,7 @@ Production go-live remains blocked by hosted configuration: `/api/release-info` 
 | `npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors needing real production values |
 | 2026-07-13 RC5 closure | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed |
 | 2026-07-13 pending-work audit | No actionable repository-side TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read found |
-| 2026-07-13 final optimization cleanup | Duplicated client error-reason helpers consolidated; compact order action controls received explicit accessible labels |
+| 2026-07-13 final optimization cleanup | Duplicated client error-reason helpers consolidated; compact order action controls received explicit accessible labels; pure phone normalization extracted away from Firebase-backed service imports |
 | 2026-07-13 release package verification | Production environment matrix corrected to `v1.0.0-rc5` |
 
 ## Hosted Evidence
@@ -55,7 +55,7 @@ Production go-live remains blocked by hosted configuration: `/api/release-info` 
 | Notifications | Code-ready/provider-gated | SMTP/push/WhatsApp/SMS checks pending |
 | Plugin Platform | Certified | Flags remain disabled by default; controlled browser smoke pending if enabled |
 | Printing | Code-ready | Manual 58mm/80mm/A4 hardware smoke pending |
-| Performance | Code-ready with warning | `/owner/orders` remains over verification budget; deeper split waits for authenticated visual/performance smoke |
+| Performance | Code-ready | `/owner/orders` is under verification budget; hosted Lighthouse/Chrome profiling remains manual |
 
 ## Production Readiness
 

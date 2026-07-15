@@ -50,7 +50,7 @@ No repository-side accessibility blocker is confirmed. Full accessibility smoke 
 | `npm run smoke:operational` | Passed |
 | `npm run validate:prod-env` | Failed as expected for missing production-only env/secrets |
 | `npm run verify:deployment` | Failed only on Hostinger env reporting `development`; final SHA, version, branch, and health checks passed |
-| `npm run verify:performance` | Passed local bundle/analyzer checks with `/owner/orders` route-JS warning; Lighthouse manual |
+| `npm run verify:performance` | Passed local bundle/analyzer checks with `/owner/orders` under route-JS budget; Lighthouse manual |
 | `npm run smoke:production` | Public unauthenticated probes passed; authenticated checks manual |
 | `npm run monitor:memory` | Short server heap probe passed; browser heap/listeners manual |
 | `npm run verify:providers` | Hosted/local config checks passed; Razorpay/WhatsApp/live checks manual |

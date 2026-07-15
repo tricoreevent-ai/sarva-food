@@ -9,7 +9,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 | ✅ Completed | Public hosted smoke | `docs/validation/PRODUCTION_SMOKE_REPORT.md`: `7` pass, `18` manual. |
 | ✅ Completed | Hosted provider probe | `docs/validation/PROVIDER_VERIFICATION_REPORT.md`: `8` pass, `3` manual. |
 | ✅ Completed | Bundle/performance reports | `docs/performance/FINAL_BUNDLE_REPORT.md`, `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md`. |
-| 🔴 Blocking | Hostinger environment | Hosted metadata reports `deploymentEnvironment=development`; set `NEXT_PUBLIC_APP_ENV=production`. |
+| 🔴 Blocking | Hostinger release metadata | Hosted metadata reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`; set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5` and `NEXT_PUBLIC_APP_ENV=production`. |
 | 🔴 Blocking | Production env validation | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `24` errors needing real production values. |
 | 🟡 Pending Manual | Browser/device/provider/hardware/Lighthouse | Complete before go-live. |
 
@@ -25,8 +25,14 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 - Configure provider secrets only in Hostinger/env dashboards.
 - Redeploy current branch.
 - Clear Hostinger cache.
-- Verify `/api/release-info` reports final SHA and `deploymentEnvironment: production`.
+- Verify `/api/release-info` reports final SHA, `applicationVersion: v1.0.0-rc5`, and `deploymentEnvironment: production`.
 - Verify `/health/live`, `/health/ready`, and `/health/startup`.
+
+Current hosted probe on 2026-07-13:
+
+- `/api/release-info`: SHA matches `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, but version/env remain `v1.0.0-rc4` and `development`.
+- `/health/ready`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
+- `/health/startup`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 
 ## Firebase
 

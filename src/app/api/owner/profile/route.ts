@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
+import { cloudinaryThumbnailUrl } from "@/lib/cloudinary-images";
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import type { OwnerBusinessProfile, Restaurant, RestaurantBranch } from "@/lib/types";
@@ -148,31 +149,7 @@ export async function POST(request: NextRequest) {
 }
 
 function toRestaurantThumbnailUrl(url: string) {
-  if (url.includes("images.unsplash.com")) return withUnsplashThumbnail(url);
-  return withCloudinaryTransform(url, "w_400,h_225,c_fill,f_auto,q_auto");
-}
-
-function withUnsplashThumbnail(url: string) {
-  try {
-    const nextUrl = new URL(url);
-    nextUrl.searchParams.set("auto", "format");
-    if (!nextUrl.searchParams.has("fit")) nextUrl.searchParams.set("fit", "crop");
-    nextUrl.searchParams.set("w", "400");
-    nextUrl.searchParams.set("h", "225");
-    nextUrl.searchParams.set("q", "75");
-    return nextUrl.toString();
-  } catch {
-    return url;
-  }
-}
-
-function withCloudinaryTransform(url: string, transform: string) {
-  const marker = "/upload/";
-  if (!url.includes("res.cloudinary.com") || !url.includes(marker)) return url;
-  const [prefix, rest = ""] = url.split(marker);
-  const parts = rest.split("/").filter(Boolean);
-  if (parts[0] && !parts[0].startsWith("v") && /[,_]/.test(parts[0])) parts.shift();
-  return `${prefix}${marker}${transform}/${parts.join("/")}`;
+  return cloudinaryThumbnailUrl(url);
 }
 
 async function findDuplicateRestaurantNameForOwner(ownerId: string, name: string, currentRestaurantId: string) {

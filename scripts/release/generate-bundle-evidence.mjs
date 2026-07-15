@@ -14,6 +14,13 @@ const moduleRows = largestModules();
 const vendorRows = vendorContributors();
 const duplicateImports = duplicateImportSources();
 const dependencyRows = dependencyUsageRows();
+const ownerOrdersRoute = routeRows.find((row) => row.route === "/owner/orders");
+const routeBudgetKb = 1200;
+const ownerOrdersStatus = ownerOrdersRoute
+  ? ownerOrdersRoute.jsKb <= routeBudgetKb
+    ? `\`/owner/orders\` is ${ownerOrdersRoute.jsKb} KB, under the ${routeBudgetKb} KB verification budget.`
+    : `\`/owner/orders\` remains ${ownerOrdersRoute.jsKb} KB against the ${routeBudgetKb} KB verification budget.`
+  : "`/owner/orders` route size is unknown.";
 
 const md = `# Final Bundle Report
 
@@ -29,7 +36,7 @@ Analyzer: \`.next/analyze/client.html\`
 | Static JS total | ${formatKb(sumFiles(path.join(nextDir, "static"), ".js"))} |
 | Static CSS total | ${formatKb(sumFiles(path.join(nextDir, "static"), ".css"))} |
 | App routes with client manifests | ${routeRows.length} |
-| Largest tracked route warning | \`/owner/orders\` remains ${routeRows.find((row) => row.route === "/owner/orders")?.jsKb ?? "unknown"} KB against the 1200 KB verification budget. |
+| Tracked route status | ${ownerOrdersStatus} |
 
 ## Largest 20 Route JS Owners
 

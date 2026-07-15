@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { safeClientReason } from "@/lib/client-diagnostics";
 import type { OrderDoc } from "@/types/firebase";
 
 export function useRealtimeOrder(orderId?: string) {
@@ -40,8 +41,4 @@ export function useRealtimeOrder(orderId?: string) {
   }, [orderId]);
 
   return { order: orderId ? order : null, loading: orderId ? loading : false, error: orderId ? error : "Order id is missing." };
-}
-
-function safeClientReason(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
 }

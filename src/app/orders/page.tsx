@@ -1,13 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowRight, CircleHelp, FileText, History, LogIn, PackageOpen, RefreshCw, RotateCcw, Star } from "lucide-react";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { EmptyStateCard } from "@/components/layout/empty-state";
-import { IMAGE_FALLBACKS } from "@/components/media/safe-image";
+import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { InlineLoading, RetryState } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,7 +118,7 @@ function OrderHistoryCard({ order, restaurant }: { order: CustomerOrderDoc; rest
     <Card className="customer-surface overflow-hidden">
       <CardContent className="grid gap-4 p-4 sm:grid-cols-[112px_1fr] sm:p-5">
         <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-orange-50 sm:aspect-square">
-          <Image src={image} alt="" fill sizes="144px" className="object-cover" />
+          <SafeImage src={image} alt="" fill fallbackSrc={IMAGE_FALLBACKS.restaurant} cloudinaryPreset="cart" sizes="144px" className="object-cover" />
         </div>
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
