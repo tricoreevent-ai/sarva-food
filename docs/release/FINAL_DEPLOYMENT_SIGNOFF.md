@@ -3,7 +3,7 @@
 Date: 2026-07-13
 Branch: `release/production-nammude`
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Local HEAD: `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files
+Local image closure commit: `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`
 Decision: `NO GO`
 
 ## Deployment Status

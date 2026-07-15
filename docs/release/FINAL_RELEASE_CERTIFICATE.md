@@ -6,7 +6,7 @@ Generated: 2026-07-13T00:00:00Z
 | --- | --- |
 | Release Version | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
 | Branch | `release/production-nammude` |
-| Local HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files |
+| Local image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
 | Tag Recommendation | Keep existing `v1.0.0-rc4` unchanged; tag the final RC5 validation commit as `v1.0.0-rc5` |
 | Hosted URL | `https://violet-squid-380447.hostingersite.com` |
 | Hosted SHA | `b8c1ed6a7d4310f80cd9fdbe9b8621e21d5fc132` currently served |

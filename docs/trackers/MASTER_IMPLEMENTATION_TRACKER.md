@@ -13,11 +13,11 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC5 Production Closure Sprint |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Current committed RC5 handoff base is `dcff59e050de1dace19460198cb2909372bce7d5`; commit only final validation/performance evidence on top before tagging. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
+| Latest Git Commit | Current local RC5 image closure commit is `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`; push is blocked from this workspace by missing non-interactive GitHub credentials. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and now serves SHA `dcff59e050de1dace19460198cb2909372bce7d5`, but `/api/release-info` still reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`; set `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, redeploy/restart if needed, clear cache, and reverify. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and still serves SHA `dcff59e050de1dace19460198cb2909372bce7d5`; `/api/release-info` reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`. Push and deploy `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`, set `NEXT_PUBLIC_APP_ENV=production`, set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, redeploy/restart if needed, clear cache, and reverify. |
 | Build Date | 2026-07-15 |
-| Verification Status | RC5 image optimization closure passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` on 2026-07-15. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. Direct hosted probes on 2026-07-13 returned 200 for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`; hosted SHA is current, Node is `v22.18.0`, Firestore is connected on ready/startup, but hosted version is still `v1.0.0-rc4` and `deploymentEnvironment=development`. Production readiness is `86%`, production launch remains NO-GO. |
+| Verification Status | RC5 image optimization closure passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` on 2026-07-15. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. Direct hosted probes on 2026-07-15 returned 200 for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`; hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, Firestore is connected on ready/startup, but hosted version is still `v1.0.0-rc4` and `deploymentEnvironment=development`. Production readiness is `86%`, production launch remains NO-GO. |
 | Scope | Current workspace contains RC4 release hardening, POS/Active Orders operational UX fixes, performance evidence, RC5 production observability, and RC5 image optimization. No Firestore collection/schema/rule/index, payment provider contract, business workflow, repository contract, or architecture rewrite was introduced by this continuation; the only new route is internal monitoring signal ingestion. |
 
 ## Documentation Architecture
@@ -42,7 +42,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Audit Source | Interrupted production-branch audit request resumed from `C:\Users\DINESH\.codex\attachments\5bc0417a-88d8-4741-9c2f-4d0c3bdfb2b4\pasted-text.txt`. |
 | RC4 Tag | `v1.0.0-rc4` currently resolves to `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38`; do not move it. |
-| Current HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files. |
+| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`. |
 | Recommendation | Keep RC4 immutable and create `v1.0.0-rc5` from the final RC5 validation commit after local gates pass. |
 | Validation | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `cmd /c npm run verify:performance` passed on 2026-07-13. Build/analyze retain the accepted Firebase/protobuf warning. |
 | Code Fix During Continuation | `CompactOrderAccordionActions` hook order was corrected by moving the empty-action return below all hooks and memoizing the action runner. |

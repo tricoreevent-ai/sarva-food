@@ -30,7 +30,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 
 Current hosted probe on 2026-07-13:
 
-- `/api/release-info`: SHA matches `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, but version/env remain `v1.0.0-rc4` and `development`.
+- `/api/release-info`: hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, but version/env remain `v1.0.0-rc4` and `development`; deploy `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`.
 - `/health/ready`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 - `/health/startup`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 

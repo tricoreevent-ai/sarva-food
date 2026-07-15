@@ -2,7 +2,7 @@
 
 Date: 2026-07-08; RC5 addendum 2026-07-13
 Branch: `release/production-nammude`
-Current RC5 base HEAD: `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files
+Current RC5 image closure commit: `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`
 Runtime tag: recommended `v1.0.0-rc5`; existing `v1.0.0-rc4` remains unchanged
 
 ## Measurement Status

@@ -6,7 +6,7 @@ Current Sprint: RC5 production closure sprint
 
 Current Phase: RC5 image optimization validated locally; production launch blocked by external version/env and manual gates
 
-Current Task: Commit and push the final RC5 image optimization and delivery pipeline closure
+Current Task: Push the final RC5 image optimization and delivery pipeline closure; GitHub push is blocked from this workspace by missing non-interactive credentials.
 
 Pending Work Matrix Result: repository-side scans found no actionable TODO/FIXME, runtime `console.log`, duplicate order components, incomplete RC5 code path, duplicate listener, or unbounded Firestore read requiring a freeze-time code change.
 
@@ -35,13 +35,13 @@ Production readiness: 86%
 
 Current Branch: `release/production-nammude`
 
-Current Commit: `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files
+Current Image Closure Commit: `fc0986e9ba5dedb302dedcdd5eb9e20346844dba`
 
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
 Last Verified Build: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` PASS on 2026-07-15; build/analyze retain the accepted Firebase/protobuf warning.
 
-Last Verified Production SHA: hosted serves `dcff59e050de1dace19460198cb2909372bce7d5`, but `/api/release-info` still reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`
+Last Verified Production SHA: hosted serves `dcff59e050de1dace19460198cb2909372bce7d5`, but `/api/release-info` still reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`; the image closure commit `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` has not been deployed.
 
 Files Remaining:
 
@@ -50,12 +50,12 @@ Files Remaining:
 Next Command:
 
 ```powershell
-git diff --check
+git push origin release/production-nammude
 ```
 
 Next Exact Task:
 
-Commit and push `perf(images): finalize RC5 image optimization and delivery pipeline`, then correct Hostinger version/env values, redeploy/restart if required, clear cache, and rerun hosted verification.
+Push the committed image optimization closure, then correct Hostinger version/env values, redeploy/restart if required, clear cache, and rerun hosted verification.
 
 Known Risks:
 

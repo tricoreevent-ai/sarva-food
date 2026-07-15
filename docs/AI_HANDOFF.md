@@ -8,7 +8,7 @@ Future AI agents must read this file before making changes.
 | --- | --- |
 | Branch | `release/production-nammude` |
 | Release | `v1.0.0-rc5` candidate |
-| Current handoff base | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation evidence if this sprint changes files |
+| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
 | Repository readiness | `99%` |
 | Production readiness | `86%` |
 | Production launch | `NO GO` |

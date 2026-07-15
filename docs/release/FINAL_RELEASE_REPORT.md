@@ -6,7 +6,7 @@ Date: 2026-07-15
 | --- | --- |
 | Release Candidate | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
 | Production Branch | `release/production-nammude` |
-| Local HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files |
+| Local image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
 | Certification Result | Repository certified for RC5 candidate commit/tag after synchronization; production signoff remains blocked. |
 | Feature Scope | Production hardening, validation, reports, cache/header tuning, auth/toast lazy loading, duplicate logo request prevention, POS/Active Orders operational UX fixes, low-risk phone-helper bundle cleanup, RC5 image optimization, and release documentation. |

@@ -60,7 +60,7 @@ Last updated: 2026-07-15
 | --- | --- |
 | Branch | `release/production-nammude` |
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38` |
-| Current HEAD | `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files |
+| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
 | Repository readiness | `99%` |
 | Production readiness | `86%` |
 | Current decision | Repository `GO`; production launch `NO GO` |
