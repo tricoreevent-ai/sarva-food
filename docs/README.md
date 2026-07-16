@@ -9,10 +9,10 @@ This is the single entry point for repository documentation on `release/producti
 | Release candidate | `v1.0.0-rc5` |
 | Branch | `release/production-nammude` |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
-| Current hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9` |
+| Current hosted runtime commit | `3444d8cca5315513368851f44084131b7dbb2c56` |
 | Repository readiness | `99%` |
-| Production readiness | `88%` |
-| Production launch | `NO GO` until latest commit deployment, provider, browser, device, Lighthouse, and hardware gates pass |
+| Production readiness | `90%` |
+| Production launch | `NO GO` until provider, browser, device, Lighthouse, Firebase Console, and hardware gates pass |
 | AI handoff | `docs/AI_HANDOFF.md` |
 
 ## Trackers

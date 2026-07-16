@@ -4,7 +4,7 @@
 
 - Redesigned Owner Active Orders as an operational workspace: status summary cards, live tab counts, advanced search over orders/tables/items/waiters, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues.
 - Preserved feature-freeze boundaries: no Firestore schema/rule/index, API contract, repository, order lifecycle, payment flow, Kitchen logic, auth, or plugin architecture change.
-- Pushed `ba8e957d57b949a94d0c42a3b170cf198917c0d8` to `origin/release/production-nammude`; hosted RC5 production currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`.
+- Pushed Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 runtime `3444d8cca5315513368851f44084131b7dbb2c56` now includes it.
 - Re-probed Hostinger: `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup` return ok with `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, Firebase VAPID missing, and Razorpay owner-scoped or missing.
 - Verified `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
 

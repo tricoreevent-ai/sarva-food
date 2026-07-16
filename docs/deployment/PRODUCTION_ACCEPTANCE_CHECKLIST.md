@@ -7,13 +7,13 @@ Date: 2026-07-16
 
 Current decision: `NO GO`.
 
-Production readiness score: `88%`.
+Production readiness score: `90%`.
 
 ## Required Pass Gates
 
 | Gate | Status | Required Evidence |
 | --- | --- | --- |
-| Release metadata | 🔴 Blocking | `/api/release-info` shows latest pushed SHA, branch, `v1.0.0-rc5`, HTTPS URL, `deploymentEnvironment: production`. |
+| Release metadata | ✅ Completed | `/api/release-info` shows hosted runtime SHA containing Active Orders baseline, branch, `v1.0.0-rc5`, HTTPS URL, and `deploymentEnvironment: production`. |
 | Production env validation | 🔴 Blocking | `npm run validate:prod-env` passes with real production values. |
 | Health endpoints | ✅ Completed | `/health/live`, `/health/ready`, `/health/startup` return healthy/safe metadata after final redeploy. |
 | Build pipeline | ✅ Completed | Typecheck, lint, build, analyze pass. |
@@ -30,7 +30,7 @@ Production readiness score: `88%`.
 
 | Endpoint | Status | Current Result | Required Result |
 | --- | --- | --- | --- |
-| `/api/release-info` | FAIL | Hosted SHA is `2b8a348c416b0d952ab80d80083202280548c4d9`, Node `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`, but it does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. | Deploy latest branch head, keep `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, and Node 22. |
+| `/api/release-info` | PASS | Hosted SHA is `3444d8cca5315513368851f44084131b7dbb2c56`, Node `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`; runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. | Recheck before final tag/signoff. |
 | `/health/live` | PASS | Endpoint returns `ok` with safe public metadata. | Endpoint returns `ok` after final RC5 redeploy. |
 | `/health/ready` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok`; provider gaps are either configured or explicitly accepted for production scope. |
 | `/health/startup` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok` after final RC5 redeploy/restart. |

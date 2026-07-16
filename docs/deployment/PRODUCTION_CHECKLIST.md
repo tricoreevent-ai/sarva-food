@@ -9,7 +9,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 | ✅ Completed | Public hosted smoke | `docs/validation/PRODUCTION_SMOKE_REPORT.md`: `7` pass, `18` manual. |
 | ✅ Completed | Hosted provider probe | `docs/validation/PROVIDER_VERIFICATION_REPORT.md`: `8` pass, `3` manual. |
 | ✅ Completed | Bundle/performance reports | `docs/performance/FINAL_BUNDLE_REPORT.md`, `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md`. |
-| 🔴 Blocking | Hostinger latest SHA | Hosted metadata reports `applicationVersion=v1.0.0-rc5` and `deploymentEnvironment=production`, but still serves `2b8a348c416b0d952ab80d80083202280548c4d9`; redeploy latest branch head containing Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
+| ✅ Completed | Hostinger RC5 runtime metadata | Hosted metadata reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and runtime SHA `3444d8cca5315513368851f44084131b7dbb2c56`, which includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
 | 🔴 Blocking | Production env validation | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `24` errors needing real production values. |
 | 🟡 Pending Manual | Browser/device/provider/hardware/Lighthouse | Complete before go-live. |
 
@@ -30,7 +30,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 
 Current hosted probe on 2026-07-16:
 
-- `/api/release-info`: hosted SHA is `2b8a348c416b0d952ab80d80083202280548c4d9`, Node is `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`; deploy latest branch head containing Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+- `/api/release-info`: hosted SHA is `3444d8cca5315513368851f44084131b7dbb2c56`, Node is `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`; runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 - `/health/ready`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 - `/health/startup`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 

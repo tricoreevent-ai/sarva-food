@@ -1,13 +1,13 @@
 # Deployment Verification Report
 
-Generated: 2026-07-16T04:39:44.923Z
+Generated: 2026-07-16T04:57:07.245Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 16 |
-| WARNING | 1 |
+| PASS | 17 |
+| WARNING | 0 |
 | ERROR | 0 |
 | FAIL | 0 |
 | MANUAL | 0 |
@@ -18,7 +18,7 @@ Generated: 2026-07-16T04:39:44.923Z
 | --- | --- | --- |
 | http:release-info | PASS | https://violet-squid-380447.hostingersite.com/api/release-info -> HTTP 200 |
 | release:version | PASS | expected v1.0.0-rc5 |
-| release:sha | WARNING | hosted currently serves 2b8a348c416b0d952ab80d80083202280548c4d9; deploy latest branch head containing Active Orders baseline ba8e957d57b949a94d0c42a3b170cf198917c0d8 and verify |
+| release:sha | PASS | hosted serves 3444d8cca5315513368851f44084131b7dbb2c56, which includes Active Orders baseline ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
 | release:branch | PASS | expected release/production-nammude |
 | release:environment | PASS | production |
 | release:timestamp | PASS | deployment timestamp present |

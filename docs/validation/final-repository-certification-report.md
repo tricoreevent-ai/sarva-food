@@ -3,7 +3,7 @@
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
 Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Hosted RC5 baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
+Hosted RC5 runtime baseline: `3444d8cca5315513368851f44084131b7dbb2c56`
 Final certification commit: latest `origin/release/production-nammude` branch head
 Date: 2026-07-16
 
@@ -12,12 +12,12 @@ Date: 2026-07-16
 | Area | Result |
 | --- | --- |
 | Repository readiness | `99%` |
-| Production readiness | `88%` |
+| Production readiness | `90%` |
 | Decision | Repository `GO`; production launch `NO GO`. |
 | Tag recommendation | Keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5` from the final RC5 validation commit. |
-| Hosted blocker | `/api/release-info` reports RC5/production but serves `2b8a348c416b0d952ab80d80083202280548c4d9`, which does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
-| Latest validation | 2026-07-16 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` passed. Hosted release/health probes are ok except latest SHA redeploy. |
-| Required before launch | Hostinger latest SHA redeploy, production env/provider validation, Lighthouse, Firebase Console checks, provider dashboard checks, authenticated browser/device smoke, and printer/hardware smoke. |
+| Hosted status | `/api/release-info` reports RC5/production runtime `3444d8cca5315513368851f44084131b7dbb2c56`, which includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
+| Latest validation | 2026-07-16 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` passed. Hosted release/health probes are ok. |
+| Required before launch | Production env/provider validation, Lighthouse, Firebase Console checks, provider dashboard checks, authenticated browser/device smoke, and printer/hardware smoke. |
 
 ## Certification Result
 
@@ -27,7 +27,7 @@ Date: 2026-07-16
 | Security | 98% | PASS: masked logging, request ids, correlation/trace context, safe errors, and health metadata are in place. |
 | Performance | 95% | PASS: bundle analysis, route splitting, lazy runtime ownership, and bounded Firestore probes are verified where repository-verifiable. |
 | Accessibility | 94% | PASS repository-side patterns; final viewport and screen-reader smoke remains manual browser validation. |
-| Production readiness | 88% | NO-GO until latest SHA deployment, manual infrastructure, provider, browser, and hardware gates pass. |
+| Production readiness | 90% | NO-GO until manual infrastructure, provider, browser, and hardware gates pass. |
 
 ## Repository Health
 
@@ -51,7 +51,7 @@ Date: 2026-07-16
 - RC5 image optimization is complete repository-side: Cloudinary presets, AVIF/WebP upload handling, `dpr_auto` delivery cleanup, and right-sized thumbnails are documented in `docs/performance/IMAGE_OPTIMIZATION_REPORT.md`.
 - Existing route-level skeletons, dynamic boundaries, lazy toast/runtime ownership, lazy import/export paths, no-store public data, and bounded health probes remain intact.
 - No new listener, polling loop, high-volume collection scan, duplicate route family, or N+1 repository pattern was confirmed by the release audit.
-- Lighthouse/Core Web Vitals must be rerun after Hostinger serves the latest pushed commit with production env.
+- Lighthouse/Core Web Vitals must be rerun against the hosted RC5 production runtime.
 
 ## Accessibility And Responsive Audit
 
@@ -87,7 +87,7 @@ Date: 2026-07-16
 
 ## Remaining Manual Deployment Tasks
 
-- Redeploy the latest pushed `release/production-nammude` branch head, restart app, clear cache, and verify hosted `/api/release-info` plus `/health/*`.
+- Recheck hosted `/api/release-info` plus `/health/*` before final tag/signoff.
 - Keep `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, `NEXT_PUBLIC_APP_ENV=production`, and HTTPS `NEXT_PUBLIC_APP_URL`; configure/verify Firebase VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, live Razorpay keys/webhook, and provider values.
 - Deploy Firestore rules and indexes in the target Firebase project.
 - Configure Firebase authorized domains and production secrets.

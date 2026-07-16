@@ -4,9 +4,9 @@ Last updated: 2026-07-16
 
 Current Sprint: RC5 production closure sprint
 
-Current Phase: Owner Active Orders operational workspace pushed; production launch blocked by latest Hostinger redeploy and manual gates
+Current Phase: Owner Active Orders operational workspace deployed to hosted RC5 runtime; production launch blocked by manual/provider gates
 
-Current Task: Redeploy Hostinger from the latest `origin/release/production-nammude` branch head, clear cache, and rerun hosted verification. The branch head includes Active Orders code baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+Current Task: Complete authenticated Owner Active Orders smoke, provider checks, Firebase Console/VAPID checks, Lighthouse, Chrome profiling, and hardware/device QA.
 
 Pending Work Matrix Result: repository-side scans found no actionable TODO/FIXME, runtime `console.log`, duplicate order components, incomplete RC5 code path, duplicate listener, or unbounded Firestore read requiring a freeze-time code change.
 
@@ -18,7 +18,7 @@ Image Optimization Result: added shared Cloudinary image presets, AVIF-first bro
 
 Active Orders Result: redesigned Owner Active Orders as an operational workspace with summary cards, live counts, advanced search, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues without Firestore/API/repository/business workflow changes.
 
-Release Package Result: hosted metadata now reports `v1.0.0-rc5`, `deploymentEnvironment=production`, and Node `v22.18.0`; latest pushed Active Orders commit still needs Hostinger redeploy.
+Release Package Result: hosted metadata now reports `v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and runtime commit `3444d8cca5315513368851f44084131b7dbb2c56`, which includes the Active Orders code baseline.
 
 Files Changed:
 
@@ -34,7 +34,7 @@ Files Changed:
 
 Repository readiness: 99%
 
-Production readiness: 88%
+Production readiness: 90%
 
 Current Branch: `release/production-nammude`
 
@@ -44,26 +44,26 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 
 Last Verified Build: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` PASS on 2026-07-16; build/analyze retain the accepted Firebase/protobuf warning.
 
-Last Verified Production SHA: hosted serves `2b8a348c416b0d952ab80d80083202280548c4d9`; `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The latest branch head containing Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` has not been deployed.
+Last Verified Production SHA: hosted serves runtime commit `3444d8cca5315513368851f44084131b7dbb2c56`; `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. This runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 
 Files Remaining:
 
-- Hostinger redeploy/cache clear to latest pushed commit, Firebase VAPID/Console rules/indexes/auth domains, provider dashboards, authenticated browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, and printer/QR/hardware validation.
+- Firebase VAPID/Console rules/indexes/auth domains, provider dashboards, authenticated browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, and printer/QR/hardware validation.
 
 Next Command:
 
 ```powershell
-Redeploy Hostinger from the latest `origin/release/production-nammude`, then verify `/api/release-info` reports the new branch-head SHA.
+Run authenticated Owner Active Orders smoke on the hosted RC5 runtime, then continue provider/device/Lighthouse validation.
 ```
 
 Next Exact Task:
 
-Redeploy/restart from the pushed Active Orders baseline, clear cache, and rerun hosted verification plus authenticated Owner Active Orders smoke.
+Run authenticated Owner Active Orders smoke, provider checks, Firebase Console/VAPID checks, Lighthouse, Chrome profiling, and hardware/device QA.
 
 Known Risks:
 
 - RC4 tag points behind the current workspace and should remain immutable.
-- Hosted SHA trails the latest pushed Active Orders commit.
+- Hosted docs-only branch head can trail runtime deployment without changing application behavior; verify `/api/release-info` before final tag/signoff.
 - Production provider/hardware/browser smoke is not complete.
 
 Acceptance Criteria:

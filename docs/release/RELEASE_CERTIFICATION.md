@@ -8,9 +8,9 @@ Decision: `NO GO` for production launch, `GO` for RC5 candidate commit/tag
 
 ## Executive Summary
 
-RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current branch contains Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`, so redeploy the latest branch head before tagging RC5 after hosted gates pass.
+RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. Hosted RC5 runtime `3444d8cca5315513368851f44084131b7dbb2c56` contains Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; complete manual/provider gates before tagging RC5 after hosted gates pass.
 
-Production go-live remains blocked by latest SHA deployment plus manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke.
+Production go-live remains blocked by manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke.
 
 ## Repository Evidence
 
@@ -35,7 +35,7 @@ Production go-live remains blocked by latest SHA deployment plus manual Lighthou
 
 | Gate | Result |
 | --- | --- |
-| Deployment verification | `16` pass, `1` warning, `0` errors: hosted metadata is RC5/production but SHA does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Deployment verification | `17` pass, `0` warnings, `0` errors: hosted metadata is RC5/production and includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Public production smoke | `7` pass, `18` manual |
 | Provider verification | `8` pass, `3` manual |
 | Memory monitor | `1` pass, `2` manual |
@@ -63,11 +63,11 @@ Production go-live remains blocked by latest SHA deployment plus manual Lighthou
 | Area | Score |
 | --- | ---: |
 | Repository readiness | 99% |
-| Production readiness | 88% |
-| Risk level | Medium-high until latest SHA/manual gates pass |
+| Production readiness | 90% |
+| Risk level | Medium-high until manual/provider gates pass |
 
 ## Go / No-Go
 
 Repository decision: `GO` for RC5 candidate commit/tag.
 
-Production decision: `NO GO` until Hostinger serves the latest branch head, production env validation, Lighthouse/Core Web Vitals, Firebase Console checks, provider dashboard checks, authenticated browser smoke, and hardware/printer checks pass.
+Production decision: `NO GO` until production env validation, Lighthouse/Core Web Vitals, Firebase Console checks, provider dashboard checks, authenticated browser smoke, and hardware/printer checks pass.

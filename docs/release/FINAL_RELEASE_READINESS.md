@@ -22,7 +22,7 @@ Date: 2026-07-16T04:35:18.415Z
 | Area | Result |
 | --- | --- |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` on `release/production-nammude`. |
-| Hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9`; hosted metadata is RC5/production but trails the latest Active Orders workspace commit. |
+| Hosted runtime commit | `3444d8cca5315513368851f44084131b7dbb2c56`; hosted metadata is RC5/production and includes the Active Orders code baseline. |
 | Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
 | Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
 | API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |
@@ -34,20 +34,20 @@ Date: 2026-07-16T04:35:18.415Z
 | Area | Status |
 | --- | --- |
 | Code readiness | 99% / Release Candidate certified for deployment testing |
-| Production-release readiness | 88% |
-| Recommendation | No-Go until latest Hostinger SHA redeploy, provider, hardware, authenticated browser, Lighthouse, and Chrome profiling gates pass. |
+| Production-release readiness | 90% |
+| Recommendation | No-Go until provider, hardware, authenticated browser, Lighthouse, Firebase Console/VAPID, and Chrome profiling gates pass. |
 
 ## Remaining Manual Gates
 
 | Gate | Status | Reason |
 | --- | --- | --- |
 | Production Chrome Performance | Manual | No local Chrome/Lighthouse executable was available to capture flame graphs, Coverage, FPS, long tasks, or heap snapshots. |
-| Hosted Lighthouse/Core Web Vitals | Manual | Hosted deployment is RC5/production but still trails the latest Active Orders commit until Hostinger is redeployed. |
+| Hosted Lighthouse/Core Web Vitals | Manual | Hosted deployment is RC5/production; run Lighthouse/Core Web Vitals on the hosted runtime. |
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
 | Production env | Manual | Hosted app env/version/app URL and Firebase Admin are configured; verify/set Firebase VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, Razorpay live keys/webhook, and provider values. |
-| Hostinger redeploy | Manual | Redeploy the latest `origin/release/production-nammude` branch head, clear cache, and verify `/api/release-info` reports the latest SHA. |
+| Hosted runtime smoke | Manual | Run authenticated Owner Active Orders, customer, POS, Kitchen, QR/table, and admin smoke on hosted RC5 runtime. |
 
 ## Accepted Warning
 

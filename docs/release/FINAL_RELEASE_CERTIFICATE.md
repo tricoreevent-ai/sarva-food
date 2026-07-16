@@ -6,7 +6,7 @@ Generated: 2026-07-16T04:39:44.923Z
 | --- | --- |
 | Release Version | v1.0.0-rc5 |
 | Active Orders Code Baseline | ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
-| Hosted SHA At Report Generation | 2b8a348c416b0d952ab80d80083202280548c4d9 |
+| Hosted Runtime SHA At Report Generation | 3444d8cca5315513368851f44084131b7dbb2c56 |
 | Branch | release/production-nammude |
 | Build Date | 2026-07-16 |
 | Environment | local-certification |
@@ -22,7 +22,7 @@ Generated: 2026-07-16T04:39:44.923Z
 | --- | --- | --- |
 | Bundle Analyzer | PASS | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
 | Production Validation | FAIL | {"PASS":46,"WARNING":1,"ERROR":24,"FAIL":0,"MANUAL":0} |
-| Deployment Verification | WARNING | {"PASS":16,"WARNING":1,"ERROR":0,"FAIL":0,"MANUAL":0} |
+| Deployment Verification | PASS | {"PASS":17,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
 | Performance Verification | MANUAL | {"PASS":4,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
 | Smoke Results | MANUAL | {"PASS":7,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":18} |
 | Memory Stability | MANUAL | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
@@ -51,7 +51,7 @@ Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify `
 | --- | --- |
 | Bundle Analyzer | PASS |
 | Production Validation | FAIL |
-| Deployment Verification | WARNING |
+| Deployment Verification | PASS |
 | Performance Verification | MANUAL |
 | Smoke Results | MANUAL |
 | Memory Stability | MANUAL |
