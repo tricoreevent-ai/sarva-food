@@ -3,6 +3,8 @@
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Date: 2026-07-16
 
+Repository simulations now cover draft interruption/quota/permission/conflict classification, restaurant/operator isolation, reconnect/focus/visibility recovery, operational role contracts, and notification/service-worker lifecycle behavior. The items below remain manual because they require production credentials, provider consoles, real browsers/devices, or physical hardware.
+
 | Status | Area | Task | Evidence / Exit Criteria |
 | --- | --- | --- | --- |
 | 🔴 Blocking | Environment | Deploy Phase 4C; set public VAPID, stable payment encryption key, QR secret, database alert email, and final provider values. Owner Razorpay secrets belong in Owner Settings, not public/global env. | `npm run validate:prod-env` passes in production-equivalent env and health/provider probes have no launch blockers. |

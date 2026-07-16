@@ -20,6 +20,16 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Verification Status | Phase 4C passed `typecheck`, `lint`, `build`, `analyze`, `verify:phase4c` (19/19), `audit:release`, `smoke:operational`, `profile:runtime`, and final diff check. Build/analyze retain the accepted Firebase/protobuf warning. Production readiness is `90%`; launch remains NO-GO. |
 | Scope | Phase 4C reuses existing push/payment infrastructure, adds owner diagnostics and backward-compatible protected test actions, configures the public VAPID value in templates, and makes global Razorpay env optional legacy fallback. No order/Kitchen/POS/auth/repository/plugin workflow or Firestore collection/schema/rule/index changed. |
 
+## Phase 4D Operational Hardening - 2026-07-16
+
+| Area | Result |
+| --- | --- |
+| Manual-gap automation | Replaced the source-only operational smoke with 9 deterministic contract simulations covering draft storage/recovery/faults/lifecycle, five operational roles, notification matrix/retry/dedup/token lifecycle, service-worker background actions/deep links, and Active Orders accessibility. |
+| Defect fixed | Notification clicks now focus an existing exact deep-link tab including query/hash instead of opening a duplicate tab. |
+| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (9/9), `profile:runtime`, `verify:phase4c` (19/19), and `git diff --check` pass. The accepted upstream Firebase/protobuf warning remains. |
+| Boundaries | No UI redesign, Firestore schema/rule/index, repository, or feature change. |
+| Readiness | Repository `100%`; production `92%`; NO-GO until external environment, provider, Firebase Console, authenticated browser/device, Lighthouse, and hardware gates pass. |
+
 ## Phase 4C Push, Owner Razorpay, and Production Readiness - 2026-07-16
 
 | Area | Result |

@@ -295,7 +295,10 @@ function safeClientLink(value) {
 async function openOrFocusClient(path) {
   const target = new URL(path, self.location.origin).href;
   const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
-  const focused = clients.find((client) => client.url === target || new URL(client.url).pathname === path);
+  const focused = clients.find((client) => {
+    const url = new URL(client.url);
+    return client.url === target || `${url.pathname}${url.search}${url.hash}` === path;
+  });
   if (focused) {
     focused.postMessage({ type: "SARVA_PUSH_CLICK", link: path, version: CACHE_VERSION });
     return focused.focus();

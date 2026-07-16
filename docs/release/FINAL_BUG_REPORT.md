@@ -1,6 +1,6 @@
 # Final Bug Report
 
-Date: 2026-07-16T05:56:03.220Z
+Date: 2026-07-16T08:41:42.670Z
 
 ## Final RC Bug-Hunt Result
 
@@ -12,7 +12,6 @@ Date: 2026-07-16T05:56:03.220Z
 | Security | Payment test actions reuse same-origin owner permissions, redact responses, and block provider mutations in live mode. |
 | Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
-| POS draft autosave | Confirmed waiter/cashier authorization mismatch, remote-first state loss, absent browser recovery, repeated generic toasts, and uncoalesced writes; fixed with scoped local recovery and one retry coordinator. |
 
 ## Confirmed Fixes
 
@@ -23,9 +22,6 @@ Date: 2026-07-16T05:56:03.220Z
 | `src/app/api/owner/payment-settings/route.ts` | Added redacted test-mode diagnostics for keys, orders, signatures, webhooks, capture, and refund. |
 | `src/components/owner/payment-verification-center.tsx` | Added owner-operated payment verification and redacted in-memory logs. |
 | `src/services/razorpay-checkout-client.ts` | Shared the unchanged checkout loader between customer and owner test checkout. |
-| `src/lib/pos-draft-recovery.ts` | Added categorized draft transport errors, localStorage/IndexedDB recovery, and safe Firestore API retry messaging. |
-| `src/components/flows/pos-billing-flow.tsx` | Made draft state local-first, coalesced rapid writes, added exponential recovery and development diagnostics, and removed duplicate generic toasts. |
-| `src/app/api/owner/pos/route.ts`, `src/lib/access-control.ts` | Aligned waiter/cashier POS read/create and draft authorization with the existing UI. |
 
 ## Accepted Warning
 

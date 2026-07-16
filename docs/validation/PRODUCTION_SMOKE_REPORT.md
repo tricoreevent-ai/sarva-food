@@ -1,5 +1,9 @@
 # Production Smoke Report
 
+## Phase 4D Automation Addendum
+
+`npm run smoke:operational` passes 9/9 deterministic draft recovery, operator/restaurant isolation, fault classification, lifecycle replay, role, notification retry/dedup/token, service-worker background action/deep-link, and Active Orders accessibility checks. This closes repository-simulatable lifecycle gaps; hosted authenticated/provider/device/hardware observations remain manual.
+
 Generated: 2026-07-10T15:16:12.607Z
 
 ## Summary

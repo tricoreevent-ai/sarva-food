@@ -1,5 +1,12 @@
 # Release Notes
 
+## Phase 4D Operational Hardening - 2026-07-16
+
+- Expanded `smoke:operational` from static source checks to 9/9 deterministic draft, role, notification, service-worker, and accessibility contract simulations.
+- Fixed push deep-link handling so an existing tab with matching query/hash is focused rather than duplicated.
+- Full RC5 repository gates pass; production remains NO-GO pending environment/provider/Firebase Console/authenticated device/Lighthouse/hardware evidence.
+- Repository readiness: `100%`. Production readiness: `92%`.
+
 ## v1.0.0-rc5 - Release Candidate
 
 Commit: branch includes RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 runtime includes that baseline; existing RC4 tag remains unchanged

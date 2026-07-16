@@ -14,3 +14,4 @@ Date: 2026-07-16
 | Firebase rules/index production state unverified | High | 🟡 Pending Manual | Console deployment state is external. | Deploy/review rules/indexes and smoke protected flows. |
 | Printer/QR/camera hardware unverified | Medium | 🟡 Pending Manual | Requires restaurant devices. | Validate target printers, QR scanning, camera/upload. |
 | Firebase/protobuf dynamic dependency warning | Low | ✅ Accepted | Build/analyze warning trace is upstream Firebase/protobuf. | Document and accept; no freeze-time aliasing. |
+| Push deep-link duplicate tab | Low | ✅ Resolved | Phase 4D service-worker VM simulation verifies exact query/hash tab reuse. | Retain `smoke:operational` in release gates and confirm on real devices. |
