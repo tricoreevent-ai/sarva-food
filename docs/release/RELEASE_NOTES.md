@@ -2,7 +2,7 @@
 
 ## v1.0.0-rc5 - Release Candidate
 
-Commit: pushed RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`; existing RC4 tag remains unchanged
+Commit: branch includes RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`; existing RC4 tag remains unchanged
 Branch: `release/production-nammude`
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
@@ -42,7 +42,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - `cmd /c npm run audit:release`: passed.
 - `cmd /c npm run smoke:operational`: passed.
 - `cmd /c npm run validate:prod-env`: failed locally with `46` pass, `1` warning, and `24` errors requiring real production Hostinger/Firebase/Razorpay/provider secrets.
-- `PRODUCTION_URL=... cmd /c npm run verify:deployment`: `16` pass, `1` warning, `0` errors; warning is hosted SHA `2b8a348c416b0d952ab80d80083202280548c4d9` trailing pushed SHA `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+- `PRODUCTION_URL=... cmd /c npm run verify:deployment`: `16` pass, `1` warning, `0` errors; warning is hosted SHA `2b8a348c416b0d952ab80d80083202280548c4d9` does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 - `PRODUCTION_URL=... cmd /c npm run verify:providers`: `8` pass, `3` manual.
 - `PRODUCTION_URL=... cmd /c npm run smoke:production`: `7` pass, `18` manual.
 - `PRODUCTION_URL=... cmd /c npm run monitor:memory`: `1` pass, `2` manual.

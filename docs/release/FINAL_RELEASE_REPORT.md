@@ -6,7 +6,7 @@ Date: 2026-07-16
 | --- | --- |
 | Release Candidate | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
 | Production Branch | `release/production-nammude` |
-| Pushed RC5 baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Hosted RC5 baseline | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
 | Certification Result | Repository certified for RC5 candidate commit/tag after synchronization; production signoff remains blocked. |
@@ -25,7 +25,7 @@ Date: 2026-07-16
 | `cmd /c npm run smoke:operational` | Passed |
 | `cmd /c npm run profile:runtime` | Passed and regenerated runtime/performance reports |
 | `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors for production-only env/secrets/local placeholders |
-| `PRODUCTION_URL=... cmd /c npm run verify:deployment` | Hosted probes pass RC5/production metadata; current warning is SHA lag: hosted `2b8a348c416b0d952ab80d80083202280548c4d9`, pushed `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; `16` pass, `1` warning, `0` errors |
+| `PRODUCTION_URL=... cmd /c npm run verify:deployment` | Hosted probes pass RC5/production metadata; current warning is SHA lag: hosted `2b8a348c416b0d952ab80d80083202280548c4d9` does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; `16` pass, `1` warning, `0` errors |
 | `PRODUCTION_URL=... cmd /c npm run verify:providers` | Passed repository/hosted probe with `8` pass, `3` manual |
 | `PRODUCTION_URL=... cmd /c npm run smoke:production` | `7` public checks passed, `18` authenticated/manual checks pending |
 | `PRODUCTION_URL=... cmd /c npm run monitor:memory` | `1` pass, `2` browser/manual checks pending |
@@ -56,7 +56,7 @@ Date: 2026-07-16
 
 | Blocker | Action |
 | --- | --- |
-| Hosted SHA trails pushed commit | Redeploy `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, restart if required, clear cache, rerun deployment verification. |
+| Hosted SHA trails branch head | Redeploy latest branch head, restart if required, clear cache, rerun deployment verification. |
 | Production env validation errors | Configure real Hostinger/Firebase/Razorpay/QR/alert secrets and rerun `npm run validate:prod-env` in production-equivalent env. |
 
 ## Pending Manual Items

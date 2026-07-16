@@ -21,7 +21,7 @@ Date: 2026-07-16T04:35:18.415Z
 
 | Area | Result |
 | --- | --- |
-| Latest pushed commit | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` on `release/production-nammude`. |
+| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` on `release/production-nammude`. |
 | Hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9`; hosted metadata is RC5/production but trails the latest Active Orders workspace commit. |
 | Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
 | Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
@@ -47,7 +47,7 @@ Date: 2026-07-16T04:35:18.415Z
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
 | Production env | Manual | Hosted app env/version/app URL and Firebase Admin are configured; verify/set Firebase VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, Razorpay live keys/webhook, and provider values. |
-| Hostinger redeploy | Manual | Redeploy `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, clear cache, and verify `/api/release-info` reports the latest SHA. |
+| Hostinger redeploy | Manual | Redeploy the latest `origin/release/production-nammude` branch head, clear cache, and verify `/api/release-info` reports the latest SHA. |
 
 ## Accepted Warning
 

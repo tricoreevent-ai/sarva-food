@@ -2,9 +2,9 @@
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Pushed RC5 baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
+Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 Hosted RC5 baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
-Final certification commit: latest pushed Active Orders workspace commit
+Final certification commit: latest `origin/release/production-nammude` branch head
 Date: 2026-07-16
 
 ## RC4 / RC5 Current Status
@@ -15,7 +15,7 @@ Date: 2026-07-16
 | Production readiness | `88%` |
 | Decision | Repository `GO`; production launch `NO GO`. |
 | Tag recommendation | Keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5` from the final RC5 validation commit. |
-| Hosted blocker | `/api/release-info` reports RC5/production but serves `2b8a348c416b0d952ab80d80083202280548c4d9`; latest pushed SHA is `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
+| Hosted blocker | `/api/release-info` reports RC5/production but serves `2b8a348c416b0d952ab80d80083202280548c4d9`, which does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
 | Latest validation | 2026-07-16 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` passed. Hosted release/health probes are ok except latest SHA redeploy. |
 | Required before launch | Hostinger latest SHA redeploy, production env/provider validation, Lighthouse, Firebase Console checks, provider dashboard checks, authenticated browser/device smoke, and printer/hardware smoke. |
 
@@ -87,7 +87,7 @@ Date: 2026-07-16
 
 ## Remaining Manual Deployment Tasks
 
-- Redeploy the final pushed `release/production-nammude` commit `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, restart app, clear cache, and verify hosted `/api/release-info` plus `/health/*`.
+- Redeploy the latest pushed `release/production-nammude` branch head, restart app, clear cache, and verify hosted `/api/release-info` plus `/health/*`.
 - Keep `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, `NEXT_PUBLIC_APP_ENV=production`, and HTTPS `NEXT_PUBLIC_APP_URL`; configure/verify Firebase VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, live Razorpay keys/webhook, and provider values.
 - Deploy Firestore rules and indexes in the target Firebase project.
 - Configure Firebase authorized domains and production secrets.

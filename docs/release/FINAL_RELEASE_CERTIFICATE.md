@@ -5,7 +5,7 @@ Generated: 2026-07-16T04:39:44.923Z
 | Field | Value |
 | --- | --- |
 | Release Version | v1.0.0-rc5 |
-| Git SHA At Report Generation | ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
+| Active Orders Code Baseline | ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
 | Hosted SHA At Report Generation | 2b8a348c416b0d952ab80d80083202280548c4d9 |
 | Branch | release/production-nammude |
 | Build Date | 2026-07-16 |
@@ -42,7 +42,7 @@ Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify `
 1. Set production env vars.
 2. Run `npm run validate:prod-env`.
 3. Run `npm run build` and `npm run analyze`.
-4. Deploy `ba8e957d57b949a94d0c42a3b170cf198917c0d8` to Hostinger.
+4. Deploy the latest `origin/release/production-nammude` branch head to Hostinger.
 5. Run deployment, provider, performance, memory, and smoke verification.
 
 ## Sign-off Checklist

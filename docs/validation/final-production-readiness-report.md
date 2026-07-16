@@ -5,17 +5,17 @@
 | Check | Result |
 | --- | --- |
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38`; keep unchanged |
-| Current pushed candidate | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Current hosted candidate | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
 | Production readiness | `88%` |
 | Decision | Repository `GO`; production launch `NO GO` |
 | Local validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` passed |
-| Hosted deployment verification | `16` pass, `1` warning, `0` errors; warning is latest SHA redeploy |
+| Hosted deployment verification | `16` pass, `1` warning, `0` errors; warning is latest branch-head redeploy |
 
 - Owner Active Orders operational workspace redesign is pushed and validated repository-side.
 - Hosted metadata now reports `applicationVersion=v1.0.0-rc5` and `deploymentEnvironment=production`, with Firestore connected and Storage/SMTP/Cloudinary configured.
-- Production launch remains blocked by latest Hostinger SHA redeploy, Firebase VAPID/Console, provider dashboards, authenticated browser/device QA, Lighthouse, Chrome profiling, and hardware gates.
+- Production launch remains blocked by latest Hostinger branch-head redeploy, Firebase VAPID/Console, provider dashboards, authenticated browser/device QA, Lighthouse, Chrome profiling, and hardware gates.
 
 ## 2026-07-12 Interrupted Audit Continuation
 

@@ -41,7 +41,7 @@ Last updated: 2026-07-16
 | Enterprise Staff & Access Sprint | Completed | 100 | Production validation passed on Hostinger | Codex | 2026-06-26 |
 | RC5 Production Observability | Implemented | 95 | Hosted Admin/Owner monitoring smoke, export check, and long-run alert verification remain manual | Codex | 2026-07-13 |
 | RC5 Image Optimization | Repository Complete | 95 | Hosted visual smoke, Cloudinary credential upload check, and real-device image quality review remain manual | Codex | 2026-07-15 |
-| Owner Active Orders Operational Workspace | Repository Complete | 95 | Hostinger redeploy of `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, authenticated owner/device visual smoke, and production workflow QA remain manual | Codex | 2026-07-16 |
+| Owner Active Orders Operational Workspace | Repository Complete | 95 | Hostinger redeploy of latest branch head containing `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, authenticated owner/device visual smoke, and production workflow QA remain manual | Codex | 2026-07-16 |
 
 ## Final Enterprise Release
 
@@ -61,7 +61,7 @@ Last updated: 2026-07-16
 | --- | --- |
 | Branch | `release/production-nammude` |
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38` |
-| Current pushed baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Current hosted baseline | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
 | Production readiness | `88%` |
@@ -73,7 +73,7 @@ Last updated: 2026-07-16
 | Image optimization | Shared Cloudinary presets, AVIF/WebP browser upload optimization, incoming Cloudinary transforms, and right-sized `SafeImage` thumbnails added without business logic/API/schema/repository changes. |
 | Active Orders workspace | Operational summary cards, workflow ribbon, status rails, kitchen progress, KOT count display, advanced search, live filters, compact details, and context-aware actions added without API/schema/repository/workflow changes. |
 | Release package verification | Hosted metadata now reports `v1.0.0-rc5` and `deploymentEnvironment=production`; historical RC4 references remain only as immutable tag/history notes. |
-| Remaining work | Redeploy Hostinger to `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, Firebase VAPID/Console, Razorpay/WhatsApp/SMS/push provider checks, browser/device, Lighthouse, Chrome profiling, and hardware validation |
+| Remaining work | Redeploy Hostinger to latest branch head containing `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, Firebase VAPID/Console, Razorpay/WhatsApp/SMS/push provider checks, browser/device, Lighthouse, Chrome profiling, and hardware validation |
 
 ## Sprint 1 Repository Migration
 

@@ -8,7 +8,7 @@ Future AI agents must read this file before making changes.
 | --- | --- |
 | Branch | `release/production-nammude` |
 | Release | `v1.0.0-rc5` candidate |
-| Current pushed commit | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Current hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
 | Production readiness | `88%` |
@@ -25,7 +25,7 @@ Future AI agents must read this file before making changes.
 
 ## Pending Deployment Work
 
-- Redeploy `release/production-nammude` so Hostinger serves `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; current hosted RC5 metadata still serves `2b8a348c416b0d952ab80d80083202280548c4d9`.
+- Redeploy the latest `origin/release/production-nammude` branch head, which includes Active Orders code baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; current hosted RC5 metadata still serves `2b8a348c416b0d952ab80d80083202280548c4d9`.
 - Keep `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, and final HTTPS `NEXT_PUBLIC_APP_URL`.
 - Configure/verify Firebase VAPID key, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboard secrets.
 - Clear Hostinger cache and reverify `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`.

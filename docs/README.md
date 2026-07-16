@@ -8,7 +8,7 @@ This is the single entry point for repository documentation on `release/producti
 | --- | --- |
 | Release candidate | `v1.0.0-rc5` |
 | Branch | `release/production-nammude` |
-| Current pushed commit | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Current hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
 | Production readiness | `88%` |

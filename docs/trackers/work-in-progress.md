@@ -6,7 +6,7 @@ Current Sprint: RC5 production closure sprint
 
 Current Phase: Owner Active Orders operational workspace pushed; production launch blocked by latest Hostinger redeploy and manual gates
 
-Current Task: Redeploy Hostinger from `origin/release/production-nammude` so hosted metadata serves `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, clear cache, and rerun hosted verification.
+Current Task: Redeploy Hostinger from the latest `origin/release/production-nammude` branch head, clear cache, and rerun hosted verification. The branch head includes Active Orders code baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 
 Pending Work Matrix Result: repository-side scans found no actionable TODO/FIXME, runtime `console.log`, duplicate order components, incomplete RC5 code path, duplicate listener, or unbounded Firestore read requiring a freeze-time code change.
 
@@ -38,13 +38,13 @@ Production readiness: 88%
 
 Current Branch: `release/production-nammude`
 
-Current Pushed Baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
+Active Orders Code Baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
 Last Verified Build: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` PASS on 2026-07-16; build/analyze retain the accepted Firebase/protobuf warning.
 
-Last Verified Production SHA: hosted serves `2b8a348c416b0d952ab80d80083202280548c4d9`; `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. Latest pushed Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` has not been deployed.
+Last Verified Production SHA: hosted serves `2b8a348c416b0d952ab80d80083202280548c4d9`; `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The latest branch head containing Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` has not been deployed.
 
 Files Remaining:
 
@@ -53,7 +53,7 @@ Files Remaining:
 Next Command:
 
 ```powershell
-Redeploy Hostinger from `origin/release/production-nammude`, then verify `/api/release-info` reports `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+Redeploy Hostinger from the latest `origin/release/production-nammude`, then verify `/api/release-info` reports the new branch-head SHA.
 ```
 
 Next Exact Task:

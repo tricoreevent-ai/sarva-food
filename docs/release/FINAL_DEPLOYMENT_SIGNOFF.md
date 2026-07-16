@@ -3,7 +3,7 @@
 Date: 2026-07-16
 Branch: `release/production-nammude`
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Pushed RC5 baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
+Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 Hosted RC5 baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
 Decision: `NO GO`
 
@@ -11,7 +11,7 @@ Decision: `NO GO`
 
 Hostinger is reachable at `https://violet-squid-380447.hostingersite.com` and currently serves `v1.0.0-rc5` from branch `release/production-nammude` with `deploymentEnvironment=production`, runtime `v22.18.0`, plugin flags, and `/health/live`, `/health/ready`, `/health/startup` passing.
 
-Deployment is not signable because hosted metadata still serves `2b8a348c416b0d952ab80d80083202280548c4d9`, while the latest pushed Active Orders baseline is `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+Deployment is not signable because hosted metadata still serves `2b8a348c416b0d952ab80d80083202280548c4d9`, which does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 
 ## Verification Summary
 
@@ -28,7 +28,7 @@ Deployment is not signable because hosted metadata still serves `2b8a348c416b0d9
 
 | Item | Required Action |
 | --- | --- |
-| Latest SHA after Active Orders changes | Redeploy `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, restart if required, clear cache, and verify `/api/release-info`. |
+| Latest SHA after Active Orders changes | Redeploy latest branch head, restart if required, clear cache, and verify `/api/release-info`. |
 | Production secrets | Configure/verify Firebase VAPID, QR secret, database alert email, Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboards. |
 
 ## Infrastructure Status

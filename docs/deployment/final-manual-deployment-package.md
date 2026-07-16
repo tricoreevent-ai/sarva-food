@@ -2,10 +2,10 @@
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Current pushed baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
+Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 Current hosted baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
-Runtime release commit: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Final repository certification commit: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
+Runtime release commit: latest `origin/release/production-nammude` branch head
+Final repository certification commit: latest `origin/release/production-nammude` branch head
 Release tag: keep `v1.0.0-rc4` unchanged; create immutable `v1.0.0-rc5` on the final committed candidate.
 
 ## Files Changed
@@ -95,7 +95,7 @@ Latest local result: `46` pass, `1` warning, `24` errors because this workspace 
 
 Latest hosted provider verification result: `8` pass, `0` errors, `3` manual. Razorpay owner-scoped/live dashboard checks, WhatsApp/SMS/push, and live provider sends/webhooks remain external/manual.
 
-Latest hosted deployment verification result: `16` pass, `1` warning, `0` errors; warning is that Hostinger still serves `2b8a348c416b0d952ab80d80083202280548c4d9` instead of latest pushed commit `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+Latest hosted deployment verification result: `16` pass, `1` warning, `0` errors; warning is that Hostinger still serves `2b8a348c416b0d952ab80d80083202280548c4d9` and does not include Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 
 ## Firebase Deployment Commands
 
@@ -118,7 +118,7 @@ npx firebase-tools deploy
 4. Confirm `NEXT_PUBLIC_APP_ENV=production`.
 5. Confirm `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`.
 6. Confirm `NEXT_PUBLIC_APP_URL` is the final HTTPS domain.
-7. Deploy the final pushed `release/production-nammude` commit `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+7. Deploy the latest pushed `release/production-nammude` branch head.
 8. Restart the Node app after env changes.
 9. Verify `/api/release-info`.
 
