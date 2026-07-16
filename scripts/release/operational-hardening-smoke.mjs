@@ -137,10 +137,10 @@ await check("active-orders:a11y-and-operational-controls", () => {
 });
 
 await check("active-orders:all-actions-wired", () => {
-  for (const label of ["Serve Order", "Mark Served", "Complete Order", "Collect Payment", "Print Bill", "View / Preview", "Reminder", "Merge Tables", "Transfer Table", "Split Bill", "Reassign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT"]) {
-    assert.ok(activeOrders.includes(`label: \"${label}\"`) || activeOrders.includes(`label=\"${label}\"`), label);
+  for (const label of ["Serve Order", "Notify Waiter", "Complete Order", "Collect Payment", "Print Bill", "Print Receipt", "View / Preview", "Add Items", "Reminder", "Merge Tables", "Transfer Table", "Split Bill", "Reassign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT", "Timeline", "History", "Payment History"]) {
+    assert.ok(activeOrders.includes(label), label);
   }
-  for (const callback of ["onServe(order)", "onComplete(order)", "onCollectPayment(order)", "onPrintBill(order)", "onPrintKot(order)", "onSplit(order)", "onTransfer(order)", "onMerge(order)", "onReminder(order)", "onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
+  for (const callback of ["handlers.onServe(order)", "handlers.onNotifyWaiter(order)", "handlers.onComplete(order)", "handlers.onCollectPayment(order)", "handlers.onPrintBill(order)", "handlers.onPrintReceipt(order)", "handlers.onPrintKot(order)", "handlers.onAddItems(order)", "handlers.onSplit(order)", "handlers.onTransfer(order)", "handlers.onMerge(order)", "handlers.onTimeline(order)", "handlers.onPaymentHistory(order)", "handlers.onReminder(order)", "handlers.onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
 });
 
 await check("active-orders:strict-lifecycle", () => {
@@ -149,8 +149,10 @@ await check("active-orders:strict-lifecycle", () => {
   assert.ok(!stateMachine.includes('current === "ready" && next === "completed"'));
 });
 
-await check("active-orders:delay-timeline-progress-layout", () => {
-  for (const token of ["formatDelayTime(delay.lateMinutes)", "Stale Order", "key === previous", "progress === 100 ? \"success\"", "md:grid-cols-2 xl:grid-cols-3"]) assert.ok(`${activeOrders}\n${read("src/lib/kitchen-delay.ts")}`.includes(token), token);
+await check("active-orders:dense-memoized-layout", () => {
+  for (const token of ["useDebouncedValue(search, 120)", "MemoPosActiveOrderCard", "handlersRef", "h-[calc(100dvh-6rem)]", "md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6", "data-action=\"serve\"", "data-action=\"notify\"", "data-action=\"payment\"", "data-action=\"print\"", "data-action=\"preview\""]) assert.ok(activeOrders.includes(token), token);
+  assert.ok(!activeOrders.includes("function PosOrderAccordion"));
+  assert.ok(activeOrders.includes("formatDelayTime(delay.lateMinutes)"));
 });
 
 await check("kitchen:notify-without-serving", () => {

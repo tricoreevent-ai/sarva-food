@@ -13,12 +13,24 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC5 Production Closure Sprint |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Phase 4C starts from synchronized branch head `1735938074e71598befcff2578b5220df218ede2`; current Phase 4C changes are local and pending commit/deployment. Existing RC tags must not be moved. |
+| Latest Git Commit | Phase 5B starts from branch head `baa65e7a2a8acbe4f8252e9bc2228d9d14281aee`; the high-density Active Orders changes are validated locally and pending commit/deployment. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Phase 4C passed `typecheck`, `lint`, `build`, `analyze`, `verify:phase4c` (19/19), `audit:release`, `smoke:operational`, `profile:runtime`, and final diff check. Build/analyze retain the accepted Firebase/protobuf warning. Production readiness is `90%`; launch remains NO-GO. |
-| Scope | Phase 4C reuses existing push/payment infrastructure, adds owner diagnostics and backward-compatible protected test actions, configures the public VAPID value in templates, and makes global Razorpay env optional legacy fallback. No order/Kitchen/POS/auth/repository/plugin workflow or Firestore collection/schema/rule/index changed. |
+| Verification Status | Phase 5B passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (14/14), `profile:runtime`, and final diff check. Build/analyze retain the accepted Firebase/protobuf warning. Production launch remains NO-GO pending manual hosted gates. |
+| Scope | Phase 5B redesigns only the POS Active Orders presentation/render path. Existing order/Kitchen/POS repositories, APIs, lifecycle, auth, payment, notifications, and Firestore collection/schema/rule/index contracts are unchanged. |
+
+## Phase 5B POS Active Orders High-Density Board - 2026-07-16
+
+| Area | Result |
+| --- | --- |
+| Root cause | Parent expansion state invalidated up to 30 un-memoized nested accordions; fresh workflows, timelines, arrays, callbacks, and Framer Motion height animation amplified each click. |
+| Redesign | Replaced the POS nested accordion path with one memoized 88px operational card, a 56px summary strip, fixed cards-only viewport, 4/5/6-column desktop grid, and collapsed bottom ribbon. |
+| Actions | Serve, Notify Waiter, Payment, Print, Preview, and More are always visible; all existing split/merge/transfer/reassign/reminder/recall/complete/cancel/timeline/history actions and lifecycle guards remain intact. |
+| Performance | Opening one of 30 cards changes one card instead of 30 (96.7% render-scope reduction); switching cards changes two (93.3%). Synthetic 100-order filter/group p95 is below 1ms on the validation machine. |
+| Density | 3-4 production cards previously visible; the 1366×768 desktop layout now fits five rows × four columns, meeting the 20-card target without page scrolling. |
+| Boundaries | No repository, Firestore schema/rule/index, API contract, order lifecycle, auth, payment, or notification architecture change. |
+| Remaining QA | Authenticated hosted multi-role/browser/device/printer workflow, React Profiler flame graph, FPS/INP, and long-run heap observation remain manual. |
 
 ## Phase 4D Operational Hardening - 2026-07-16
 

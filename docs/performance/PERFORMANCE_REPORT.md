@@ -24,6 +24,18 @@ Runtime tag: recommended `v1.0.0-rc5`; existing `v1.0.0-rc4` remains unchanged
 | P1 | Cross-module listeners/network | Static review found no new duplicate Firestore listeners, duplicate KOT writes, or unbounded polling introduced by this sprint. | Keep manual long-run browser memory and multi-device operational QA as release gates. |
 | P2 | Large dependencies | Mapbox, Firebase/Auth/Firestore, Xlsx, Framer Motion, Lucide, and Stack remain the largest dependency families. | Keep off unrelated routes through existing dynamic imports; do not refactor architecture during RC freeze. |
 
+## POS Active Orders Addendum - 2026-07-16
+
+| Metric | Before | After |
+| --- | --- | --- |
+| Expansion invalidation | Up to 30 un-memoized cards | 1 memoized card opening; 2 when switching |
+| Render-scope reduction | - | 96.7% open; 93.3% switch |
+| Desktop density | 3-4 cards reported in production | 20 cards at 1366×768; more at taller/5/6-column layouts |
+| Synthetic 100-order filter/group | Not isolated | p50 0.18ms, p95 0.28ms, max 0.64ms |
+| `/owner/pos` route JS | 601,449 bytes (587 KB) | 601,478 bytes (587 KB), +29 bytes |
+
+The final source uses a debounced search, one memoized filter/group pass, stable action dispatch, lazy expanded details, no accordion height animation, and a fixed cards-only scroll viewport. Browser FPS/INP/commit-duration proof remains manual because the owner route requires a valid authenticated production-equivalent session.
+
 ## Root Cause Summary
 
 | Priority | Bottleneck | Evidence | Impact |

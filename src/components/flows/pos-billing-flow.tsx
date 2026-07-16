@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import * as Popover from "@radix-ui/react-popover";
+import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, ChevronDown, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
@@ -1408,6 +1409,35 @@ export function PosBillingFlow() {
     }).catch(() => undefined);
   }
 
+  async function notifyActiveOrderWaiter(order: TableOrder) {
+    if (order.status !== "ready" || (order as OperationalOrder).hasKitchenTicket === false) {
+      toast.error("Only a ready kitchen order can notify the waiter.");
+      return;
+    }
+    setActiveAction(`notify:${order.id}`);
+    try {
+      const response = await fetch("/api/owner/kitchen/notify-waiter", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kitchenOrderId: order.id,
+          orderId: canonicalForKitchenOrder(order)?.id,
+          orderNumber: readableTableOrderId(order),
+          tableNumber: order.tableNumber,
+          waiterName: order.waiterName || order.assignedStaffName,
+          branchId: order.branchId,
+          notificationMethod: "both",
+        }),
+      });
+      await readPosPayload(response, "Waiter notification could not be sent.");
+      toast.success("Waiter notified. Order remains Ready.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Waiter notification could not be sent.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
   function canonicalForKitchenOrder(order: OperationalOrder | TableOrder) {
     const operational = order as OperationalOrder;
     return operational.canonicalOrderId
@@ -1890,13 +1920,17 @@ export function PosBillingFlow() {
               onPrintReceipt={(order) => void recordActivePrint(order, "receipt")}
               onPrintKot={(order) => void recordActivePrint(order, "kot")}
               onCollectPayment={(order) => void collectActivePayment(order)}
+              onNotifyWaiter={(order) => void notifyActiveOrderWaiter(order)}
               onSplit={(order) => setSplitTarget(order)}
               onTransfer={(order) => setTransferTarget(order)}
               onMerge={(order) => setMergeTarget(order)}
               onTimeline={(order) => setTimelineTarget(order)}
               onPaymentHistory={(order) => setPaymentHistoryTarget(order)}
               onReminder={(order) => void remindKitchen(order)}
-              onServe={(order) => void updateActiveOrderStatus(order, "served")}
+              onServe={(order) => {
+                acknowledgeKitchenReady(order);
+                void updateActiveOrderStatus(order, "served");
+              }}
               onComplete={(order) => void updateActiveOrderStatus(order, "completed")}
               onCancel={(order) => void updateActiveOrderStatus(order, "cancelled")}
               activeAction={activeAction}
@@ -3511,16 +3545,6 @@ function paymentLabel(value?: TableOrder["paymentStatus"]) {
   return "Unpaid";
 }
 
-function readySinceMillis(order: OperationalOrder) {
-  const entries = [...safeTimeline(order.statusHistory), ...safeTimeline(order.auditTimeline)];
-  const ready = entries
-    .filter((entry) => String(entry.status ?? entry.foodStatus ?? entry.event ?? entry.type ?? "").toLowerCase().includes("ready"))
-    .map(timelineMillis)
-    .filter(Boolean)
-    .sort((first, second) => first - second)[0];
-  return ready || Date.parse(order.createdAt) || 0;
-}
-
 function withBillCopy(context: BillContext, copy: BillCopy): BillContext {
   return { ...context, copyLabel: copy, duplicate: copy === "Duplicate Copy" };
 }
@@ -3711,6 +3735,10 @@ function HeldOrdersPanel({
   );
 }
 
+type ActiveOrderView = "all" | "operations" | "waiter" | "cashier" | "manager";
+type PosActiveActionId = "serve" | "notify" | "payment" | "print" | "preview" | "receipt" | "kot" | "add" | "split" | "transfer" | "reassign" | "merge" | "reminder" | "recall" | "complete" | "cancel" | "timeline" | "history";
+type PosActiveMenuAction = { id: PosActiveActionId; label: string; icon: ReactNode; disabled?: boolean; danger?: boolean };
+
 function ActiveOrdersPanel({
   orders,
   kitchenOrders,
@@ -3724,6 +3752,7 @@ function ActiveOrdersPanel({
   onPrintReceipt,
   onPrintKot,
   onCollectPayment,
+  onNotifyWaiter,
   onSplit,
   onTransfer,
   onMerge,
@@ -3748,6 +3777,7 @@ function ActiveOrdersPanel({
   onPrintReceipt: (order: TableOrder) => void;
   onPrintKot: (order: TableOrder) => void;
   onCollectPayment: (order: TableOrder) => void;
+  onNotifyWaiter: (order: TableOrder) => void;
   onSplit: (order: OperationalOrder) => void;
   onTransfer: (order: OperationalOrder) => void;
   onMerge: (order: OperationalOrder) => void;
@@ -3760,46 +3790,162 @@ function ActiveOrdersPanel({
   activeAction?: string | null;
   waiterView?: boolean;
 }) {
-  const [view, setView] = useState<"all" | "operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "all");
+  const [view, setView] = useState<ActiveOrderView>(() => waiterView ? "waiter" : "all");
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(() => new Set());
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const activeKitchenOrders = useMemo(
-    () => {
-      const value = search.trim().toLowerCase();
-      return kitchenOrders
+  const debouncedSearch = useDebouncedValue(search, 120);
+  const handlersRef = useRef({
+    onOpen,
+    onAddItems,
+    onPrintBill,
+    onPrintReceipt,
+    onPrintKot,
+    onCollectPayment,
+    onNotifyWaiter,
+    onSplit,
+    onTransfer,
+    onMerge,
+    onTimeline,
+    onPaymentHistory,
+    onReminder,
+    onServe,
+    onComplete,
+    onCancel,
+  });
+  useEffect(() => {
+    handlersRef.current = {
+      onOpen,
+      onAddItems,
+      onPrintBill,
+      onPrintReceipt,
+      onPrintKot,
+      onCollectPayment,
+      onNotifyWaiter,
+      onSplit,
+      onTransfer,
+      onMerge,
+      onTimeline,
+      onPaymentHistory,
+      onReminder,
+      onServe,
+      onComplete,
+      onCancel,
+    };
+  }, [onAddItems, onCancel, onCollectPayment, onComplete, onMerge, onNotifyWaiter, onOpen, onPaymentHistory, onPrintBill, onPrintKot, onPrintReceipt, onReminder, onServe, onSplit, onTimeline, onTransfer]);
+
+  const activeKitchenOrders = useMemo(() => {
+    const value = debouncedSearch.trim().toLowerCase();
+    return kitchenOrders
       .filter((order) => !["completed", "cancelled", "billed"].includes(order.status))
       .filter((order) => !value || activeOrderSearchText(order).includes(value))
       .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
       .slice(0, 30);
-    },
-    [kitchenOrders, search],
+  }, [debouncedSearch, kitchenOrders]);
+  const delaysById = useMemo(
+    () => new Map(activeKitchenOrders.map((order) => [order.id, getKitchenDelay(order, now, { orderDelayThresholdMinutes })])),
+    [activeKitchenOrders, now, orderDelayThresholdMinutes],
   );
-  const readyOrders = activeKitchenOrders
-    .filter((order) => order.status === "ready")
-    .sort((first, second) => readySinceMillis(first) - readySinceMillis(second));
-  const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
-  const operationsOrders = activeKitchenOrders.filter((order) => ["new", "occupied", "accepted", "preparing"].includes(order.status));
-  const waiterOrders = activeKitchenOrders.filter((order) => Boolean(order.waiterId || order.waiterName || order.source === "Waiter"));
-  const cashierOrders = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) || order.paymentStatus === "paid");
-  const delayedOrders = activeKitchenOrders.filter((order) => getKitchenDelay(order, now, { orderDelayThresholdMinutes }).lateMinutes > 2);
-  const criticalOrders = activeKitchenOrders.filter((order) => {
-    const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
-    return posDelayLevel(delay) === "critical" || delay.lateMinutes >= 10;
-  });
-  const requestOrders = activeKitchenOrders.filter((order) => order.priority === "rush");
-  const displayedOrders = view === "cashier" ? cashierOrders : activeKitchenOrders;
-  const completedToday = orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length;
-  const occupiedTables = tables.filter((table) => ["occupied", "reserved"].includes(String(table.status)));
-  const activeStaff = staff.filter((member) => member.status === "active");
+  const groups = useMemo(() => {
+    const operationsOrders: OperationalOrder[] = [];
+    const waiterOrders: OperationalOrder[] = [];
+    const cashierOrders: OperationalOrder[] = [];
+    const managerOrders: OperationalOrder[] = [];
+    let inKitchen = 0;
+    let ready = 0;
+    let served = 0;
+    let pendingBills = 0;
+    let critical = 0;
+    let requests = 0;
+    for (const order of activeKitchenOrders) {
+      const delay = delaysById.get(order.id);
+      const operations = ["new", "occupied", "accepted", "preparing"].includes(order.status);
+      const waiter = Boolean(order.waiterId || order.waiterName || order.source === "Waiter");
+      const cashier = ["ready", "served"].includes(order.status) || order.paymentStatus === "paid";
+      const delayed = Boolean(delay && delay.lateMinutes > 2);
+      if (operations) operationsOrders.push(order);
+      if (waiter) waiterOrders.push(order);
+      if (cashier) cashierOrders.push(order);
+      if (delayed) managerOrders.push(order);
+      if (["accepted", "preparing"].includes(order.status)) inKitchen += 1;
+      if (order.status === "ready") ready += 1;
+      if (order.status === "served") served += 1;
+      if (["ready", "served"].includes(order.status) && order.paymentStatus !== "paid") pendingBills += 1;
+      if (delay && (posDelayLevel(delay) === "critical" || delay.lateMinutes >= 10)) critical += 1;
+      if (order.priority === "rush") requests += 1;
+    }
+    return { operationsOrders, waiterOrders, cashierOrders, managerOrders, inKitchen, ready, served, pendingBills, critical, requests };
+  }, [activeKitchenOrders, delaysById]);
+  const displayedOrders = view === "operations"
+    ? groups.operationsOrders
+    : view === "waiter"
+      ? groups.waiterOrders
+      : view === "cashier"
+        ? groups.cashierOrders
+        : view === "manager"
+          ? groups.managerOrders
+          : activeKitchenOrders;
+  const completedToday = useMemo(() => orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length, [orders]);
+  const occupiedTableCount = useMemo(() => tables.filter((table) => ["occupied", "reserved"].includes(String(table.status))).length, [tables]);
+  const activeStaffCount = useMemo(() => staff.filter((member) => member.status === "active").length, [staff]);
   const views = [
     ["all", "All", ClipboardList],
     ["operations", "Operations", Grid2X2],
-    ["waiter", "Waiter", Utensils, waiterOrders.length],
-    ["cashier", "Cashier", ReceiptText, pendingBills.length],
-    ["manager", "Manager", UsersRound, delayedOrders.length],
+    ["waiter", "Waiter", Utensils],
+    ["cashier", "Cashier", ReceiptText],
+    ["manager", "Manager", UsersRound],
   ] as const;
-  const viewCounts = { all: activeKitchenOrders.length, operations: operationsOrders.length, waiter: waiterOrders.length, cashier: pendingBills.length, manager: delayedOrders.length };
+  const viewCounts = {
+    all: activeKitchenOrders.length,
+    operations: groups.operationsOrders.length,
+    waiter: groups.waiterOrders.length,
+    cashier: groups.cashierOrders.length,
+    manager: groups.managerOrders.length,
+  };
+
+  const markSeen = useCallback((orderId: string) => {
+    setSeenOrderIds((current) => {
+      if (current.has(orderId)) return current;
+      const next = new Set(current);
+      next.add(orderId);
+      return next;
+    });
+  }, []);
+
+  const toggleOrder = useCallback((orderId: string) => {
+    markSeen(orderId);
+    setExpandedOrderId((current) => current === orderId ? null : orderId);
+  }, [markSeen]);
+
+  const runOrderAction = useCallback((action: PosActiveActionId, order: OperationalOrder) => {
+    const handlers = handlersRef.current;
+    if (action === "serve") {
+      markSeen(order.id);
+      handlers.onServe(order);
+    } else if (action === "notify") {
+      markSeen(order.id);
+      handlers.onNotifyWaiter(order);
+    } else if (action === "payment") handlers.onCollectPayment(order);
+    else if (action === "print") {
+      if (["ready", "served"].includes(order.status) || order.paymentStatus === "paid") handlers.onPrintBill(order);
+      else handlers.onPrintKot(order);
+    } else if (action === "preview") {
+      markSeen(order.id);
+      handlers.onOpen(order);
+    } else if (action === "receipt") handlers.onPrintReceipt(order);
+    else if (action === "kot") handlers.onPrintKot(order);
+    else if (action === "add") handlers.onAddItems(order);
+    else if (action === "split") handlers.onSplit(order);
+    else if (action === "transfer" || action === "reassign") handlers.onTransfer(order);
+    else if (action === "merge") handlers.onMerge(order);
+    else if (action === "reminder" || action === "recall") handlers.onReminder(order);
+    else if (action === "complete") handlers.onComplete(order);
+    else if (action === "cancel") handlers.onCancel(order);
+    else if (action === "timeline") handlers.onTimeline(order);
+    else handlers.onPaymentHistory(order);
+  }, [markSeen]);
 
   useEffect(() => {
     if (!waiterView) return;
@@ -3813,272 +3959,370 @@ function ActiveOrdersPanel({
   }, []);
 
   return (
-    <section className="min-w-0 space-y-4 xl:col-span-2" aria-label="Active Orders operational workspace">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-black text-slate-950">Active Orders</h1>
-        <Button className="bg-orange-600 text-white hover:bg-orange-700" onClick={onOpenNew}><PlusCircle className="size-4" />New Order</Button>
+    <section className="flex h-[calc(100dvh-6rem)] min-h-[32rem] min-w-0 flex-col gap-1 overflow-hidden xl:col-span-2" aria-label="Active Orders operational workspace">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-black text-slate-950">Active Orders</h1>
+        </div>
+        <Button className="h-11 shrink-0 bg-orange-600 text-white hover:bg-orange-700" onClick={onOpenNew}><PlusCircle className="size-4" />New Order</Button>
       </div>
-      <div className="customer-scroll flex max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm sm:w-fit">
-        {views.map(([key, label, Icon]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setView(key)}
-            className={cn("flex h-11 shrink-0 items-center gap-2 border-r border-slate-100 px-4 text-sm font-black transition last:border-r-0", view === key ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50")}
-            aria-label={`${label} ${viewCounts[key]} orders`}
-          >
-            <Icon className="size-4" />
-            <span>{label}</span>
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px]", view === key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500")}>{viewCounts[key]}</span>
-          </button>
-        ))}
-      </div>
-      <label className="relative block">
-        <Search className="absolute left-3 top-3.5 size-4 text-slate-400" />
-        <input
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search order, table, customer, phone, item, waiter, vehicle, parcel or QR table..."
-          aria-label="Search active orders"
-        />
-      </label>
-      <ActiveOrderSummaryBoard
-        withWaiter={waiterOrders.length}
-        inKitchen={activeKitchenOrders.filter((order) => ["accepted", "preparing"].includes(order.status)).length}
-        ready={readyOrders.length}
-        served={activeKitchenOrders.filter((order) => order.status === "served").length}
-        pendingBills={pendingBills.length}
-        critical={criticalOrders.length}
-        requests={requestOrders.length}
-        tableTrend={`${occupiedTables.length} active tables`}
-        servedTrend={`${completedToday} completed today`}
-        requestTrend={`${activeStaff.length} staff online`}
-      />
-      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {displayedOrders.length ? displayedOrders.map((order, index) => (
-          <PosOrderAccordion
-            key={order.id}
-            index={index}
-            order={order}
-            view={view}
-            now={now}
-            orderDelayThresholdMinutes={orderDelayThresholdMinutes}
-            canMerge={activeKitchenOrders.length >= 2}
-            busy={activeAction ?? ""}
-            expanded={expandedOrderId === order.id}
-            onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
-            onOpen={onOpen}
-            onAddItems={onAddItems}
-            onPrintBill={onPrintBill}
-            onPrintReceipt={onPrintReceipt}
-            onPrintKot={onPrintKot}
-            onCollectPayment={onCollectPayment}
-            onSplit={onSplit}
-            onTransfer={onTransfer}
-            onMerge={onMerge}
-            onTimeline={onTimeline}
-            onPaymentHistory={onPaymentHistory}
-            onReminder={onReminder}
-            onServe={onServe}
-            onComplete={onComplete}
-            onCancel={onCancel}
+
+      <div className="grid shrink-0 gap-2 lg:grid-cols-[auto_minmax(18rem,1fr)]">
+        <div className="customer-scroll flex h-11 max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          {views.map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setView(key)}
+              className={cn("flex min-h-11 shrink-0 items-center gap-2 border-r border-slate-100 px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 last:border-r-0 motion-reduce:transition-none", view === key ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50")}
+              aria-label={`${label} ${viewCounts[key]} orders`}
+              aria-pressed={view === key}
+            >
+              <Icon className="size-4" />
+              <span>{label}</span>
+              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", view === key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500")}>{viewCounts[key]}</span>
+            </button>
+          ))}
+        </div>
+        <label className="relative block h-11">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-20 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search order, table, customer, item, waiter..."
+            aria-label="Search active orders"
           />
-        )) : (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">
-            {view === "waiter" ? "No ready orders for waiter service." : "No active orders right now."}
-          </div>
-        )}
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">{displayedOrders.length}/{activeKitchenOrders.length}</span>
+        </label>
       </div>
-      <ActiveOrderLegend />
+
+      <ActiveOrderSummaryBoard
+        withWaiter={groups.waiterOrders.length}
+        inKitchen={groups.inKitchen}
+        ready={groups.ready}
+        served={groups.served}
+        pendingBills={groups.pendingBills}
+        critical={groups.critical}
+        requests={groups.requests}
+        tableTrend={`${occupiedTableCount} tables`}
+        servedTrend={`${completedToday} done`}
+        requestTrend={`${activeStaffCount} staff`}
+      />
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" tabIndex={0} aria-label="Scrollable active order cards">
+        <div className="grid grid-cols-1 items-start gap-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6">
+          {displayedOrders.length ? displayedOrders.map((order, index) => (
+            <MemoPosActiveOrderCard
+              key={order.id}
+              index={index}
+              order={order}
+              delay={delaysById.get(order.id) ?? getKitchenDelay(order, now, { orderDelayThresholdMinutes })}
+              view={view}
+              canMerge={activeKitchenOrders.length >= 2}
+              busy={Boolean(activeAction?.endsWith(`:${order.id}`))}
+              expanded={expandedOrderId === order.id}
+              unread={!seenOrderIds.has(order.id) && (order.status === "ready" || order.priority === "rush")}
+              onToggle={toggleOrder}
+              onAction={runOrderAction}
+            />
+          )) : (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500 lg:col-span-4 2xl:col-span-5 min-[1920px]:col-span-6">
+              {view === "waiter" ? "No orders assigned for waiter service." : view === "manager" ? "No delayed orders need manager attention." : "No active orders right now."}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <button type="button" className="flex min-h-11 w-full items-center justify-between gap-3 px-3 text-left text-xs font-black text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600" onClick={() => setSummaryOpen((current) => !current)} aria-expanded={summaryOpen}>
+          <span>Status ribbon</span>
+          <span className="flex min-w-0 items-center gap-3 overflow-hidden text-[10px] text-slate-500">
+            <span className="truncate">Kitchen {groups.inKitchen}</span>
+            <span className="truncate">Ready {groups.ready}</span>
+            <span className="truncate">Bills {groups.pendingBills}</span>
+            <span className="truncate text-red-600">Critical {groups.critical}</span>
+            <ChevronDown className={cn("size-4 shrink-0 transition-transform motion-reduce:transition-none", summaryOpen && "rotate-180")} />
+          </span>
+        </button>
+        {summaryOpen ? (
+          <div className="customer-scroll flex gap-4 overflow-x-auto border-t border-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600">
+            {activeOrderLegendItems.map(([label, color]) => <span key={label} className="flex shrink-0 items-center gap-2"><span className={cn("size-2 rounded-full", color)} />{label}</span>)}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
 
-function PosOrderAccordion({
+function PosActiveOrderCard({
   order,
-  orderDelayThresholdMinutes,
+  delay,
   index,
   view,
-  now,
   canMerge,
   busy,
   expanded,
-  onExpandedChange,
-  onOpen,
-  onAddItems,
-  onPrintBill,
-  onPrintReceipt,
-  onPrintKot,
-  onCollectPayment,
-  onSplit,
-  onTransfer,
-  onMerge,
-  onTimeline,
-  onPaymentHistory,
-  onReminder,
-  onServe,
-  onComplete,
-  onCancel,
+  unread,
+  onToggle,
+  onAction,
 }: {
   order: OperationalOrder;
-  orderDelayThresholdMinutes: number;
+  delay: ReturnType<typeof getKitchenDelay>;
   index: number;
-  view: "all" | "operations" | "waiter" | "cashier" | "manager";
-  now: number;
+  view: ActiveOrderView;
   canMerge: boolean;
-  busy: string;
+  busy: boolean;
   expanded: boolean;
-  onExpandedChange: (open: boolean) => void;
-  onOpen: (order: TableOrder) => void;
-  onAddItems: (order: TableOrder) => void;
-  onPrintBill: (order: TableOrder) => void;
-  onPrintReceipt: (order: TableOrder) => void;
-  onPrintKot: (order: TableOrder) => void;
-  onCollectPayment: (order: TableOrder) => void;
-  onSplit: (order: OperationalOrder) => void;
-  onTransfer: (order: OperationalOrder) => void;
-  onMerge: (order: OperationalOrder) => void;
-  onTimeline: (order: OperationalOrder) => void;
-  onPaymentHistory: (order: OperationalOrder) => void;
-  onReminder: (order: TableOrder) => void;
-  onServe: (order: TableOrder) => void;
-  onComplete: (order: TableOrder) => void;
-  onCancel: (order: TableOrder) => void;
+  unread: boolean;
+  onToggle: (orderId: string) => void;
+  onAction: (action: PosActiveActionId, order: OperationalOrder) => void;
 }) {
-  const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
   const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
   const table = order.tableNumber || readablePosOrderType(order.orderType ?? "dine-in");
+  const customer = order.customerName || order.guestName || "Walk-in";
   const waiter = order.waiterName || order.assignedStaffName || "Unassigned";
   const total = Number(order.total ?? order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0));
   const paid = order.paymentStatus === "paid";
   const ready = order.status === "ready";
   const served = order.status === "served";
-  const preparing = ["accepted", "preparing"].includes(order.status);
   const canCollect = ["ready", "served"].includes(order.status) && !paid;
-  const timeline = timelineEntries(undefined, order).slice(-6);
-  const preview = { id: "preview", label: "View / Preview", icon: <Eye className="size-4" />, onClick: () => onOpen(order) };
-  const viewKitchen = { id: "kitchen", label: preparing ? "View Kitchen" : "View Order", icon: <ChefHat className="size-4" />, onClick: () => onOpen(order) };
-  const bill = { id: "bill", label: "Print Bill", icon: <ReceiptText className="size-4" />, onClick: () => onPrintBill(order) };
-  const receipt = { id: "receipt", label: "Print Receipt", icon: <Printer className="size-4" />, onClick: () => onPrintReceipt(order) };
-  const printKot = { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" />, onClick: () => onPrintKot(order) };
-  const collect = { id: "collect", label: "Collect Payment", icon: <CircleDollarSign className="size-4" />, disabled: !canCollect || busy === `payment:${order.id}`, onClick: () => onCollectPayment(order) };
-  const serve = { id: "serve", label: "Serve Order", icon: <Utensils className="size-4" />, variant: "success" as const, disabled: !ready, onClick: () => onServe(order) };
-  const edit = { id: "edit", label: "Edit", icon: <PlusCircle className="size-4" />, variant: "primary" as const, onClick: () => onAddItems(order) };
-  const complete = { id: "complete", label: "Complete Order", icon: <CheckCircle2 className="size-4" />, disabled: !served || !paid || busy === `completed:${order.id}`, onClick: () => onComplete(order) };
-  const transfer = { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
-  const merge = { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy === `merge:${order.id}`, onClick: () => onMerge(order) };
-  const cancel = { id: "cancel", label: "Cancel Order", icon: <XCircle className="size-4" />, variant: "danger" as const, onClick: () => onCancel(order) };
-  const reassign = { id: "reassign", label: "Reassign Waiter", icon: <UserRound className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
-  const recall = { id: "recall", label: "Kitchen Recall", icon: <BellRing className="size-4" />, onClick: () => onReminder(order) };
-  const markServed = { ...serve, label: "Mark Served" };
-  const primaryAction = view === "waiter"
-    ? ready ? markServed : viewKitchen
-    : view === "cashier"
-      ? paid ? receipt : canCollect ? { ...collect, variant: "primary" as const } : preview
-      : view === "manager"
-        ? edit
-        : ready ? serve : served && !paid ? { ...collect, variant: "primary" as const } : paid ? receipt : viewKitchen;
-  const secondaryActions = view === "waiter"
-    ? [...(canCollect ? [collect] : []), ...(ready || served ? [bill] : []), preview]
-    : view === "cashier"
-      ? [bill, ...(paid ? [receipt] : []), preview]
-      : view === "manager"
-        ? [transfer, merge, preview]
-        : [...(canCollect ? [collect] : []), ...(ready || served || paid ? [bill] : []), preview];
-  const moreActions = view === "waiter"
+  const canNotify = ready && order.hasKitchenTicket !== false;
+  const orderNumber = readableTableOrderId(order, index + 1);
+  const status = posActiveStatusLabel(order);
+  const stage = posOrderStatusLabel(order.status, order.paymentStatus);
+  const eta = delay.lateMinutes > 2 ? `+${formatDelayTime(delay.lateMinutes).label}` : `${order.etaMinutes ?? 12}m`;
+  const waiting = `${Math.max(0, Math.round(delay.elapsedMinutes))}m`;
+  const priority = posPriorityLabel(order, delay);
+  const expandedId = `pos-active-${order.id}-details`;
+  const timeline = expanded ? timelineEntries(undefined, order).slice(-6) : [];
+  const history = expanded ? dedupeTimeline([...safeTimeline(order.auditTimeline), ...safeTimeline(order.paymentTimeline)]).slice(-6) : [];
+  const kitchenNotes = expanded
+    ? order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter((note): note is string => Boolean(note))
+    : [];
+  const facts = expanded ? [
+    ["Customer", customer],
+    ["Phone", order.customerPhone || "Not provided"],
+    ["Table", table],
+    ["Waiter", waiter],
+    ["Items", `${itemCount}`],
+    ["Payment", `${paymentLabel(order.paymentStatus)} · ${formatCurrency(total)}`],
+  ] : [];
+  const menuActions: PosActiveMenuAction[] = view === "waiter"
     ? [
-        printKot,
-        { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
-        { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
-        { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
+        { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
+        { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" /> },
+        { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
+        { id: "history", label: "History", icon: <History className="size-4" /> },
       ]
     : view === "cashier"
-      ? [{ id: "history", label: "Payment History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) }]
+      ? [
+          { id: "receipt", label: "Print Receipt", icon: <Printer className="size-4" />, disabled: !paid },
+          { id: "history", label: "Payment History", icon: <History className="size-4" /> },
+        ]
       : view === "manager"
         ? [
-            cancel,
-            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: busy === `split:${order.id}`, onClick: () => onSplit(order) },
-            { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
-            { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
+            { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: busy },
+            { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: busy },
+            { id: "reassign", label: "Reassign Waiter", icon: <UserRound className="size-4" />, disabled: busy },
+            { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy },
+            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: paid || busy },
+            { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
+            { id: "history", label: "History", icon: <History className="size-4" /> },
+            { id: "cancel", label: "Cancel Order", icon: <XCircle className="size-4" />, disabled: paid || busy, danger: true },
           ]
         : [
-            printKot,
-            { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
-            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: busy === `split:${order.id}`, onClick: () => onSplit(order) },
-            transfer,
-            reassign,
-            merge,
-            { id: "reminder", label: "Reminder", icon: <BellRing className="size-4" />, onClick: () => onReminder(order) },
-            recall,
-            complete,
-            cancel,
-            { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
-            { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
+            { id: "receipt", label: "Print Receipt", icon: <Printer className="size-4" />, disabled: !paid },
+            { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
+            { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" /> },
+            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: paid || busy },
+            { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: busy },
+            { id: "reassign", label: "Reassign Waiter", icon: <UserRound className="size-4" />, disabled: busy },
+            { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy },
+            { id: "reminder", label: "Reminder", icon: <BellRing className="size-4" />, disabled: busy },
+            { id: "recall", label: "Kitchen Recall", icon: <BellRing className="size-4" />, disabled: busy },
+            { id: "complete", label: "Complete Order", icon: <CheckCircle2 className="size-4" />, disabled: !served || !paid || busy },
+            { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
+            { id: "history", label: "History", icon: <History className="size-4" /> },
+            { id: "cancel", label: "Cancel Order", icon: <XCircle className="size-4" />, disabled: paid || busy, danger: true },
           ];
-  const readyItems = ["ready", "served", "completed", "billed"].includes(order.status) ? itemCount : 0;
-  const pendingItems = Math.max(0, itemCount - readyItems);
-  const workflow = buildPosActiveWorkflow(order, timeline);
-  const progress = posActiveProgress(order.status);
-  const showPriority = delay.lateMinutes > 2 || order.priority === "rush";
+
+  const handleToggle = useCallback(() => onToggle(order.id), [onToggle, order.id]);
+  const handleAction = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    onAction(event.currentTarget.dataset.action as PosActiveActionId, order);
+  }, [onAction, order]);
+
   return (
-    <CompactOrderAccordion
-      id={`pos-active-${order.id}`}
-      orderNumber={readableTableOrderId(order, index + 1)}
-      etaLabel={delay.lateMinutes > 2 ? `${formatDelayTime(delay.lateMinutes).label} late` : delay.lateMinutes > 0 ? `Within grace ${formatDelayTime(delay.lateMinutes).label}` : `ETA ${order.etaMinutes ?? 12}m`}
-      orderTypeLabel={readablePosOrderType(order.orderType ?? "dine-in")}
-      tableLabel={`${table} • ${order.customerName || order.guestName || "Walk-in"}`}
-      itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
-      status={{ label: posActiveStatusLabel(order), tone: posActiveStatusTone(order) }}
-      accent={posActiveAccent(order)}
-      priority={showPriority ? { label: posPriorityLabel(order, delay), tone: posPriorityTone(order, delay), icon: <BellRing className="size-3.5" /> } : undefined}
-      badges={[]}
-      workflow={workflow}
-      sideStats={[
-        { label: delay.lateMinutes > 2 ? formatDelayTime(delay.lateMinutes).severity === "stale" ? "Stale" : "Delayed" : ready ? "Ready" : served ? "Awaiting Payment" : "Waiting", value: delay.lateMinutes > 2 ? formatDelayTime(delay.lateMinutes).label : delay.elapsedLabel.replace(/^(Placed|Preparing|Ready for|Accepted)\s*/i, ""), subvalue: delay.lateMinutes > 2 ? "Beyond ETA" : delay.lateMinutes > 0 ? "Within grace" : `ETA ${order.etaMinutes ?? 12} min`, tone: delay.lateMinutes >= 10 ? "danger" : delay.lateMinutes > 0 || ready ? "success" : "default" },
-        { label: "Amount", value: formatCurrency(total), subvalue: paymentLabel(order.paymentStatus), tone: paid ? "success" : "danger" },
-      ]}
-      delay={posAccordionDelay(delay)}
-      items={order.lines.map((line, lineIndex) => ({
-        id: `${line.itemId ?? order.id}-${lineIndex}`,
-        name: line.name,
-        quantity: line.quantity,
-        price: formatCurrency(line.price),
-        total: formatCurrency(line.price * line.quantity),
-        note: line.notes,
-        meta: line.modifiers?.join(", "),
-      }))}
-      facts={[
-        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
-        { label: "Phone", value: order.customerPhone || "Not provided" },
-        { label: "Table", value: table },
-        { label: "Waiter", value: waiter },
-        { label: "Source", value: order.source },
-        { label: "Order Type", value: readablePosOrderType(order.orderType ?? "dine-in") },
-        { label: "Payment", value: paymentLabel(order.paymentStatus), tone: paid ? "success" : "default" },
-        { label: "Total", value: formatCurrency(total) },
-        { label: "ETA", value: delay.delayed ? `${formatDelayTime(delay.lateMinutes).label} over` : `${order.etaMinutes ?? 12} min`, tone: delay.delayed ? "danger" : "default" },
-        { label: "Waiting Time", value: delay.elapsedLabel, tone: delay.lateMinutes >= 10 ? "danger" : "default" },
-      ]}
-      timeline={timeline.length ? timeline.map((entry) => ({ label: timelineLabel(entry), time: formatTimelineTime(entryTimeValue(entry)) })) : [{ label: "Created", time: actualOrderTime(order.createdAt) }]}
-      progress={{
-        label: "Kitchen Progress",
-        value: progress,
-        helper: posKitchenProgressHelper(order),
-        readyLabel: `${readyItems} ready`,
-        pendingLabel: `${pendingItems} pending`,
-        kotLabel: `${Math.max(1, order.printedCount ?? 0)} KOT`,
-        tone: order.status === "cancelled" ? "danger" : progress === 100 ? "success" : progress <= 40 ? "default" : "warning",
-      }}
-      primaryAction={primaryAction}
-      secondaryActions={secondaryActions}
-      moreActions={moreActions}
-      isOpen={expanded}
-      className={ready ? "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-green-50 ring-emerald-300 kitchen-ready-pulse" : undefined}
-      highlighted={delay.delayed || order.status === "ready"}
-      onOpenChange={onExpandedChange}
-    />
+    <article
+      className={cn(
+        "relative min-w-0 rounded-lg border bg-white shadow-sm",
+        posActiveAccentBorder(order),
+        delay.lateMinutes > 2 && "border-amber-300",
+        ready && "border-emerald-300 bg-emerald-50/35",
+        expanded && "md:col-span-2",
+      )}
+      aria-labelledby={`pos-active-${order.id}-title`}
+    >
+      <div className="relative grid h-11 content-center gap-0.5 px-2 pr-12">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {unread ? <span className="size-2 shrink-0 rounded-full bg-red-500" title="Unread operational notification"><span className="sr-only">Unread operational notification</span></span> : null}
+          <h2 id={`pos-active-${order.id}-title`} className="shrink-0 truncate text-[11px] font-black text-slate-950">{orderNumber}</h2>
+          <span className={cn("max-w-24 truncate rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase", posActiveStatusChip(order))}>{status}</span>
+          <span className="min-w-0 flex-1 truncate text-[9px] font-black text-slate-600" title={`${table} · ${customer}`}>{table} · {customer}</span>
+        </div>
+        <div className="grid grid-cols-6 gap-1 text-[8px] font-black text-slate-500">
+          <span className="truncate" title={`${itemCount} items`}>{itemCount}i</span>
+          <span className="truncate" title={`Current stage: ${stage}`}>{stage}</span>
+          <span className={cn("truncate", delay.lateMinutes > 2 && "text-red-700")} title={`ETA ${eta}`}>{eta}</span>
+          <span className="truncate" title={`Waiting ${waiting}`}>{waiting}</span>
+          <span className="truncate text-slate-800" title={`Amount ${formatCurrency(total)}`}>{formatCurrency(total)}</span>
+          <span className={cn("truncate", priority === "Critical" || priority === "High" ? "text-red-700" : "text-slate-500")} title={`Priority ${priority}`}>{priority}</span>
+        </div>
+        <button
+          type="button"
+          className="absolute right-0 top-0 grid size-11 place-items-center rounded-tr-lg text-slate-500 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600"
+          onClick={handleToggle}
+          aria-expanded={expanded}
+          aria-controls={expandedId}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${orderNumber}`}
+        >
+          <ChevronDown className={cn("size-4 transition-transform motion-reduce:transition-none", expanded && "rotate-180")} />
+        </button>
+      </div>
+
+      <div className="grid h-11 grid-cols-6 border-t border-slate-100" aria-label={`${orderNumber} actions`}>
+        <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title="Serve Order"><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
+        <button type="button" data-action="notify" disabled={!canNotify || busy} onClick={handleAction} className={activeOrderActionClass(canNotify, "default")} aria-label="Notify Waiter" title="Notify Waiter"><BellRing className="size-4" /><span className="sr-only">Notify</span></button>
+        <button type="button" data-action="payment" disabled={!canCollect || busy} onClick={handleAction} className={activeOrderActionClass(canCollect, "payment")} aria-label="Collect Payment" title="Collect Payment"><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
+        <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
+        <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
+        <PosActiveActionMenu order={order} actions={menuActions} disabled={busy} onAction={onAction} />
+      </div>
+
+      {expanded ? (
+        <div id={expandedId} className="grid gap-3 border-t border-slate-100 bg-slate-50/60 p-3 text-xs lg:grid-cols-2">
+          <dl className="grid content-start gap-1.5">
+            {facts.map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-2">
+                <dt className="font-bold text-slate-500">{label}</dt>
+                <dd className="min-w-0 break-words font-black text-slate-800">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <section>
+            <h3 className="font-black uppercase text-slate-500">Items</h3>
+            <div className="mt-1.5 grid gap-1">
+              {order.lines.map((line, lineIndex) => (
+                <div key={`${line.itemId ?? line.name}-${lineIndex}`} className="flex items-start justify-between gap-2 rounded-md bg-white px-2 py-1.5">
+                  <span className="min-w-0 font-black text-slate-800">{line.quantity}× {line.name}</span>
+                  <span className="shrink-0 font-bold text-slate-600">{formatCurrency(line.price * line.quantity)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section>
+            <h3 className="font-black uppercase text-slate-500">Kitchen Notes</h3>
+            <div className="mt-1.5 rounded-md bg-white p-2 font-semibold text-slate-700">
+              {kitchenNotes.length ? kitchenNotes.map((note) => <p key={note}>{note}</p>) : "No kitchen notes"}
+            </div>
+          </section>
+          <section>
+            <h3 className="font-black uppercase text-slate-500">Timeline</h3>
+            <div className="mt-1.5 grid gap-1">
+              {timeline.length ? timeline.map((entry, timelineIndex) => (
+                <p key={`${timelineLabel(entry)}-${timelineIndex}`} className="flex justify-between gap-2 rounded-md bg-white px-2 py-1.5 font-semibold text-slate-700">
+                  <span>{timelineLabel(entry)}</span>
+                  <span className="shrink-0 text-slate-500">{formatTimelineTime(entryTimeValue(entry))}</span>
+                </p>
+              )) : <p className="rounded-md bg-white p-2 font-semibold text-slate-500">Created {actualOrderTime(order.createdAt)}</p>}
+            </div>
+          </section>
+          <section className="lg:col-span-2">
+            <h3 className="font-black uppercase text-slate-500">History</h3>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {history.length ? history.map((entry, historyIndex) => (
+                <span key={`${timelineLabel(entry)}-${historyIndex}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 font-bold text-slate-600">{timelineLabel(entry)} · {formatTimelineTime(entryTimeValue(entry))}</span>
+              )) : <span className="font-semibold text-slate-500">No additional history</span>}
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </article>
   );
+}
+
+const MemoPosActiveOrderCard = memo(PosActiveOrderCard);
+
+function PosActiveActionMenu({
+  order,
+  actions,
+  disabled,
+  onAction,
+}: {
+  order: OperationalOrder;
+  actions: PosActiveMenuAction[];
+  disabled: boolean;
+  onAction: (action: PosActiveActionId, order: OperationalOrder) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const runAction = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    setOpen(false);
+    onAction(event.currentTarget.dataset.action as PosActiveActionId, order);
+  }, [onAction, order]);
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <button type="button" disabled={disabled} className={activeOrderActionClass(true, "default")} aria-label="More Actions" title="More Actions">
+          <MoreHorizontal className="size-4" />
+          <span className="sr-only">More</span>
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content align="end" sideOffset={6} collisionPadding={10} className="z-[80] max-h-[min(70vh,28rem)] w-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl" role="menu" aria-label="More order actions">
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              role="menuitem"
+              data-action={action.id}
+              disabled={action.disabled}
+              onClick={runAction}
+              className={cn("flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-black focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-40", action.danger ? "text-red-600 hover:bg-red-50" : "text-slate-700 hover:bg-slate-50")}
+            >
+              {action.icon}
+              {action.label}
+            </button>
+          ))}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function activeOrderActionClass(enabled: boolean, tone: "default" | "success" | "payment") {
+  return cn(
+    "grid min-h-11 place-items-center border-r border-slate-100 text-slate-600 transition-colors last:border-r-0 hover:bg-slate-50 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 motion-reduce:transition-none",
+    enabled && tone === "success" && "text-emerald-700 hover:bg-emerald-50",
+    enabled && tone === "payment" && "text-violet-700 hover:bg-violet-50",
+  );
+}
+
+function posActiveAccentBorder(order: TableOrder) {
+  if (order.paymentStatus === "paid") return "border-l-4 border-l-emerald-500";
+  if (order.status === "new" || order.status === "occupied") return "border-l-4 border-l-blue-500";
+  if (order.status === "accepted" || order.status === "preparing") return "border-l-4 border-l-orange-500";
+  if (order.status === "ready") return "border-l-4 border-l-emerald-500";
+  if (order.status === "served") return "border-l-4 border-l-violet-500";
+  return "border-l-4 border-l-slate-300";
+}
+
+function posActiveStatusChip(order: TableOrder) {
+  if (order.paymentStatus === "paid") return "bg-emerald-100 text-emerald-800";
+  if (order.status === "new" || order.status === "occupied") return "bg-blue-100 text-blue-800";
+  if (order.status === "accepted" || order.status === "preparing") return "bg-orange-100 text-orange-800";
+  if (order.status === "ready") return "bg-emerald-100 text-emerald-800";
+  if (order.status === "served") return "bg-violet-100 text-violet-800";
+  return "bg-slate-100 text-slate-700";
 }
 
 function orderStatusTone(status?: string, payment?: string) {
@@ -4104,78 +4348,6 @@ function posActiveStatusLabel(order: TableOrder) {
   if (order.status === "accepted" || order.status === "preparing") return "In Kitchen";
   if (order.status === "ready") return "Ready To Serve";
   if (order.status === "served") return "Served";
-  return posOrderStatusLabel(order.status, order.paymentStatus);
-}
-
-function posActiveStatusTone(order: TableOrder): OrderBadgeTone {
-  if (order.paymentStatus === "paid") return "success";
-  if (order.status === "new" || order.status === "occupied") return "info";
-  if (order.status === "accepted" || order.status === "preparing") return "warning";
-  if (order.status === "ready") return "success";
-  if (order.status === "served") return "violet";
-  return posStatusTone(order.status, order.paymentStatus);
-}
-
-function posActiveAccent(order: TableOrder) {
-  if (order.paymentStatus === "paid") return "emerald" as const;
-  if (order.status === "new" || order.status === "occupied") return "blue" as const;
-  if (order.status === "accepted" || order.status === "preparing") return "orange" as const;
-  if (order.status === "ready") return "emerald" as const;
-  if (order.status === "served") return "violet" as const;
-  return "slate" as const;
-}
-
-function buildPosActiveWorkflow(order: TableOrder, timeline: TimelineEntry[]) {
-  const paid = order.paymentStatus === "paid";
-  const stage = paid
-    ? 5
-    : order.status === "served"
-      ? 4
-      : order.status === "ready"
-        ? 3
-        : order.status === "preparing"
-          ? 2
-          : order.status === "accepted"
-            ? 1
-            : 0;
-  const steps = [
-    ["taken", "Order Taken", ClipboardList, ["created", "new", "order"], "info"],
-    ["sent", "Sent To Kitchen", CheckCircle2, ["accepted", "sent"], "warning"],
-    ["cooking", "Cooking", ChefHat, ["preparing", "cooking"], "warning"],
-    ["ready", "Ready", Utensils, ["ready"], "success"],
-    ["served", "Served", CheckCircle2, ["served"], "muted"],
-    ["paid", "Paid", ReceiptText, ["paid", "payment"], "success"],
-  ] as const;
-  return steps.map(([id, label, Icon, needles, tone], index) => ({
-    id,
-    label,
-    sublabel: activeWorkflowTime(timeline, needles) || (index === 0 ? actualOrderTime(order.createdAt) : undefined),
-    state: index < stage ? "complete" as const : index === stage ? "active" as const : "pending" as const,
-    tone,
-    icon: <Icon className="size-3.5" />,
-  }));
-}
-
-function activeWorkflowTime(timeline: TimelineEntry[], needles: readonly string[]) {
-  const entry = timeline.find((item) => needles.some((needle) => timelineLabel(item).toLowerCase().includes(needle)));
-  return entry ? formatTimelineTime(entryTimeValue(entry)) : "";
-}
-
-function posActiveProgress(status: TableOrder["status"]) {
-  if (status === "new" || status === "occupied") return 0;
-  if (status === "accepted") return 20;
-  if (status === "preparing") return 60;
-  if (status === "ready" || status === "served") return 100;
-  if (status === "completed" || status === "billed") return 100;
-  return 0;
-}
-
-function posKitchenProgressHelper(order: TableOrder) {
-  if (order.status === "new" || order.status === "occupied") return "Not sent to kitchen";
-  if (order.status === "accepted") return "Sent to kitchen";
-  if (order.status === "preparing") return "Cooking in progress";
-  if (order.status === "ready") return "All items are ready";
-  if (order.status === "served") return order.paymentStatus === "paid" ? "Served and paid" : "Served, payment pending";
   return posOrderStatusLabel(order.status, order.paymentStatus);
 }
 
@@ -4246,6 +4418,15 @@ function activeOrderSearchText(order: OperationalOrder) {
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
+const activeOrderLegendItems = [
+  ["With Waiter", "bg-blue-500"],
+  ["In Kitchen", "bg-orange-500"],
+  ["Ready", "bg-emerald-500"],
+  ["Served", "bg-violet-500"],
+  ["Pending", "bg-amber-500"],
+  ["Delayed", "bg-red-500"],
+] as const;
+
 function ActiveOrderSummaryBoard({
   withWaiter,
   inKitchen,
@@ -4269,51 +4450,32 @@ function ActiveOrderSummaryBoard({
   servedTrend: string;
   requestTrend: string;
 }) {
-  const cards: Array<{ label: string; value: number; note: string; trend: string; icon: LucideIcon; tone: "blue" | "orange" | "green" | "violet" | "amber" | "red" | "slate" }> = [
-    { label: "With Waiter", value: withWaiter, note: "Assigned for service", trend: tableTrend, icon: UserRound, tone: "blue" },
-    { label: "In Kitchen", value: inKitchen, note: "Cooking in progress", trend: "Live kitchen queue", icon: ChefHat, tone: "orange" },
-    { label: "Ready To Serve", value: ready, note: "Ready for service", trend: "Serve next", icon: Utensils, tone: "green" },
-    { label: "Served", value: served, note: "Awaiting completion", trend: servedTrend, icon: CheckCircle2, tone: "violet" },
-    { label: "Pending Bills", value: pendingBills, note: "Payment pending", trend: "Cashier action", icon: ReceiptText, tone: "amber" },
-    { label: "Critical Delay", value: critical, note: "Beyond delay limit", trend: critical ? "Immediate action" : "Within target", icon: BellRing, tone: "red" },
-    { label: "Requests", value: requests, note: "Priority assistance", trend: requestTrend, icon: MessageCircle, tone: "slate" },
+  const cards: Array<{ label: string; value: number; trend: string; icon: LucideIcon; tone: "blue" | "orange" | "green" | "violet" | "amber" | "red" | "slate" }> = [
+    { label: "With Waiter", value: withWaiter, trend: tableTrend, icon: UserRound, tone: "blue" },
+    { label: "In Kitchen", value: inKitchen, trend: "Live queue", icon: ChefHat, tone: "orange" },
+    { label: "Ready To Serve", value: ready, trend: "Serve next", icon: Utensils, tone: "green" },
+    { label: "Served", value: served, trend: servedTrend, icon: CheckCircle2, tone: "violet" },
+    { label: "Pending Bills", value: pendingBills, trend: "Cashier action", icon: ReceiptText, tone: "amber" },
+    { label: "Critical Delay", value: critical, trend: critical ? "Act now" : "On target", icon: BellRing, tone: "red" },
+    { label: "Requests", value: requests, trend: requestTrend, icon: MessageCircle, tone: "slate" },
   ];
   return (
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7" aria-label="Active order summary">
+    <section className="customer-scroll grid h-14 shrink-0 grid-flow-col auto-cols-[minmax(8rem,1fr)] gap-1 overflow-x-auto" aria-label="Active order summary">
       {cards.map((card) => {
         const tone = activeOrderSummaryTone(card.tone);
         const Icon = card.icon;
         return (
-          <article key={card.label} className={cn("relative flex min-h-32 min-w-0 flex-col justify-center rounded-lg border bg-white p-3 text-center shadow-sm", tone.border)}>
-            <div className="grid justify-items-center gap-2">
-              <span className={cn("absolute right-3 top-3 grid size-8 shrink-0 place-items-center rounded-full", tone.bg, tone.text)}><Icon className="size-4" /></span>
-              <div className="min-w-0">
-                <p className="truncate text-[10px] font-black uppercase text-slate-500">{card.label}</p>
-                <p className="text-xl font-black text-slate-950">{card.value}</p>
-                <p className="truncate text-[11px] font-semibold text-slate-500">{card.note}</p>
-              </div>
+          <article key={card.label} className={cn("grid h-14 min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-1.5 rounded-lg border bg-white px-2 shadow-sm", tone.border)}>
+            <span className={cn("grid size-7 shrink-0 place-items-center rounded-full", tone.bg, tone.text)}><Icon className="size-3.5" /></span>
+            <div className="min-w-0">
+              <p className="text-lg font-black leading-none text-slate-950">{card.value}</p>
+              <p className="mt-0.5 truncate text-[9px] font-black uppercase text-slate-500">{card.label}</p>
+              <p className={cn("truncate text-[8px] font-black", tone.text)}>{card.trend}</p>
             </div>
-            <p className={cn("mt-2 truncate text-[10px] font-black", tone.text)}>{card.trend}</p>
           </article>
         );
       })}
     </section>
-  );
-}
-
-function ActiveOrderLegend() {
-  const items = [
-    ["With Waiter", "bg-blue-500"],
-    ["In Kitchen", "bg-orange-500"],
-    ["Ready", "bg-emerald-500"],
-    ["Served", "bg-violet-500"],
-    ["Pending", "bg-amber-500"],
-    ["Delayed", "bg-red-500"],
-  ] as const;
-  return (
-    <div className="customer-scroll flex max-w-full gap-5 overflow-x-auto rounded-lg bg-slate-100/80 px-4 py-3 text-xs font-bold text-slate-600" aria-label="Order status legend">
-      {items.map(([label, color]) => <span key={label} className="flex shrink-0 items-center gap-2"><span className={cn("size-2.5 rounded-full", color)} />{label}</span>)}
-    </div>
   );
 }
 

@@ -1,5 +1,7 @@
 # Known Limitations
 
+Phase 5B closes the repository-side POS Active Orders hang, inconsistent accordion, hidden-action, and low-density defects. Remaining QA is authenticated hosted owner/waiter/cashier/manager workflow observation, real printer/device checks, React Profiler/FPS/INP capture, and long-run browser heap stability.
+
 Phase 5A closes the repository-side Kitchen Serve responsibility violation, unbounded time labels, fixed-width Kanban, and missing waiter notification/acknowledgement/escalation workflow. Real push delivery, browser permission, multi-device timing, sound policy, and printer hardware remain external QA.
 
 Phase 4E closes the repository-side Active Orders broken-action, skipped-lifecycle, unbounded-delay, duplicate-timeline, progress-color, and excessive-density issues. Remaining Active Orders work is authenticated hosted multi-role/device/provider/printer observation only.

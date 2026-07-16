@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-16T09:34:49.846Z
+Date: 2026-07-16T11:07:12.791Z
 
 ## Local Validation
 
@@ -37,7 +37,7 @@ Date: 2026-07-16T09:34:49.846Z
 
 | Gate | Status | Reason |
 | --- | --- | --- |
-| Production Chrome Performance | Manual | No local Chrome/Lighthouse executable was available to capture flame graphs, Coverage, FPS, long tasks, or heap snapshots. |
+| Production Chrome Performance | Manual | Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session. |
 | Hosted Lighthouse/Core Web Vitals | Manual | Run after the Phase 4C commit is deployed with the production VAPID value. |
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |

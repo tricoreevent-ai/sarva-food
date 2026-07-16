@@ -1,6 +1,6 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-16T09:39:34.846Z
+Generated: 2026-07-16T11:07:12.884Z
 
 Result: PASS — 14/14 checks passed.
 
@@ -17,7 +17,7 @@ Result: PASS — 14/14 checks passed.
 | active-orders:a11y-and-operational-controls | PASS |  |
 | active-orders:all-actions-wired | PASS |  |
 | active-orders:strict-lifecycle | PASS |  |
-| active-orders:delay-timeline-progress-layout | PASS |  |
+| active-orders:dense-memoized-layout | PASS |  |
 | kitchen:notify-without-serving | PASS |  |
 | kitchen:responsive-settings-and-duration | PASS |  |
 

@@ -1,15 +1,16 @@
 # Final Runtime Report
 
-Date: 2026-07-16T09:34:49.846Z
+Date: 2026-07-16T11:07:12.791Z
 
 ## Runtime Measurements
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.67ms | 1.01ms | 3.93ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.04ms | 0.13ms | 0.54ms | <100ms update |
-| POS 1000-item category switch | 0.11ms | 0.21ms | 0.44ms | <50ms switch |
-| POS 1000-item search filter | 0.17ms | 0.29ms | 0.81ms | debounced |
+| Kitchen 100-order filter/sort | 0.43ms | 0.58ms | 2.06ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.08ms | 0.37ms | <100ms update |
+| POS 1000-item category switch | 0.07ms | 0.19ms | 0.28ms | <50ms switch |
+| POS 1000-item search filter | 0.11ms | 0.20ms | 0.48ms | debounced |
+| Active Orders 100-order filter/group | 0.18ms | 0.28ms | 0.64ms | <50ms interaction |
 
 ## Continuous Operation Controls
 
@@ -27,7 +28,7 @@ Date: 2026-07-16T09:34:49.846Z
 
 | Gate | Status | Reason |
 | --- | --- | --- |
-| Production Chrome Performance | Manual | No local Chrome/Lighthouse executable was available to capture flame graphs, Coverage, FPS, long tasks, or heap snapshots. |
+| Production Chrome Performance | Manual | Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session. |
 | Hosted Lighthouse/Core Web Vitals | Manual | Run after the Phase 4C commit is deployed with the production VAPID value. |
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |

@@ -2,6 +2,8 @@
 
 ## 2026-07-16
 
+- Replaced the POS Active Orders nested accordion with a memoized high-density board: 88px cards, 56px summary, cards-only scrolling, 4/5/6 desktop columns, deterministic expansion, and always-visible Serve/Notify/Payment/Print/Preview/More actions.
+- Reduced deterministic expansion invalidation from 30 cards to 1 when opening and 2 when switching; preserved all lifecycle, repository, API, payment, and notification contracts.
 - Added Phase 4C push readiness: bounded queue retry, 34-scenario contract matrix, owner FCM test endpoint, token/device controls, browser/foreground/background/action/deep-link diagnostics, badge/sound checks, and local delivery history.
 - Added owner payment verification: configuration/key checks, test order and shared checkout, signature/webhook self-tests, test-mode capture/refund, safe failure/cancel/timeout simulations, and redacted logs.
 - Aligned production validation with owner-scoped Razorpay as primary and global keys as optional legacy fallback; configured the supplied public VAPID key in commit-safe templates while keeping private material server/provider-only.

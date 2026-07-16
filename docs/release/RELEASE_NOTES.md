@@ -1,5 +1,14 @@
 # Release Notes
 
+## Phase 5B POS Active Orders - 2026-07-16
+
+- Replaced the POS Active Orders nested accordion path with a flattened memoized operational card.
+- Fixed delayed/inconsistent expansion by removing height animation and mounting details only for the selected card.
+- Kept Serve, Notify Waiter, Payment, Print, Preview, and More visible on every collapsed card.
+- Added 4/5/6-column desktop density, 88px cards, a 56px summary strip, cards-only scrolling, debounced search, and a collapsed status ribbon.
+- Reduced deterministic expansion render scope from 30 cards to 1 (96.7%), or 2 when switching (93.3%).
+- Preserved all existing repositories, APIs, notifications, payment behavior, and Ready → Served → Paid → Completed lifecycle.
+
 ## Phase 4E Active Orders - 2026-07-16
 
 - Fixed premature completion and enforced Ready → Served → Paid → Completed.
@@ -72,6 +81,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - 2026-07-13 pending-work audit: runtime source scan found no actionable TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read requiring a release-freeze code change.
 - 2026-07-15 image optimization closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; analyzer timeout resolved and bundle evidence regenerated.
 - 2026-07-16 Active Orders closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` passed; hosted probes are RC5/production but latest SHA redeploy remains pending.
+- 2026-07-16 Phase 5B high-density board: all required gates passed on the final source; operational smoke is 14/14, `/owner/pos` remains 587 KB (+29 bytes), and the accepted Firebase/protobuf warning is unchanged.
 - 2026-07-16 POS draft P0 browser QA: former waiter/cashier `403 pos:update` paths now reach validation, three rapid adds retained quantity `3` with one toast, offline quantity `2` recovered and synced on reconnect, refresh restored the pending draft, and Clear/Hold server deletion now uses the same recoverable retry path.
 
 ## v1.0.0-rc3 - Release Candidate

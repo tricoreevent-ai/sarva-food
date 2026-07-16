@@ -1,6 +1,6 @@
 # Final Render Report
 
-Date: 2026-07-16T09:34:49.846Z
+Date: 2026-07-16T11:07:12.791Z
 
 ## Hot Source Snapshot
 
@@ -11,7 +11,7 @@ Date: 2026-07-16T09:34:49.846Z
 | src/components/flows/owner-order-management-flow.tsx | 1744 | 11 | 5 | 1 | 0 | 4 | 27/37/2 |
 | src/components/flows/owner-settings-flow.tsx | 2112 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
 | src/components/flows/kitchen-display-flow.tsx | 2129 | 16 | 5 | 2 | 8 | 4 | 44/40/5 |
-| src/components/flows/pos-billing-flow.tsx | 4538 | 25 | 12 | 0 | 11 | 16 | 86/63/9 |
+| src/components/flows/pos-billing-flow.tsx | 4700 | 30 | 18 | 1 | 11 | 16 | 89/52/7 |
 | src/modules/owner/pos/components/product-grid.tsx | 48 | 0 | 0 | 1 | 0 | 0 | 1/0/0 |
 | src/modules/owner/pos/components/product-card.tsx | 79 | 0 | 0 | 1 | 0 | 0 | 0/0/0 |
 

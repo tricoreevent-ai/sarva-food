@@ -18,6 +18,7 @@ const routeBudgets = new Map([
   ["/profile", 250],
   ["/owner", 350],
   ["/owner/orders", 500],
+  ["/owner/pos", 650],
   ["/owner/settings", 300],
 ]);
 
@@ -184,6 +185,21 @@ function runStress() {
     const query = i % 3 === 0 ? "item 9" : "menu";
     products.filter((item) => item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query));
   }, 200);
+  const activeOrderBoard = timed((i) => {
+    const query = i % 2 ? "dish" : "t1";
+    const visible = kitchenOrders
+      .filter((order) => !["completed", "cancelled", "billed"].includes(order.status))
+      .filter((order) => `${order.id} ${order.tableNumber} ${order.source} ${order.lines.map((line) => line.name).join(" ")}`.toLowerCase().includes(query))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .slice(0, 30);
+    visible.reduce((groups, order) => {
+      groups.all += 1;
+      if (["new", "accepted", "preparing"].includes(order.status)) groups.operations += 1;
+      if (order.source === "Waiter") groups.waiter += 1;
+      if (["ready", "served"].includes(order.status)) groups.cashier += 1;
+      return groups;
+    }, { all: 0, operations: 0, waiter: 0, cashier: 0 });
+  }, 200);
   const reconciliation = timed((i) => {
     const next = kitchenOrders.map((order, index) => index === i % kitchenOrders.length ? { ...order, status: "ready" } : { ...order });
     const byId = new Map(kitchenOrders.map((order) => [order.id, order]));
@@ -198,6 +214,7 @@ function runStress() {
     kitchenFilter,
     posCategorySwitch,
     posSearch,
+    activeOrderBoard,
     reconciliation,
     heapDeltaBytes: memAfter - memBefore,
   };
@@ -245,12 +262,20 @@ function writeReports() {
       ["Kitchen snapshot reconciliation", ms(stress.reconciliation.p50), ms(stress.reconciliation.p95), ms(stress.reconciliation.max), "<100ms update"],
       ["POS 1000-item category switch", ms(stress.posCategorySwitch.p50), ms(stress.posCategorySwitch.p95), ms(stress.posCategorySwitch.max), "<50ms switch"],
       ["POS 1000-item search filter", ms(stress.posSearch.p50), ms(stress.posSearch.p95), ms(stress.posSearch.max), "debounced"],
+      ["Active Orders 100-order filter/group", ms(stress.activeOrderBoard.p50), ms(stress.activeOrderBoard.p95), ms(stress.activeOrderBoard.max), "<50ms interaction"],
+    ],
+  );
+  const activeOrderRenderRows = markdownTable(
+    ["Interaction", "Before", "After", "Reduction", "Measurement"],
+    [
+      ["Open one of 30 cards", "30 card renders", "1 card render", "96.7%", "Deterministic memo invalidation scope"],
+      ["Switch expanded card", "30 card renders", "2 card renders", "93.3%", "Deterministic memo invalidation scope"],
     ],
   );
   const finalManualGates = markdownTable(
     ["Gate", "Status", "Reason"],
     [
-      ["Production Chrome Performance", "Manual", "No local Chrome/Lighthouse executable was available to capture flame graphs, Coverage, FPS, long tasks, or heap snapshots."],
+      ["Production Chrome Performance", "Manual", "Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session."],
       ["Hosted Lighthouse/Core Web Vitals", "Manual", "Run after the Phase 4C commit is deployed with the production VAPID value."],
       ["30-minute heap stability", "Manual", "Requires authenticated browser session and continuous POS/Kitchen/customer operation."],
       ["Authenticated smoke", "Manual", "Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace."],
@@ -385,6 +410,37 @@ ${finalManualGates}
 ## Accepted Warning
 
 ${firebaseWarningNote}
+`);
+
+  writeDoc("performance", "ACTIVE_ORDERS_PERFORMANCE_REPORT.md", `# Active Orders Performance Report
+
+Date: ${generatedAt}
+
+## Root Cause
+
+The POS Active Orders panel kept expansion state in the parent and rendered up to 30 un-memoized nested accordions. Every expansion rebuilt each card's workflow, arrays, action objects, callbacks, timelines, and Framer Motion height animation.
+
+## Render Scope
+
+${activeOrderRenderRows}
+
+## Synthetic CPU
+
+${stressRows}
+
+## Density And Runtime Controls
+
+| Area | Result |
+| --- | --- |
+| Desktop density | 4 columns at desktop, 5 at 2XL, and 6 at 1920px; the fixed-height cards-only viewport is designed to expose at least 20 collapsed orders without page growth. |
+| Card work | Collapsed cards build only the operational summary and action bar; details, timelines, notes, and history mount on expansion. |
+| Interaction | Expansion is immediate and uses no height animation. Search is debounced 120ms and grouping is a single memoized pass. |
+| Actions | Serve, Notify Waiter, Payment, Print, Preview, and More remain visible while collapsed. |
+| Browser gate | Chrome and React DevTools are available, but flame graphs/FPS/INP need a valid authenticated production-equivalent owner session. |
+
+## Route Snapshot
+
+${measuredRoutes}
 `);
 }
 

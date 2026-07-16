@@ -1,6 +1,6 @@
 # Screen Migration Tracker
 
-Last updated: 2026-06-26
+Last updated: 2026-07-16
 
 | Screen | Current Source | Target Source | Status |
 | --- | --- | --- | --- |
@@ -23,6 +23,12 @@ Last updated: 2026-06-26
 | Customer Cart | `useCartStore` | Cart UI state allowed; persisted cart API for cross-device | Partial |
 | Customer Checkout | `useCartStore` plus `/api/orders` | `/api/orders` with `OrderRepository`; cart remains UI state | Completed |
 | Customer Order History | `/api/customer/orders` | Customer order API using `OrderRepository` | Completed |
+
+## POS Active Orders UI Closure - 2026-07-16
+
+| Screen | UI Result | Data/Workflow Result | Remaining QA |
+| --- | --- | --- | --- |
+| `/owner/pos?panel=active` | 88px collapsed cards, 56px summary, fixed cards-only viewport, sticky operational controls, 1/2/4/5/6-column grid, collapsed status ribbon | Existing POS/Kitchen/order repositories, APIs, notifications, and Ready → Served → Paid → Completed lifecycle preserved | Hosted authenticated role/device/printer and browser profiler smoke |
 
 ## Final Enterprise Production Validation
 
