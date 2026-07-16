@@ -1,8 +1,8 @@
 # Final Performance Report
 
-Date: 2026-07-16T04:35:18.415Z
+Date: 2026-07-16T05:56:03.220Z
 
-This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certification hotfix measurements. Business workflows, API contracts, Firestore collections, auth flows, and provider contracts remain backward compatible.
+This final report pack consolidates Phase 2, Phase 3, Active Orders, image delivery, observability, and Phase 4C push/payment readiness measurements. Business workflows, Firestore collections, auth flows, and provider contracts remain backward compatible.
 
 ## Root Cause Summary
 
@@ -24,8 +24,8 @@ This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certifi
 | /profile | 23 | 553 KB | 192 KB | 250 KB | Over |
 | /owner | 27 | 579 KB | 192 KB | 350 KB | Over |
 | /owner/orders | 32 | 708 KB | 192 KB | 500 KB | Over |
-| /owner/settings | 31 | 693 KB | 192 KB | 300 KB | Over |
-| /owner/kitchen | 30 | 654 KB | 192 KB | - | Tracked |
+| /owner/settings | 31 | 694 KB | 192 KB | 300 KB | Over |
+| /owner/kitchen | 30 | 655 KB | 192 KB | - | Tracked |
 | /owner/pos | 28 | 584 KB | 192 KB | - | Tracked |
 | /admin | 21 | 503 KB | 192 KB | - | Tracked |
 
@@ -37,16 +37,16 @@ This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certifi
 | /profile | 553 KB | 250 KB | Over |
 | /owner | 579 KB | 350 KB | Over |
 | /owner/orders | 708 KB | 500 KB | Over |
-| /owner/settings | 693 KB | 300 KB | Over |
+| /owner/settings | 694 KB | 300 KB | Over |
 
 ## Stress Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.52ms | 0.71ms | 2.68ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.07ms | 0.51ms | <100ms update |
-| POS 1000-item category switch | 0.09ms | 0.17ms | 0.38ms | <50ms switch |
-| POS 1000-item search filter | 0.15ms | 0.24ms | 0.66ms | debounced |
+| Kitchen 100-order filter/sort | 0.38ms | 0.48ms | 1.66ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.05ms | 0.32ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.11ms | 0.25ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.16ms | 0.46ms | debounced |
 
 ## Conclusion
 

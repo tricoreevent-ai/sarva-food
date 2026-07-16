@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sarva-v14-20260706-fcm-static-only";
+const CACHE_VERSION = "sarva-v15-20260716-push-diagnostics";
 const CACHE_PREFIX = "sarva-";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_URLS = [
@@ -47,6 +47,15 @@ self.addEventListener("message", (event) => {
         .then(() => notifyClients("SARVA_SW_UNREGISTERED")),
     );
   }
+  if (event.data?.type === "SARVA_TEST_NOTIFICATION") {
+    const notification = localTestNotification(event.data.payload);
+    event.waitUntil(
+      Promise.all([
+        setBadge(1),
+        self.registration.showNotification(notification.title, notification.options),
+      ]).then(() => notifyClients("SARVA_PUSH_RECEIVED", { notificationId: notification.options.data.notificationId, source: "local-test" })),
+    );
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -93,13 +102,18 @@ self.addEventListener("push", (event) => {
     Promise.all([
       setBadge(notification.badgeCount),
       self.registration.showNotification(notification.title, notification.options),
-    ]),
+    ]).then(() => notifyClients("SARVA_PUSH_RECEIVED", { notificationId: notification.options.data.notificationId, source: "firebase" })),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const link = safeClientLink(event.notification.data?.link || "/");
+  if (event.action === "dismiss") {
+    event.waitUntil(notifyClients("SARVA_PUSH_CLICK", { notificationId: event.notification.data?.notificationId, action: "dismiss" }));
+    return;
+  }
+  const actionLink = event.notification.data?.actionLinks?.[event.action];
+  const link = safeClientLink(actionLink || event.notification.data?.link || "/");
   event.waitUntil(openOrFocusClient(link));
 });
 
@@ -223,8 +237,37 @@ function notificationFromPush(data) {
         link,
         notificationId: rawData.notificationId,
       },
+      actions: normalizeActions(rawNotification.actions),
     },
   };
+}
+
+function localTestNotification(payload = {}) {
+  const link = safeClientLink(payload.link || "/owner/settings?tab=notifications");
+  const actions = normalizeActions(payload.actions);
+  return {
+    title: String(payload.title || "Nammude notification test"),
+    options: {
+      body: String(payload.body || "Browser notification delivery is available."),
+      icon: "/android-chrome-192x192.png",
+      badge: "/icons/nammude-icon-96.png",
+      tag: String(payload.notificationId || `local-test-${Date.now()}`),
+      actions,
+      data: {
+        link,
+        notificationId: String(payload.notificationId || "local-test"),
+        actionLinks: Object.fromEntries(actions.map((item) => [item.action, link])),
+      },
+    },
+  };
+}
+
+function normalizeActions(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item.action === "string" && typeof item.title === "string")
+    .slice(0, 2)
+    .map((item) => ({ action: item.action.slice(0, 32), title: item.title.slice(0, 48) }));
 }
 
 function parsePushData(data) {

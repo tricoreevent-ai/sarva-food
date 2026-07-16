@@ -34,6 +34,14 @@ const PushPermissionPanel = dynamic(() => import("@/components/pwa/push-permissi
   ssr: false,
   loading: () => <div className="rounded-xl border bg-muted/30 p-3 text-sm font-bold text-muted-foreground">Loading push settings</div>,
 });
+const NotificationTestCenter = dynamic(() => import("@/components/pwa/notification-test-center").then((module) => module.NotificationTestCenter), {
+  ssr: false,
+  loading: () => <div className="rounded-xl border bg-muted/30 p-4 text-sm font-bold text-muted-foreground">Loading notification tests</div>,
+});
+const PaymentVerificationCenter = dynamic(() => import("@/components/owner/payment-verification-center").then((module) => module.PaymentVerificationCenter), {
+  ssr: false,
+  loading: () => <div className="rounded-xl border bg-muted/30 p-4 text-sm font-bold text-muted-foreground">Loading payment verification</div>,
+});
 const FullscreenToggle = dynamic(() => import("@/components/ui/fullscreen-toggle").then((module) => module.FullscreenToggle), {
   ssr: false,
   loading: () => <Button type="button" variant="outline" disabled>Fullscreen</Button>,
@@ -657,6 +665,7 @@ export function OwnerSettingsFlow() {
               </div>
             </DashboardCard>
             <PaymentGatewaySettingsPanel />
+            <PaymentVerificationCenter />
             <ProviderConfigurationPanel />
           </div>
         </TabsContent>
@@ -668,8 +677,9 @@ export function OwnerSettingsFlow() {
         </TabsContent>
 
         <TabsContent value="notifications">
-          <DashboardCard title="Notification & Sound">
-            <div className="space-y-4">
+          <div className="space-y-5">
+            <DashboardCard title="Notification & Sound">
+              <div className="space-y-4">
               <PushPermissionPanel surface="owner" />
               {(Object.keys(soundLabels) as SoundTarget[]).map((target) => {
                 const prefs = soundPrefs[target];
@@ -715,8 +725,10 @@ export function OwnerSettingsFlow() {
                   </div>
                 );
               })}
-            </div>
-          </DashboardCard>
+              </div>
+            </DashboardCard>
+            <NotificationTestCenter />
+          </div>
         </TabsContent>
 
         <TabsContent value="communication">

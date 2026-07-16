@@ -2,21 +2,21 @@
 
 Release candidate: `v1.0.0-rc5`; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
-Commit: `dcff59e050de1dace19460198cb2909372bce7d5` plus final validation/performance evidence if this sprint changes files
+Commit: Phase 4C starts from synchronized branch head `1735938074e71598befcff2578b5220df218ede2`; deploy the final committed Phase 4C head
 Tag: keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5`
 
-## Current Phase 4 Snapshot
+## Current Phase 4C Snapshot
 
 | Area | Status |
 | --- | --- |
-| Repository validation | 2026-07-13 typecheck, lint, build, analyze, audit, and operational smoke passed. |
-| Hosted deployment verification | `14` pass, `1` warning, `2` errors; hosted version still reports `v1.0.0-rc4` and hosted env reports `development`. |
+| Repository validation | 2026-07-16 typecheck, lint, build, analyze, Phase 4C verification, audit, operational smoke, and runtime profile passed. |
+| Hosted deployment verification | Previous RC5 probe passed; redeploy the uncommitted Phase 4C changes and verify the exact SHA and service-worker version. |
 | Public smoke | `7` pass, `18` manual. |
 | Provider probe | `8` pass, `3` manual. |
 | Memory probe | `1` pass, `2` manual. |
-| Production readiness | `86%`; production launch remains `NO GO`. |
+| Production readiness | `90%`; production launch remains `NO GO`. |
 
-Immediate operator action: commit final validation/performance evidence if present, tag the final RC5 validation commit as RC5, set Hostinger `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart the RC5 commit, clear cache, and rerun deployment/performance/provider/smoke reports with `PRODUCTION_URL=https://violet-squid-380447.hostingersite.com`.
+Immediate operator action: commit Phase 4C, configure the public VAPID and stable payment-encryption key, redeploy/restart the final RC5 commit, clear cache, and rerun deployment/performance/provider/smoke reports with `PRODUCTION_URL=https://violet-squid-380447.hostingersite.com` before tagging or launch signoff.
 
 ## Operational Logging
 

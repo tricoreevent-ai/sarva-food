@@ -1,32 +1,31 @@
 # Final Bug Report
 
-Date: 2026-07-16T04:35:18.415Z
+Date: 2026-07-16T05:56:03.220Z
 
 ## Final RC Bug-Hunt Result
 
 | Area | Result |
 | --- | --- |
-| Scope | Stabilization only. Business workflows and API contracts were preserved. The only data shape addition is optional `restaurantSettings.operationalSettings.orderDelayThresholdMinutes` for the requested late-order alert setting. |
-| Marker audit | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code remains from the targeted scan. Docs, lockfiles, CLI script logging, and intentional placeholder copy were left unchanged. |
-| Safe cleanup | Removed three React hook suppression comments by making dependencies explicit in Admin Menu Library, Address Autocomplete, and Owner Dashboard animated numbers. |
-| Route/API audit | Static route, API, loading/error, retry, auth, permission, listener, and duplicate-request scans found no new P0/P1 code blocker. |
-| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate Firestore listener was introduced. |
+| Scope | Phase 4C adds production push diagnostics and backward-compatible owner payment verification without changing order, Kitchen, POS, auth, repository, or Firestore collection contracts. |
+| Push retry | A transport exception could leave a notification in `dispatching`; bounded recovery now returns it to `pending` and stops after three attempts. |
+| Payment configuration | Production validation accepts owner-scoped Razorpay as the primary path; global keys are optional legacy fallback. |
+| Security | Payment test actions reuse same-origin owner permissions, redact responses, and block provider mutations in live mode. |
+| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
-| Remaining bugs | No unresolved local P0/P1 code bug confirmed. Production release still depends on manual env, provider, Firestore, browser, Lighthouse, Chrome profiling, and hardware smoke. |
+| POS draft autosave | Confirmed waiter/cashier authorization mismatch, remote-first state loss, absent browser recovery, repeated generic toasts, and uncoalesced writes; fixed with scoped local recovery and one retry coordinator. |
 
 ## Confirmed Fixes
 
 | File | Fix |
 | --- | --- |
-| `src/app/admin/menu-library/page.tsx` | Replaced hook dependency suppression with a memoized loader and deferred effect call. |
-| `src/components/maps/address-autocomplete.tsx` | Replaced hook dependency suppression with memoized registered-location and search callbacks. |
-| `src/app/owner/page.tsx` | Replaced animated-number hook suppression with a ref-backed latest display value. |
-| `src/components/flows/owner-order-management-flow.tsx` | Aligned Active Orders Status/Priority/Progress/ETA/Quick View/Actions columns; desktop Quick View uses Radix Popover and mobile expands inline. |
-| `src/components/flows/owner-settings-flow.tsx` | Added owner-configurable 10/15/20/25/30 minute prepared-not-served delay threshold. |
-| `src/app/api/owner/operational-settings/route.ts` | Persists the shared delay threshold in the existing `restaurantSettings` document. |
-| `src/lib/kitchen-delay.ts` | Applies late-order checks only to prepared/ready orders that are not served or terminal. |
-| `src/app/api/payments/razorpay/order/route.ts`, `src/app/api/payments/razorpay/verify/route.ts` | Uses the same customer session resolver as order creation to avoid payment-session mismatch. |
-| `src/components/forms/checkout-form.tsx` | Payment/order API calls explicitly use same-origin credentials. |
+| `src/lib/server/push-notifications.ts` | Added bounded queue retry and terminal failure state. |
+| `src/components/pwa/notification-test-center.tsx` | Added owner device, foreground/background, badge, sound, action, deep-link, and history diagnostics. |
+| `src/app/api/owner/payment-settings/route.ts` | Added redacted test-mode diagnostics for keys, orders, signatures, webhooks, capture, and refund. |
+| `src/components/owner/payment-verification-center.tsx` | Added owner-operated payment verification and redacted in-memory logs. |
+| `src/services/razorpay-checkout-client.ts` | Shared the unchanged checkout loader between customer and owner test checkout. |
+| `src/lib/pos-draft-recovery.ts` | Added categorized draft transport errors, localStorage/IndexedDB recovery, and safe Firestore API retry messaging. |
+| `src/components/flows/pos-billing-flow.tsx` | Made draft state local-first, coalesced rapid writes, added exponential recovery and development diagnostics, and removed duplicate generic toasts. |
+| `src/app/api/owner/pos/route.ts`, `src/lib/access-control.ts` | Aligned waiter/cashier POS read/create and draft authorization with the existing UI. |
 
 ## Accepted Warning
 

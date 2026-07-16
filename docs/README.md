@@ -13,6 +13,8 @@ This is the single entry point for repository documentation on `release/producti
 | Repository readiness | `99%` |
 | Production readiness | `90%` |
 | Production launch | `NO GO` until provider, browser, device, Lighthouse, Firebase Console, and hardware gates pass |
+| Phase 4C | Repository implemented; deploy and verify VAPID/device push plus owner Razorpay sandbox/live flows |
+| POS draft P0 | Repository fixed; deploy and verify owner/waiter/cashier recovery on hosted browsers/devices |
 | AI handoff | `docs/AI_HANDOFF.md` |
 
 ## Trackers
@@ -54,6 +56,9 @@ This is the single entry point for repository documentation on `release/producti
 - `docs/validation/ANALYZE_VERIFICATION_REPORT.md`
 - `docs/validation/repository-hardening-audit.md`
 - `docs/validation/PLUGIN_PLATFORM_VALIDATION_REPORT.md`
+- `docs/validation/PHASE_4C_IMPLEMENTATION_AUDIT.md`
+- `docs/validation/PHASE_4C_AUTOMATED_VERIFICATION.md`
+- `docs/validation/PHASE_4C_IMPLEMENTATION_REPORT.md`
 
 ## Performance
 
@@ -89,6 +94,12 @@ This is the single entry point for repository documentation on `release/producti
 
 ## Operational Guides
 
+- `docs/guides/PUSH_NOTIFICATION_GUIDE.md`
+- `docs/guides/NOTIFICATION_TROUBLESHOOTING_GUIDE.md`
+- `docs/guides/OWNER_PAYMENT_SETUP_GUIDE.md`
+- `docs/guides/RAZORPAY_GUIDE.md`
+- `docs/guides/RAZORPAY_WEBHOOK_GUIDE.md`
+- `docs/guides/PAYMENT_TROUBLESHOOTING_GUIDE.md`
 - `docs/guides/developer-guide.md`
 - `docs/guides/owner-user-manual.md`
 - `docs/guides/help-owner-module.md`

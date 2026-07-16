@@ -6,6 +6,7 @@ export function badgeToneClass(tone: OrderBadgeTone = "default") {
   if (tone === "warning") return "border-amber-100 bg-amber-50 text-amber-700";
   if (tone === "danger") return "border-red-100 bg-red-50 text-red-700";
   if (tone === "info") return "border-blue-100 bg-blue-50 text-blue-700";
+  if (tone === "violet") return "border-violet-100 bg-violet-50 text-violet-700";
   if (tone === "muted") return "border-slate-100 bg-slate-50 text-slate-600";
   return "border-slate-200 bg-white text-slate-700";
 }
@@ -21,6 +22,7 @@ export function delayCardClass(level: OrderDelayLevel = "none") {
 
 export function actionClass(action: Pick<OrderAccordionAction, "variant">) {
   if (action.variant === "primary") return "bg-orange-600 text-white hover:bg-orange-700";
+  if (action.variant === "success") return "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700";
   if (action.variant === "danger") return "border-red-200 bg-white text-red-600 hover:bg-red-50";
   if (action.variant === "ghost") return "border-transparent bg-transparent text-slate-600 hover:bg-slate-50";
   return "border-slate-200 bg-white text-slate-700 hover:bg-slate-50";
@@ -36,9 +38,12 @@ export function accentCardClass(accent: OrderAccordionAccent = "slate") {
   return "border-l-4 border-l-slate-300";
 }
 
-export function workflowStepClass(state: OrderWorkflowStepState) {
+export function workflowStepClass(state: OrderWorkflowStepState, tone?: OrderBadgeTone) {
   if (state === "complete") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (state === "active") return "border-orange-200 bg-orange-50 text-orange-700";
+  if (state === "active" && tone === "info") return "order-workflow-active border-blue-300 bg-blue-500 text-white";
+  if (state === "active" && tone === "success") return "order-workflow-active border-emerald-300 bg-emerald-500 text-white";
+  if (state === "active" && tone === "muted") return "order-workflow-active border-violet-300 bg-violet-500 text-white";
+  if (state === "active") return "order-workflow-active border-orange-300 bg-orange-500 text-white";
   if (state === "blocked") return "border-red-200 bg-red-50 text-red-700";
   return "border-slate-200 bg-slate-50 text-slate-500";
 }

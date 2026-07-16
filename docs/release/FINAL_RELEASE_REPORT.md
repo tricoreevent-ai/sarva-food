@@ -24,7 +24,8 @@ Date: 2026-07-16
 | `cmd /c npm run audit:release` | Passed |
 | `cmd /c npm run smoke:operational` | Passed |
 | `cmd /c npm run profile:runtime` | Passed and regenerated runtime/performance reports |
-| `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors for production-only env/secrets/local placeholders |
+| `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `0` warnings, `17` errors, `1` manual for production-only env/secrets/local placeholders and owner-scoped Razorpay provider evidence |
+| `cmd /c npm run verify:phase4c` | Passed `19/19` notification catalog, push lifecycle, complete payment test-center, owner-checkout resolution, security, deep-link, and ten-tenant checks |
 | `PRODUCTION_URL=... cmd /c npm run verify:deployment` | Hosted probes pass RC5/production metadata and runtime includes Active Orders baseline; `17` pass, `0` warnings, `0` errors |
 | `PRODUCTION_URL=... cmd /c npm run verify:providers` | Passed repository/hosted probe with `8` pass, `3` manual |
 | `PRODUCTION_URL=... cmd /c npm run smoke:production` | `7` public checks passed, `18` authenticated/manual checks pending |

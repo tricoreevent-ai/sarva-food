@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -13,12 +13,25 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC5 Production Closure Sprint |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Latest `origin/release/production-nammude` branch head includes Active Orders RC5 workspace commit `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags must not be moved. |
+| Latest Git Commit | Phase 4C starts from synchronized branch head `1735938074e71598befcff2578b5220df218ede2`; current Phase 4C changes are local and pending commit/deployment. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Active Orders workspace redesign passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` on 2026-07-16. Build/analyze retain the accepted Firebase/protobuf dynamic dependency warning. Direct hosted probes on 2026-07-16 returned 200/ok for `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`; hosted metadata is RC5/production and includes the Active Orders runtime baseline. Production readiness is `90%`, production launch remains NO-GO. |
-| Scope | Current workspace contains RC4 release hardening, POS/Active Orders operational UX fixes, performance evidence, RC5 production observability, RC5 image optimization, and the Active Orders operational workspace redesign. No Firestore collection/schema/rule/index, payment provider contract, business workflow, repository contract, or architecture rewrite was introduced by this continuation; the only new route is internal monitoring signal ingestion. |
+| Verification Status | Phase 4C passed `typecheck`, `lint`, `build`, `analyze`, `verify:phase4c` (19/19), `audit:release`, `smoke:operational`, `profile:runtime`, and final diff check. Build/analyze retain the accepted Firebase/protobuf warning. Production readiness is `90%`; launch remains NO-GO. |
+| Scope | Phase 4C reuses existing push/payment infrastructure, adds owner diagnostics and backward-compatible protected test actions, configures the public VAPID value in templates, and makes global Razorpay env optional legacy fallback. No order/Kitchen/POS/auth/repository/plugin workflow or Firestore collection/schema/rule/index changed. |
+
+## Phase 4C Push, Owner Razorpay, and Production Readiness - 2026-07-16
+
+| Area | Result |
+| --- | --- |
+| Pre-change audit | `docs/validation/PHASE_4C_IMPLEMENTATION_AUDIT.md` records the existing FCM, service-worker, queue, token, payment, encryption, webhook, and tenant controls before code changes. |
+| Push closure | Added bounded three-attempt queue recovery, local browser/foreground/background/action/deep-link diagnostics, token/device controls, delivery history, and an authenticated owner-scoped FCM test endpoint. |
+| Notification matrix | `npm run verify:phase4c` validates 34 unique scenario contracts: 32 automated contracts and exactly 2 reserved manual customer scenarios (Order Confirmation and Order Rejection). Live provider/device delivery remains manual evidence. |
+| Owner Razorpay | Existing encrypted owner configuration remains primary; legacy restaurant/matching global configuration remains fallback; missing configuration disables Razorpay. Added redacted diagnostics, key validation, test order/checkout, signature, webhook, capture, refund, and failure/cancel/timeout test surfaces. |
+| Multi-tenant security | Ten simulated owner/restaurant/key/provider-order mappings pass; existing order, payment-intent, session, tenant, same-origin, signature, and webhook replay controls remain in force. Provider-mutating tests are blocked in live mode. |
+| Configuration | Public VAPID value is present in commit-safe templates and local ignored env. Private VAPID/provider secrets remain server/provider-only. Global Razorpay env keys are optional legacy fallback; stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` is required for live owner settings. |
+| Validation | Typecheck, lint, build, analyze, Phase 4C verifier, release audit, operational smoke, and runtime profile pass. Local production env validation reports `46` pass, `17` errors, and `1` manual due production-only Hostinger/Firebase/QR/alert/encryption values and owner Razorpay dashboard verification. |
+| Readiness | Repository `99%`; production `90%`; NO-GO until Phase 4C deploy, hosted VAPID health, real-device push, Razorpay sandbox/live webhook/payment, Firebase Console, browser, Lighthouse, and hardware gates pass. |
 
 ## Documentation Architecture
 
@@ -78,7 +91,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | POS | New/active/held/history/customer panels, payment, split/merge/transfer, incremental KOT. | Yes | No | No | Full operator workflow QA | No | Manual Chrome profiling | Yes |
 | Owner Dashboard | Repository-backed dashboard metrics and navigation. | Yes | No | No | Authenticated browser QA | No | No | Yes |
 | Analytics | Owner/admin analytics and reports through repository/API paths. | Yes | No | No | Authenticated browser QA | No | No | Yes |
-| Notifications | Topbar, order events, push code path, ready/reminder/payment notifications. | Yes | Provider-gated push | No | Browser/device/provider QA | No | No | Yes |
+| Notifications | Topbar, order events, push lifecycle, bounded retry, 34-scenario contract matrix, and owner test center. | Yes | Provider/device-gated delivery | No | Browser/device/provider QA | No | No | Yes |
 | QR Ordering | Signed QR/session/table ordering flow. | Yes | No | No | Mobile QR/device QA | No | No | Yes |
 | Customer Ordering | Restaurant/menu/cart/checkout/orders/profile flows. | Yes | No | No | Customer browser/device QA | No | No | Yes |
 | Authentication | Customer/owner/admin auth, session bridge, lazy Firebase/Stack loading. | Yes | No | No | Authenticated role smoke | No | Auth routes improved; hosted after-score pending | Yes |
@@ -1969,7 +1982,7 @@ Manual tasks must be run by someone with external access:
 | MAN-006 | Clear Hostinger cache, redeploy latest commit, and verify hosted routes. |
 | MAN-007 | Confirm Firebase authorized domains for Google sign-in. |
 | MAN-008 | Deploy Firestore rules and indexes when changed. |
-| MAN-009 | Configure Razorpay live keys/webhook before live payment launch. |
+| MAN-009 | Configure and verify each owner's Razorpay live keys/webhook before that restaurant accepts live payments. |
 | MAN-010 | Configure Meta/WhatsApp/SMS provider accounts before provider launch. |
 | MAN-011 | Confirm domain, SSL, and final `NEXT_PUBLIC_APP_URL`. |
 
@@ -2924,7 +2937,7 @@ No fake values should be committed. Configure real values in Hostinger or the ta
 | Database alerts | `DATABASE_ALERT_EMAIL` and matching Admin CMS customer-data alert recipient. | Admin CMS and outage alert smoke. | Manual pending |
 | Google OAuth | `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`; public and server client ids must match. | Env validation and hosted Google sign-in smoke. | Manual pending |
 | Mapbox | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` with no spaces or line breaks. | Owner/admin map smoke. | Manual pending |
-| Razorpay | Required for production launch: set `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` together with live keys. | Razorpay sandbox/live order, verify, webhook, refund/settlement smoke. | Provider pending |
+| Razorpay | Configure each owner's key ID, encrypted key secret, and encrypted webhook secret in Owner Settings. Global Razorpay env values are optional legacy fallback only. | Owner test-center plus Razorpay sandbox/live order, verify, webhook, refund/settlement smoke. | Provider pending |
 | WhatsApp Cloud API | `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` before Cloud API launch. | WhatsApp send/webhook event smoke. | Provider pending |
 | SMS | Provider, sender id, compliance rules, OTP/transactional env values after provider selection. | Future SMS adapter/provider smoke. | Provider pending |
 | Push | `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is required for production push readiness. | Push subscription, foreground/background notification, click deep link, and server send smoke. | Provider/device pending |
@@ -3434,3 +3447,16 @@ Manual deployment checklist:
 | Production Smoke Tests | Blocked | Requires authenticated sessions, real providers, browser/device checks, and printer hardware. |
 | Rollback Verification | Pending | Confirm rollback to previous validated SHA `35017398773ba04efbdc3ab37d250cfa547c0675`. |
 | Health Check | Pending | Recheck `/api/release-info`, public routes, protected redirects, and owner/customer/admin smoke after env correction. |
+## POS Draft Autosave P0 Closure - 2026-07-16
+
+| Field | Result |
+| --- | --- |
+| Classification | Confirmed application bug with permission, race, and recovery defects; not expected operational behavior. |
+| Root cause | Waiter/cashier POS was visible, but the draft route required `pos:update`; waiter mode returned `403 Permission denied for pos:update`. The client updated `posBill` only after the remote write succeeded. |
+| Data-loss risk | Confirmed before fix: failed writes were absent from localStorage, sessionStorage, IndexedDB, and the offline queue, while persisted Zustand state intentionally reset `posBill` on reload. |
+| Fix | POS read/create permissions now align with waiter/cashier UI; draft PATCH/DELETE use POS create authorization; cart state updates locally first; the latest draft is mirrored to scoped localStorage and IndexedDB metadata. |
+| Recovery | One debounced writer, one latest pending draft, exponential backoff, online/focus/visibility retry, refresh/browser-close recovery, recoverable Clear/Hold server deletion, one actionable notification, and development-only diagnostics. |
+| Repository boundaries | No order, Kitchen, payment, inventory, repository, Firestore collection/schema/rule/index, or plugin architecture change. |
+| Browser evidence | Three rapid adds retained quantity `3` with one toast and one recovery record; offline quantity `2` synced on reconnect; refresh restored the pending line and reopened New Order; recovery cleared after simulated remote success. |
+| Authorization evidence | Owner, waiter view, and cashier view return POS `GET 200`; invalid draft/order requests reach validation `400` instead of authorization `403`. |
+| Remaining gate | Hosted owner/waiter/cashier, real Firestore interruption, restaurant switch, close/reopen, and multi-device smoke remain manual after deployment. |

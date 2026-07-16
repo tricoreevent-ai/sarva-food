@@ -37,14 +37,13 @@ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_VAPID_KEY=
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=BPYzGKh8p1tju6Zd4pN1hC9xvHLQMwBYYVKG3mVbSrjWtF39cRaPF1CwJJYqf8IcFpiSzBFchUSamu8fH-DTENs
 NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=
 NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
-NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_...
 NEXT_PUBLIC_ENABLE_DEV_LOGIN=false
 NEXT_PUBLIC_ENABLE_TEST_LOGIN=false
 
@@ -60,10 +59,6 @@ CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
-
-RAZORPAY_KEY_ID=rzp_live_...
-RAZORPAY_KEY_SECRET=
-RAZORPAY_WEBHOOK_SECRET=
 
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -93,7 +88,11 @@ Use either `CLOUDINARY_URL` or the individual Cloudinary values. The individual 
 
 `TABLE_QR_SECRET` is required for production QR signing and should be a long random value of at least 32 characters. Keep it stable after printing QR codes, otherwise existing QR links may fail verification.
 
-`PAYMENT_SETTINGS_ENCRYPTION_KEY` is recommended before enabling live restaurant payment settings. Keep it stable so encrypted provider secrets remain readable after redeploys.
+`PAYMENT_SETTINGS_ENCRYPTION_KEY` is required before enabling live owner-managed payment settings. Use at least 32 random characters and keep it stable so encrypted provider secrets remain readable after redeploys.
+
+The supplied `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is a public Web Push certificate key. Keep its corresponding private material in Firebase/provider-managed server configuration and never add it to a `NEXT_PUBLIC_` variable.
+
+Razorpay keys are configured by each owner in Owner → Settings → Payments. Global `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` are optional legacy fallback only and should remain unset for an owner-scoped deployment.
 
 For `FIREBASE_ADMIN_PRIVATE_KEY`, Hostinger hPanel asks for the variable name and value separately. Paste only the value, without surrounding quotes. Use escaped `\n` line breaks, for example `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`. The app now tolerates accidentally quoted values, but unquoted is the clean production format. Do not upload or commit `service-account-key.json`.
 
@@ -120,6 +119,7 @@ npm run build
 cmd /c npm run analyze
 cmd /c npm run audit:release
 cmd /c npm run smoke:operational
+cmd /c npm run verify:phase4c
 cmd /c npm run verify:performance
 git diff --check
 ```

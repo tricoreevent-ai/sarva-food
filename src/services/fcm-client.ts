@@ -13,6 +13,8 @@ export type PushRegistrationState = {
 
 const TOKEN_KEY = "sarva-fcm-token";
 const REGISTERED_AT_KEY = "sarva-fcm-registered-at";
+const TOKEN_HASH_KEY = "sarva-fcm-token-hash";
+const DEVICE_COUNT_KEY = "sarva-fcm-device-count";
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? "";
 
 export async function registerCurrentPushToken(surface: PushSurface): Promise<PushRegistrationState> {
@@ -34,6 +36,8 @@ export async function registerCurrentPushToken(surface: PushSurface): Promise<Pu
     const payload = await savePushToken(token, surface);
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(REGISTERED_AT_KEY, String(Date.now()));
+    if (payload.tokenHash) localStorage.setItem(TOKEN_HASH_KEY, payload.tokenHash);
+    localStorage.setItem(DEVICE_COUNT_KEY, String(payload.deviceCount ?? 1));
     return {
       status: "enabled",
       tokenHash: payload.tokenHash,
@@ -61,10 +65,17 @@ export async function refreshPushTokenIfNeeded(surface: PushSurface, maxAgeMs = 
   await registerCurrentPushToken(surface);
 }
 
+export async function forceRefreshPushToken(surface: PushSurface) {
+  localStorage.removeItem(REGISTERED_AT_KEY);
+  return registerCurrentPushToken(surface);
+}
+
 export async function removeRegisteredPushToken(surface: PushSurface, deleteFirebaseToken = true) {
   const token = localStorage.getItem(TOKEN_KEY) ?? "";
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REGISTERED_AT_KEY);
+  localStorage.removeItem(TOKEN_HASH_KEY);
+  localStorage.removeItem(DEVICE_COUNT_KEY);
 
   await fetch("/api/user/preferences", {
     method: "PATCH",
@@ -97,6 +108,53 @@ export function normalizePushPayload(payload: MessagePayload) {
     sound: data.sound || "bell",
     badge: Number(data.badge || 1),
   };
+}
+
+export function getPushDeviceDiagnostics() {
+  const supported = hasPushSupport();
+  const token = typeof window === "undefined" ? "" : localStorage.getItem(TOKEN_KEY) ?? "";
+  const registeredAt = typeof window === "undefined" ? 0 : Number(localStorage.getItem(REGISTERED_AT_KEY) ?? 0);
+  return {
+    supported,
+    permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+    serviceWorker: typeof navigator !== "undefined" && navigator.serviceWorker?.controller ? "active" : "not-controlled",
+    firebaseRegistration: token ? "registered" : "not-registered",
+    vapidConfigured: Boolean(VAPID_KEY),
+    token,
+    tokenHash: typeof window === "undefined" ? "" : localStorage.getItem(TOKEN_HASH_KEY) ?? "",
+    deviceCount: typeof window === "undefined" ? 0 : Number(localStorage.getItem(DEVICE_COUNT_KEY) ?? 0),
+    registeredAt: registeredAt ? new Date(registeredAt).toISOString() : "",
+  };
+}
+
+export function dispatchForegroundPushTest() {
+  window.dispatchEvent(new CustomEvent("sarva:push-test", {
+    detail: {
+      title: "Foreground notification test",
+      body: "Foreground toast, badge, sound, and deep-link handling are available.",
+      link: "/owner/settings?tab=notifications",
+      tone: "info" as const,
+      sound: "bell",
+      badge: 1,
+    },
+  }));
+}
+
+export async function dispatchBackgroundPushTest(withActions = false) {
+  if (!("serviceWorker" in navigator)) throw new Error("Service workers are not supported.");
+  const registration = await navigator.serviceWorker.ready;
+  const worker = registration.active || registration.waiting || registration.installing;
+  if (!worker) throw new Error("Service worker is not active.");
+  worker.postMessage({
+    type: "SARVA_TEST_NOTIFICATION",
+    payload: {
+      title: withActions ? "Notification action test" : "Background notification test",
+      body: withActions ? "Use Open Settings or Dismiss." : "Background display and badge handling are available.",
+      link: "/owner/settings?tab=notifications",
+      notificationId: `local-test-${Date.now()}`,
+      actions: withActions ? [{ action: "open", title: "Open Settings" }, { action: "dismiss", title: "Dismiss" }] : [],
+    },
+  });
 }
 
 export function hasPushSupport() {

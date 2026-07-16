@@ -91,7 +91,7 @@ Minimum production validation command:
 cmd /c npm run validate:prod-env
 ```
 
-Latest local result: `46` pass, `1` warning, `24` errors because this workspace does not have real production Hostinger/Firebase/Razorpay secrets or HTTPS production env values.
+Latest local result: `46` pass, `0` warnings, `17` errors, and `1` manual check because this workspace does not have real production Hostinger/Firebase/QR/alert/encryption secrets or HTTPS production env values; Razorpay is configured and verified per owner.
 
 Latest hosted provider verification result: `8` pass, `0` errors, `3` manual. Razorpay owner-scoped/live dashboard checks, WhatsApp/SMS/push, and live provider sends/webhooks remain external/manual.
 

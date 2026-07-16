@@ -38,8 +38,10 @@ export const CompactOrderAccordion = memo(function CompactOrderAccordion(props: 
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <CompactOrderAccordionBody items={items} facts={facts} timeline={timeline} notes={notes} progress={progress} />
-            <CompactOrderAccordionActions primaryAction={primaryAction} secondaryActions={secondaryActions} moreActions={moreActions} />
+            <div className="grid border-t border-slate-100 bg-slate-50/35 xl:grid-cols-[minmax(0,1fr)_18rem]">
+              <CompactOrderAccordionBody items={items} facts={facts} timeline={timeline} notes={notes} progress={progress} />
+              <CompactOrderAccordionActions primaryAction={primaryAction} secondaryActions={secondaryActions} moreActions={moreActions} />
+            </div>
           </motion.div>
         ) : null}
       </AnimatePresence>

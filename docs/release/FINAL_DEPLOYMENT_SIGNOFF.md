@@ -22,13 +22,13 @@ Deployment metadata is signable for RC5 runtime. Production launch remains block
 | `docs/validation/PROVIDER_VERIFICATION_REPORT.md` | `8` pass, `3` manual |
 | `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md` | `3` pass, `1` warning, `2` manual |
 | `docs/performance/MEMORY_STABILITY_REPORT.md` | `1` pass, `2` manual |
-| `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md` | `46` pass, `1` warning, `24` errors |
+| `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md` | `46` pass, `0` warnings, `17` errors, `1` manual |
 
 ## Blocking Configuration
 
 | Item | Required Action |
 | --- | --- |
-| Production secrets | Configure/verify Firebase VAPID, QR secret, database alert email, Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboards. |
+| Production secrets | Configure/verify Firebase VAPID, QR secret, database alert email, payment-settings encryption key, owner-scoped Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboards. |
 
 ## Infrastructure Status
 

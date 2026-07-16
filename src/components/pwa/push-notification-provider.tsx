@@ -20,21 +20,31 @@ export function PushNotificationProvider() {
     let active = true;
     let cleanup: (() => void) | undefined;
 
+    const present = (notification: ReturnType<typeof normalizePushPayload>) => {
+      if (!active) return;
+      void setAppBadge(notification.badge);
+      void playOperationalSound({ sound: notification.sound as OperationalSound, volume: 0.65, repeatCount: notification.tone === "critical" ? 2 : 1 }).catch(() => undefined);
+      showSarvaNotification({
+        tone: notification.tone,
+        title: notification.title,
+        message: notification.body,
+        actions: notification.link
+          ? [{ label: "Open", variant: "primary", onClick: () => router.push(notification.link) }]
+          : undefined,
+      });
+      window.dispatchEvent(new CustomEvent("sarva:push-observed", { detail: { kind: "foreground", ...notification, at: new Date().toISOString() } }));
+    };
+
+    const handleTest = (event: Event) => {
+      const detail = (event as CustomEvent<ReturnType<typeof normalizePushPayload>>).detail;
+      if (detail) present(detail);
+    };
+    window.addEventListener("sarva:push-test", handleTest);
+
     const start = () => {
       void refreshPushTokenIfNeeded(surface);
       void listenForForegroundPush((payload) => {
-        if (!active) return;
-        const notification = normalizePushPayload(payload);
-        void setAppBadge(notification.badge);
-        void playOperationalSound({ sound: notification.sound as OperationalSound, volume: 0.65, repeatCount: notification.tone === "critical" ? 2 : 1 }).catch(() => undefined);
-        showSarvaNotification({
-          tone: notification.tone,
-          title: notification.title,
-          message: notification.body,
-          actions: notification.link
-            ? [{ label: "Open", variant: "primary", onClick: () => router.push(notification.link) }]
-            : undefined,
-        });
+        present(normalizePushPayload(payload));
       }).then((unsubscribe) => {
         cleanup = unsubscribe;
       }).catch(() => undefined);
@@ -49,6 +59,7 @@ export function PushNotificationProvider() {
       const id = win.requestIdleCallback(start, { timeout: 3000 });
       return () => {
         active = false;
+        window.removeEventListener("sarva:push-test", handleTest);
         win.cancelIdleCallback?.(id);
         cleanup?.();
       };
@@ -57,6 +68,7 @@ export function PushNotificationProvider() {
     const id = window.setTimeout(start, 1200);
     return () => {
       active = false;
+      window.removeEventListener("sarva:push-test", handleTest);
       window.clearTimeout(id);
       cleanup?.();
     };

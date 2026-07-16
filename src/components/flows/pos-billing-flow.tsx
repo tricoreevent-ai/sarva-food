@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { toast } from "@/lib/client-toast";
+import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
 import { ProductGrid } from "@/modules/owner/pos/components/product-grid";
@@ -26,6 +26,19 @@ import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/or
 import { getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/lib/phone";
+import { getRetryDelayMs } from "@/lib/offline/retry-manager";
+import {
+  clearPosDraftRecovery,
+  loadPosDraftRecovery,
+  normalizePosDraftError,
+  posDraftFailureMessage,
+  savePosDraftRecovery,
+  sendPosDraft,
+  type PosDraftFailureKind,
+  type PosDraftPayload,
+  type PosDraftRecoveryRecord,
+  type PosDraftScope,
+} from "@/lib/pos-draft-recovery";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 const posTabs = ["menu", "custom", "combos"] as const;
@@ -44,6 +57,23 @@ type BillCopy = "Customer Copy" | "Cashier Copy" | "Kitchen Copy" | "Duplicate C
 const billCopyOptions: BillCopy[] = ["Customer Copy", "Cashier Copy", "Kitchen Copy", "Duplicate Copy"];
 type PaymentMethod = "cash" | "upi" | "card" | "credit";
 type SyncStatus = "online" | "offline" | "syncing" | "pending" | "retrying";
+type PendingPosDraft = {
+  revision: number;
+  scope: PosDraftScope;
+  payload: PosDraftPayload;
+  retryCount: number;
+};
+type PosDraftDiagnosticsState = {
+  status: "idle" | "local" | "saving" | "saved" | "retrying" | "failed";
+  local: string;
+  indexedDb: string;
+  session: string;
+  offlineQueue: string;
+  lastSave?: string;
+  durationMs?: number;
+  failureReason?: string;
+  retryCount: number;
+};
 type TimelineEntry = Record<string, unknown>;
 type SplitBillRecord = {
   id?: string;
@@ -214,6 +244,15 @@ export function PosBillingFlow() {
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => (typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "online"));
   const [pendingChanges, setPendingChanges] = useState(0);
+  const [recoveredDraft, setRecoveredDraft] = useState<PosDraftRecoveryRecord | null>(null);
+  const [draftDiagnostics, setDraftDiagnostics] = useState<PosDraftDiagnosticsState>({
+    status: "idle",
+    local: "No recovery draft",
+    indexedDb: "No recovery draft",
+    session: "Payment draft only",
+    offlineQueue: "Latest draft retry coordinator",
+    retryCount: 0,
+  });
   const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
   const [readModel, setReadModel] = useState<PosReadModel>(() => ({
     menuItems: [],
@@ -247,11 +286,23 @@ export function PosBillingFlow() {
   const printerSettings = useAppStore((state) => state.printerSettings);
   const bill = useAppStore((state) => state.posBill);
   const billRef = useRef(bill);
-  const draftWrite = useRef(Promise.resolve());
+  const draftTimerRef = useRef<number | null>(null);
+  const draftRetryTimerRef = useRef<number | null>(null);
+  const draftRevisionRef = useRef(0);
+  const pendingDraftRef = useRef<PendingPosDraft | null>(null);
+  const draftSaveInFlightRef = useRef<Promise<unknown> | null>(null);
+  const draftAbortRef = useRef<AbortController | null>(null);
+  const draftNoticeKindRef = useRef<PosDraftFailureKind | null>(null);
+  const activeDraftScopeKeyRef = useRef("");
+  const flushDraftRef = useRef<(force?: boolean) => Promise<void>>(async () => undefined);
+  const retryDraftRef = useRef<() => Promise<void>>(async () => undefined);
+  const scheduleDraftSaveRef = useRef<(delayMs?: number) => void>(() => undefined);
   const { categories: masterCategories } = usePublicCategories();
   const setPosBill = useAppStore((state) => state.setPosBill);
   const resetPosBill = useAppStore((state) => state.resetPosBill);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  const draftScope = useMemo(() => ({ restaurantId, userId: authUser.id }), [authUser.id, restaurantId]);
+  const draftScopeKey = `${draftScope.restaurantId}:${draftScope.userId}`;
   const operational = useOperationalView(true);
   const waiterView = operational.session?.viewMode === "waiter" || authUser.role === "waiter";
   const currentRole = operational.session?.role ?? authUser.role;
@@ -269,6 +320,20 @@ export function PosBillingFlow() {
   }, [bill]);
 
   useEffect(() => {
+    if (!activeDraftScopeKeyRef.current) {
+      activeDraftScopeKeyRef.current = draftScopeKey;
+      return;
+    }
+    if (activeDraftScopeKeyRef.current === draftScopeKey) return;
+    activeDraftScopeKeyRef.current = draftScopeKey;
+    if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current);
+    if (draftRetryTimerRef.current !== null) window.clearTimeout(draftRetryTimerRef.current);
+    pendingDraftRef.current = null;
+    draftRevisionRef.current += 1;
+    draftAbortRef.current?.abort();
+  }, [draftScopeKey]);
+
+  useEffect(() => {
     const id = window.setTimeout(() => {
       try {
         setHeldOrders(JSON.parse(window.localStorage.getItem(heldOrdersKey) ?? "[]") as HeldPosOrder[]);
@@ -284,6 +349,29 @@ export function PosBillingFlow() {
 
   const refreshPosReadModel = useCallback(async (options: { signal?: AbortSignal; applyDraft?: boolean } = {}) => {
     setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "syncing");
+    const recovery = options.applyDraft === false
+      ? null
+      : await loadPosDraftRecovery(draftScope).catch(() => null);
+    if (recovery) {
+      billRef.current = recovery.payload.bill;
+      setPosBill(recovery.payload.bill);
+      setDeliveryAddress(recovery.payload.deliveryAddress);
+      setLandmark(recovery.payload.landmark);
+      setOrderNote(recovery.payload.orderNote);
+      setPanel("new");
+      setWizardStep(1);
+      setRecoveredDraft(recovery);
+      setPendingChanges(1);
+      setDraftDiagnostics((current) => ({
+        ...current,
+        status: "local",
+        local: "Recovered",
+        indexedDb: "Recovered",
+        lastSave: recovery.savedAt,
+        failureReason: recovery.lastError,
+        retryCount: recovery.retryCount,
+      }));
+    }
     try {
       const response = await fetch("/api/owner/pos", { cache: "no-store", signal: options.signal });
       const payload = await readPosPayload<PosPayload>(response, "POS data could not be loaded.");
@@ -296,16 +384,27 @@ export function PosBillingFlow() {
         tableOrders: payload.data?.kitchen ?? [],
         staffMembers: payload.data?.staff ?? [],
       }));
+      if (options.applyDraft === false) {
+        if (!pendingDraftRef.current) setSyncStatus("online");
+        return;
+      }
+      if (recovery) {
+        setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "pending");
+        return;
+      }
       setPendingChanges(0);
       setSyncStatus("online");
-      if (options.applyDraft === false) return;
-      if (payload.data?.draft?.lines?.length) setPosBill(payload.data.draft);
-      else resetPosBill();
+      if (payload.data?.draft?.lines?.length) {
+        billRef.current = payload.data.draft;
+        setPosBill(payload.data.draft);
+      } else {
+        resetPosBill();
+      }
     } catch (error) {
       if ((error as Error).name !== "AbortError") setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "retrying");
       throw error;
     }
-  }, [resetPosBill, setPosBill]);
+  }, [draftScope, resetPosBill, setPosBill]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -346,15 +445,19 @@ export function PosBillingFlow() {
   useEffect(() => {
     const onOnline = () => {
       setSyncStatus("syncing");
-      toast.success("Back online. Synchronizing POS.");
-      void refreshPosReadModel({ applyDraft: false }).catch(() => {
+      void Promise.allSettled([
+        refreshPosReadModel({ applyDraft: false }),
+        retryDraftRef.current(),
+      ]).then((results) => {
+        if (results.every((result) => result.status === "fulfilled")) {
+          if (!pendingDraftRef.current) setSyncStatus("online");
+          return;
+        }
         setSyncStatus("retrying");
-        toast.error("Sync failed. Retry from Active Orders.");
       });
     };
     const onOffline = () => {
       setSyncStatus("offline");
-      toast.error("Offline. Changes pending until reconnect.");
     };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
@@ -363,6 +466,20 @@ export function PosBillingFlow() {
       window.removeEventListener("offline", onOffline);
     };
   }, [refreshPosReadModel]);
+
+  useEffect(() => {
+    const retryVisibleDraft = () => {
+      if (document.visibilityState === "visible" && pendingDraftRef.current) {
+        void retryDraftRef.current();
+      }
+    };
+    document.addEventListener("visibilitychange", retryVisibleDraft);
+    window.addEventListener("focus", retryVisibleDraft);
+    return () => {
+      document.removeEventListener("visibilitychange", retryVisibleDraft);
+      window.removeEventListener("focus", retryVisibleDraft);
+    };
+  }, []);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -520,39 +637,262 @@ export function PosBillingFlow() {
   const activeOrderCount = activeOperationalOrders.length;
   const lastInvalidTableWarning = useRef("");
 
-  const persistDraft = useCallback(async (nextBill: PosBill, extra: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }> = {}) => {
-    const body = {
+  const notifyDraftFailure = useCallback((error: unknown) => {
+    const failure = normalizePosDraftError(error);
+    if (draftNoticeKindRef.current === failure.kind) return;
+    draftNoticeKindRef.current = failure.kind;
+    const copy = posDraftFailureMessage(failure);
+    showLazySarvaNotification({
+      id: "pos-draft-save-failure",
+      tone: failure.kind === "storage" || failure.kind === "permission" ? "error" : "warning",
+      title: copy.title,
+      message: copy.message,
+      duration: 12_000,
+      actions: [
+        {
+          label: "Retry",
+          variant: "primary",
+          onClick: () => void retryDraftRef.current(),
+        },
+        {
+          label: "Dismiss",
+          onClick: () => toast.dismiss("pos-draft-save-failure"),
+        },
+      ],
+    });
+  }, []);
+
+  const scheduleDraftSave = useCallback((delayMs = 300) => {
+    if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = window.setTimeout(() => {
+      draftTimerRef.current = null;
+      void flushDraftRef.current();
+    }, delayMs);
+  }, []);
+  scheduleDraftSaveRef.current = scheduleDraftSave;
+
+  const stageDraft = useCallback(async (
+    nextBill: PosBill,
+    extra: Partial<Pick<PosDraftPayload, "deliveryAddress" | "landmark" | "orderNote">> = {},
+    options: { retryCount?: number; delayMs?: number } = {},
+  ) => {
+    const payload: PosDraftPayload = {
       bill: nextBill,
+      restaurantId: draftScope.restaurantId,
       deliveryAddress: extra.deliveryAddress ?? deliveryAddress,
       landmark: extra.landmark ?? landmark,
       orderNote: extra.orderNote ?? orderNote,
     };
-    const write = draftWrite.current.then(async () => {
-      const response = nextBill.lines.length
-        ? await fetch("/api/owner/pos", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
-        : await fetch("/api/owner/pos", { method: "DELETE" });
-      await readPosPayload(response, "POS draft could not be saved.");
-    });
-    draftWrite.current = write.catch(() => undefined);
-    await write;
+    const revision = ++draftRevisionRef.current;
+    const retryCount = options.retryCount ?? 0;
+    pendingDraftRef.current = { revision, scope: draftScope, payload, retryCount };
+    billRef.current = nextBill;
     setPosBill(nextBill);
-  }, [deliveryAddress, landmark, orderNote, setPosBill]);
-
-  const commitDraft = useCallback(async (nextBill: PosBill, extra?: Partial<{ deliveryAddress: string; landmark: string; orderNote: string }>) => {
+    setPendingChanges(1);
+    setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "pending");
     try {
-      await persistDraft(nextBill, extra);
+      const result = await savePosDraftRecovery(draftScope, payload, { retryCount });
+      setDraftDiagnostics((current) => ({
+        ...current,
+        status: "local",
+        local: result.localSaved ? "Saved" : "Unavailable",
+        indexedDb: result.indexedDbSaved ? "Saved" : "Fallback only",
+        lastSave: result.record.savedAt,
+        failureReason: undefined,
+        retryCount,
+      }));
     } catch (error) {
-      console.error("[pos] draft save failed", { reason: error instanceof Error ? error.name : typeof error });
-      setPendingChanges((count) => count + 1);
-      setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "pending");
-      toast.error("POS draft could not be saved.");
+      const failure = normalizePosDraftError(error);
+      setDraftDiagnostics((current) => ({
+        ...current,
+        status: "failed",
+        local: "Failed",
+        indexedDb: "Failed",
+        failureReason: failure.message,
+        retryCount,
+      }));
+      notifyDraftFailure(failure);
     }
-  }, [persistDraft]);
+    scheduleDraftSave(options.delayMs);
+    return revision;
+  }, [deliveryAddress, draftScope, landmark, notifyDraftFailure, orderNote, scheduleDraftSave, setPosBill]);
+
+  const flushDraft = useCallback(async (force = false) => {
+    while (true) {
+      if (draftSaveInFlightRef.current) {
+        await draftSaveInFlightRef.current.catch(() => undefined);
+        if (force) continue;
+        return;
+      }
+      const pending = pendingDraftRef.current;
+      if (!pending) return;
+      if (draftTimerRef.current !== null) {
+        window.clearTimeout(draftTimerRef.current);
+        draftTimerRef.current = null;
+      }
+      if (draftRetryTimerRef.current !== null) {
+        window.clearTimeout(draftRetryTimerRef.current);
+        draftRetryTimerRef.current = null;
+      }
+
+      const controller = new AbortController();
+      const startedAt = performance.now();
+      draftAbortRef.current = controller;
+      setSyncStatus(pending.retryCount ? "retrying" : "syncing");
+      setDraftDiagnostics((current) => ({
+        ...current,
+        status: pending.retryCount ? "retrying" : "saving",
+        retryCount: pending.retryCount,
+      }));
+      const request = sendPosDraft(pending.payload, controller.signal);
+      draftSaveInFlightRef.current = request;
+      let failure: ReturnType<typeof normalizePosDraftError> | null = null;
+
+      try {
+        await request;
+        if (pendingDraftRef.current?.revision === pending.revision) {
+          pendingDraftRef.current = null;
+          await clearPosDraftRecovery(pending.scope);
+          setPendingChanges(0);
+          setSyncStatus("online");
+          setDraftDiagnostics((current) => ({
+            ...current,
+            status: "saved",
+            local: "Cleared after remote save",
+            indexedDb: "Cleared after remote save",
+            lastSave: new Date().toISOString(),
+            durationMs: Math.round(performance.now() - startedAt),
+            failureReason: undefined,
+            retryCount: pending.retryCount,
+          }));
+          draftNoticeKindRef.current = null;
+          toast.dismiss("pos-draft-save-failure");
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError" && pendingDraftRef.current?.revision !== pending.revision) {
+          if (force) continue;
+          return;
+        }
+        failure = normalizePosDraftError(error);
+        if (pendingDraftRef.current?.revision === pending.revision) {
+          const retryCount = pending.retryCount + 1;
+          pendingDraftRef.current = { ...pending, retryCount };
+          setPendingChanges(1);
+          setSyncStatus(failure.kind === "offline" ? "offline" : failure.retryable ? "retrying" : "pending");
+          setDraftDiagnostics((current) => ({
+            ...current,
+            status: failure!.retryable ? "retrying" : "failed",
+            durationMs: Math.round(performance.now() - startedAt),
+            failureReason: `${failure!.kind}: ${failure!.message}`,
+            retryCount,
+          }));
+          await savePosDraftRecovery(pending.scope, pending.payload, {
+            retryCount,
+            lastAttemptAt: new Date().toISOString(),
+            lastError: `${failure.kind}: ${failure.message}`,
+          }).catch(() => undefined);
+          notifyDraftFailure(failure);
+          if (failure.retryable) {
+            draftRetryTimerRef.current = window.setTimeout(() => {
+              draftRetryTimerRef.current = null;
+              void flushDraftRef.current();
+            }, getRetryDelayMs(retryCount));
+          }
+        }
+      } finally {
+        if (draftSaveInFlightRef.current === request) draftSaveInFlightRef.current = null;
+        if (draftAbortRef.current === controller) draftAbortRef.current = null;
+      }
+
+      if (failure && force) throw failure;
+      if (pendingDraftRef.current && pendingDraftRef.current.revision !== pending.revision) {
+        if (force) continue;
+        scheduleDraftSaveRef.current(0);
+      }
+      return;
+    }
+  }, [notifyDraftFailure]);
+  flushDraftRef.current = flushDraft;
+
+  const persistDraft = useCallback(async (
+    nextBill: PosBill,
+    extra: Partial<Pick<PosDraftPayload, "deliveryAddress" | "landmark" | "orderNote">> = {},
+  ) => {
+    await stageDraft(nextBill, extra, { delayMs: 0 });
+    await flushDraftRef.current(true);
+  }, [stageDraft]);
+
+  const commitDraft = useCallback(async (
+    nextBill: PosBill,
+    extra?: Partial<Pick<PosDraftPayload, "deliveryAddress" | "landmark" | "orderNote">>,
+  ) => {
+    await stageDraft(nextBill, extra);
+  }, [stageDraft]);
   const commitDraftRef = useRef(commitDraft);
 
   useEffect(() => {
     commitDraftRef.current = commitDraft;
   }, [commitDraft]);
+
+  const retryDraft = useCallback(async () => {
+    if (!pendingDraftRef.current) {
+      await refreshPosReadModel({ applyDraft: false });
+      return;
+    }
+    if (draftRetryTimerRef.current !== null) {
+      window.clearTimeout(draftRetryTimerRef.current);
+      draftRetryTimerRef.current = null;
+    }
+    setSyncStatus("retrying");
+    await flushDraftRef.current(true).catch(() => undefined);
+  }, [refreshPosReadModel]);
+  retryDraftRef.current = retryDraft;
+
+  const discardDraftAutosave = useCallback(async () => {
+    if (draftTimerRef.current !== null) {
+      window.clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    if (draftRetryTimerRef.current !== null) {
+      window.clearTimeout(draftRetryTimerRef.current);
+      draftRetryTimerRef.current = null;
+    }
+    const pendingScope = pendingDraftRef.current?.scope;
+    pendingDraftRef.current = null;
+    draftRevisionRef.current += 1;
+    draftAbortRef.current?.abort();
+    await draftSaveInFlightRef.current?.catch(() => undefined);
+    await Promise.all([
+      clearPosDraftRecovery(draftScope),
+      pendingScope && (
+        pendingScope.restaurantId !== draftScope.restaurantId ||
+        pendingScope.userId !== draftScope.userId
+      )
+        ? clearPosDraftRecovery(pendingScope)
+        : Promise.resolve(),
+    ]);
+    setPendingChanges(0);
+    setSyncStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "online");
+    draftNoticeKindRef.current = null;
+    toast.dismiss("pos-draft-save-failure");
+  }, [draftScope]);
+
+  useEffect(() => {
+    if (!recoveredDraft) return;
+    const timer = window.setTimeout(() => {
+      void stageDraft(recoveredDraft.payload.bill, recoveredDraft.payload, {
+        retryCount: recoveredDraft.retryCount,
+        delayMs: 0,
+      }).finally(() => setRecoveredDraft(null));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [recoveredDraft, stageDraft]);
+
+  useEffect(() => () => {
+    if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current);
+    if (draftRetryTimerRef.current !== null) window.clearTimeout(draftRetryTimerRef.current);
+    draftAbortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (panel !== "new" || bill.orderType !== "dine-in" || !tables.length) return;
@@ -569,9 +909,12 @@ export function PosBillingFlow() {
     const firstAvailable = tables.find((table) => isTableSelectable(table, occupiedTableNames));
     if (firstAvailable && bill.table !== firstAvailable.table) {
       lastInvalidTableWarning.current = "";
-      void persistDraft({ ...bill, table: firstAvailable.table, paid: false });
+      const timer = window.setTimeout(() => {
+        void commitDraft({ ...bill, table: firstAvailable.table, paid: false });
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [bill, occupiedTableNames, panel, persistDraft, tables]);
+  }, [bill, commitDraft, occupiedTableNames, panel, tables]);
 
   const handleAdd = useCallback((item: PosProduct) => {
     void commitDraftRef.current(addItemToBill(billRef.current, item));
@@ -894,8 +1237,9 @@ export function PosBillingFlow() {
     }
   }
 
-  function startNewOrder() {
+  function resetNewOrderState(nextPanel: PosPanel = "new") {
     resetPosBill();
+    billRef.current = useAppStore.getState().posBill;
     setKotPrintLines(null);
     setDeliveryAddress("");
     setLandmark("");
@@ -903,7 +1247,12 @@ export function PosBillingFlow() {
     setCompletedOrder(null);
     setProcessingState("idle");
     setWizardStep(1);
-    setPanel("new");
+    setPanel(nextPanel);
+  }
+
+  function startNewOrder() {
+    void discardDraftAutosave();
+    resetNewOrderState();
   }
 
   function requestNewOrder() {
@@ -915,8 +1264,13 @@ export function PosBillingFlow() {
   }
 
   async function clearCurrentOrder() {
-    await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
-    startNewOrder();
+    await discardDraftAutosave();
+    resetNewOrderState();
+    await stageDraft(useAppStore.getState().posBill, {
+      deliveryAddress: "",
+      landmark: "",
+      orderNote: "",
+    }, { delayMs: 0 });
     setClearConfirmOpen(false);
     toast.success("Current POS order cleared.");
   }
@@ -931,10 +1285,13 @@ export function PosBillingFlow() {
       { id: `hold-${Date.now()}`, label, createdAt: new Date().toISOString(), bill },
       ...current,
     ]);
-    await fetch("/api/owner/pos", { method: "DELETE" }).catch(() => undefined);
-    resetPosBill();
-    setWizardStep(1);
-    setPanel("held");
+    await discardDraftAutosave();
+    resetNewOrderState("held");
+    await stageDraft(useAppStore.getState().posBill, {
+      deliveryAddress: "",
+      landmark: "",
+      orderNote: "",
+    }, { delayMs: 0 });
     toast.success(`Order for ${label} moved to Hold Orders.`);
   }
 
@@ -1486,8 +1843,11 @@ export function PosBillingFlow() {
         <PosSyncBanner
           status={syncStatus}
           pendingChanges={pendingChanges}
-          onRetry={() => void refreshPosReadModel({ applyDraft: false }).catch(() => setSyncStatus("retrying"))}
+          onRetry={() => void retryDraft()}
         />
+        {process.env.NODE_ENV !== "production" && panel === "new" ? (
+          <PosDraftDiagnostics diagnostics={draftDiagnostics} />
+        ) : null}
         <main className="grid min-h-0 flex-1 gap-4 p-3 md:p-4 xl:grid-cols-[minmax(0,1fr)_430px]">
           {panel === "held" ? (
             <HeldOrdersPanel orders={heldOrders} onResume={resumeHeldOrder} onDelete={setHeldDeleteTarget} />
@@ -1729,6 +2089,33 @@ function PosSyncBanner({ status, pendingChanges, onRetry }: { status: SyncStatus
         </Button>
       ) : null}
     </div>
+  );
+}
+
+function PosDraftDiagnostics({ diagnostics }: { diagnostics: PosDraftDiagnosticsState }) {
+  const values = [
+    ["Draft save target", "Firestore via /api/owner/pos"],
+    ["Firestore", diagnostics.status],
+    ["Local", diagnostics.local],
+    ["Session", diagnostics.session],
+    ["IndexedDB", diagnostics.indexedDb],
+    ["Offline Queue", diagnostics.offlineQueue],
+    ["Last save", diagnostics.lastSave ? new Date(diagnostics.lastSave).toLocaleTimeString() : "Not saved"],
+    ["Duration", diagnostics.durationMs === undefined ? "Not measured" : `${diagnostics.durationMs} ms`],
+    ["Failure reason", diagnostics.failureReason || "None"],
+    ["Retry count", String(diagnostics.retryCount)],
+  ];
+  return (
+    <aside className="border-b border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950" aria-label="POS draft development diagnostics">
+      <div className="grid gap-x-5 gap-y-1 sm:grid-cols-2 xl:grid-cols-5">
+        {values.map(([label, value]) => (
+          <p key={label} className="min-w-0">
+            <span className="font-black">{label}:</span>{" "}
+            <span className="break-words font-semibold">{value}</span>
+          </p>
+        ))}
+      </div>
+    </aside>
   );
 }
 
@@ -2991,7 +3378,7 @@ function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]
       customerPhone: canonical?.customer.phone || order.customerPhone,
       paymentTimeline: (canonical as ExtendedDemoOrder | undefined)?.paymentTimeline,
       auditTimeline: (canonical as ExtendedDemoOrder | undefined)?.auditTimeline,
-      statusHistory: (canonical as ExtendedDemoOrder | undefined)?.statusHistory,
+      statusHistory: (canonical as ExtendedDemoOrder | undefined)?.statusHistory ?? order.statusHistory,
       splitBills: (canonical as ExtendedDemoOrder | undefined)?.splitBills,
       corrections: (canonical as ExtendedDemoOrder | undefined)?.corrections,
       paymentLock: (canonical as ExtendedDemoOrder | undefined)?.paymentLock,
@@ -3097,10 +3484,6 @@ function paymentLabel(value?: TableOrder["paymentStatus"]) {
   if (value === "partial") return "Partially paid";
   if (value === "refunded") return "Refunded";
   return "Unpaid";
-}
-
-function isDelayedTableOrder(order: TableOrder, orderDelayThresholdMinutes: number = defaultOperationalSettings.orderDelayThresholdMinutes) {
-  return getKitchenDelay(order, Date.now(), { orderDelayThresholdMinutes }).delayed;
 }
 
 function readySinceMillis(order: OperationalOrder) {
@@ -3352,7 +3735,7 @@ function ActiveOrdersPanel({
   activeAction?: string | null;
   waiterView?: boolean;
 }) {
-  const [view, setView] = useState<"operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "operations");
+  const [view, setView] = useState<"all" | "operations" | "waiter" | "cashier" | "manager">(() => waiterView ? "waiter" : "all");
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -3370,24 +3753,28 @@ function ActiveOrdersPanel({
   const readyOrders = activeKitchenOrders
     .filter((order) => order.status === "ready")
     .sort((first, second) => readySinceMillis(first) - readySinceMillis(second));
-  const displayedOrders = view === "waiter" ? readyOrders : activeKitchenOrders;
-  const pendingPayments = activeKitchenOrders.filter((order) => order.paymentStatus !== "paid");
   const pendingBills = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) && order.paymentStatus !== "paid");
+  const operationsOrders = activeKitchenOrders.filter((order) => ["new", "occupied", "accepted", "preparing"].includes(order.status));
+  const waiterOrders = activeKitchenOrders.filter((order) => Boolean(order.waiterId || order.waiterName || order.source === "Waiter"));
+  const cashierOrders = activeKitchenOrders.filter((order) => ["ready", "served"].includes(order.status) || order.paymentStatus === "paid");
+  const delayedOrders = activeKitchenOrders.filter((order) => getKitchenDelay(order, now, { orderDelayThresholdMinutes }).lateMinutes > 2);
+  const criticalOrders = activeKitchenOrders.filter((order) => {
+    const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
+    return posDelayLevel(delay) === "critical" || delay.lateMinutes >= 10;
+  });
+  const requestOrders = activeKitchenOrders.filter((order) => order.priority === "rush");
+  const displayedOrders = view === "cashier" ? cashierOrders : activeKitchenOrders;
   const completedToday = orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length;
-  const delayedOrders = activeKitchenOrders.filter((order) => isDelayedTableOrder(order, orderDelayThresholdMinutes));
   const occupiedTables = tables.filter((table) => ["occupied", "reserved"].includes(String(table.status)));
   const activeStaff = staff.filter((member) => member.status === "active");
-  const revenue = orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + Number(order.totals.total ?? 0), 0);
-  const kitchenLoad = activeKitchenOrders.reduce<Record<string, number>>((acc, order) => {
-    acc[order.status] = (acc[order.status] ?? 0) + 1;
-    return acc;
-  }, {});
   const views = [
+    ["all", "All", ClipboardList],
     ["operations", "Operations", Grid2X2],
-    ["waiter", "Waiter", Utensils],
-    ["cashier", "Cashier", ReceiptText],
-    ["manager", "Manager", UsersRound],
+    ["waiter", "Waiter", Utensils, waiterOrders.length],
+    ["cashier", "Cashier", ReceiptText, pendingBills.length],
+    ["manager", "Manager", UsersRound, delayedOrders.length],
   ] as const;
+  const viewCounts = { all: activeKitchenOrders.length, operations: operationsOrders.length, waiter: waiterOrders.length, cashier: pendingBills.length, manager: delayedOrders.length };
 
   useEffect(() => {
     if (!waiterView) return;
@@ -3401,78 +3788,49 @@ function ActiveOrdersPanel({
   }, []);
 
   return (
-    <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 p-4 shadow-sm">
+    <section className="min-w-0 space-y-4 xl:col-span-2" aria-label="Active Orders operational workspace">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <h2 className="text-2xl font-black text-slate-950">{view === "waiter" ? "Ready To Serve" : "Active Orders"}</h2>
-          <div className="flex rounded-xl border border-slate-200 bg-white/85 p-1 shadow-sm">
-            {views.map(([key, label, Icon]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setView(key)}
-                className={cn("flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-black transition", view === key ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50")}
-                aria-label={label}
-                title={label}
-              >
-                <Icon className="size-4" />
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <Button onClick={onOpenNew}>New Order</Button>
+        <h1 className="text-2xl font-black text-slate-950">Active Orders</h1>
+        <Button className="bg-orange-600 text-white hover:bg-orange-700" onClick={onOpenNew}><PlusCircle className="size-4" />New Order</Button>
       </div>
-      <label className="relative mt-3 block max-w-xl">
-        <Search className="absolute left-3 top-3 size-4 text-slate-400" />
+      <div className="customer-scroll flex max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm sm:w-fit">
+        {views.map(([key, label, Icon]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            className={cn("flex h-11 shrink-0 items-center gap-2 border-r border-slate-100 px-4 text-sm font-black transition last:border-r-0", view === key ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50")}
+            aria-label={`${label} ${viewCounts[key]} orders`}
+          >
+            <Icon className="size-4" />
+            <span>{label}</span>
+            <span className={cn("rounded-full px-2 py-0.5 text-[10px]", view === key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500")}>{viewCounts[key]}</span>
+          </button>
+        ))}
+      </div>
+      <label className="relative block">
+        <Search className="absolute left-3 top-3.5 size-4 text-slate-400" />
         <input
-          className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search order, table, customer, phone, item, waiter, vehicle..."
+          placeholder="Search order, table, customer, phone, item, waiter, vehicle, parcel or QR table..."
           aria-label="Search active orders"
         />
       </label>
-      <div className="mt-3 grid gap-2 md:grid-cols-4">
-        {view === "operations" ? (
-          <>
-            <OperationalMetric label="Active orders" value={String(activeKitchenOrders.length)} />
-            <OperationalMetric label="Kitchen queue" value={String(activeKitchenOrders.filter((order) => ["new", "accepted", "preparing", "ready"].includes(order.status)).length)} />
-            <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
-            <OperationalMetric label="Completed" value={String(completedToday)} />
-          </>
-        ) : null}
-        {view === "waiter" ? (
-          <>
-            <OperationalMetric label="Assigned tables" value={String(occupiedTables.length)} />
-            <OperationalMetric label="Ready orders" value={String(readyOrders.length)} />
-            <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
-            <OperationalMetric label="Requests" value={String(activeKitchenOrders.filter((order) => order.priority === "rush").length)} />
-          </>
-        ) : null}
-        {view === "cashier" ? (
-          <>
-            <OperationalMetric label="Pending bills" value={String(pendingBills.length)} />
-            <OperationalMetric label="Pending payments" value={String(pendingPayments.length)} />
-            <OperationalMetric label="Today's collection" value={formatCurrency(revenue)} />
-            <OperationalMetric label="Receipt queue" value={String(activeKitchenOrders.filter((order) => order.paymentStatus === "paid").length)} />
-          </>
-        ) : null}
-        {view === "manager" ? (
-          <>
-            <OperationalMetric label="Kitchen load" value={String(activeKitchenOrders.length)} />
-            <OperationalMetric label="Delayed orders" value={String(delayedOrders.length)} />
-            <OperationalMetric label="Revenue" value={formatCurrency(revenue)} />
-            <OperationalMetric label="Staff active" value={String(activeStaff.length)} />
-          </>
-        ) : null}
-      </div>
-      {view === "manager" ? (
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
-          {Object.entries(kitchenLoad).map(([status, count]) => <OperationalMetric key={status} label={status} value={String(count)} />)}
-        </div>
-      ) : null}
-      <div className="mt-4 grid gap-3">
+      <ActiveOrderSummaryBoard
+        withWaiter={waiterOrders.length}
+        inKitchen={activeKitchenOrders.filter((order) => ["accepted", "preparing"].includes(order.status)).length}
+        ready={readyOrders.length}
+        served={activeKitchenOrders.filter((order) => order.status === "served").length}
+        pendingBills={pendingBills.length}
+        critical={criticalOrders.length}
+        requests={requestOrders.length}
+        tableTrend={`${occupiedTables.length} active tables`}
+        servedTrend={`${completedToday} completed today`}
+        requestTrend={`${activeStaff.length} staff online`}
+      />
+      <div className="grid gap-3">
         {displayedOrders.length ? displayedOrders.map((order, index) => (
           <PosOrderAccordion
             key={order.id}
@@ -3507,6 +3865,7 @@ function ActiveOrdersPanel({
           </div>
         )}
       </div>
+      <ActiveOrderLegend />
     </section>
   );
 }
@@ -3540,7 +3899,7 @@ function PosOrderAccordion({
   order: OperationalOrder;
   orderDelayThresholdMinutes: number;
   index: number;
-  view: "operations" | "waiter" | "cashier" | "manager";
+  view: "all" | "operations" | "waiter" | "cashier" | "manager";
   now: number;
   canMerge: boolean;
   busy: string;
@@ -3570,33 +3929,38 @@ function PosOrderAccordion({
   const paid = order.paymentStatus === "paid";
   const ready = order.status === "ready";
   const served = order.status === "served";
+  const preparing = ["accepted", "preparing"].includes(order.status);
   const canCollect = ["ready", "served"].includes(order.status) && !paid;
-  const preview = { id: "preview", label: "Preview", icon: <Eye className="size-4" />, onClick: () => onOpen(order) };
+  const timeline = timelineEntries(undefined, order).slice(-6);
+  const preview = { id: "preview", label: "View / Preview", icon: <Eye className="size-4" />, onClick: () => onOpen(order) };
+  const viewKitchen = { id: "kitchen", label: preparing ? "View Kitchen" : "View Order", icon: <ChefHat className="size-4" />, onClick: () => onOpen(order) };
   const bill = { id: "bill", label: "Print Bill", icon: <ReceiptText className="size-4" />, onClick: () => onPrintBill(order) };
-  const receipt = { id: "receipt", label: "Receipt", icon: <Printer className="size-4" />, onClick: () => onPrintReceipt(order) };
+  const receipt = { id: "receipt", label: "Print Receipt", icon: <Printer className="size-4" />, onClick: () => onPrintReceipt(order) };
+  const printKot = { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" />, onClick: () => onPrintKot(order) };
   const collect = { id: "collect", label: "Collect Payment", icon: <CircleDollarSign className="size-4" />, disabled: !canCollect || busy === `payment:${order.id}`, onClick: () => onCollectPayment(order) };
-  const serve = { id: "serve", label: "Serve", icon: <Utensils className="size-4" />, variant: "primary" as const, disabled: !ready, onClick: () => onServe(order) };
+  const serve = { id: "serve", label: "Serve Order", icon: <Utensils className="size-4" />, variant: "success" as const, disabled: !ready, onClick: () => onServe(order) };
   const edit = { id: "edit", label: "Edit", icon: <PlusCircle className="size-4" />, variant: "primary" as const, onClick: () => onAddItems(order) };
   const complete = { id: "complete", label: "Complete", icon: <CheckCircle2 className="size-4" />, disabled: !served && order.status !== "ready", onClick: () => onComplete(order) };
   const transfer = { id: "transfer", label: "Transfer", icon: <ArrowRightLeft className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
   const merge = { id: "merge", label: "Merge", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy === `merge:${order.id}`, onClick: () => onMerge(order) };
   const cancel = { id: "cancel", label: "Cancel", icon: <XCircle className="size-4" />, variant: "danger" as const, onClick: () => onCancel(order) };
   const primaryAction = view === "waiter"
-    ? serve
+    ? ready ? serve : viewKitchen
     : view === "cashier"
-      ? paid ? receipt : { ...collect, variant: "primary" as const }
+      ? paid ? receipt : canCollect ? { ...collect, variant: "primary" as const } : preview
       : view === "manager"
         ? edit
-        : ready ? serve : served ? { ...complete, variant: "primary" as const } : canCollect ? { ...collect, variant: "primary" as const } : preview;
+        : ready ? serve : served && !paid ? { ...collect, variant: "primary" as const } : paid ? receipt : viewKitchen;
   const secondaryActions = view === "waiter"
-    ? [collect, bill, preview]
+    ? [...(canCollect ? [collect] : []), ...(ready || served ? [bill] : []), preview]
     : view === "cashier"
-      ? [bill, receipt, preview]
+      ? [bill, ...(paid ? [receipt] : []), preview]
       : view === "manager"
         ? [transfer, merge, preview]
-        : [bill, { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" />, onClick: () => onPrintKot(order) }, collect, preview];
+        : [...(canCollect ? [collect] : []), ...(ready || served || paid ? [bill] : []), preview];
   const moreActions = view === "waiter"
     ? [
+        printKot,
         { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
         { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
         { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
@@ -3611,6 +3975,7 @@ function PosOrderAccordion({
             { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
           ]
         : [
+            printKot,
             { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: busy === `split:${order.id}`, onClick: () => onSplit(order) },
             transfer,
@@ -3621,35 +3986,60 @@ function PosOrderAccordion({
             { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
             { id: "history", label: "History", icon: <History className="size-4" />, onClick: () => onPaymentHistory(order) },
           ];
-  const timeline = timelineEntries(undefined, order).slice(-6);
+  const readyItems = ["ready", "served", "completed", "billed"].includes(order.status) ? itemCount : 0;
+  const pendingItems = Math.max(0, itemCount - readyItems);
+  const workflow = buildPosActiveWorkflow(order, timeline);
+  const progress = posActiveProgress(order.status);
+  const showPriority = delay.lateMinutes > 2 || order.priority === "rush";
   return (
     <CompactOrderAccordion
       id={`pos-active-${order.id}`}
       orderNumber={readableTableOrderId(order, index + 1)}
-      etaLabel={delay.delayed ? `${delay.lateMinutes}m late` : `ETA ${order.etaMinutes ?? 12}m`}
+      etaLabel={delay.lateMinutes > 2 ? `${delay.lateMinutes}m late` : delay.lateMinutes > 0 ? `Within grace ${delay.lateMinutes}m` : `ETA ${order.etaMinutes ?? 12}m`}
       orderTypeLabel={readablePosOrderType(order.orderType ?? "dine-in")}
-      tableLabel={table}
+      tableLabel={`${table} • ${order.customerName || order.guestName || "Walk-in"}`}
       itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
-      status={{ label: posOrderStatusLabel(order.status, order.paymentStatus), tone: posStatusTone(order.status, order.paymentStatus) }}
-      priority={{ label: posPriorityLabel(order, delay), tone: posPriorityTone(order, delay), icon: delay.delayed ? <BellRing className="size-3.5" /> : <Clock3 className="size-3.5" /> }}
-      badges={[{ label: order.source, tone: "muted" }, { label: paymentLabel(order.paymentStatus), tone: paid ? "success" : "default" }]}
+      status={{ label: posActiveStatusLabel(order), tone: posActiveStatusTone(order) }}
+      accent={posActiveAccent(order)}
+      priority={showPriority ? { label: posPriorityLabel(order, delay), tone: posPriorityTone(order, delay), icon: <BellRing className="size-3.5" /> } : undefined}
+      badges={[]}
+      workflow={workflow}
+      sideStats={[
+        { label: delay.lateMinutes > 2 ? "Delayed" : ready ? "Ready" : served ? "Awaiting Payment" : "Waiting", value: delay.lateMinutes > 2 ? `${delay.lateMinutes} min` : delay.elapsedLabel.replace(/^(Placed|Preparing|Ready for|Accepted)\s*/i, ""), subvalue: delay.lateMinutes > 2 ? "Beyond ETA" : delay.lateMinutes > 0 ? "Within grace" : `ETA ${order.etaMinutes ?? 12} min`, tone: delay.lateMinutes >= 10 ? "danger" : delay.lateMinutes > 0 || ready ? "success" : "default" },
+        { label: "Amount", value: formatCurrency(total), subvalue: paymentLabel(order.paymentStatus), tone: paid ? "success" : "danger" },
+      ]}
       delay={posAccordionDelay(delay)}
       items={order.lines.map((line, lineIndex) => ({
         id: `${line.itemId ?? order.id}-${lineIndex}`,
         name: line.name,
         quantity: line.quantity,
+        price: formatCurrency(line.price),
+        total: formatCurrency(line.price * line.quantity),
         note: line.notes,
         meta: line.modifiers?.join(", "),
       }))}
       facts={[
         { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
         { label: "Phone", value: order.customerPhone || "Not provided" },
-        { label: "Table / Waiter", value: `${table} · ${waiter}` },
-        { label: "Payment", value: `${paymentLabel(order.paymentStatus)} · ${formatCurrency(orderBalanceDue(undefined, order))} due`, tone: paid ? "success" : "default" },
-        { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
+        { label: "Table", value: table },
+        { label: "Waiter", value: waiter },
+        { label: "Source", value: order.source },
+        { label: "Order Type", value: readablePosOrderType(order.orderType ?? "dine-in") },
+        { label: "Payment", value: paymentLabel(order.paymentStatus), tone: paid ? "success" : "default" },
         { label: "Total", value: formatCurrency(total) },
+        { label: "ETA", value: delay.delayed ? `${delay.lateMinutes} min over` : `${order.etaMinutes ?? 12} min`, tone: delay.delayed ? "danger" : "default" },
+        { label: "Waiting Time", value: delay.elapsedLabel, tone: delay.lateMinutes >= 10 ? "danger" : "default" },
       ]}
       timeline={timeline.length ? timeline.map((entry) => ({ label: timelineLabel(entry), time: formatTimelineTime(entryTimeValue(entry)) })) : [{ label: "Created", time: actualOrderTime(order.createdAt) }]}
+      progress={{
+        label: "Kitchen Progress",
+        value: progress,
+        helper: posKitchenProgressHelper(order),
+        readyLabel: `${readyItems} ready`,
+        pendingLabel: `${pendingItems} pending`,
+        kotLabel: `${Math.max(1, order.printedCount ?? 0)} KOT`,
+        tone: delay.lateMinutes >= 10 ? "danger" : ready || served ? "success" : preparing ? "warning" : "default",
+      }}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
       moreActions={moreActions}
@@ -3678,6 +4068,87 @@ function posOrderStatusLabel(status: TableOrder["status"], payment?: TableOrder[
   return status.split("-").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
 }
 
+function posActiveStatusLabel(order: TableOrder) {
+  if (order.paymentStatus === "paid") return "Paid";
+  if (order.status === "new" || order.status === "occupied") return order.waiterId || order.waiterName || order.source === "Waiter" ? "With Waiter" : "Order Taken";
+  if (order.status === "accepted" || order.status === "preparing") return "In Kitchen";
+  if (order.status === "ready") return "Ready To Serve";
+  if (order.status === "served") return "Served";
+  return posOrderStatusLabel(order.status, order.paymentStatus);
+}
+
+function posActiveStatusTone(order: TableOrder): OrderBadgeTone {
+  if (order.paymentStatus === "paid") return "success";
+  if (order.status === "new" || order.status === "occupied") return "info";
+  if (order.status === "accepted" || order.status === "preparing") return "warning";
+  if (order.status === "ready") return "success";
+  if (order.status === "served") return "violet";
+  return posStatusTone(order.status, order.paymentStatus);
+}
+
+function posActiveAccent(order: TableOrder) {
+  if (order.paymentStatus === "paid") return "emerald" as const;
+  if (order.status === "new" || order.status === "occupied") return "blue" as const;
+  if (order.status === "accepted" || order.status === "preparing") return "orange" as const;
+  if (order.status === "ready") return "emerald" as const;
+  if (order.status === "served") return "violet" as const;
+  return "slate" as const;
+}
+
+function buildPosActiveWorkflow(order: TableOrder, timeline: TimelineEntry[]) {
+  const paid = order.paymentStatus === "paid";
+  const stage = paid
+    ? 5
+    : order.status === "served"
+      ? 4
+      : order.status === "ready"
+        ? 3
+        : order.status === "preparing"
+          ? 2
+          : order.status === "accepted"
+            ? 1
+            : 0;
+  const steps = [
+    ["taken", "Order Taken", ClipboardList, ["created", "new", "order"], "info"],
+    ["sent", "Sent To Kitchen", CheckCircle2, ["accepted", "sent"], "warning"],
+    ["cooking", "Cooking", ChefHat, ["preparing", "cooking"], "warning"],
+    ["ready", "Ready", Utensils, ["ready"], "success"],
+    ["served", "Served", CheckCircle2, ["served"], "muted"],
+    ["paid", "Paid", ReceiptText, ["paid", "payment"], "success"],
+  ] as const;
+  return steps.map(([id, label, Icon, needles, tone], index) => ({
+    id,
+    label,
+    sublabel: activeWorkflowTime(timeline, needles) || (index === 0 ? actualOrderTime(order.createdAt) : undefined),
+    state: index < stage ? "complete" as const : index === stage ? "active" as const : "pending" as const,
+    tone,
+    icon: <Icon className="size-3.5" />,
+  }));
+}
+
+function activeWorkflowTime(timeline: TimelineEntry[], needles: readonly string[]) {
+  const entry = timeline.find((item) => needles.some((needle) => timelineLabel(item).toLowerCase().includes(needle)));
+  return entry ? formatTimelineTime(entryTimeValue(entry)) : "";
+}
+
+function posActiveProgress(status: TableOrder["status"]) {
+  if (status === "new" || status === "occupied") return 0;
+  if (status === "accepted") return 20;
+  if (status === "preparing") return 60;
+  if (status === "ready" || status === "served") return 100;
+  if (status === "completed" || status === "billed") return 100;
+  return 0;
+}
+
+function posKitchenProgressHelper(order: TableOrder) {
+  if (order.status === "new" || order.status === "occupied") return "Not sent to kitchen";
+  if (order.status === "accepted") return "Sent to kitchen";
+  if (order.status === "preparing") return "Cooking in progress";
+  if (order.status === "ready") return "All items are ready";
+  if (order.status === "served") return order.paymentStatus === "paid" ? "Served and paid" : "Served, payment pending";
+  return posOrderStatusLabel(order.status, order.paymentStatus);
+}
+
 function posStatusTone(status: TableOrder["status"], payment?: TableOrder["paymentStatus"]): OrderBadgeTone {
   if (payment === "paid") return "success";
   if (status === "ready" || status === "served") return "success";
@@ -3702,7 +4173,7 @@ function posPriorityTone(order: TableOrder, delay: ReturnType<typeof getKitchenD
 
 function posAccordionDelay(delay: ReturnType<typeof getKitchenDelay>): OrderAccordionDelay {
   return {
-    delayed: delay.delayed,
+    delayed: delay.lateMinutes > 2,
     level: posDelayLevel(delay),
     label: delay.priority === "critical" ? "Critical delay" : "Delayed",
     lateMinutes: delay.lateMinutes,
@@ -3711,10 +4182,10 @@ function posAccordionDelay(delay: ReturnType<typeof getKitchenDelay>): OrderAcco
 }
 
 function posDelayLevel(delay: ReturnType<typeof getKitchenDelay>): OrderDelayLevel {
-  if (!delay.delayed) return "none";
-  if (delay.priority === "critical" || delay.lateMinutes >= 30) return "critical";
-  if (delay.priority === "high" || delay.lateMinutes >= 15) return "red";
-  if (delay.priority === "medium" || delay.lateMinutes >= 5) return "orange";
+  if (delay.lateMinutes <= 2) return "none";
+  if (delay.priority === "critical" && delay.lateMinutes >= 10) return "critical";
+  if (delay.lateMinutes >= 10) return "red";
+  if (delay.lateMinutes >= 5) return "orange";
   return "yellow";
 }
 
@@ -3745,13 +4216,85 @@ function activeOrderSearchText(order: OperationalOrder) {
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
-function OperationalMetric({ label, value }: { label: string; value: string }) {
+function ActiveOrderSummaryBoard({
+  withWaiter,
+  inKitchen,
+  ready,
+  served,
+  pendingBills,
+  critical,
+  requests,
+  tableTrend,
+  servedTrend,
+  requestTrend,
+}: {
+  withWaiter: number;
+  inKitchen: number;
+  ready: number;
+  served: number;
+  pendingBills: number;
+  critical: number;
+  requests: number;
+  tableTrend: string;
+  servedTrend: string;
+  requestTrend: string;
+}) {
+  const cards: Array<{ label: string; value: number; note: string; trend: string; icon: LucideIcon; tone: "blue" | "orange" | "green" | "violet" | "amber" | "red" | "slate" }> = [
+    { label: "With Waiter", value: withWaiter, note: "Assigned for service", trend: tableTrend, icon: UserRound, tone: "blue" },
+    { label: "In Kitchen", value: inKitchen, note: "Cooking in progress", trend: "Live kitchen queue", icon: ChefHat, tone: "orange" },
+    { label: "Ready To Serve", value: ready, note: "Ready for service", trend: "Serve next", icon: Utensils, tone: "green" },
+    { label: "Served", value: served, note: "Awaiting completion", trend: servedTrend, icon: CheckCircle2, tone: "violet" },
+    { label: "Pending Bills", value: pendingBills, note: "Payment pending", trend: "Cashier action", icon: ReceiptText, tone: "amber" },
+    { label: "Critical Delay", value: critical, note: "Beyond delay limit", trend: critical ? "Immediate action" : "Within target", icon: BellRing, tone: "red" },
+    { label: "Requests", value: requests, note: "Priority assistance", trend: requestTrend, icon: MessageCircle, tone: "slate" },
+  ];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white/75 px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-      <p className="text-[11px] font-black uppercase text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-slate-950">{value}</p>
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7" aria-label="Active order summary">
+      {cards.map((card) => {
+        const tone = activeOrderSummaryTone(card.tone);
+        const Icon = card.icon;
+        return (
+          <article key={card.label} className={cn("min-w-0 rounded-lg border bg-white p-3 shadow-sm", tone.border)}>
+            <div className="flex items-start gap-3">
+              <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", tone.bg, tone.text)}><Icon className="size-5" /></span>
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-black uppercase text-slate-500">{card.label}</p>
+                <p className="text-xl font-black text-slate-950">{card.value}</p>
+                <p className="truncate text-[11px] font-semibold text-slate-500">{card.note}</p>
+              </div>
+            </div>
+            <p className={cn("mt-2 truncate text-[10px] font-black", tone.text)}>{card.trend}</p>
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+function ActiveOrderLegend() {
+  const items = [
+    ["With Waiter", "bg-blue-500"],
+    ["In Kitchen", "bg-orange-500"],
+    ["Ready", "bg-emerald-500"],
+    ["Served", "bg-violet-500"],
+    ["Pending", "bg-amber-500"],
+    ["Delayed", "bg-red-500"],
+  ] as const;
+  return (
+    <div className="customer-scroll flex max-w-full gap-5 overflow-x-auto rounded-lg bg-slate-100/80 px-4 py-3 text-xs font-bold text-slate-600" aria-label="Order status legend">
+      {items.map(([label, color]) => <span key={label} className="flex shrink-0 items-center gap-2"><span className={cn("size-2.5 rounded-full", color)} />{label}</span>)}
     </div>
   );
+}
+
+function activeOrderSummaryTone(tone: "blue" | "orange" | "green" | "violet" | "amber" | "red" | "slate") {
+  if (tone === "blue") return { border: "border-blue-100", bg: "bg-blue-50", text: "text-blue-700" };
+  if (tone === "orange") return { border: "border-orange-100", bg: "bg-orange-50", text: "text-orange-700" };
+  if (tone === "green") return { border: "border-emerald-100", bg: "bg-emerald-50", text: "text-emerald-700" };
+  if (tone === "violet") return { border: "border-violet-100", bg: "bg-violet-50", text: "text-violet-700" };
+  if (tone === "amber") return { border: "border-amber-100", bg: "bg-amber-50", text: "text-amber-700" };
+  if (tone === "red") return { border: "border-red-100", bg: "bg-red-50", text: "text-red-700" };
+  return { border: "border-slate-200", bg: "bg-slate-100", text: "text-slate-700" };
 }
 
 function PastOrdersPanel({ orders, canCorrect, onOpen, onCorrect }: { orders: DemoOrder[]; canCorrect: boolean; onOpen: (order: DemoOrder) => void; onCorrect: (order: DemoOrder) => void }) {

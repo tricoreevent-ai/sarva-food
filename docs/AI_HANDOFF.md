@@ -13,28 +13,35 @@ Future AI agents must read this file before making changes.
 | Repository readiness | `99%` |
 | Production readiness | `90%` |
 | Production launch | `NO GO` |
+| Current local phase | POS draft autosave P0 fixed and browser-verified locally; pending commit/deployment/hosted operator QA |
 | Documentation hub | `docs/README.md` |
 | Master tracker | `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md` |
 
 ## Completed Phases
 
 - Repository-side RC5 implementation and production hardening are considered feature complete.
+- POS draft autosave now uses local-first state, scoped localStorage/IndexedDB recovery, coalesced writes, categorized retry messaging, and waiter/cashier-aligned authorization.
 - Tracker, release, deployment, validation, and performance reports are centralized under `docs/`.
 - Generated Markdown reports now write to `docs/validation` or `docs/performance`.
 - Machine-readable validation JSON remains under `reports/`.
 
 ## Pending Deployment Work
 
+- Deploy the Phase 4C commit and verify the hosted service worker is `sarva-v15-20260716-push-diagnostics`.
+- Set the documented public `NEXT_PUBLIC_FIREBASE_VAPID_KEY` and stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` in Hostinger; never expose private VAPID or Razorpay secrets through public variables.
+- Use Owner Settings Notification Test Center and Payment Verification Center with real registered devices and owner Razorpay sandbox credentials.
 - Hosted runtime now includes Active Orders code baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; latest docs-only branch head may trail hosted runtime without blocking application behavior.
 - Keep `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, and final HTTPS `NEXT_PUBLIC_APP_URL`.
-- Configure/verify Firebase VAPID key, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboard secrets.
+- Configure/verify Firebase VAPID key, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, each owner's Razorpay live keys/webhook in Owner Settings, WhatsApp/SMS/push, and provider dashboard secrets.
 - Clear Hostinger cache and reverify `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`.
 
 ## Pending Manual QA
 
 - Authenticated customer, owner, kitchen, waiter, POS, QR/table, payment, and printer workflows.
+- Hosted owner/waiter/cashier POS draft offline/reconnect, refresh, browser close/reopen, restaurant switch, and multi-device recovery.
 - Firebase Console rules, indexes, authorized domains, auth providers, Cloud Messaging, and protected reads/writes.
 - Provider dashboards and live flows for SMTP, Google OAuth, Cloudinary, Mapbox, Razorpay, WhatsApp, SMS, Meta, and push.
+- Customer Order Confirmation and Customer Order Rejection notification workflows remain explicitly manual; all other requested notification templates pass repository contract verification but still need provider/device delivery evidence.
 - Browser/device smoke, Lighthouse mobile/desktop, Chrome Performance, Coverage, and 30-minute memory stability.
 
 ## Coding Rules
@@ -54,6 +61,8 @@ npm run build
 cmd /c npm run analyze
 cmd /c npm run audit:release
 cmd /c npm run smoke:operational
+cmd /c npm run verify:phase4c
+cmd /c npm run profile:runtime
 cmd /c npm run verify:performance
 git diff --check
 ```

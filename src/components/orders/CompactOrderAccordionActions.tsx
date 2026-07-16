@@ -76,23 +76,25 @@ export const CompactOrderAccordionActions = memo(function CompactOrderAccordionA
   if (!hasActions) return null;
 
   return (
-    <div className="relative grid grid-cols-[repeat(auto-fit,minmax(44px,auto))] gap-2 border-t border-slate-100 bg-slate-50/70 px-4 py-3">
-      {secondaryActions.map((action) => (
-        <button key={action.id} type="button" disabled={action.disabled} title={action.title ?? action.label} aria-label={action.title ?? action.label} onClick={() => run(action)} className={cn("inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50", actionClass(action))}>
-          {action.icon}
-          <span className="hidden sm:inline">{action.label}</span>
-        </button>
-      ))}
+    <div className="relative grid content-start gap-2 border-t border-slate-100 bg-white p-4 xl:border-l xl:border-t-0">
+      <p className="text-[11px] font-black uppercase text-slate-500">Actions</p>
       {primaryAction ? (
-        <button type="button" disabled={primaryAction.disabled} title={primaryAction.title ?? primaryAction.label} onClick={() => run(primaryAction)} className={cn("inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50", actionClass(primaryAction))}>
+        <button type="button" disabled={primaryAction.disabled} title={primaryAction.title ?? primaryAction.label} onClick={() => run(primaryAction)} className={cn("inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50", actionClass(primaryAction))}>
           {primaryAction.icon}
           {primaryAction.label}
         </button>
       ) : null}
+      {secondaryActions.map((action) => (
+        <button key={action.id} type="button" disabled={action.disabled} title={action.title ?? action.label} aria-label={action.title ?? action.label} onClick={() => run(action)} className={cn("inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border px-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50", actionClass(action))}>
+          {action.icon}
+          <span>{action.label}</span>
+        </button>
+      ))}
       {moreActions.length ? (
         <div className="relative">
-          <button ref={triggerRef} type="button" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50" onClick={() => setOpen((value) => !value)} aria-label="More order actions" aria-haspopup="menu" aria-expanded={open} title="More actions">
+          <button ref={triggerRef} type="button" className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg px-3 text-sm font-black text-slate-600 hover:bg-slate-50" onClick={() => setOpen((value) => !value)} aria-label="More order actions" aria-haspopup="menu" aria-expanded={open} title="More actions">
             <MoreHorizontal className="size-4" />
+            More Actions
           </button>
           {open && mounted ? createPortal(
             mobile ? (

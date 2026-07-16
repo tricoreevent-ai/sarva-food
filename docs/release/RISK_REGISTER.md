@@ -1,12 +1,12 @@
 # Risk Register
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Date: 2026-07-13
+Date: 2026-07-16
 
 | Risk | Level | Status | Evidence | Mitigation |
 | --- | --- | --- | --- | --- |
 | Hosted env reports `development` | High | 🔴 Blocking | `docs/validation/DEPLOYMENT_VERIFICATION_REPORT.md` `release:environment ERROR`. | Set `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart, clear cache, reverify. |
-| Production secrets absent in local validation | High | 🔴 Blocking | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `24` errors. | Configure Hostinger/Firebase/Razorpay/QR/alert secrets; rerun validation in production-equivalent env. |
+| Production secrets absent in local validation | High | 🔴 Blocking | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `17` errors and `1` manual check. | Configure Hostinger/Firebase/QR/alert/encryption secrets, configure Razorpay per owner, and rerun validation in a production-equivalent env. |
 | Lighthouse/Core Web Vitals unavailable | Medium | 🟡 Pending Manual | Performance report marks desktop/mobile Lighthouse manual. | Run hosted Lighthouse after env correction. |
 | `/owner/orders` route JS | Low | ✅ Resolved Locally | Current analyzer reports `692 KB`, under the `1200 KB` verification budget and preferred `1000 KB` target. | Run hosted Chrome/Lighthouse profiling after deployment. |
 | Provider live behavior unverified | High | 🟡 Pending Manual | Provider report has `3` manual items. | Run Razorpay/WhatsApp/SMS/push/provider dashboard smoke. |

@@ -844,6 +844,10 @@ textarea::selection,
   animation: order-accordion-warning 1.6s ease-in-out infinite;
 }
 
+.order-workflow-active {
+  animation: order-workflow-active 2s ease-in-out infinite;
+}
+
 @keyframes kitchen-delay-pulse {
   0%,
   100% {
@@ -938,6 +942,17 @@ textarea::selection,
   }
 }
 
+@keyframes order-workflow-active {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(249 115 22 / 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgb(249 115 22 / 0.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sarva-toast-progress,
   .sarva-notification-card,
@@ -949,7 +964,8 @@ textarea::selection,
   .order-accordion-delay-red,
   .order-accordion-delay-critical,
   .order-accordion-delay-critical::after,
-  .order-accordion-warning-icon {
+  .order-accordion-warning-icon,
+  .order-workflow-active {
     animation: none;
   }
 }

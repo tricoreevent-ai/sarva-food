@@ -12,13 +12,14 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - The existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags remain immutable; tag the final RC5 validation commit as the new `v1.0.0-rc5` candidate.
 - Phase 4 hardening and report synchronization are complete repository-side.
 - Production release remains blocked by production env/provider validation, Firebase Console, provider dashboard, authenticated browser, Lighthouse, and hardware smoke gates.
+- Phase 4C repository work is complete locally and pending commit/deployment; production readiness remains `90%` until hosted VAPID, real-device push, and owner Razorpay provider evidence pass.
 
 ### Completed
 
 - Removed generated owner temporary passwords from admin API/browser responses; credentials are sent through the configured email path only.
 - Replaced TinyURL raw provider error echo with a safe generic fallback message.
 - Corrected production health metadata to avoid a stale `development` fallback when app env is absent.
-- Expanded the production environment matrix from the actual runtime/build env scan and aligned Razorpay as production-required with `validate:prod-env`.
+- Expanded the production environment matrix from the actual runtime/build env scan; Phase 4C supersedes the earlier global Razorpay requirement with owner-scoped settings and an optional legacy fallback.
 - Removed unconditional Cloudinary/Firebase Storage global preconnects, kept GTM preconnect conditional, and kept no-store on dynamic/release routes.
 - Deferred Firebase Auth, Stack Auth, and toaster runtime from auth/session startup paths where safe.
 - Prevented duplicate same-source brand logo image requests.
@@ -31,6 +32,11 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - Corrected the production environment matrix to require `v1.0.0-rc5`.
 - Regenerated bundle, runtime, render, network, memory, provider, smoke, deployment, env, performance, and certification reports.
 - Completed the RC5 pending-work audit: no repository-side code blocker remains; remaining work is Hostinger/Firebase/provider/browser/Lighthouse/hardware validation.
+- Completed Phase 4C push hardening with bounded retry, service-worker diagnostics, token lifecycle controls, an owner test center, and a 34-scenario machine-verifiable notification catalog.
+- Completed owner Razorpay verification tooling with encrypted owner settings reuse, redacted test APIs/logs, test-order checkout, signature/webhook self-tests, test-mode capture/refund, and ten-tenant isolation contracts.
+- Configured the supplied public VAPID key in environment templates, made global Razorpay env optional legacy fallback, and kept private VAPID/provider secrets server/provider-only.
+- Fixed the P0 POS draft failure: waiter/cashier draft authorization now matches the existing POS UI, cart mutations commit locally before network writes, and pending drafts recover through scoped localStorage plus IndexedDB metadata.
+- Added debounced latest-draft autosave, exponential backoff, reconnect/focus/visibility retry, one categorized Retry/Dismiss notification, and a development-only draft diagnostics panel.
 
 ### Validation
 
@@ -41,7 +47,8 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - `cmd /c npm run profile:runtime`: passed.
 - `cmd /c npm run audit:release`: passed.
 - `cmd /c npm run smoke:operational`: passed.
-- `cmd /c npm run validate:prod-env`: failed locally with `46` pass, `1` warning, and `24` errors requiring real production Hostinger/Firebase/Razorpay/provider secrets.
+- `cmd /c npm run verify:phase4c`: passed `19/19` checks covering 34 notification scenarios, safe deep links, push lifecycle/retry, all payment test-center actions, owner-specific checkout resolution, payment security, and ten tenant mappings.
+- `cmd /c npm run validate:prod-env`: expected local failure with `46` pass, `17` errors, and `1` manual owner-Razorpay check; remaining values are production-only Hostinger/Firebase/QR/alert/encryption configuration.
 - `PRODUCTION_URL=... cmd /c npm run verify:deployment`: `17` pass, `0` warnings, `0` errors; hosted runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 - `PRODUCTION_URL=... cmd /c npm run verify:providers`: `8` pass, `3` manual.
 - `PRODUCTION_URL=... cmd /c npm run smoke:production`: `7` pass, `18` manual.
@@ -51,6 +58,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - 2026-07-13 pending-work audit: runtime source scan found no actionable TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read requiring a release-freeze code change.
 - 2026-07-15 image optimization closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; analyzer timeout resolved and bundle evidence regenerated.
 - 2026-07-16 Active Orders closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` passed; hosted probes are RC5/production but latest SHA redeploy remains pending.
+- 2026-07-16 POS draft P0 browser QA: former waiter/cashier `403 pos:update` paths now reach validation, three rapid adds retained quantity `3` with one toast, offline quantity `2` recovered and synced on reconnect, refresh restored the pending draft, and Clear/Hold server deletion now uses the same recoverable retry path.
 
 ## v1.0.0-rc3 - Release Candidate
 

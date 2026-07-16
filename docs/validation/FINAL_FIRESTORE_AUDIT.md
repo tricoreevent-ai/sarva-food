@@ -1,22 +1,19 @@
 # Final Firestore Audit
 
-Date: 2026-07-16T04:35:18.415Z
+Date: 2026-07-16T05:56:03.220Z
 
 ## Scope
 
-No Firestore collection, schema, rule, index, repository contract, or API contract was changed in the final performance pass.
+No Firestore collection, schema, rule, index, or repository contract changed. Phase 4C adds one protected notification-test endpoint and backward-compatible owner payment verification actions.
 
-## Listener And Read Audit
+## Result
 
 | Area | Result |
 | --- | --- |
-| Kitchen SSE | Existing stream remains the realtime path; client reconciliation reduces render churn without adding listeners. |
-| Public header addresses | Phase 2 lazy-loads saved-address listener only while location picker is open for a signed-in customer. |
-| Customer home menu preview | Phase 2 defers below-fold menu preview network work to idle. |
-| App store mutations | Phase 2 loads Firestore mutation services only when mutation actions run. |
-| New final pass listeners | None. |
-| New final pass indexes | None. |
+| Push tokens | Existing `user_preferences` storage and tenant targeting are reused. |
+| Notification queue | Existing notification fields are reused for bounded retry. |
+| Razorpay settings | Existing encrypted owner profile settings and legacy restaurant fallback are reused. |
+| Payment intents | Existing owner/restaurant/tenant/provider mapping is unchanged. |
+| Listeners and indexes | No listener, rule, or index added. |
 
-## Remaining Manual Firestore Gates
-
-Firestore rules/index deployment, Firebase Console diagnostics, authenticated production reads/writes, and provider-backed Firebase Admin readiness remain manual release gates.
+Firebase Console deployment and authenticated protected read/write smoke remain manual.

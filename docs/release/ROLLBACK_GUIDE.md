@@ -19,8 +19,8 @@ Current decision: `NO GO` for production launch until Hostinger env and manual g
 
 ## Provider Rollback
 
-- Razorpay: disable online payment and keep COD/manual payment.
-- WhatsApp/SMS/Push: disable failing channel and use email/manual fallback.
+- Razorpay: disable Razorpay in the affected owner's Payment settings and keep COD/manual payment; do not delete payment intents or rotate the encryption key during rollback.
+- Push: remove the affected device registration or omit the public VAPID key on rollback, then use in-app/email fallback. Keep Firebase private material server-side.
 - Cloudinary: keep existing image URLs; stop new uploads until provider recovers.
 - SMTP: disable dependent OTP/mail expectations and use manual support flow if needed.
 

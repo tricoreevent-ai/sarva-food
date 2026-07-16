@@ -24,7 +24,8 @@ Production go-live remains blocked by manual Lighthouse, authenticated browser/d
 | `npm run profile:runtime` | Passed |
 | `npm run audit:release` | Passed |
 | `npm run smoke:operational` | Passed |
-| `npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors needing real production values |
+| `npm run verify:phase4c` | Passed `19/19` notification catalog, push lifecycle, complete payment test-center, owner-checkout resolution, security, deep-link, and ten-tenant checks |
+| `npm run validate:prod-env` | Failed locally: `46` pass, `0` warnings, `17` errors and `1` manual check needing real production values/provider evidence |
 | 2026-07-13 RC5 closure | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed |
 | 2026-07-13 pending-work audit | No actionable repository-side TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read found |
 | 2026-07-13 final optimization cleanup | Duplicated client error-reason helpers consolidated; compact order action controls received explicit accessible labels; pure phone normalization extracted away from Firebase-backed service imports |

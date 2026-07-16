@@ -49,6 +49,7 @@ type TokenTarget = {
 };
 
 const MAX_TOKENS_PER_USER = 8;
+const MAX_PUSH_ATTEMPTS = 3;
 const INVALID_TOKEN_CODES = new Set([
   "messaging/invalid-argument",
   "messaging/invalid-registration-token",
@@ -138,19 +139,33 @@ export async function dispatchPendingTenantPushNotifications(scope: TenantScope,
   for (const item of snapshot.docs) {
     const claimed = await claimPendingNotification(item.ref);
     if (!claimed) continue;
-    await sendTenantPushNotification(scope, {
-      notificationId: item.id,
-      type: String(claimed.type ?? "notification"),
-      title: String(claimed.title ?? "Nammude"),
-      message: String(claimed.message ?? ""),
-      priority: claimed.priority === "high" ? "high" : "normal",
-      orderId: typeof claimed.orderId === "string" ? claimed.orderId : undefined,
-      kitchenOrderId: typeof claimed.kitchenOrderId === "string" ? claimed.kitchenOrderId : undefined,
-      link: typeof claimed.link === "string" ? claimed.link : undefined,
-      audience: Array.isArray(claimed.audience) ? claimed.audience.map(String) : undefined,
-      sound: typeof claimed.sound === "string" ? claimed.sound : undefined,
-    });
+    try {
+      await sendTenantPushNotification(scope, {
+        notificationId: item.id,
+        type: String(claimed.type ?? "notification"),
+        title: String(claimed.title ?? "Nammude"),
+        message: String(claimed.message ?? ""),
+        priority: claimed.priority === "high" ? "high" : "normal",
+        orderId: typeof claimed.orderId === "string" ? claimed.orderId : undefined,
+        kitchenOrderId: typeof claimed.kitchenOrderId === "string" ? claimed.kitchenOrderId : undefined,
+        link: typeof claimed.link === "string" ? claimed.link : undefined,
+        audience: Array.isArray(claimed.audience) ? claimed.audience.map(String) : undefined,
+        sound: typeof claimed.sound === "string" ? claimed.sound : undefined,
+      });
+    } catch (error) {
+      await recoverFailedNotification(item.ref, Number(claimed.pushAttempts ?? 0) + 1, error);
+    }
   }
+}
+
+async function recoverFailedNotification(ref: DocumentReference, attempt: number, error: unknown) {
+  const retry = attempt < MAX_PUSH_ATTEMPTS;
+  await ref.set({
+    pushStatus: retry ? "pending" : "failed",
+    pushFailureCount: FieldValue.increment(1),
+    pushLastError: error instanceof Error ? error.name : "Error",
+    pushAttemptedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
 }
 
 export async function sendTenantPushNotification(scope: TenantScope, input: PushNotificationInput) {

@@ -71,6 +71,7 @@ type RazorpayClient = {
   };
   payments: {
     fetch(id: string): Promise<RazorpayPaymentEntity>;
+    capture(id: string, amount: number, currency: "INR"): Promise<RazorpayPaymentEntity>;
     refund(id: string, input: Record<string, unknown>): Promise<RazorpayRefundEntity>;
   };
 };

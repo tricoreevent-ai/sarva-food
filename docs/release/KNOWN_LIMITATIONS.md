@@ -25,7 +25,10 @@ Restaurant Health Dashboard and diagnostics plugins remain disabled by default. 
 
 Route-owned JavaScript remains above aspirational budgets on selected heavy operational routes. This is tracked as future optimization work and is not a functional release blocker.
 
+## POS Draft Recovery
+
+The generic repeated POS draft failure and local data-loss path are resolved repository-side. Hosted owner/waiter/cashier permission, real Firestore interruption, browser close/reopen, restaurant switch, and multi-device recovery still require manual verification after deployment.
+
 ## Provider Integrations
 
 SMTP, Cloudinary, Google OAuth, Mapbox, Razorpay, WhatsApp, SMS, Meta, and Push readiness depends on production dashboard access and real credentials.
-

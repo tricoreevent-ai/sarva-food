@@ -1,15 +1,15 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-16T04:35:10.757Z
+Generated: 2026-07-16T08:06:51.493Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
-| runtime-console | 17 | Runtime console call; prefer productionLogger or operational logging. |
+| runtime-console | 16 | Runtime console call; prefer productionLogger or operational logging. |
 | raw-error-message | 41 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 43 | Realtime/listener site; verify cleanup and reconnect bounds. |
-| api-error-envelope | 160 | API error envelope; verify requestId/meta where customer-safe. |
+| listener-lifecycle | 45 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| api-error-envelope | 163 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
 
@@ -19,7 +19,7 @@ Generated: 2026-07-16T04:35:10.757Z
 - `src/hooks/use-realtime-order.ts` (1)
 - `src/components/flows/customer-discovery-home.tsx` (1)
 - `src/components/flows/kitchen-display-flow.tsx` (6)
-- `src/components/flows/pos-billing-flow.tsx` (4)
+- `src/components/flows/pos-billing-flow.tsx` (3)
 - `src/components/flows/restaurant-detail-flow.tsx` (2)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 
@@ -65,7 +65,7 @@ Generated: 2026-07-16T04:35:10.757Z
 - `src/components/flows/kitchen-display-flow.tsx` (9)
 - `src/components/flows/owner-order-management-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (1)
-- `src/components/flows/pos-billing-flow.tsx` (10)
+- `src/components/flows/pos-billing-flow.tsx` (12)
 - `src/components/flows/restaurant-browser-flow.tsx` (1)
 - `src/components/flows/restaurant-detail-flow.tsx` (3)
 - `src/components/flows/table-qr-ordering-flow.tsx` (3)
@@ -100,10 +100,10 @@ Generated: 2026-07-16T04:35:10.757Z
 - `src/app/api/owner/loyalty-rules/route.ts` (4)
 - `src/app/api/owner/master-menu-templates/route.ts` (6)
 - `src/app/api/owner/menu/route.ts` (6)
+- `src/app/api/owner/notification-test/route.ts` (2)
 - `src/app/api/owner/offers/route.ts` (7)
 - `src/app/api/owner/orders/route.ts` (1)
-- `src/app/api/owner/payment-settings/route.ts` (3)
-- 18 more files omitted.
+- 19 more files omitted.
 
 ## Release Interpretation
 

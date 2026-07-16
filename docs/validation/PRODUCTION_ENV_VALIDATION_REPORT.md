@@ -1,16 +1,16 @@
 # Production Environment Validation Report
 
-Generated: 2026-07-13T06:11:52.211Z
+Generated: 2026-07-16T05:58:00.297Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
 | PASS | 46 |
-| WARNING | 1 |
-| ERROR | 24 |
+| WARNING | 0 |
+| ERROR | 17 |
 | FAIL | 0 |
-| MANUAL | 0 |
+| MANUAL | 1 |
 
 ## Checks
 
@@ -26,7 +26,7 @@ Generated: 2026-07-13T06:11:52.211Z
 | required:NEXT_PUBLIC_FIREBASE_PROJECT_ID | PASS | configured |
 | required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET | PASS | configured |
 | required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_VAPID_KEY | ERROR | missing or empty |
+| required:NEXT_PUBLIC_FIREBASE_VAPID_KEY | PASS | configured |
 | required:NEXT_PUBLIC_FIREBASE_APP_ID | PASS | configured |
 | required:FIREBASE_ADMIN_PROJECT_ID | ERROR | missing or empty |
 | required:FIREBASE_ADMIN_CLIENT_EMAIL | ERROR | missing or empty |
@@ -47,10 +47,6 @@ Generated: 2026-07-13T06:11:52.211Z
 | required:CLOUDINARY_CLOUD_NAME | PASS | configured |
 | required:CLOUDINARY_API_KEY | PASS | configured |
 | required:CLOUDINARY_API_SECRET | PASS | configured |
-| required:NEXT_PUBLIC_RAZORPAY_KEY_ID | ERROR | missing or empty |
-| required:RAZORPAY_KEY_ID | ERROR | missing or empty |
-| required:RAZORPAY_KEY_SECRET | ERROR | missing or empty |
-| required:RAZORPAY_WEBHOOK_SECRET | ERROR | missing or empty |
 | version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc5 |
 | environment:NEXT_PUBLIC_APP_ENV | ERROR | must be production |
 | url:NEXT_PUBLIC_APP_URL | ERROR | must be a valid https URL |
@@ -75,10 +71,7 @@ Generated: 2026-07-13T06:11:52.211Z
 | cloudinary:cloud-name-match | PASS | public and server cloud names must match |
 | cloudinary:cloud-name-format | PASS | cloud name format |
 | cloudinary:api-key-format | PASS | api key should be numeric |
-| razorpay:public-key | ERROR | production key must start rzp_live_ |
-| razorpay:key-match | PASS | public/server key ids must match |
-| razorpay:secret-strength | ERROR | secret must be configured |
-| razorpay:webhook-strength | ERROR | webhook secret must be configured |
+| razorpay:configuration | MANUAL | owner-scoped configuration required; global fallback intentionally disabled |
 | smtp:port | PASS | port must be positive integer |
 | smtp:secure | PASS | SMTP_SECURE must be true or false |
 | smtp:from | PASS | SMTP_FROM must include email address |
@@ -86,4 +79,4 @@ Generated: 2026-07-13T06:11:52.211Z
 | oauth:client-match | PASS | public/server OAuth client ids must match |
 | oauth:client-format | PASS | Google OAuth client id format |
 | secret:TABLE_QR_SECRET | ERROR | minimum 32 characters |
-| secret:PAYMENT_SETTINGS_ENCRYPTION_KEY | WARNING | recommended for encrypted owner payment settings |
+| secret:PAYMENT_SETTINGS_ENCRYPTION_KEY | ERROR | minimum 32 characters |

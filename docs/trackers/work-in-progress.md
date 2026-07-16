@@ -4,9 +4,9 @@ Last updated: 2026-07-16
 
 Current Sprint: RC5 production closure sprint
 
-Current Phase: Owner Active Orders operational workspace deployed to hosted RC5 runtime; production launch blocked by manual/provider gates
+Current Phase: POS draft autosave P0 root cause fixed repository-side; deployment and hosted operational verification pending
 
-Current Task: Complete authenticated Owner Active Orders smoke, provider checks, Firebase Console/VAPID checks, Lighthouse, Chrome profiling, and hardware/device QA.
+Current Task: Validate, commit, and deploy the POS draft recovery fix, then run hosted owner/waiter/cashier offline/reconnect and close/reopen verification before resuming Phase 4C provider QA.
 
 Pending Work Matrix Result: repository-side scans found no actionable TODO/FIXME, runtime `console.log`, duplicate order components, incomplete RC5 code path, duplicate listener, or unbounded Firestore read requiring a freeze-time code change.
 
@@ -17,6 +17,10 @@ Production Observability Result: added bounded process-local production monitori
 Image Optimization Result: added shared Cloudinary image presets, AVIF-first browser upload compression with WebP/JPEG fallback, signed Cloudinary incoming transforms, CMS/public thumbnail transform reuse, and right-sized `SafeImage` presets across high-volume customer, owner, and admin image surfaces without business logic/API/schema/repository changes.
 
 Active Orders Result: redesigned Owner Active Orders as an operational workspace with summary cards, live counts, advanced search, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues without Firestore/API/repository/business workflow changes.
+
+Phase 4C Result: added bounded push retry, a 34-scenario notification contract matrix, Owner Notification Test Center, redacted Owner Payment Verification Center, public VAPID templates, owner-first Razorpay validation, six operational guides, and 19/19 automated Phase 4C checks without Firestore collection/schema/rule/index or operational workflow changes.
+
+POS Draft Autosave P0 Result: confirmed `403 pos:update` authorization mismatch for waiter/cashier modes plus remote-first cart state and absent browser recovery. POS draft changes now commit locally first, persist one scoped recovery snapshot in localStorage and IndexedDB metadata, coalesce autosaves, retry with exponential backoff on reconnect/focus/visibility, route Clear/Hold deletion through the same recovery coordinator, and show one categorized Retry/Dismiss notification.
 
 Release Package Result: hosted metadata now reports `v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and a runtime that includes the Active Orders code baseline. Use `/api/release-info` for the exact hosted SHA.
 
@@ -31,6 +35,7 @@ Files Changed:
 - Release package verification: `docs/deployment/production-environment-matrix.md`.
 - Owner Active Orders workspace files: `src/components/flows/owner-order-management-flow.tsx`, shared `src/components/orders/CompactOrderAccordion*`, and `src/components/orders/OrderAccordion.*`.
 - Tracker synchronization files: `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md`, `docs/trackers/project-tracker.md`, `docs/trackers/work-in-progress.md`, `docs/trackers/changelog.md`.
+- POS draft recovery: `src/lib/pos-draft-recovery.ts`, `src/components/flows/pos-billing-flow.tsx`, `src/app/api/owner/pos/route.ts`, and `src/lib/access-control.ts`.
 
 Repository readiness: 99%
 
@@ -48,23 +53,24 @@ Last Verified Production Runtime: `/api/release-info` reports `applicationVersio
 
 Files Remaining:
 
-- Firebase VAPID/Console rules/indexes/auth domains, provider dashboards, authenticated browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, and printer/QR/hardware validation.
+- Phase 4C hosted deploy, VAPID health, real-device push, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, and printer/QR/hardware validation.
 
 Next Command:
 
 ```powershell
-Run authenticated Owner Active Orders smoke on the hosted RC5 runtime, then continue provider/device/Lighthouse validation.
+Deploy Phase 4C and run Owner Notification and Payment Verification Centers with real provider credentials/devices.
 ```
 
 Next Exact Task:
 
-Run authenticated Owner Active Orders smoke, provider checks, Firebase Console/VAPID checks, Lighthouse, Chrome profiling, and hardware/device QA.
+Deploy Phase 4C, verify hosted VAPID and owner Razorpay, then complete Firebase Console, browser/device, Lighthouse, Chrome profiling, and hardware QA.
 
 Known Risks:
 
 - RC4 tag points behind the current workspace and should remain immutable.
 - Hosted docs-only branch head can trail runtime deployment without changing application behavior; verify `/api/release-info` before final tag/signoff.
 - Production provider/hardware/browser smoke is not complete.
+- Hosted owner/waiter/cashier POS draft recovery and real Firestore interruption/close-reopen smoke are not complete.
 
 Acceptance Criteria:
 

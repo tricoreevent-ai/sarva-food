@@ -24,6 +24,7 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import type { CommerceLocation } from "@/hooks/use-location-commerce";
 import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { captureException, trackAnalyticsEvent } from "@/services/analytics-service";
+import { openRazorpayCheckout } from "@/services/razorpay-checkout-client";
 
 type CreateOrderRequest = {
   restaurantId: string;
@@ -52,33 +53,6 @@ type CreateOrderRequest = {
   acceptedTermsVersion: string;
   acceptedTermsAt: string;
 };
-type RazorpayCheckoutResponse = {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-};
-type RazorpayCheckoutOptions = {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  image?: string;
-  description: string;
-  order_id: string;
-  prefill?: { name?: string; contact?: string; email?: string };
-  handler: (response: RazorpayCheckoutResponse) => void;
-  modal: { ondismiss: () => void };
-  theme: { color: string };
-};
-type RazorpayCheckout = {
-  open: () => void;
-  on: (event: "payment.failed", handler: (response: { error?: { description?: string } }) => void) => void;
-};
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckout;
-  }
-}
 const checkoutPrefsKey = "nammude.checkout.preferences:v1";
 
 export function CheckoutForm({
@@ -470,7 +444,6 @@ async function createOrderThroughServer(input: CreateOrderRequest) {
 }
 
 async function payWithRazorpay(input: { orderId: string; amount: number; customerName: string; customerPhone: string; restaurantName: string }) {
-  await loadRazorpayCheckout();
   const orderResponse = await fetch("/api/payments/razorpay/order", {
     method: "POST",
     credentials: "same-origin",
@@ -492,24 +465,15 @@ async function payWithRazorpay(input: { orderId: string; amount: number; custome
   const key = orderPayload.keyId;
   const providerOrderId = orderPayload.providerOrderId;
   const providerAmount = orderPayload.amount;
-  const checkout = window.Razorpay;
-  if (!checkout) throw new Error("Razorpay checkout could not be loaded.");
-  const payment = await new Promise<RazorpayCheckoutResponse>((resolve, reject) => {
-    const instance = new checkout({
-      key,
-      amount: providerAmount,
-      currency: orderPayload.currency || "INR",
-      name: orderPayload.name || input.restaurantName,
-      image: orderPayload.image || undefined,
-      description: `Order ${input.orderId}`,
-      order_id: providerOrderId,
-      prefill: { name: input.customerName, contact: input.customerPhone },
-      handler: resolve,
-      modal: { ondismiss: () => reject(new Error("Payment cancelled.")) },
-      theme: { color: "#f97316" },
-    });
-    instance.on("payment.failed", (response) => reject(new Error(response.error?.description || "Razorpay payment failed.")));
-    instance.open();
+  const payment = await openRazorpayCheckout({
+    key,
+    amount: providerAmount,
+    currency: orderPayload.currency || "INR",
+    name: orderPayload.name || input.restaurantName,
+    image: orderPayload.image || undefined,
+    description: `Order ${input.orderId}`,
+    order_id: providerOrderId,
+    prefill: { name: input.customerName, contact: input.customerPhone },
   });
   const verifyResponse = await fetch("/api/payments/razorpay/verify", {
     method: "POST",
@@ -521,24 +485,6 @@ async function payWithRazorpay(input: { orderId: string; amount: number; custome
   if (!verifyResponse.ok || !verifyPayload.ok) {
     throw new Error(verifyPayload.error || "Payment verification failed.");
   }
-}
-
-async function loadRazorpayCheckout() {
-  if (typeof window === "undefined" || window.Razorpay) return;
-  await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Razorpay checkout failed to load.")), { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Razorpay checkout failed to load."));
-    document.head.appendChild(script);
-  });
 }
 
 function estimatePrepMinutes(itemCount: number) {

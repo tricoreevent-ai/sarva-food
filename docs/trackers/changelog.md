@@ -2,6 +2,11 @@
 
 ## 2026-07-16
 
+- Added Phase 4C push readiness: bounded queue retry, 34-scenario contract matrix, owner FCM test endpoint, token/device controls, browser/foreground/background/action/deep-link diagnostics, badge/sound checks, and local delivery history.
+- Added owner payment verification: configuration/key checks, test order and shared checkout, signature/webhook self-tests, test-mode capture/refund, safe failure/cancel/timeout simulations, and redacted logs.
+- Aligned production validation with owner-scoped Razorpay as primary and global keys as optional legacy fallback; configured the supplied public VAPID key in commit-safe templates while keeping private material server/provider-only.
+- Added push, notification troubleshooting, owner payment setup, Razorpay, webhook, and payment troubleshooting guides.
+- Passed typecheck, lint, build, analyze, 19/19 Phase 4C checks, release audit, operational smoke, runtime profile, and diff check; production env validation is `46` pass, `17` errors, `1` manual for external production values/provider checks.
 - Redesigned Owner Active Orders as an operational workspace: status summary cards, live tab counts, advanced search over orders/tables/items/waiters, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues.
 - Preserved feature-freeze boundaries: no Firestore schema/rule/index, API contract, repository, order lifecycle, payment flow, Kitchen logic, auth, or plugin architecture change.
 - Pushed Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 runtime `3444d8cca5315513368851f44084131b7dbb2c56` now includes it.
@@ -166,3 +171,9 @@
 - Added customer account/order/catering repository API paths and moved customer order history to `/api/customer/orders`.
 - Added owner staff lifecycle, scoped owner API access, operational view switching, audit log, and printer settings repository/API surfaces.
 - Verification passed with `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check`.
+## 2026-07-16 - POS Draft Autosave P0
+
+- Confirmed waiter/cashier POS draft requests were rejected by `pos:update` authorization while the POS UI remained available.
+- Changed POS draft state to local-first and added scoped localStorage plus IndexedDB recovery without changing repositories or Firestore schema.
+- Added one debounced latest-draft writer, exponential retry, reconnect/focus/visibility recovery, categorized Retry/Dismiss notifications, and development-only diagnostics.
+- Browser-tested rapid edits, provider failure, offline/online recovery, refresh recovery, toast deduplication, and recovery cleanup.

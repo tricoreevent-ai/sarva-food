@@ -153,8 +153,14 @@ export const adminRoleDefinitions: Record<AdminRoleKey, { description: string; p
 export const ownerRoleDefinitions: Record<StaffRole, { label: string; permissions: Record<OwnerFeatureKey, AccessOperation[]> }> = {
   owner: { label: "Owner", permissions: ownerPermissions(["read", "create", "update", "delete", "export", "approve", "billing"]) },
   manager: { label: "Branch Manager", permissions: ownerPermissions(["read", "create", "update", "export", "approve"]) },
-  cashier: { label: "Cashier", permissions: limitedPermissions(["orders", "menu", "tables", "customers"], ["read", "create", "update"]) },
-  waiter: { label: "Waiter", permissions: limitedPermissions(["orders", "tables"], ["read", "create", "update"]) },
+  cashier: { label: "Cashier", permissions: limitedPermissions(["orders", "pos", "menu", "tables", "customers"], ["read", "create", "update"]) },
+  waiter: {
+    label: "Waiter",
+    permissions: {
+      ...limitedPermissions(["orders", "tables"], ["read", "create", "update"]),
+      ...limitedPermissions(["pos"], ["read", "create"]),
+    },
+  },
   chef: { label: "Kitchen Staff", permissions: limitedPermissions(["kitchen", "orders"], ["read", "update"]) },
   "kitchen-manager": { label: "Kitchen Manager", permissions: limitedPermissions(["kitchen", "orders", "menu"], ["read", "update", "export"]) },
   accountant: { label: "Accountant", permissions: limitedPermissions(["accounting", "reports", "orders"], ["read", "create", "update", "export", "billing"]) },

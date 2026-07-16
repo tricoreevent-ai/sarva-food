@@ -29,6 +29,7 @@
     "smoke:operational": "node scripts/release/operational-hardening-smoke.mjs",
     "audit:release": "node scripts/release/repository-hardening-audit.mjs",
     "profile:runtime": "node scripts/release/performance-phase3-reports.mjs",
+    "verify:phase4c": "node scripts/release/phase4c-readiness.mjs",
     "test:enhancements": "node scripts/release/enhancement-registry-audit.mjs",
     "plugin:create": "node scripts/plugins/create-plugin.mjs",
     "verify": "npm run typecheck && npm run lint && npm run build",

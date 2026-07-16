@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 export type OrderDelayLevel = "none" | "yellow" | "orange" | "red" | "critical";
-export type OrderBadgeTone = "default" | "success" | "warning" | "danger" | "info" | "muted";
-export type OrderActionVariant = "primary" | "secondary" | "danger" | "ghost";
+export type OrderBadgeTone = "default" | "success" | "warning" | "danger" | "info" | "muted" | "violet";
+export type OrderActionVariant = "primary" | "success" | "secondary" | "danger" | "ghost";
 export type OrderAccordionAccent = "blue" | "orange" | "emerald" | "violet" | "amber" | "red" | "slate";
 export type OrderWorkflowStepState = "complete" | "active" | "pending" | "blocked";
 
@@ -24,6 +24,8 @@ export type OrderAccordionItem = {
   id: string;
   name: string;
   quantity: number;
+  price?: string;
+  total?: string;
   note?: string;
   meta?: string;
   warning?: string;
@@ -52,6 +54,7 @@ export type OrderAccordionWorkflowStep = {
 export type OrderAccordionStat = {
   label: string;
   value: string;
+  subvalue?: string;
   tone?: "default" | "danger" | "success" | "warning";
 };
 
@@ -59,6 +62,9 @@ export type OrderAccordionProgress = {
   label: string;
   value: number;
   helper?: string;
+  readyLabel?: string;
+  pendingLabel?: string;
+  kotLabel?: string;
   tone?: "default" | "danger" | "success" | "warning";
 };
 

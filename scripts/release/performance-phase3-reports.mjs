@@ -251,13 +251,13 @@ function writeReports() {
     ["Gate", "Status", "Reason"],
     [
       ["Production Chrome Performance", "Manual", "No local Chrome/Lighthouse executable was available to capture flame graphs, Coverage, FPS, long tasks, or heap snapshots."],
-      ["Hosted Lighthouse/Core Web Vitals", "Manual", "Hosted deployment is still stale/development until Hostinger env is corrected and redeployed."],
+      ["Hosted Lighthouse/Core Web Vitals", "Manual", "Run after the Phase 4C commit is deployed with the production VAPID value."],
       ["30-minute heap stability", "Manual", "Requires authenticated browser session and continuous POS/Kitchen/customer operation."],
       ["Authenticated smoke", "Manual", "Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace."],
       ["Provider/hardware", "Manual", "Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access."],
     ],
   );
-  const finalScope = "This final report pack consolidates Phase 2, Phase 3, and the 2026-07-08 certification hotfix measurements. Business workflows, API contracts, Firestore collections, auth flows, and provider contracts remain backward compatible.";
+  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, image delivery, observability, and Phase 4C push/payment readiness measurements. Business workflows, Firestore collections, auth flows, and provider contracts remain backward compatible.";
   const firebaseWarningNote = "The remaining Firebase/protobuf dynamic dependency warning is expected. Build/analyze trace it through `@protobufjs/inquire -> protobufjs -> @grpc/proto-loader -> @firebase/firestore -> firebase/firestore -> src/firebase/collections.ts -> src/app/api/admin/system-diagnostics/route.ts`. It originates in upstream Firebase/protobuf server dependency code, not application debug code. The application already keeps Firebase client startup behind config/accessor boundaries where touched; replacing or aliasing Firebase/protobuf internals during certification is not safe, so the warning remains documented and accepted.";
 
   writeDoc("performance", "RUNTIME_PROFILE.md", `# Runtime Profile\n\nDate: ${generatedAt}\n\n## Measurement Inputs\n\n| Source | Result |\n| --- | --- |\n| Build route manifests | ${existsSync(appManifestDir) ? "Read from `.next/server/app/**/page_client-reference-manifest.js`." : "Unavailable until `npm run build` or `npm run analyze` runs."} |\n| Browser profiler | No local Chrome/Lighthouse executable is assumed by this script; production Chrome Performance remains manual. |\n| Synthetic load | 100 kitchen orders and 1000 POS products measured with Node performance timers. |\n\n## Route Runtime Budget Snapshot\n\n${measuredRoutes}\n\n## Stress Timing Snapshot\n\n${stressRows}\n\n## Notes\n\nHydration time, FPS, long tasks, Chrome memory, and real network waterfalls still require hosted production Chrome profiling because this workspace script cannot observe browser main-thread scheduling.\n`);
@@ -288,6 +288,104 @@ function writeReports() {
   writeDoc("performance", "FINAL_MEMORY_REPORT.md", `# Final Memory Report\n\nDate: ${generatedAt}\n\n## Synthetic Heap\n\n| Metric | Result |\n| --- | ---: |\n| Heap delta | ${formatKb(stress.heapDeltaBytes)} |\n\n## Leak Controls\n\n| Area | Result |\n| --- | --- |\n| EventSource | Kitchen stream cleanup remains in place. |\n| Timers | Debounce timers, Kitchen minute/timer work, and virtual column resize work include cleanup. |\n| List rendering | Kitchen windowing reduces live DOM count for long desktop queues. |\n| Object retention | Kitchen reconciliation avoids retaining duplicate unchanged order objects across snapshots. |\n| New caches | No unbounded runtime cache was added in the final pass. |\n\n## Manual Heap Gate\n\n30-minute and 12-hour heap stability require authenticated production browser sessions with Chrome Memory tooling.\n`);
 
   writeDoc("release", "FINAL_RELEASE_READINESS.md", `# Final Release Readiness\n\nDate: ${generatedAt}\n\n## Local Validation\n\n| Check | Status |\n| --- | --- |\n| \`cmd /c npm run test:enhancements\` | Passed. |\n| \`cmd /c npm run typecheck\` | Passed. |\n| \`cmd /c npm run lint\` | Passed after removing three safe React hook suppression comments. |\n| \`cmd /c npm run build\` | Passed with accepted Firebase/protobuf dynamic dependency warning. |\n| \`cmd /c npm run analyze\` | Passed with accepted Firebase/protobuf dynamic dependency warning. |\n| \`cmd /c npm run profile:runtime\` | Passed and regenerates Phase 3/final performance report pack. |\n| \`cmd /c npm run audit:release\` | Passed. |\n| \`cmd /c npm run smoke:operational\` | Passed. |\n| \`git diff --check\` | Passed with Git line-ending normalization warnings only. |\n| \`cmd /c npm run validate:prod-env\` | Failed locally for expected missing production-only env/secrets and non-HTTPS local app URL. |\n\n## Certification Audit\n\n| Area | Result |\n| --- | --- |\n| Latest pushed commit | \`7fcd009d828635aef090fc9785af94b6ffc6b971\` on \`release/production-nammude\` before this Phase 2D validation closure. |\n| Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, \`@ts-ignore\`, \`console.log\`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |\n| Route audit | Static audit found \`100\` App Router pages, \`73\` API route handlers, \`21\` loading files, \`12\` error boundaries, and generated Next \`_not-found\`; authenticated browser verification remains manual. |\n| API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |\n| Firestore/realtime audit | No schema/rule/index/repository change; Kitchen remains the checked EventSource path; no new listener was added. |\n| Deployment config | Env references remain config-driven. No secrets changed. |\n\n## Production Readiness\n\n| Area | Status |\n| --- | --- |\n| Code readiness | 99% / Release Candidate certified for deployment testing |\n| Production-release readiness | 85% |\n| Recommendation | No-Go until manual infrastructure, provider, hardware, authenticated browser, Lighthouse, and Chrome profiling gates pass. |\n\n## Remaining Manual Gates\n\n${finalManualGates}\n| Production env | Manual | Set \`NEXT_PUBLIC_APP_ENV\`, \`NEXT_PUBLIC_APP_VERSION\`, \`NEXT_PUBLIC_FIREBASE_VAPID_KEY\`, Firebase Admin credentials, \`TABLE_QR_SECRET\`, \`DATABASE_ALERT_EMAIL\`, and HTTPS \`NEXT_PUBLIC_APP_URL\`. |\n| Hostinger redeploy | Manual | Redeploy the final Phase 2D commit, clear cache, and verify \`/api/release-info\` reports production env and the final SHA. |\n\n## Accepted Warning\n\n${firebaseWarningNote}\n`);
+  writeDoc("release", "FINAL_BUG_REPORT.md", `# Final Bug Report
+
+Date: ${generatedAt}
+
+## Final RC Bug-Hunt Result
+
+| Area | Result |
+| --- | --- |
+| Scope | Phase 4C adds production push diagnostics and backward-compatible owner payment verification without changing order, Kitchen, POS, auth, repository, or Firestore collection contracts. |
+| Push retry | A transport exception could leave a notification in \`dispatching\`; bounded recovery now returns it to \`pending\` and stops after three attempts. |
+| Payment configuration | Production validation accepts owner-scoped Razorpay as the primary path; global keys are optional legacy fallback. |
+| Security | Payment test actions reuse same-origin owner permissions, redact responses, and block provider mutations in live mode. |
+| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
+| React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
+
+## Confirmed Fixes
+
+| File | Fix |
+| --- | --- |
+| \`src/lib/server/push-notifications.ts\` | Added bounded queue retry and terminal failure state. |
+| \`src/components/pwa/notification-test-center.tsx\` | Added owner device, foreground/background, badge, sound, action, deep-link, and history diagnostics. |
+| \`src/app/api/owner/payment-settings/route.ts\` | Added redacted test-mode diagnostics for keys, orders, signatures, webhooks, capture, and refund. |
+| \`src/components/owner/payment-verification-center.tsx\` | Added owner-operated payment verification and redacted in-memory logs. |
+| \`src/services/razorpay-checkout-client.ts\` | Shared the unchanged checkout loader between customer and owner test checkout. |
+
+## Accepted Warning
+
+${firebaseWarningNote}
+`);
+
+  writeDoc("validation", "FINAL_FIRESTORE_AUDIT.md", `# Final Firestore Audit
+
+Date: ${generatedAt}
+
+## Scope
+
+No Firestore collection, schema, rule, index, or repository contract changed. Phase 4C adds one protected notification-test endpoint and backward-compatible owner payment verification actions.
+
+## Result
+
+| Area | Result |
+| --- | --- |
+| Push tokens | Existing \`user_preferences\` storage and tenant targeting are reused. |
+| Notification queue | Existing notification fields are reused for bounded retry. |
+| Razorpay settings | Existing encrypted owner profile settings and legacy restaurant fallback are reused. |
+| Payment intents | Existing owner/restaurant/tenant/provider mapping is unchanged. |
+| Listeners and indexes | No listener, rule, or index added. |
+
+Firebase Console deployment and authenticated protected read/write smoke remain manual.
+`);
+
+  writeDoc("release", "FINAL_RELEASE_READINESS.md", `# Final Release Readiness
+
+Date: ${generatedAt}
+
+## Local Validation
+
+| Check | Status |
+| --- | --- |
+| \`npm run typecheck\` | Passed. |
+| \`npm run lint\` | Passed. |
+| \`npm run build\` | Passed with accepted Firebase/protobuf warning. |
+| \`npm run analyze\` | Passed with accepted Firebase/protobuf warning. |
+| \`npm run verify:phase4c\` | Passed notification, push lifecycle, payment security, deep-link, and ten-tenant checks. |
+| \`npm run audit:release\` | Passed. |
+| \`npm run smoke:operational\` | Passed. |
+| \`npm run profile:runtime\` | Passed. |
+
+## Certification Audit
+
+| Area | Result |
+| --- | --- |
+| Branch baseline | \`release/production-nammude\` at \`1735938074e71598befcff2578b5220df218ede2\` before Phase 4C changes. |
+| Push | Public VAPID value is configured in commit-safe templates; lifecycle, service worker, retry, and owner test-center contracts pass. Hosted env and real-device delivery remain manual. |
+| Payments | Owner-scoped runtime, encrypted secrets, signatures, webhook controls, and ten-tenant mappings pass automated checks. Real Razorpay dashboard evidence remains manual. |
+| Firestore | No collection/schema/rule/index/repository change and no new listener. |
+| Security | No service-account/provider secret committed; test responses are redacted and provider mutations are blocked in live mode. |
+
+## Production Readiness
+
+| Area | Status |
+| --- | --- |
+| Repository readiness | 99% |
+| Production readiness | 90% |
+| Recommendation | NO-GO until Phase 4C is deployed and provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, and hardware gates pass. |
+
+## Remaining Manual Gates
+
+${finalManualGates}
+| Hosted VAPID | Manual | Set the documented public key in Hostinger, redeploy, and verify \`vapidConfigured=true\`. |
+| Push delivery | Manual | Register real devices and verify foreground/background/action/deep-link behavior in Chrome, Edge, Firefox, Android, and supported Safari/iPhone PWA. |
+| Razorpay | Manual | Complete owner sandbox checkout, failed/cancel/timeout, capture/refund, dashboard webhook, live key rotation, and settlement checks. |
+| Hostinger redeploy | Manual | Deploy Phase 4C, clear cache, and verify release info plus all health endpoints. |
+
+## Accepted Warning
+
+${firebaseWarningNote}
+`);
 }
 
 writeReports();

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-07-13T06:11:52.214Z",
+  "generatedAt": "2026-07-16T05:58:00.299Z",
   "summary": {
     "counts": {
       "PASS": 46,
-      "WARNING": 1,
-      "ERROR": 24,
+      "WARNING": 0,
+      "ERROR": 17,
       "FAIL": 0,
-      "MANUAL": 0
+      "MANUAL": 1
     },
     "exitCode": 1
   },
@@ -63,8 +63,8 @@
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_VAPID_KEY",
-      "status": "ERROR",
-      "detail": "missing or empty"
+      "status": "PASS",
+      "detail": "configured"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_APP_ID",
@@ -165,26 +165,6 @@
       "name": "required:CLOUDINARY_API_SECRET",
       "status": "PASS",
       "detail": "configured"
-    },
-    {
-      "name": "required:NEXT_PUBLIC_RAZORPAY_KEY_ID",
-      "status": "ERROR",
-      "detail": "missing or empty"
-    },
-    {
-      "name": "required:RAZORPAY_KEY_ID",
-      "status": "ERROR",
-      "detail": "missing or empty"
-    },
-    {
-      "name": "required:RAZORPAY_KEY_SECRET",
-      "status": "ERROR",
-      "detail": "missing or empty"
-    },
-    {
-      "name": "required:RAZORPAY_WEBHOOK_SECRET",
-      "status": "ERROR",
-      "detail": "missing or empty"
     },
     {
       "name": "version:NEXT_PUBLIC_APP_VERSION",
@@ -307,24 +287,9 @@
       "detail": "api key should be numeric"
     },
     {
-      "name": "razorpay:public-key",
-      "status": "ERROR",
-      "detail": "production key must start rzp_live_"
-    },
-    {
-      "name": "razorpay:key-match",
-      "status": "PASS",
-      "detail": "public/server key ids must match"
-    },
-    {
-      "name": "razorpay:secret-strength",
-      "status": "ERROR",
-      "detail": "secret must be configured"
-    },
-    {
-      "name": "razorpay:webhook-strength",
-      "status": "ERROR",
-      "detail": "webhook secret must be configured"
+      "name": "razorpay:configuration",
+      "status": "MANUAL",
+      "detail": "owner-scoped configuration required; global fallback intentionally disabled"
     },
     {
       "name": "smtp:port",
@@ -363,8 +328,8 @@
     },
     {
       "name": "secret:PAYMENT_SETTINGS_ENCRYPTION_KEY",
-      "status": "WARNING",
-      "detail": "recommended for encrypted owner payment settings"
+      "status": "ERROR",
+      "detail": "minimum 32 characters"
     }
   ],
   "sections": []

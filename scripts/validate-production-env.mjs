@@ -35,10 +35,6 @@ const required = [
   "CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_API_KEY",
   "CLOUDINARY_API_SECRET",
-  "NEXT_PUBLIC_RAZORPAY_KEY_ID",
-  "RAZORPAY_KEY_ID",
-  "RAZORPAY_KEY_SECRET",
-  "RAZORPAY_WEBHOOK_SECRET",
 ];
 const deprecated = {
   NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "Use NEXT_PUBLIC_FIREBASE_USE_EMULATORS.",
@@ -113,10 +109,19 @@ function validateCloudinary() {
 }
 
 function validateRazorpay() {
-  checks.push(check("razorpay:public-key", /^rzp_live_/.test(envValue("NEXT_PUBLIC_RAZORPAY_KEY_ID")) ? "PASS" : "ERROR", "production key must start rzp_live_"));
-  checks.push(check("razorpay:key-match", envValue("NEXT_PUBLIC_RAZORPAY_KEY_ID") === envValue("RAZORPAY_KEY_ID") ? "PASS" : "ERROR", "public/server key ids must match"));
-  checks.push(check("razorpay:secret-strength", envValue("RAZORPAY_KEY_SECRET").length >= 24 ? "PASS" : "ERROR", "secret must be configured"));
-  checks.push(check("razorpay:webhook-strength", envValue("RAZORPAY_WEBHOOK_SECRET").length >= 24 ? "PASS" : "ERROR", "webhook secret must be configured"));
+  const publicKey = envValue("NEXT_PUBLIC_RAZORPAY_KEY_ID");
+  const serverKey = envValue("RAZORPAY_KEY_ID");
+  const secret = envValue("RAZORPAY_KEY_SECRET");
+  const webhook = envValue("RAZORPAY_WEBHOOK_SECRET");
+  const globalConfigured = Boolean(publicKey || serverKey || secret || webhook);
+  if (!globalConfigured) {
+    checks.push(check("razorpay:configuration", "MANUAL", "owner-scoped configuration required; global fallback intentionally disabled"));
+    return;
+  }
+  checks.push(check("razorpay:public-key", /^rzp_live_/.test(publicKey) ? "PASS" : "ERROR", "global fallback production key must start rzp_live_"));
+  checks.push(check("razorpay:key-match", publicKey === serverKey ? "PASS" : "ERROR", "global fallback public/server key ids must match"));
+  checks.push(check("razorpay:secret-strength", secret.length >= 24 ? "PASS" : "ERROR", "global fallback secret must be configured"));
+  checks.push(check("razorpay:webhook-strength", webhook.length >= 24 ? "PASS" : "ERROR", "global fallback webhook secret must be configured"));
 }
 
 function validateSmtp() {
@@ -136,11 +141,7 @@ function validateOauth() {
 function validateSecrets() {
   for (const [key, min] of [["TABLE_QR_SECRET", 32], ["PAYMENT_SETTINGS_ENCRYPTION_KEY", 32]]) {
     const value = envValue(key);
-    if (key === "PAYMENT_SETTINGS_ENCRYPTION_KEY" && !value) {
-      checks.push(check(`secret:${key}`, "WARNING", "recommended for encrypted owner payment settings"));
-    } else {
-      checks.push(check(`secret:${key}`, value.length >= min ? "PASS" : "ERROR", `minimum ${min} characters`));
-    }
+    checks.push(check(`secret:${key}`, value.length >= min ? "PASS" : "ERROR", `minimum ${min} characters`));
   }
 }
 

@@ -42,6 +42,8 @@ Last updated: 2026-07-16
 | RC5 Production Observability | Implemented | 95 | Hosted Admin/Owner monitoring smoke, export check, and long-run alert verification remain manual | Codex | 2026-07-13 |
 | RC5 Image Optimization | Repository Complete | 95 | Hosted visual smoke, Cloudinary credential upload check, and real-device image quality review remain manual | Codex | 2026-07-15 |
 | Owner Active Orders Operational Workspace | Hosted Runtime Deployed | 95 | Authenticated owner/device visual smoke and production workflow QA remain manual | Codex | 2026-07-16 |
+| RC5 Phase 4C Push & Owner Payments | Repository Implemented | 95 | Deploy Phase 4C; verify hosted VAPID, real-device push, owner Razorpay sandbox/live webhook/payment, browsers, and providers | Codex | 2026-07-16 |
+| POS Draft Autosave P0 | Repository Fixed | 95 | Deploy and run hosted owner/waiter/cashier, offline/reconnect, refresh, close/reopen, restaurant switch, and multi-device smoke | Codex | 2026-07-16 |
 
 ## Final Enterprise Release
 

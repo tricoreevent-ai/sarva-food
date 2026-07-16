@@ -1,6 +1,6 @@
 # Production Environment Matrix
 
-Last updated: 2026-07-13
+Last updated: 2026-07-16
 
 Release: `v1.0.0-rc5`
 
@@ -38,10 +38,7 @@ Release: `v1.0.0-rc5`
 | `CLOUDINARY_CLOUD_NAME` | Server Cloudinary cloud name. | Cloudinary |
 | `CLOUDINARY_API_KEY` | Cloudinary signing API key. | Cloudinary |
 | `CLOUDINARY_API_SECRET` | Cloudinary signing API secret. | Cloudinary |
-| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Browser Razorpay live key id; must start `rzp_live_`. | Razorpay |
-| `RAZORPAY_KEY_ID` | Server Razorpay live key id; must match the public key. | Razorpay |
-| `RAZORPAY_KEY_SECRET` | Razorpay live key secret. | Razorpay |
-| `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook signature secret. | Razorpay |
+| `PAYMENT_SETTINGS_ENCRYPTION_KEY` | Stable encryption material for owner-scoped payment secrets; at least 32 characters. | Hostinger secret |
 
 ## Optional
 
@@ -52,7 +49,10 @@ Release: `v1.0.0-rc5`
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Alternate Google Analytics id. | Optional analytics. |
 | `UPI_MERCHANT_ID` | Manual UPI merchant id. | Optional payment metadata. |
 | `UPI_MERCHANT_VPA` | Manual UPI VPA. | Optional payment metadata. |
-| `PAYMENT_SETTINGS_ENCRYPTION_KEY` | Stable encryption material for stored payment settings. | Recommended; at least 32 characters when set. |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Legacy global browser key fallback. | Leave unset when owner-scoped settings are used. |
+| `RAZORPAY_KEY_ID` | Legacy global server key fallback. | Leave unset when owner-scoped settings are used. |
+| `RAZORPAY_KEY_SECRET` | Legacy global server secret fallback. | Server-only; leave unset for owner-scoped deployment. |
+| `RAZORPAY_WEBHOOK_SECRET` | Legacy global webhook secret fallback. | Server-only; leave unset for owner-scoped deployment. |
 | `WHATSAPP_CLOUD_API_TOKEN` | WhatsApp Cloud API token. | Required only for Cloud API launch. |
 | `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp Cloud phone number id. | Required only for Cloud API launch. |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | WhatsApp webhook verify token. | Required only for Cloud API launch. |

@@ -47,7 +47,7 @@ export async function PATCH(request: NextRequest) {
   let trace = createTraceContext(request);
   const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
-    const access = await requireOwnerFeature(request, "pos", "update");
+    const access = await requireOwnerFeature(request, "pos", "create");
     if (access.error) return access.error;
     const body = await request.json().catch(() => ({}));
     if (!body.bill || !Array.isArray(body.bill.lines)) return fail("Valid POS draft is required.");
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const access = await requireOwnerFeature(request, "pos", "update");
+  const access = await requireOwnerFeature(request, "pos", "create");
   if (access.error) return access.error;
   const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
   await new OrderRepository().deletePosDraft(scope);
