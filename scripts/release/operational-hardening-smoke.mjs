@@ -24,6 +24,8 @@ const swSource = read("public/sw.js");
 const scenarios = JSON.parse(read("src/data/notification-scenarios.json"));
 const activeOrders = read("src/components/flows/pos-billing-flow.tsx");
 const stateMachine = read("src/lib/order-state-machine.ts");
+const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
+const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -149,6 +151,17 @@ await check("active-orders:strict-lifecycle", () => {
 
 await check("active-orders:delay-timeline-progress-layout", () => {
   for (const token of ["formatDelayTime(delay.lateMinutes)", "Stale Order", "key === previous", "progress === 100 ? \"success\"", "md:grid-cols-2 xl:grid-cols-3"]) assert.ok(`${activeOrders}\n${read("src/lib/kitchen-delay.ts")}`.includes(token), token);
+});
+
+await check("kitchen:notify-without-serving", () => {
+  assert.ok(kitchen.includes('label: "Notify Waiter"'));
+  assert.ok(!kitchen.includes('ready: "served"'));
+  assert.ok(kitchen.includes('/api/owner/kitchen/notify-waiter'));
+  for (const token of ["kitchen_ready_waiter", 'audience: ["waiter"]', 'audience: ["owner"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
+});
+
+await check("kitchen:responsive-settings-and-duration", () => {
+  for (const token of ["autoNotifyWaiter", "autoPrintOrders", "soundAlerts", "repeatNotification", "escalationTimeout", "notificationMethod", "auto-fit", "--column-weight", "formatOperationalDuration"]) assert.ok(kitchen.includes(token) || read("src/lib/kitchen-delay.ts").includes(token), token);
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

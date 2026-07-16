@@ -1,6 +1,6 @@
 # Performance Budget
 
-Date: 2026-07-16T09:05:40.811Z
+Date: 2026-07-16T09:34:49.846Z
 
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -10,9 +10,9 @@ Date: 2026-07-16T09:05:40.811Z
 | /orders | 20 | 514 KB | 192 KB | - | Tracked |
 | /profile | 23 | 553 KB | 192 KB | 250 KB | Over |
 | /owner | 27 | 583 KB | 192 KB | 350 KB | Over |
-| /owner/orders | 32 | 709 KB | 192 KB | 500 KB | Over |
+| /owner/orders | 32 | 710 KB | 192 KB | 500 KB | Over |
 | /owner/settings | 31 | 697 KB | 192 KB | 300 KB | Over |
-| /owner/kitchen | 30 | 656 KB | 192 KB | - | Tracked |
+| /owner/kitchen | 30 | 660 KB | 192 KB | - | Tracked |
 | /owner/pos | 28 | 587 KB | 192 KB | - | Tracked |
 | /admin | 21 | 504 KB | 192 KB | - | Tracked |
 

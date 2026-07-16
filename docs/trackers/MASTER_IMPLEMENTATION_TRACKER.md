@@ -40,6 +40,18 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Layout | Active cards use responsive 1/2/3-column layout, compact metadata, thin phase progress, single-card expansion, consistent action sizing, aligned metrics, and sticky Orders/Kitchen/Customers/Revenue summary. |
 | Validation | `smoke:operational` passes 12/12 including action wiring, strict lifecycle, delay/timeline/progress/layout contracts. |
 
+## Phase 5A Kitchen Operations Center - 2026-07-16
+
+| Area | Result |
+| --- | --- |
+| Responsibility boundary | Removed all Kitchen Ready → Served UI paths. Kitchen prepares and notifies; waiter/POS remains responsible for service. |
+| Notification architecture | Existing notifications and push-token infrastructure provide idempotent waiter push across devices, silent owner information, in-app/toast/sound fallback, unread state, acknowledgement, and escalation. No schema or repository modification. |
+| Acknowledgement | Opening a Ready order from POS acknowledges the persisted notification; Kitchen shows `✓ Waiter informed` with time. |
+| Escalation | Unacknowledged notifications become orange after two minutes and red/owner-alerted at the configured timeout. |
+| Presentation | Demand-weighted flexible Kanban columns, auto-fit metrics, compact actions, reduced-motion critical animation, and shared bounded duration formatting. |
+| Settings | Auto Notify Waiter, Auto Print KOT, Kitchen Sound, Repeat Notification, Escalation Timeout, and Push/In-app/Both controls are exposed locally. |
+| Validation | Operational smoke passes 14/14, including no Ready → Served Kitchen mapping and notify/ack/escalate contracts. |
+
 ## Phase 4C Push, Owner Razorpay, and Production Readiness - 2026-07-16
 
 | Area | Result |

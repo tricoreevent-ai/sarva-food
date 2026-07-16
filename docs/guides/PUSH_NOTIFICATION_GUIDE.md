@@ -1,5 +1,9 @@
 # Push Notification Guide
 
+## Kitchen Ready workflow
+
+Kitchen `Notify Waiter` creates one tenant-scoped waiter notification, pushes to registered waiter surfaces, sends a silent owner copy, and retains unread in-app state. POS opening acknowledges it. Unacknowledged notifications escalate to owner after the configured timeout. Provider-unavailable delivery retains browser/in-app, toast, notification-center, and badge fallback state.
+
 ## Production Setup
 
 1. In Firebase Console, open Project Settings, Cloud Messaging, Web configuration.

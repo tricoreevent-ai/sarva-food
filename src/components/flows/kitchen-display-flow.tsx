@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
-import { delaySortRank, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
+import { delaySortRank, formatOperationalDuration, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { readableTableOrderId } from "@/lib/order-display";
 import { cn } from "@/lib/utils";
@@ -40,11 +40,12 @@ type ConfirmAction = { title: string; description: string; confirmLabel: string;
 type CompactTabId = "new" | "accepted" | "preparing" | "ready" | "completed";
 type CompactPane = "orders" | "kitchen" | "more";
 type CompactOrderTypeFilter = NonNullable<TableOrder["orderType"]> | "all";
+type KitchenReadySignal = { kitchenOrderId?: string; notifiedAt?: unknown; acknowledgedAt?: unknown };
 const desktopColumns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
   { id: "new", title: "New", tone: "red", statuses: ["new", "occupied"] },
   { id: "accepted", title: "Accepted", tone: "orange", statuses: ["accepted"] },
   { id: "preparing", title: "Preparing", tone: "amber", statuses: ["preparing"] },
-  { id: "ready", title: "Ready / Serve", tone: "green", statuses: ["ready", "served"] },
+  { id: "ready", title: "Ready / Pickup", tone: "green", statuses: ["ready"] },
 ];
 
 const compactTabs: Array<{ id: CompactTabId; label: string; statuses: TableOrderStatus[]; tone: string }> = [
@@ -60,8 +61,6 @@ const nextStatus: Partial<Record<TableOrderStatus, TableOrderStatus>> = {
   occupied: "accepted",
   accepted: "preparing",
   preparing: "ready",
-  ready: "served",
-  served: "completed",
 };
 
 const actionLabel: Partial<Record<TableOrderStatus, string>> = {
@@ -69,8 +68,7 @@ const actionLabel: Partial<Record<TableOrderStatus, string>> = {
   occupied: "Accept",
   accepted: "Start Cooking",
   preparing: "Ready",
-  ready: "Serve",
-  served: "Complete",
+  ready: "Notify Waiter",
 };
 
 export function KitchenDisplayFlow() {
@@ -82,6 +80,10 @@ export function KitchenDisplayFlow() {
   const [selectedPrinterId, setSelectedPrinterId] = useState("browser-kitchen");
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [soundAlerts, setSoundAlerts] = useState(true);
+  const [autoNotifyWaiter, setAutoNotifyWaiter] = useState(true);
+  const [repeatNotification, setRepeatNotification] = useState(false);
+  const [escalationTimeout, setEscalationTimeout] = useState(5);
+  const [notificationMethod, setNotificationMethod] = useState<"push" | "in-app" | "both">("both");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -100,6 +102,7 @@ export function KitchenDisplayFlow() {
   const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
+  const [readySignals, setReadySignals] = useState<Record<string, KitchenReadySignal>>({});
   const busyOrders = useRef(new Set<string>());
   const ordersRef = useRef<TableOrder[]>([]);
   const printedThisSession = useRef(new Set<string>());
@@ -108,6 +111,7 @@ export function KitchenDisplayFlow() {
   const soundReady = useRef(false);
   const alertedOrders = useRef(new Set<string>());
   const lastDelayedToast = useRef(0);
+  const escalatedSignals = useRef(new Set<string>());
   const { settings, save: savePrinterSettings, log: logPrint } = usePrinterSettings();
 
   const kitchenPrinters = useMemo(
@@ -146,6 +150,29 @@ export function KitchenDisplayFlow() {
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    Object.entries(readySignals).forEach(([kitchenOrderId, signal]) => {
+      const notified = operationalTimestamp(signal.notifiedAt);
+      if (!notified || signal.acknowledgedAt || now - notified < escalationTimeout * 60_000 || escalatedSignals.current.has(kitchenOrderId)) return;
+      escalatedSignals.current.add(kitchenOrderId);
+      void fetch("/api/owner/kitchen/notify-waiter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "escalate", kitchenOrderId }) }).catch(() => escalatedSignals.current.delete(kitchenOrderId));
+    });
+  }, [escalationTimeout, now, readySignals]);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => fetch("/api/owner/kitchen/notify-waiter", { cache: "no-store" })
+      .then((response) => readKitchenPayload<{ data?: KitchenReadySignal[] }>(response, "Waiter notifications could not be loaded."))
+      .then((payload) => {
+        if (!active) return;
+        setReadySignals(Object.fromEntries((payload.data ?? []).filter((item) => item.kitchenOrderId).map((item) => [item.kitchenOrderId!, item])));
+      })
+      .catch(() => undefined);
+    void load();
+    const id = window.setInterval(load, 15_000);
+    return () => { active = false; window.clearInterval(id); };
   }, []);
 
   useEffect(() => {
@@ -218,30 +245,28 @@ export function KitchenDisplayFlow() {
     if (soundAlerts) playReadyTone();
   }, [soundAlerts, stats.delayed]);
 
-  const serveReadyToastOrder = useCallback(async (order: TableOrder) => {
+  const notifyWaiter = useCallback(async (order: TableOrder) => {
     if (busyOrders.current.has(order.id)) return;
     busyOrders.current.add(order.id);
     setBusyOrderId(order.id);
-    const previousOrder = ordersRef.current.find((item) => item.id === order.id) ?? order;
-    setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: "served" } : item));
     try {
-      const response = await fetch("/api/owner/kitchen", {
-        method: "PATCH",
+      const response = await fetch("/api/owner/kitchen/notify-waiter", {
+        method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: order.id, status: "served" }),
+        body: JSON.stringify({ kitchenOrderId: order.id, orderId: (order as TableOrder & { orderId?: string }).orderId, orderNumber: displayOrderNumber(order), tableNumber: order.tableNumber, waiterName: order.waiterName || order.assignedStaffName, branchId: order.branchId, repeat: repeatNotification, notificationMethod }),
       });
-      const payload = await readKitchenPayload<{ data?: TableOrder }>(response, "Kitchen status could not be updated.");
-      if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
-      toast.success(kitchenActionToast(order, "served"));
+      await readKitchenPayload(response, "Waiter notification could not be sent.");
+      setReadySignals((current) => ({ ...current, [order.id]: { kitchenOrderId: order.id, notifiedAt: new Date().toISOString() } }));
+      showLazySarvaNotification({ id: `waiter-notified-${order.id}`, tone: "success", title: "Waiter notified", message: `${displayOrderNumber(order)} · ${order.tableNumber}`, meta: "Ready for pickup" });
+      toast.success("Waiter notified. Order state remains Ready.");
+      if (soundAlerts) playReadyTone();
     } catch (error) {
-      console.error("[kitchen] ready toast serve failed", { orderId: order.id, reason: error instanceof Error ? error.name : typeof error });
-      setOrders((current) => current.map((item) => item.id === order.id ? previousOrder : item));
-      toast.error("Kitchen status could not be updated.");
+      toast.error(error instanceof Error ? error.message : "Waiter notification could not be sent.");
     } finally {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, []);
+  }, [notificationMethod, repeatNotification, soundAlerts]);
 
   const updateStatus = useCallback(async (order: TableOrder, status: TableOrderStatus, options: { silent?: boolean } = {}) => {
     if (busyOrders.current.has(order.id)) return;
@@ -259,6 +284,7 @@ export function KitchenDisplayFlow() {
       if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
       if (!options.silent) toast.success(kitchenActionToast(order, status));
       if (status === "ready") {
+        if (autoNotifyWaiter) void notifyWaiter(payload.data ?? { ...order, status: "ready" });
         const toastId = `waiter-ready-${order.id}`;
         showLazySarvaNotification({
           id: toastId,
@@ -269,8 +295,7 @@ export function KitchenDisplayFlow() {
           duration: Infinity,
           actions: [
             { label: "Open", variant: "primary", onClick: () => { setSelectedOrderId(order.id); toast.dismiss(toastId); } },
-            { label: "Serve", variant: "secondary", onClick: () => { void serveReadyToastOrder(order); toast.dismiss(toastId); } },
-            { label: "Collect", variant: "secondary", onClick: () => { window.location.assign("/owner/pos?panel=active"); toast.dismiss(toastId); } },
+            { label: "Notify Waiter", variant: "secondary", onClick: () => { void notifyWaiter(order); toast.dismiss(toastId); } },
             { label: "Dismiss", variant: "secondary", onClick: () => toast.dismiss(toastId) },
           ],
         });
@@ -286,7 +311,7 @@ export function KitchenDisplayFlow() {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, [serveReadyToastOrder]);
+  }, [autoNotifyWaiter, notifyWaiter]);
 
   const showNewOrderNotification = useCallback((order: TableOrder) => {
     const id = `new-order-${order.id}`;
@@ -492,6 +517,7 @@ export function KitchenDisplayFlow() {
           onTabChange={setCompactTab}
           onToggleAutoPrint={toggleAutoPrint}
           onNext={(order, status) => void updateStatus(order, status)}
+          onNotify={(order) => void notifyWaiter(order)}
           onReprint={(order) => void printKot(order, { reprint: true })}
         />
       </div>
@@ -549,28 +575,32 @@ export function KitchenDisplayFlow() {
         </section>
       ) : null}
 
-      <section className="grid gap-2 xl:grid-cols-9">
+      <section className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
         <KitchenMetric label="New Orders" value={stats.newOrders} tone="red" />
         <KitchenMetric label="Accepted" value={stats.accepted} tone="orange" />
         <KitchenMetric label="Preparing" value={stats.preparing} tone="amber" />
         <KitchenMetric label="Ready" value={stats.ready} tone="green" />
         <KitchenMetric label="Delayed" value={stats.delayed} tone="red" />
         <KitchenMetric label="Completed" value={stats.completedToday} tone="blue" />
-        <KitchenMetric label="Avg Prep" value={`${stats.averagePrep}m`} tone="slate" />
+        <KitchenMetric label="Avg Prep" value={formatOperationalDuration(stats.averagePrep)} tone="slate" />
         <KitchenMetric label="High Priority" value={stats.priority} tone="orange" />
         <KitchenMetric label="Critical" value={stats.critical} tone="red" />
       </section>
 
       {settingsOpen ? (
-        <section className="grid gap-3 rounded-lg border bg-white p-3 shadow-sm md:grid-cols-5">
+        <section className="grid gap-3 rounded-lg border bg-white p-3 shadow-sm [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
           <Button variant={soundAlerts ? "default" : "outline"} onClick={() => setSoundAlerts((value) => !value)} title="Toggle one-time new order sound alerts">
             <Volume2 className="size-4" />Sound Alerts {soundAlerts ? "ON" : "OFF"}
           </Button>
           <Button variant={settings.autoPrintOrders ? "default" : "outline"} onClick={toggleAutoPrint} title="Toggle automatic KOT printing">
             <Printer className="size-4" />Auto Print {settings.autoPrintOrders ? "ON" : "OFF"}
           </Button>
+          <Button variant={autoNotifyWaiter ? "default" : "outline"} onClick={() => setAutoNotifyWaiter((value) => !value)}><BellRing className="size-4" />Auto Notify {autoNotifyWaiter ? "ON" : "OFF"}</Button>
+          <Button variant={repeatNotification ? "default" : "outline"} onClick={() => setRepeatNotification((value) => !value)}><RefreshCw className="size-4" />Repeat {repeatNotification ? "ON" : "OFF"}</Button>
+          <label className="grid gap-1 rounded-lg border px-3 py-2 text-xs font-black text-slate-600">Escalation timeout<select className="bg-white text-sm" value={escalationTimeout} onChange={(event) => setEscalationTimeout(Number(event.target.value))}><option value={2}>2 min</option><option value={5}>5 min</option><option value={10}>10 min</option></select></label>
+          <label className="grid gap-1 rounded-lg border px-3 py-2 text-xs font-black text-slate-600">Notification method<select className="bg-white text-sm" value={notificationMethod} onChange={(event) => setNotificationMethod(event.target.value as typeof notificationMethod)}><option value="push">Push</option><option value="in-app">In-app</option><option value="both">Both</option></select></label>
           <Button variant="outline" onClick={() => void bulkUpdateStatus(preparingOrders, "ready")} disabled={!preparingOrders.length} title="Mark all preparing orders ready"><CheckCircle2 className="size-4" />Bulk Ready</Button>
-          <Button variant="outline" onClick={() => void bulkUpdateStatus(readyOrders, "served")} disabled={!readyOrders.length} title="Serve all ready orders"><CheckCircle2 className="size-4" />Serve Ready</Button>
+          <Button variant="outline" onClick={() => readyOrders.forEach((order) => void notifyWaiter(order))} disabled={!readyOrders.length} title="Notify waiters for all ready orders"><BellRing className="size-4" />Notify Ready</Button>
           <Button variant="outline" className="text-red-600" onClick={requestBulkCancel} disabled={!cancellableOrders.length} title="Cancel all visible active kitchen tickets"><XCircle className="size-4" />Bulk Cancel</Button>
           <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
             {visibleOrders.length} visible / {boardOrders.length} board orders
@@ -611,7 +641,7 @@ export function KitchenDisplayFlow() {
             No kitchen orders match the current filters.
           </p>
         ) : null}
-        <div className="grid gap-3 xl:grid-cols-4">
+        <div className="flex min-w-0 gap-3 overflow-x-auto">
           {desktopColumns.map((column) => {
             const columnOrders = visibleOrders.filter((order) => column.statuses.includes(order.status));
             return (
@@ -625,9 +655,11 @@ export function KitchenDisplayFlow() {
                 nowBucket={nowBucket}
                 orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
                 orders={columnOrders}
+                readySignals={readySignals}
                 onCancel={requestCancel}
                 onExpandedOrderChange={setExpandedOrderId}
                 onNext={(order, status) => void updateStatus(order, status)}
+                onNotify={(order) => void notifyWaiter(order)}
                 onOpen={(order) => setSelectedOrderId(order.id)}
                 onPreview={previewKot}
                 onPrint={(order, reprint) => void printKot(order, { reprint })}
@@ -660,6 +692,8 @@ export function KitchenDisplayFlow() {
           onPrint={() => void printKot(selectedOrder, { reprint: Boolean(selectedOrder.printedCount) })}
           onPreview={() => previewKot(selectedOrder)}
           onNext={(status) => void updateStatus(selectedOrder, status)}
+          onNotify={() => void notifyWaiter(selectedOrder)}
+          signal={readySignals[selectedOrder.id]}
         />
       ) : null}
     </div>
@@ -841,9 +875,11 @@ function KitchenOrderColumn({
   nowBucket,
   orderDelayThresholdMinutes,
   orders,
+  readySignals,
   onCancel,
   onExpandedOrderChange,
   onNext,
+  onNotify,
   onOpen,
   onPreview,
   onPrint,
@@ -856,9 +892,11 @@ function KitchenOrderColumn({
   nowBucket: number;
   orderDelayThresholdMinutes: number;
   orders: TableOrder[];
+  readySignals: Record<string, KitchenReadySignal>;
   onCancel: (order: TableOrder) => void;
   onExpandedOrderChange: (orderId: string | null) => void;
   onNext: (order: TableOrder, status: TableOrderStatus) => void;
+  onNotify: (order: TableOrder) => void;
   onOpen: (order: TableOrder) => void;
   onPreview: (order: TableOrder) => void;
   onPrint: (order: TableOrder, reprint: boolean) => void;
@@ -890,7 +928,8 @@ function KitchenOrderColumn({
   return (
     <div
       ref={ref}
-      className={cn("max-h-[calc(100vh-270px)] overflow-y-auto rounded-lg border bg-white shadow-sm", hidden && "hidden", columnBorder(column.tone))}
+      className={cn("max-h-[calc(100vh-270px)] min-w-[clamp(17rem,22vw,24rem)] flex-[var(--column-weight)] overflow-y-auto rounded-lg border bg-white shadow-sm", hidden && "hidden", columnBorder(column.tone))}
+      style={{ "--column-weight": Math.max(1, orders.length) } as CSSProperties}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
     >
       <div className={cn("sticky top-0 z-10 flex items-center justify-between border-b px-3 py-2", columnHeader(column.tone))}>
@@ -903,6 +942,7 @@ function KitchenOrderColumn({
             <MemoKitchenOrderCard
               key={order.id}
               order={order}
+              signal={readySignals[order.id]}
               nowBucket={nowBucket}
               orderDelayThresholdMinutes={orderDelayThresholdMinutes}
               busy={busyOrderId === order.id}
@@ -913,6 +953,7 @@ function KitchenOrderColumn({
               onPreview={() => onPreview(order)}
               onOpen={() => onOpen(order)}
               onNext={(status) => onNext(order, status)}
+              onNotify={() => onNotify(order)}
               onCancel={() => onCancel(order)}
             />
           ))}
@@ -972,6 +1013,7 @@ function CompactKitchenBoard({
   onClearFilters,
   onFilterOpenChange,
   onNext,
+  onNotify,
   onOrderTypeChange,
   onPaneChange,
   onPreview,
@@ -1022,6 +1064,7 @@ function CompactKitchenBoard({
   onClearFilters: () => void;
   onFilterOpenChange: (open: boolean) => void;
   onNext: (order: TableOrder, status: TableOrderStatus) => void;
+  onNotify: (order: TableOrder) => void;
   onOrderTypeChange: (orderType: CompactOrderTypeFilter) => void;
   onPaneChange: (pane: CompactPane) => void;
   onPreview: (order: TableOrder) => void;
@@ -1120,6 +1163,7 @@ function CompactKitchenBoard({
                   order={order}
                   onCancel={() => onCancel(order)}
                   onNext={(status) => onNext(order, status)}
+                  onNotify={() => onNotify(order)}
                   onPreview={() => onPreview(order)}
                   onPrint={(reprint) => onPrint(order, reprint)}
                 />
@@ -1265,12 +1309,13 @@ type CompactKitchenOrderCardProps = {
   busy: boolean;
   highlighted: boolean;
   onNext: (status: TableOrderStatus) => void;
+  onNotify: () => void;
   onPrint: (reprint: boolean) => void;
   onPreview: () => void;
   onCancel: () => void;
 };
 
-function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, onNext, onPrint, onPreview, onCancel }: CompactKitchenOrderCardProps) {
+function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, onNext, onNotify, onPrint, onPreview, onCancel }: CompactKitchenOrderCardProps) {
   const [itemsOpen, setItemsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const startX = useRef(0);
@@ -1381,8 +1426,8 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
               <Printer className="size-4 shrink-0" />
               <span className="truncate">{order.printedCount ? "Reprint" : "Print"}</span>
             </Button>
-            <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || !next} onClick={() => next && onNext(next)} title={label}>
-              <UtensilsCrossed className="size-4 shrink-0" />
+            <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || (!next && order.status !== "ready")} onClick={() => order.status === "ready" ? onNotify() : next && onNext(next)} title={label}>
+              {order.status === "ready" ? <BellRing className="size-4 shrink-0" /> : <UtensilsCrossed className="size-4 shrink-0" />}
               <span className="truncate">{label}</span>
             </Button>
           </>
@@ -1445,6 +1490,7 @@ function KitchenConfirmDialog({
 
 type KitchenOrderCardProps = {
   order: TableOrder;
+  signal?: KitchenReadySignal;
   nowBucket: number;
   orderDelayThresholdMinutes: number;
   busy: boolean;
@@ -1452,19 +1498,21 @@ type KitchenOrderCardProps = {
   expanded: boolean;
   onExpandedChange: (open: boolean) => void;
   onNext: (status: TableOrderStatus) => void;
+  onNotify: () => void;
   onPrint: (reprint: boolean) => void;
   onPreview: () => void;
   onOpen: () => void;
   onCancel: () => void;
 };
 
-function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, expanded, onExpandedChange, onNext, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
+function KitchenOrderCard({ order, signal, nowBucket, orderDelayThresholdMinutes, busy, highlighted, expanded, onExpandedChange, onNext, onNotify, onPrint, onPreview, onOpen, onCancel }: KitchenOrderCardProps) {
   const now = nowBucket * 60000;
   const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
   const next = nextStatus[order.status];
   const label = actionLabel[order.status] ?? readyActionLabel(order);
   const final = isCompleted(order.status);
   const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
+  const waiterSignal = kitchenWaiterSignal(signal, now);
 
   return (
     <CompactOrderAccordion
@@ -1476,7 +1524,7 @@ function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, 
       itemCountLabel={`${order.lines.length} item${order.lines.length === 1 ? "" : "s"}`}
       status={{ label: statusLabel(order.status), tone: kitchenStatusTone(order.status) }}
       priority={{ label: priorityLabel(order, delay), tone: kitchenPriorityTone(order, delay), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
-      badges={[{ label: order.source || "POS", tone: "muted" }]}
+      badges={[{ label: order.source || "POS", tone: "muted" }, ...(order.status === "ready" && waiterSignal ? [{ label: waiterSignal.label, tone: waiterSignal.tone }] : [])]}
       delay={kitchenAccordionDelay(delay)}
       items={order.lines.map((line, index) => ({
         id: `${line.itemId ?? order.id}-${index}`,
@@ -1493,6 +1541,7 @@ function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, 
         { label: "Station", value: order.kitchenStation || stationForOrder(order) },
         { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
         { label: "Total", value: typeof order.total === "number" ? `₹${order.total}` : "Pending" },
+        ...(waiterSignal ? [{ label: "Waiter", value: waiterSignal.detail, tone: waiterSignal.tone === "success" ? "success" as const : waiterSignal.tone === "danger" ? "danger" as const : "default" as const }] : []),
       ]}
       notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
       timeline={[
@@ -1502,7 +1551,14 @@ function KitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, 
           time: entry.at ? timeOnly(String(entry.at)) : undefined,
         })),
       ]}
-      primaryAction={final || !next ? undefined : {
+      primaryAction={order.status === "ready" && !signal?.acknowledgedAt ? {
+        id: "notify-waiter",
+        label: "Notify Waiter",
+        icon: <BellRing className="size-4" />,
+        variant: "success",
+        disabled: busy,
+        onClick: onNotify,
+      } : final || !next ? undefined : {
         id: "advance",
         label,
         icon: <UtensilsCrossed className="size-4" />,
@@ -1535,7 +1591,7 @@ const MemoKitchenOrderCard = memo(KitchenOrderCard, (prev, next) => (
   prev.expanded === next.expanded
 ));
 
-function KitchenOrderDrawer({ order, now, orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes, onClose, onPrint, onPreview, onNext }: { order: TableOrder; now: number; orderDelayThresholdMinutes?: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void }) {
+function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes, onClose, onPrint, onPreview, onNext, onNotify = () => undefined }: { order: TableOrder; signal?: KitchenReadySignal; now: number; orderDelayThresholdMinutes?: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void; onNotify?: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const next = nextStatus[order.status];
   const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
@@ -1598,7 +1654,13 @@ function KitchenOrderDrawer({ order, now, orderDelayThresholdMinutes = defaultOp
                 time: entry.at ? timeOnly(String(entry.at)) : undefined,
               })),
             ]}
-            primaryAction={!next || isCompleted(order.status) ? undefined : {
+            primaryAction={order.status === "ready" && !signal?.acknowledgedAt ? {
+              id: "notify-waiter",
+              label: "Notify Waiter",
+              icon: <BellRing className="size-4" />,
+              variant: "success",
+              onClick: onNotify,
+            } : !next || isCompleted(order.status) ? undefined : {
               id: "advance",
               label: actionLabel[order.status] ?? readyActionLabel(order),
               icon: <CheckCircle2 className="size-4" />,
@@ -1877,9 +1939,29 @@ function matchesDateRange(value: string, range: "today" | "yesterday" | "7d" | "
 }
 
 function readyActionLabel(order: TableOrder) {
-  if (order.orderType === "delivery") return "Hand to Rider";
-  if (order.orderType === "parcel" || order.orderType === "takeaway") return "Collected";
-  return "Serve";
+  if (order.status === "ready") return "Notify Waiter";
+  return order.orderType === "delivery" ? "Ready for Rider" : "Ready for Pickup";
+}
+
+function kitchenWaiterSignal(signal: KitchenReadySignal | undefined, now: number): { label: string; detail: string; tone: OrderBadgeTone } | null {
+  if (!signal) return null;
+  const acknowledged = operationalTimestamp(signal.acknowledgedAt);
+  if (acknowledged) return { label: "✓ Waiter informed", detail: `Acknowledged ${new Date(acknowledged).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, tone: "success" };
+  const notified = operationalTimestamp(signal.notifiedAt);
+  const elapsed = notified ? Math.max(0, Math.floor((now - notified) / 60000)) : 0;
+  if (elapsed >= 5) return { label: "Owner alerted", detail: `Waiting for waiter · ${formatOperationalDuration(elapsed)}`, tone: "danger" };
+  if (elapsed >= 2) return { label: "Waiting for waiter", detail: `${formatOperationalDuration(elapsed)} since notification`, tone: "warning" };
+  return { label: "Waiter notified", detail: notified ? `Sent ${new Date(notified).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Sent now", tone: "info" };
+}
+
+function operationalTimestamp(value: unknown): number {
+  if (typeof value === "string") return Date.parse(value);
+  if (typeof value === "number") return value;
+  if (value && typeof value === "object") {
+    const seconds = Number((value as { _seconds?: number; seconds?: number })._seconds ?? (value as { seconds?: number }).seconds ?? 0);
+    return seconds * 1000;
+  }
+  return 0;
 }
 
 function isStringValue(value: string | undefined): value is string {
@@ -1935,8 +2017,8 @@ function kitchenActionToast(order: TableOrder, status: TableOrderStatus) {
   if (status === "accepted") return "Order accepted.";
   if (status === "preparing") return "Cooking started.";
   if (status === "ready") return "Order ready.";
-  if (status === "served") return readyActionLabel(order) === "Collected" ? "Parcel completed." : "Order served.";
-  if (status === "completed") return `${readyActionLabel(order) === "Collected" ? "Parcel" : "Order"} moved to Completed.`;
+  if (status === "served") return "Order served by waiter.";
+  if (status === "completed") return "Order moved to Completed.";
   if (status === "cancelled") return "Order cancelled.";
   return `${order.tableNumber} moved to ${statusLabel(status)}.`;
 }

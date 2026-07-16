@@ -1,5 +1,7 @@
 # Production Checklist
 
+Phase 5A Kitchen repository closure: PASS. Hosted QA must verify waiter push on phone/tablet/desktop, owner silent notification, fallback ordering, acknowledgement synchronization, escalation timing, Kitchen TV layout, and physical KOT printing.
+
 Phase 4D repository closure: PASS. The deterministic operational suite passes 9/9 and full local release gates pass. Deployment sign-off remains blocked only by production environment, provider-console, authenticated real-device/browser, Firebase Console, Lighthouse, and hardware evidence.
 
 Feature ID: `RC5-SYNCHRONIZED-READINESS`

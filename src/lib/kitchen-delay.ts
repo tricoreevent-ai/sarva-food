@@ -18,11 +18,21 @@ export type DelayState = {
 
 export type FormattedDelay = { label: string; severity: "warning" | "critical" | "stale" };
 
+export function formatOperationalDuration(minutes: number) {
+  const value = Math.max(0, Math.floor(Number.isFinite(minutes) ? minutes : 0));
+  if (value >= 24 * 60) return "Stale";
+  if (value >= 60) {
+    const hours = Math.floor(value / 60);
+    const remainder = value % 60;
+    return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`;
+  }
+  return `${value} min`;
+}
+
 export function formatDelayTime(minutes: number): FormattedDelay {
   const value = Math.max(0, Math.floor(Number.isFinite(minutes) ? minutes : 0));
   if (value >= 24 * 60) return { label: "Stale Order", severity: "stale" };
-  if (value >= 60) return { label: `${Math.floor(value / 60)} hr${value >= 120 ? "s" : ""} ${value % 60} min`, severity: "critical" };
-  return { label: `${value} min`, severity: value >= 30 ? "critical" : "warning" };
+  return { label: formatOperationalDuration(value), severity: value >= 30 ? "critical" : "warning" };
 }
 
 type DelayInput = {

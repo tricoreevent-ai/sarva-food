@@ -1,5 +1,13 @@
 # Project Tracker
 
+## Phase 5A Kitchen Operations - 2026-07-16
+
+- Repository implementation: complete.
+- Kitchen Serve removal: complete.
+- Waiter notify/push/in-app/acknowledgement/escalation: complete.
+- Responsive Kitchen presentation: complete.
+- Hosted real-device/provider/printer QA: pending.
+
 ## RC5 Phase 4D - 2026-07-16
 
 - Repository operational hardening: complete.

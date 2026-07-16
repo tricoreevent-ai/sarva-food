@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-16T09:05:39.089Z
+Generated: 2026-07-16T09:39:34.846Z
 
-Result: PASS — 12/12 checks passed.
+Result: PASS — 14/14 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -18,5 +18,7 @@ Result: PASS — 12/12 checks passed.
 | active-orders:all-actions-wired | PASS |  |
 | active-orders:strict-lifecycle | PASS |  |
 | active-orders:delay-timeline-progress-layout | PASS |  |
+| kitchen:notify-without-serving | PASS |  |
+| kitchen:responsive-settings-and-duration | PASS |  |
 
 This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

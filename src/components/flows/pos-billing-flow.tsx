@@ -1398,6 +1398,16 @@ export function PosBillingFlow() {
     setWizardStep(3);
   }
 
+  function acknowledgeKitchenReady(order: TableOrder) {
+    if (order.status !== "ready") return;
+    void fetch("/api/owner/kitchen/notify-waiter", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "acknowledge", kitchenOrderId: order.id }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
+
   function canonicalForKitchenOrder(order: OperationalOrder | TableOrder) {
     const operational = order as OperationalOrder;
     return operational.canonicalOrderId
@@ -1874,7 +1884,7 @@ export function PosBillingFlow() {
               staff={staffMembers}
               orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
               onOpenNew={requestNewOrder}
-              onOpen={(order) => setDetailsTarget(order as OperationalOrder)}
+              onOpen={(order) => { acknowledgeKitchenReady(order); setDetailsTarget(order as OperationalOrder); }}
               onAddItems={openKitchenOrder}
               onPrintBill={(order) => void recordActivePrint(order, "bill")}
               onPrintReceipt={(order) => void recordActivePrint(order, "receipt")}

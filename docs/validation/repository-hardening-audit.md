@@ -1,15 +1,15 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-16T09:05:37.482Z
+Generated: 2026-07-16T09:34:47.462Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
-| runtime-console | 16 | Runtime console call; prefer productionLogger or operational logging. |
-| raw-error-message | 42 | Raw error-message access; ensure returned/logged text is sanitized. |
+| runtime-console | 15 | Runtime console call; prefer productionLogger or operational logging. |
+| raw-error-message | 43 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 45 | Realtime/listener site; verify cleanup and reconnect bounds. |
-| api-error-envelope | 163 | API error envelope; verify requestId/meta where customer-safe. |
+| listener-lifecycle | 46 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| api-error-envelope | 164 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
 
@@ -18,7 +18,7 @@ Generated: 2026-07-16T09:05:37.482Z
 - `src/hooks/use-customer-data.ts` (1)
 - `src/hooks/use-realtime-order.ts` (1)
 - `src/components/flows/customer-discovery-home.tsx` (1)
-- `src/components/flows/kitchen-display-flow.tsx` (6)
+- `src/components/flows/kitchen-display-flow.tsx` (5)
 - `src/components/flows/pos-billing-flow.tsx` (3)
 - `src/components/flows/restaurant-detail-flow.tsx` (2)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
@@ -38,6 +38,7 @@ Generated: 2026-07-16T09:05:37.482Z
 - `src/hooks/useWhatsAppShare.ts` (1)
 - `src/components/flows/admin-portal-login-flow.tsx` (1)
 - `src/components/flows/auth-login-flow.tsx` (1)
+- `src/components/flows/kitchen-display-flow.tsx` (1)
 - `src/components/flows/owner-menu-management-flow.tsx` (2)
 - `src/components/flows/owner-portal-login-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (8)
@@ -62,7 +63,7 @@ Generated: 2026-07-16T09:05:37.482Z
 - `src/hooks/use-phone-verification.ts` (1)
 - `src/hooks/use-public-app-name.ts` (2)
 - `src/hooks/use-realtime-order.ts` (1)
-- `src/components/flows/kitchen-display-flow.tsx` (9)
+- `src/components/flows/kitchen-display-flow.tsx` (10)
 - `src/components/flows/owner-order-management-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (1)
 - `src/components/flows/pos-billing-flow.tsx` (12)
@@ -96,14 +97,14 @@ Generated: 2026-07-16T09:05:37.482Z
 - `src/app/api/owner/communication/route.ts` (2)
 - `src/app/api/owner/customers/route.ts` (3)
 - `src/app/api/owner/inventory/route.ts` (5)
+- `src/app/api/owner/kitchen/notify-waiter/route.ts` (1)
 - `src/app/api/owner/kitchen/route.ts` (3)
 - `src/app/api/owner/loyalty-rules/route.ts` (4)
 - `src/app/api/owner/master-menu-templates/route.ts` (6)
 - `src/app/api/owner/menu/route.ts` (6)
 - `src/app/api/owner/notification-test/route.ts` (2)
 - `src/app/api/owner/offers/route.ts` (7)
-- `src/app/api/owner/orders/route.ts` (1)
-- 19 more files omitted.
+- 20 more files omitted.
 
 ## Release Interpretation
 
