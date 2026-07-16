@@ -22,7 +22,7 @@ Date: 2026-07-16T04:35:18.415Z
 | Area | Result |
 | --- | --- |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` on `release/production-nammude`. |
-| Hosted runtime commit | `3444d8cca5315513368851f44084131b7dbb2c56`; hosted metadata is RC5/production and includes the Active Orders code baseline. |
+| Hosted runtime status | Hosted metadata is RC5/production and includes the Active Orders code baseline; verify exact SHA with `/api/release-info`. |
 | Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
 | Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
 | API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |

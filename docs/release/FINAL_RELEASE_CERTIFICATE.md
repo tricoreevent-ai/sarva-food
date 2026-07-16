@@ -6,7 +6,7 @@ Generated: 2026-07-16T04:39:44.923Z
 | --- | --- |
 | Release Version | v1.0.0-rc5 |
 | Active Orders Code Baseline | ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
-| Hosted Runtime SHA At Report Generation | 3444d8cca5315513368851f44084131b7dbb2c56 |
+| Hosted Runtime At Report Generation | RC5 production runtime includes Active Orders baseline; verify exact SHA with `/api/release-info` |
 | Branch | release/production-nammude |
 | Build Date | 2026-07-16 |
 | Environment | local-certification |

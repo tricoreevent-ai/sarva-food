@@ -9,7 +9,7 @@ Future AI agents must read this file before making changes.
 | Branch | `release/production-nammude` |
 | Release | `v1.0.0-rc5` candidate |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
-| Current hosted runtime commit | `3444d8cca5315513368851f44084131b7dbb2c56` |
+| Hosted runtime status | RC5 production runtime includes Active Orders baseline; verify exact SHA with `/api/release-info` |
 | Repository readiness | `99%` |
 | Production readiness | `90%` |
 | Production launch | `NO GO` |

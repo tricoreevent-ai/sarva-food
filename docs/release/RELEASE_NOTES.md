@@ -2,7 +2,7 @@
 
 ## v1.0.0-rc5 - Release Candidate
 
-Commit: branch includes RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 runtime `3444d8cca5315513368851f44084131b7dbb2c56` includes that baseline; existing RC4 tag remains unchanged
+Commit: branch includes RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 runtime includes that baseline; existing RC4 tag remains unchanged
 Branch: `release/production-nammude`
 Production URL: `https://violet-squid-380447.hostingersite.com`
 

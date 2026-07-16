@@ -3,7 +3,7 @@
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
 Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Current hosted runtime baseline: `3444d8cca5315513368851f44084131b7dbb2c56`
+Current hosted runtime status: RC5 production runtime includes Active Orders baseline; verify exact SHA with `/api/release-info`
 Runtime release commit: latest `origin/release/production-nammude` branch head
 Final repository certification commit: latest `origin/release/production-nammude` branch head
 Release tag: keep `v1.0.0-rc4` unchanged; create immutable `v1.0.0-rc5` on the final committed candidate.
@@ -95,7 +95,7 @@ Latest local result: `46` pass, `1` warning, `24` errors because this workspace 
 
 Latest hosted provider verification result: `8` pass, `0` errors, `3` manual. Razorpay owner-scoped/live dashboard checks, WhatsApp/SMS/push, and live provider sends/webhooks remain external/manual.
 
-Latest hosted deployment verification result: `17` pass, `0` warnings, `0` errors; Hostinger serves runtime `3444d8cca5315513368851f44084131b7dbb2c56`, which includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+Latest hosted deployment verification result: `17` pass, `0` warnings, `0` errors; Hostinger serves a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 
 ## Firebase Deployment Commands
 

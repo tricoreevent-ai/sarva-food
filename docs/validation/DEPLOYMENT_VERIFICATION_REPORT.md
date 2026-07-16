@@ -18,7 +18,7 @@ Generated: 2026-07-16T04:57:07.245Z
 | --- | --- | --- |
 | http:release-info | PASS | https://violet-squid-380447.hostingersite.com/api/release-info -> HTTP 200 |
 | release:version | PASS | expected v1.0.0-rc5 |
-| release:sha | PASS | hosted serves 3444d8cca5315513368851f44084131b7dbb2c56, which includes Active Orders baseline ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
+| release:sha | PASS | hosted runtime includes Active Orders baseline ba8e957d57b949a94d0c42a3b170cf198917c0d8; use `/api/release-info` for exact hosted SHA |
 | release:branch | PASS | expected release/production-nammude |
 | release:environment | PASS | production |
 | release:timestamp | PASS | deployment timestamp present |

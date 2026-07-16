@@ -18,7 +18,7 @@ Image Optimization Result: added shared Cloudinary image presets, AVIF-first bro
 
 Active Orders Result: redesigned Owner Active Orders as an operational workspace with summary cards, live counts, advanced search, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues without Firestore/API/repository/business workflow changes.
 
-Release Package Result: hosted metadata now reports `v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and runtime commit `3444d8cca5315513368851f44084131b7dbb2c56`, which includes the Active Orders code baseline.
+Release Package Result: hosted metadata now reports `v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and a runtime that includes the Active Orders code baseline. Use `/api/release-info` for the exact hosted SHA.
 
 Files Changed:
 
@@ -44,7 +44,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 
 Last Verified Build: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` PASS on 2026-07-16; build/analyze retain the accepted Firebase/protobuf warning.
 
-Last Verified Production SHA: hosted serves runtime commit `3444d8cca5315513368851f44084131b7dbb2c56`; `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. This runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+Last Verified Production Runtime: `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The hosted runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA.
 
 Files Remaining:
 

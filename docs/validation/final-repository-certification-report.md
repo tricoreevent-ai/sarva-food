@@ -3,7 +3,7 @@
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
 Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Hosted RC5 runtime baseline: `3444d8cca5315513368851f44084131b7dbb2c56`
+Hosted RC5 runtime: includes Active Orders baseline; verify exact SHA with `/api/release-info`
 Final certification commit: latest `origin/release/production-nammude` branch head
 Date: 2026-07-16
 
@@ -15,7 +15,7 @@ Date: 2026-07-16
 | Production readiness | `90%` |
 | Decision | Repository `GO`; production launch `NO GO`. |
 | Tag recommendation | Keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5` from the final RC5 validation commit. |
-| Hosted status | `/api/release-info` reports RC5/production runtime `3444d8cca5315513368851f44084131b7dbb2c56`, which includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
+| Hosted status | `/api/release-info` reports RC5/production runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for exact hosted SHA. |
 | Latest validation | 2026-07-16 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` passed. Hosted release/health probes are ok. |
 | Required before launch | Production env/provider validation, Lighthouse, Firebase Console checks, provider dashboard checks, authenticated browser/device smoke, and printer/hardware smoke. |
 

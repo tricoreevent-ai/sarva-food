@@ -7,7 +7,7 @@ Date: 2026-07-16
 | Release Candidate | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
 | Production Branch | `release/production-nammude` |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
-| Hosted RC5 runtime baseline | `3444d8cca5315513368851f44084131b7dbb2c56` |
+| Hosted RC5 runtime status | Includes Active Orders baseline; verify exact SHA with `/api/release-info` |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
 | Certification Result | Repository certified for RC5 candidate commit/tag after synchronization; production signoff remains blocked. |
 | Feature Scope | Production hardening, validation, reports, cache/header tuning, auth/toast lazy loading, duplicate logo request prevention, POS/Active Orders operational UX fixes, low-risk phone-helper bundle cleanup, RC5 image optimization, Owner Active Orders operational workspace redesign, and release documentation. |
@@ -25,7 +25,7 @@ Date: 2026-07-16
 | `cmd /c npm run smoke:operational` | Passed |
 | `cmd /c npm run profile:runtime` | Passed and regenerated runtime/performance reports |
 | `cmd /c npm run validate:prod-env` | Failed locally: `46` pass, `1` warning, `24` errors for production-only env/secrets/local placeholders |
-| `PRODUCTION_URL=... cmd /c npm run verify:deployment` | Hosted probes pass RC5/production metadata at runtime SHA `3444d8cca5315513368851f44084131b7dbb2c56`; `17` pass, `0` warnings, `0` errors |
+| `PRODUCTION_URL=... cmd /c npm run verify:deployment` | Hosted probes pass RC5/production metadata and runtime includes Active Orders baseline; `17` pass, `0` warnings, `0` errors |
 | `PRODUCTION_URL=... cmd /c npm run verify:providers` | Passed repository/hosted probe with `8` pass, `3` manual |
 | `PRODUCTION_URL=... cmd /c npm run smoke:production` | `7` public checks passed, `18` authenticated/manual checks pending |
 | `PRODUCTION_URL=... cmd /c npm run monitor:memory` | `1` pass, `2` browser/manual checks pending |

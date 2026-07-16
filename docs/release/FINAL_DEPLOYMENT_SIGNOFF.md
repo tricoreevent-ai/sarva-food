@@ -4,7 +4,7 @@ Date: 2026-07-16
 Branch: `release/production-nammude`
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Hosted RC5 runtime baseline: `3444d8cca5315513368851f44084131b7dbb2c56`
+Hosted RC5 runtime: includes Active Orders baseline; verify exact SHA with `/api/release-info`
 Decision: `NO GO`
 
 ## Deployment Status

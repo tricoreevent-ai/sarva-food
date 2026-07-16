@@ -62,7 +62,7 @@ Last updated: 2026-07-16
 | Branch | `release/production-nammude` |
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38` |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
-| Current hosted runtime baseline | `3444d8cca5315513368851f44084131b7dbb2c56` |
+| Hosted runtime status | RC5 production runtime includes Active Orders baseline; exact SHA comes from `/api/release-info` |
 | Repository readiness | `99%` |
 | Production readiness | `90%` |
 | Current decision | Repository `GO`; production launch `NO GO` |

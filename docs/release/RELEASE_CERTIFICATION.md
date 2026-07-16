@@ -8,7 +8,7 @@ Decision: `NO GO` for production launch, `GO` for RC5 candidate commit/tag
 
 ## Executive Summary
 
-RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. Hosted RC5 runtime `3444d8cca5315513368851f44084131b7dbb2c56` contains Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; complete manual/provider gates before tagging RC5 after hosted gates pass.
+RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. Hosted RC5 runtime contains Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; complete manual/provider gates before tagging RC5 after hosted gates pass.
 
 Production go-live remains blocked by manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke.
 
