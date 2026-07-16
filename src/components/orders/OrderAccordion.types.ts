@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 export type OrderDelayLevel = "none" | "yellow" | "orange" | "red" | "critical";
 export type OrderBadgeTone = "default" | "success" | "warning" | "danger" | "info" | "muted";
 export type OrderActionVariant = "primary" | "secondary" | "danger" | "ghost";
+export type OrderAccordionAccent = "blue" | "orange" | "emerald" | "violet" | "amber" | "red" | "slate";
+export type OrderWorkflowStepState = "complete" | "active" | "pending" | "blocked";
 
 export type OrderAccordionBadge = {
   label: string;
@@ -38,6 +40,28 @@ export type OrderAccordionTimelineItem = {
   time?: string;
 };
 
+export type OrderAccordionWorkflowStep = {
+  id: string;
+  label: string;
+  sublabel?: string;
+  state: OrderWorkflowStepState;
+  tone?: OrderBadgeTone;
+  icon?: ReactNode;
+};
+
+export type OrderAccordionStat = {
+  label: string;
+  value: string;
+  tone?: "default" | "danger" | "success" | "warning";
+};
+
+export type OrderAccordionProgress = {
+  label: string;
+  value: number;
+  helper?: string;
+  tone?: "default" | "danger" | "success" | "warning";
+};
+
 export type OrderAccordionAction = {
   id: string;
   label: string;
@@ -58,6 +82,10 @@ export type CompactOrderAccordionProps = {
   status: OrderAccordionBadge;
   priority?: OrderAccordionBadge;
   badges?: OrderAccordionBadge[];
+  accent?: OrderAccordionAccent;
+  workflow?: OrderAccordionWorkflowStep[];
+  sideStats?: OrderAccordionStat[];
+  progress?: OrderAccordionProgress;
   delay?: OrderAccordionDelay;
   items: OrderAccordionItem[];
   facts?: OrderAccordionFact[];

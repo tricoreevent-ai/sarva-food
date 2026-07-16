@@ -1,60 +1,53 @@
 # Final Release Readiness
 
-Date: 2026-07-15
-
-Tag recommendation: keep `v1.0.0-rc4` unchanged; tag the final RC5 validation commit as `v1.0.0-rc5`.
+Date: 2026-07-16T04:35:18.415Z
 
 ## Local Validation
 
 | Check | Status |
 | --- | --- |
-| `cmd /c npm run test:enhancements` | Passed |
-| `cmd /c npm run typecheck` | Passed |
-| `cmd /c npm run lint` | Passed |
-| `cmd /c npm run build` | Passed with accepted Firebase/protobuf warning |
-| `cmd /c npm run analyze` | Passed with accepted Firebase/protobuf warning |
-| `cmd /c npm run profile:runtime` | Passed |
-| `cmd /c npm run audit:release` | Passed |
-| `cmd /c npm run smoke:operational` | Passed |
-| `cmd /c npm run validate:prod-env` | Failed locally: production-only env/secrets are intentionally absent from this workspace |
-| 2026-07-13 RC5 closure | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed |
-| 2026-07-13 pending-work audit | No repository-side code blocker found; bundle reports refreshed from current analyzer output |
-| 2026-07-15 image optimization closure | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; `/owner/orders` is `697 KB` |
+| `cmd /c npm run test:enhancements` | Passed. |
+| `cmd /c npm run typecheck` | Passed. |
+| `cmd /c npm run lint` | Passed after removing three safe React hook suppression comments. |
+| `cmd /c npm run build` | Passed with accepted Firebase/protobuf dynamic dependency warning. |
+| `cmd /c npm run analyze` | Passed with accepted Firebase/protobuf dynamic dependency warning. |
+| `cmd /c npm run profile:runtime` | Passed and regenerates Phase 3/final performance report pack. |
+| `cmd /c npm run audit:release` | Passed. |
+| `cmd /c npm run smoke:operational` | Passed. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
+| `cmd /c npm run validate:prod-env` | Failed locally for expected missing production-only env/secrets and non-HTTPS local app URL. |
 
-## Hosted Validation
+## Certification Audit
 
-| Check | Status |
+| Area | Result |
 | --- | --- |
-| Deployment verification | `14` pass, `1` warning, `2` errors: hosted version still reports `v1.0.0-rc4` and hosted env reports `development` |
-| Public production smoke | `7` pass, `18` manual |
-| Provider verification | `8` pass, `3` manual |
-| Performance verification | `3` pass, `1` warning, `2` manual |
-| Memory stability | `1` pass, `2` manual |
+| Latest pushed commit | `7fcd009d828635aef090fc9785af94b6ffc6b971` on `release/production-nammude` before this Phase 2D validation closure. |
+| Marker sweep | No actionable runtime TODO/FIXME/HACK/XXX, `@ts-ignore`, `console.log`, or debugger code found. Remaining broad hits are docs, lockfiles, CLI scripts, or intentional copy. |
+| Route audit | Static audit found `100` App Router pages, `73` API route handlers, `21` loading files, `12` error boundaries, and generated Next `_not-found`; authenticated browser verification remains manual. |
+| API/network audit | No duplicate API family or fetch polling interval found by static scan; existing safe errors/request ids remain in protected API paths. |
+| Firestore/realtime audit | No schema/rule/index/repository change; Kitchen remains the checked EventSource path; no new listener was added. |
+| Deployment config | Env references remain config-driven. No secrets changed. |
 
 ## Production Readiness
 
 | Area | Status |
 | --- | --- |
-| Code readiness | `99%` |
-| Production-release readiness | `86%` |
-| Risk level | Medium-high |
-| Recommendation | `NO GO` until Hostinger env, production secrets, provider, hardware, authenticated browser, Lighthouse, and Chrome profiling gates pass. |
+| Code readiness | 99% / Release Candidate certified for deployment testing |
+| Production-release readiness | 85% |
+| Recommendation | No-Go until manual infrastructure, provider, hardware, authenticated browser, Lighthouse, and Chrome profiling gates pass. |
 
-## Release Dashboard
+## Remaining Manual Gates
 
-| Status | Area | Next Action |
+| Gate | Status | Reason |
 | --- | --- | --- |
-| ✅ Completed | Build/typecheck/lint/analyze/profile/audit/operational smoke | Keep as release evidence. |
-| ✅ Completed | Public hosted health and route smoke | Re-run after final commit redeploy. |
-| ✅ Completed | Bundle report | Review `docs/performance/FINAL_BUNDLE_REPORT.md`; no freeze-safe code split remains. |
-| ✅ Completed | Image optimization | Cloudinary presets, AVIF/WebP upload optimization, and right-sized thumbnails completed repository-side. |
-| ✅ Completed | Pending-work matrix | Repository-side remaining work is closed; unresolved gates are external/manual. |
-| 🟡 Pending Manual | Lighthouse/Core Web Vitals | Run after env correction. |
-| 🟡 Pending Manual | Authenticated browser/device QA | Run Chrome, Edge, Firefox, Safari, Android Chrome, iPhone Safari, tablet, Kitchen TV, desktop. |
-| 🟡 Pending Manual | Provider and hardware QA | Razorpay, WhatsApp/SMS/push, Firebase Console, Cloudinary uploads, SMTP sends, printers. |
-| 🔴 Blocking | Hostinger env metadata | Set `NEXT_PUBLIC_APP_ENV=production`; redeploy/restart/cache clear. |
-| 🔴 Blocking | Production env validation | Configure real production values and rerun `npm run validate:prod-env`. |
+| Production Chrome Performance | Manual | No local Chrome/Lighthouse executable was available to capture flame graphs, Coverage, FPS, long tasks, or heap snapshots. |
+| Hosted Lighthouse/Core Web Vitals | Manual | Hosted deployment is still stale/development until Hostinger env is corrected and redeployed. |
+| 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
+| Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
+| Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
+| Production env | Manual | Set `NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_APP_VERSION`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`, Firebase Admin credentials, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, and HTTPS `NEXT_PUBLIC_APP_URL`. |
+| Hostinger redeploy | Manual | Redeploy the final Phase 2D commit, clear cache, and verify `/api/release-info` reports production env and the final SHA. |
 
 ## Accepted Warning
 
-The remaining Firebase/protobuf dynamic dependency warning is expected and upstream. Replacing or aliasing Firebase/protobuf internals during release freeze is higher risk than accepting the warning.
+The remaining Firebase/protobuf dynamic dependency warning is expected. Build/analyze trace it through `@protobufjs/inquire -> protobufjs -> @grpc/proto-loader -> @firebase/firestore -> firebase/firestore -> src/firebase/collections.ts -> src/app/api/admin/system-diagnostics/route.ts`. It originates in upstream Firebase/protobuf server dependency code, not application debug code. The application already keeps Firebase client startup behind config/accessor boundaries where touched; replacing or aliasing Firebase/protobuf internals during certification is not safe, so the warning remains documented and accepted.

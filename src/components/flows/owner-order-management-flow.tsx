@@ -88,6 +88,14 @@ type ActiveOpsOrder = OpsOrder & {
   isOnline: boolean;
   kitchenOrder?: TableOrder;
 };
+type ActiveOrderSummary = {
+  withWaiter: number;
+  inKitchen: number;
+  ready: number;
+  served: number;
+  pendingBills: number;
+  delayed: number;
+};
 
 const dateRangeSessionKey = "sarva-owner-orders-date-range:v1";
 const operationsPanelStorageKey = "sarva-owner-orders-operations-panel:v1";
@@ -103,6 +111,13 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   cancelled: "cancelled",
   billed: "completed",
 };
+const orderTabs: Array<{ key: OrderTab; label: string }> = [
+  { key: "live", label: "Active Orders" },
+  { key: "scheduled", label: "Scheduled" },
+  { key: "kot", label: "Kitchen" },
+  { key: "completed", label: "Completed" },
+  { key: "all", label: "All Orders" },
+];
 
 export function OwnerOrderManagementFlow() {
   const alert = useAlert();
@@ -133,7 +148,9 @@ export function OwnerOrderManagementFlow() {
   const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, debouncedSearch)), [debouncedSearch, filter, tabCatering]);
   const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
   const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
+  const tabCounts = useMemo(() => buildTabCounts(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
   const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
+  const activeSummary = useMemo(() => buildActiveOrderSummary(activeOrders), [activeOrders]);
   const activeView = tab === "live";
 
   useEffect(() => {
@@ -339,8 +356,8 @@ export function OwnerOrderManagementFlow() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-neutral-950">Orders</h1>
-          <p className="mt-2 text-base font-medium text-slate-600">Manage online orders from your website, POS, and delivery partners.</p>
+          <h1 className="text-3xl font-black tracking-tight text-neutral-950">{activeView ? "Active Orders" : "Orders"}</h1>
+          <p className="mt-2 text-base font-medium text-slate-600">Manage live restaurant orders across waiter, kitchen, cashier, and partner channels.</p>
           <p className="mt-2 text-sm font-black text-orange-600">{rangeLabel}</p>
         </div>
         <DateRangePicker key={`${dateRange.preset}:${dateRange.from}:${dateRange.to}`} open={datePickerOpen} range={dateRange} onChange={setDateRange} onOpenChange={setDatePickerOpen} />
@@ -361,9 +378,10 @@ export function OwnerOrderManagementFlow() {
           <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
             <Tabs value={tab} onValueChange={(value) => setTab(value as OrderTab)}>
               <TabsList className="customer-scroll h-auto justify-start overflow-x-auto rounded-none bg-transparent p-0">
-                {(["live", "scheduled", "kot", "completed", "all"] as const).map((item) => (
-                  <TabsTrigger key={item} value={item} className="rounded-none border-b-2 border-transparent px-4 py-3 capitalize data-[state=active]:border-orange-500 data-[state=active]:bg-transparent data-[state=active]:text-orange-600 data-[state=active]:shadow-none">
-                    {item === "kot" ? "Kitchen" : item === "all" ? "All Orders" : item}
+                {orderTabs.map((item) => (
+                  <TabsTrigger key={item.key} value={item.key} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent data-[state=active]:text-orange-600 data-[state=active]:shadow-none">
+                    {item.label}
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-600">{tabCounts[item.key]}</span>
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -394,10 +412,12 @@ export function OwnerOrderManagementFlow() {
 
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-3 text-sm font-bold text-slate-950 outline-none focus:border-orange-400" placeholder="Search orders, customers, phones, dates" aria-label="Search orders" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-24 text-sm font-bold text-slate-950 outline-none focus:border-orange-400" placeholder="Search orders, tables, customers, items, waiters" aria-label="Search active orders by order, table, customer, item, waiter, phone, or date" />
+            <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-500 sm:inline-flex">{visibleOrders.length} match{visibleOrders.length === 1 ? "" : "es"}</span>
           </label>
 
           <OrderFilters filters={filters} active={filter} onChange={setFilter} />
+          {activeView ? <ActiveOrderStatusBoard summary={activeSummary} /> : null}
 
           <div className="space-y-4">
             {visibleCatering.length ? (
@@ -543,6 +563,39 @@ function DateRangePicker({ open, range, onChange, onOpenChange }: { open: boolea
   );
 }
 
+function ActiveOrderStatusBoard({ summary }: { summary: ActiveOrderSummary }) {
+  const cards = [
+    { label: "With Waiter", value: summary.withWaiter, note: "Not sent to kitchen", icon: Users, tone: "blue" },
+    { label: "In Kitchen", value: summary.inKitchen, note: "Cooking in progress", icon: ChefHat, tone: "orange" },
+    { label: "Ready To Serve", value: summary.ready, note: "Ready for service", icon: Utensils, tone: "green" },
+    { label: "Served", value: summary.served, note: "Awaiting payment", icon: PackageCheck, tone: "purple" },
+    { label: "Pending Bills", value: summary.pendingBills, note: "Payment pending", icon: ReceiptText, tone: "amber" },
+    { label: "Delayed", value: summary.delayed, note: "Beyond ETA", icon: AlertTriangle, tone: "red" },
+  ] as const;
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Active order status summary">
+      {cards.map((card) => {
+        const Icon = card.icon;
+        const tone = summaryCardTone(card.tone);
+        return (
+          <div key={card.label} className={cn("rounded-xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md", tone.border)}>
+            <div className="flex items-center gap-3">
+              <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tone.bg, tone.text)}>
+                <Icon className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-black uppercase text-slate-500">{card.label}</p>
+                <p className="mt-0.5 text-2xl font-black text-slate-950">{card.value}</p>
+                <p className="truncate text-xs font-semibold text-slate-500">{card.note}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 function ActiveOrdersGrid({
   orders,
   highlightedOrderIds,
@@ -565,7 +618,20 @@ function ActiveOrdersGrid({
   const visible = orders.slice(0, limit);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Active orders workspace">
+      <div className="flex flex-col gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-black text-slate-950">Operational Queue</p>
+          <p className="text-xs font-semibold text-slate-500">{visible.length} visible of {orders.length} active order{orders.length === 1 ? "" : "s"}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-black">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-emerald-700">
+            <span className="size-2 rounded-full bg-emerald-500 kitchen-ready-pulse" />
+            Live
+          </span>
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600">Newest first</span>
+        </div>
+      </div>
       <div className="grid gap-2 p-2 xl:p-3">
         {visible.map((order) => (
           <MemoActiveOrderCard
@@ -611,16 +677,19 @@ function ActiveOrderCard({
   const delayed = Boolean(order.delay?.delayed);
   const critical = order.delay?.priority === "critical";
   const ready = order.status === "ready";
+  const served = order.status === "served";
   const isNew = order.status === "new";
   const preparing = order.status === "accepted" || order.status === "preparing";
   const [mobileQuickOpen, setMobileQuickOpen] = useState(false);
   const primaryAction = isNew
-    ? { label: "Accept", onClick: onAccept }
+    ? { label: "Accept Order", onClick: onAccept }
     : preparing
-      ? { label: "Ready", onClick: onReady }
+      ? { label: "Mark Ready", onClick: onReady }
       : ready
-        ? { label: "Serve", onClick: onComplete }
+        ? { label: "Serve Order", onClick: onComplete }
         : null;
+  const paid = order.paymentStatusLabel.toLowerCase().includes("paid");
+  const progress = orderProgressPercent(order.status);
   return (
     <>
       <div className="hidden xl:block">
@@ -632,10 +701,17 @@ function ActiveOrderCard({
           tableLabel={order.tableNumber || order.customer}
           itemCountLabel={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"}`}
           status={{ label: order.status, tone: ownerStatusTone(order.status) }}
+          accent={ownerAccordionAccent(order)}
           priority={{ label: order.priorityLabel, tone: ownerPriorityTone(order.delay?.priority), icon: delayed || critical ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
           badges={[
             { label: order.source, tone: "muted" },
-            { label: order.paymentStatusLabel, tone: order.paymentStatusLabel.toLowerCase().includes("paid") ? "success" : "default" },
+            { label: kotCountLabel(order), tone: order.kitchenOrder ? "info" : "muted" },
+            { label: order.paymentStatusLabel, tone: paid ? "success" : "default" },
+          ]}
+          workflow={buildOwnerWorkflow(order)}
+          sideStats={[
+            { label: delayed ? "Delayed" : ready ? "Ready" : "ETA", value: delayed ? `${order.delay?.lateMinutes} min` : ready ? order.age : order.etaLabel, tone: delayed ? "danger" : ready ? "success" : "default" },
+            { label: "Total", value: formatCurrency(order.total), tone: paid ? "success" : "default" },
           ]}
           delay={ownerAccordionDelay(order)}
           items={order.lines.map((line, index) => ({
@@ -649,13 +725,16 @@ function ActiveOrderCard({
           facts={[
             { label: "Customer", value: order.customer },
             { label: "Phone", value: order.phone || "Not provided" },
+            { label: "Table / Waiter", value: [order.tableNumber, order.kitchenOrder?.waiterName].filter(Boolean).join(" / ") || order.type },
             { label: "Kitchen", value: order.kitchenStatus },
-            { label: "Payment", value: order.paymentStatusLabel, tone: order.paymentStatusLabel.toLowerCase().includes("paid") ? "success" : "default" },
+            { label: "KOT", value: kotCountLabel(order) },
+            { label: "Payment", value: order.paymentStatusLabel, tone: paid ? "success" : "default" },
             { label: "Waiting", value: order.age, tone: delayed ? "danger" : "default" },
             { label: "Total", value: formatCurrency(order.total) },
           ]}
           notes={[order.instructions, order.scheduledLabel, order.prepSuggestion].filter(isStringValue)}
           timeline={order.timeline.map((entry) => ({ label: entry.label, time: entry.at }))}
+          progress={{ label: "Kitchen progress", value: progress, helper: kitchenProgressHelper(order), tone: delayed ? "danger" : ready || served ? "success" : preparing ? "default" : "warning" }}
           primaryAction={primaryAction ? {
             id: "primary",
             label: primaryAction.label,
@@ -663,8 +742,16 @@ function ActiveOrderCard({
             variant: "primary",
             onClick: primaryAction.onClick,
           } : undefined}
-          secondaryActions={[{ id: "view", label: "View", icon: <Eye className="size-4" />, onClick: onView }]}
-          moreActions={isNew ? [{ id: "reject", label: "Reject", icon: <AlertTriangle className="size-4" />, variant: "danger" as const, onClick: onReject }] : []}
+          secondaryActions={[
+            ...(served && !paid ? [{ id: "payment", label: "Collect Payment", icon: <IndianRupee className="size-4" />, onClick: onView }] : []),
+            ...(ready || served || paid ? [{ id: "bill", label: "Print Bill", icon: <ReceiptText className="size-4" />, onClick: onView }] : []),
+            { id: "view", label: "View / Preview", icon: <Eye className="size-4" />, onClick: onView },
+          ]}
+          moreActions={[
+            { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" />, onClick: onView },
+            { id: "add-items", label: "Add Items", icon: <ShoppingBag className="size-4" />, onClick: onView },
+            ...(isNew ? [{ id: "reject", label: "Reject", icon: <AlertTriangle className="size-4" />, variant: "danger" as const, onClick: onReject }] : []),
+          ]}
           isOpen={expanded}
           highlighted={highlighted}
           onOpenChange={onExpandedChange}
@@ -690,6 +777,7 @@ function ActiveOrderCard({
         </span>
       </OrderCell>
       <OrderCell label="ETA" value={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel} subvalue={order.age} tone={delayed ? "danger" : ready ? "success" : "default"} blink={delayed} />
+      <MobileWorkflowSteps order={order} />
       <QuickViewCell order={order} mobileOpen={mobileQuickOpen} onMobileToggle={() => setMobileQuickOpen((value) => !value)} />
       <div className="flex items-center gap-2 xl:justify-end">
         {primaryAction ? (
@@ -716,6 +804,22 @@ function ActiveOrderCard({
 }
 
 const MemoActiveOrderCard = memo(ActiveOrderCard);
+
+function MobileWorkflowSteps({ order }: { order: ActiveOpsOrder }) {
+  const workflow = buildOwnerWorkflow(order);
+  return (
+    <div className="grid grid-cols-6 gap-1 xl:hidden" aria-label={`${order.displayId ?? "Order"} workflow`}>
+      {workflow.map((step) => (
+        <span key={step.id} className="grid min-w-0 justify-items-center gap-1">
+          <span className={cn("grid size-6 place-items-center rounded-full border text-[10px] font-black", step.state === "complete" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : step.state === "active" ? "border-orange-200 bg-orange-50 text-orange-700" : step.state === "blocked" ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-slate-50 text-slate-400")}>
+            {step.icon}
+          </span>
+          <span className="w-full truncate text-center text-[9px] font-black text-slate-500">{step.label.split(" ")[0]}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function ActiveOrderMenu({
   isNew,
@@ -1273,6 +1377,27 @@ function buildOrderMetrics(orders: OpsOrder[], tableOrders: TableOrder[], cateri
   };
 }
 
+function buildTabCounts(orders: ActiveOpsOrder[], tableOrders: TableOrder[], cateringInquiries: CateringQuote[]): Record<OrderTab, number> {
+  return {
+    live: orders.filter((order) => matchesTab(order, "live")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "live")).length,
+    scheduled: orders.filter((order) => matchesTab(order, "scheduled")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "scheduled")).length,
+    kot: tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length,
+    completed: orders.filter((order) => matchesTab(order, "completed")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "completed")).length,
+    all: orders.length + cateringInquiries.length,
+  };
+}
+
+function buildActiveOrderSummary(orders: ActiveOpsOrder[]): ActiveOrderSummary {
+  return {
+    withWaiter: orders.filter((order) => !order.kitchenOrder || ["new", "occupied"].includes(order.status)).length,
+    inKitchen: orders.filter((order) => ["accepted", "preparing"].includes(order.status)).length,
+    ready: orders.filter((order) => order.status === "ready").length,
+    served: orders.filter((order) => order.status === "served").length,
+    pendingBills: orders.filter((order) => !order.paymentStatusLabel.toLowerCase().includes("paid") && ["ready", "served", "billed"].includes(order.status)).length,
+    delayed: orders.filter((order) => order.delay?.delayed).length,
+  };
+}
+
 function buildFilters(orders: OpsOrder[], cateringInquiries: CateringQuote[]) {
   const count = (predicate: (order: OpsOrder) => boolean) => orders.filter(predicate).length;
   return [
@@ -1305,7 +1430,7 @@ function matchesFilter(order: OpsOrder, filter: SourceFilter) {
   return order.type === filter;
 }
 
-function matchesSearch(order: OpsOrder, query: string) {
+function matchesSearch(order: ActiveOpsOrder, query: string) {
   const search = query.trim().toLowerCase();
   if (!search) return true;
   return [
@@ -1318,6 +1443,12 @@ function matchesSearch(order: OpsOrder, query: string) {
     order.source,
     order.status,
     order.scheduledLabel,
+    order.itemSummary,
+    order.tableNumber,
+    order.kitchenOrder?.waiterName,
+    order.kitchenOrder?.assignedStaffName,
+    order.kitchenOrder?.kitchenStation,
+    ...order.lines.map((line) => line.name),
   ].filter(Boolean).join(" ").toLowerCase().includes(search);
 }
 
@@ -1449,6 +1580,60 @@ function orderProgressPercent(status: string) {
   return 25;
 }
 
+function buildOwnerWorkflow(order: ActiveOpsOrder) {
+  const blocked = ["cancelled", "rejected"].includes(order.status);
+  const sent = Boolean(order.kitchenOrder) || ["accepted", "preparing", "ready", "served", "completed", "delivered"].includes(order.status);
+  const cooking = ["preparing", "ready", "served", "completed", "delivered"].includes(order.status);
+  const ready = ["ready", "served", "completed", "delivered"].includes(order.status);
+  const served = ["served", "completed", "delivered"].includes(order.status);
+  const paid = order.paymentStatusLabel.toLowerCase().includes("paid");
+  return [
+    { id: "taken", label: "Order Taken", sublabel: timelineTime(order, ["created", "new"]) || order.actualTime, state: blocked ? "blocked" as const : "complete" as const, icon: <ClipboardList className="size-3.5" /> },
+    { id: "sent", label: "Sent To Kitchen", sublabel: timelineTime(order, ["accepted", "sent"]), state: workflowState(sent, !sent && !blocked, blocked), icon: <CheckCircle2 className="size-3.5" /> },
+    { id: "cooking", label: "Cooking", sublabel: timelineTime(order, ["preparing", "cooking"]), state: workflowState(cooking, sent && !cooking && !ready && !blocked, blocked), icon: <ChefHat className="size-3.5" /> },
+    { id: "ready", label: "Ready", sublabel: timelineTime(order, ["ready"]), state: workflowState(ready, cooking && !ready && !blocked, blocked), icon: <Utensils className="size-3.5" /> },
+    { id: "served", label: "Served", sublabel: timelineTime(order, ["served", "delivered"]), state: workflowState(served, ready && !served && !blocked, blocked), icon: <PackageCheck className="size-3.5" /> },
+    { id: "paid", label: "Paid", sublabel: paid ? order.paymentStatusLabel : undefined, state: workflowState(paid, served && !paid && !blocked, blocked), icon: <ReceiptText className="size-3.5" /> },
+  ];
+}
+
+function workflowState(complete: boolean, active: boolean, blocked: boolean) {
+  if (blocked) return "blocked" as const;
+  if (complete) return "complete" as const;
+  if (active) return "active" as const;
+  return "pending" as const;
+}
+
+function timelineTime(order: ActiveOpsOrder, needles: string[]) {
+  const entry = order.timeline.find((item) => needles.some((needle) => item.label.toLowerCase().includes(needle)));
+  return entry?.at;
+}
+
+function kitchenProgressHelper(order: ActiveOpsOrder) {
+  if (order.delay?.delayed) return `${order.delay.lateMinutes} minutes beyond ETA`;
+  if (!order.kitchenOrder && order.status === "new") return "Not sent to kitchen";
+  if (order.status === "ready") return "All items are ready";
+  if (order.status === "served") return "Served, bill pending";
+  return order.kitchenStatus;
+}
+
+function kotCountLabel(order: ActiveOpsOrder) {
+  if (!order.kitchenOrder) return "KOT pending";
+  const incremental = (order.kitchenOrder.statusHistory ?? []).filter((entry) => String(entry.event ?? "").includes("incremental_kot")).length;
+  const count = Math.max(1, order.kitchenOrder.printedCount ?? 0, incremental + 1);
+  return `${count} KOT${count === 1 ? "" : "s"}`;
+}
+
+function ownerAccordionAccent(order: ActiveOpsOrder) {
+  if (order.delay?.priority === "critical" || order.delay?.priority === "high") return "red";
+  if (order.delay?.delayed) return "amber";
+  if (order.status === "ready") return "emerald";
+  if (order.status === "served") return "violet";
+  if (order.status === "new" || order.status === "occupied") return "orange";
+  if (["accepted", "preparing"].includes(order.status)) return "blue";
+  return "slate";
+}
+
 function priorityLabel(priority?: DelayPriority) {
   if (priority === "critical") return "Critical";
   if (priority === "high") return "High priority";
@@ -1511,6 +1696,15 @@ function statusTone(status: string) {
   if (["ready", "served"].includes(status)) return "bg-emerald-100 text-emerald-700";
   if (["rejected", "cancelled"].includes(status)) return "bg-red-100 text-red-700";
   return "bg-slate-100 text-slate-700";
+}
+
+function summaryCardTone(tone: "blue" | "orange" | "green" | "purple" | "amber" | "red") {
+  if (tone === "blue") return { border: "border-blue-200", bg: "bg-blue-50", text: "text-blue-600" };
+  if (tone === "orange") return { border: "border-orange-200", bg: "bg-orange-50", text: "text-orange-600" };
+  if (tone === "green") return { border: "border-emerald-200", bg: "bg-emerald-50", text: "text-emerald-600" };
+  if (tone === "purple") return { border: "border-violet-200", bg: "bg-violet-50", text: "text-violet-600" };
+  if (tone === "amber") return { border: "border-amber-200", bg: "bg-amber-50", text: "text-amber-600" };
+  return { border: "border-red-200", bg: "bg-red-50", text: "text-red-600" };
 }
 
 function orderStatusToast(status: OrderStatus | TableOrderStatus) {
