@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-16T11:07:12.884Z
+Generated: 2026-07-16T12:16:58.561Z
 
-Result: PASS — 14/14 checks passed.
+Result: PASS — 15/15 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -11,6 +11,7 @@ Result: PASS — 14/14 checks passed.
 | draft:fault-classification | PASS |  |
 | draft:lifecycle-replay | PASS |  |
 | roles:owner-waiter-cashier-kitchen-isolation | PASS |  |
+| owner-api:proxy-safe-origin-guard | PASS |  |
 | notifications:matrix-and-manual-reservations | PASS |  |
 | notifications:retry-dedup-and-token-lifecycle | PASS |  |
 | notifications:service-worker-behavior | PASS |  |

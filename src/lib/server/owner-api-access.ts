@@ -5,6 +5,8 @@ import { canAccessOperationalFeature } from "@/lib/operational-access";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSessionFromRequest, type VerifiedSession } from "@/lib/server-auth";
 import { publicTraceMeta, createTraceContext } from "@/lib/server/request-trace";
+import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
+import { isTrustedMutationOrigin } from "@/lib/server/mutation-origin";
 import type { AccessOperation, OwnerFeatureKey } from "@/lib/access-control";
 
 export async function requireOwnerFeature(
@@ -34,14 +36,13 @@ export async function requireOwnerFeature(
 }
 
 function sameOriginMutationError(request: NextRequest, fail: (error: string, status: number) => NextResponse) {
-  if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") return null;
-  const origin = request.headers.get("origin");
-  if (!origin) return null;
-  try {
-    return new URL(origin).origin === request.nextUrl.origin
-      ? null
-      : fail("Cross-origin request blocked.", 403);
-  } catch {
-    return fail("Cross-origin request blocked.", 403);
-  }
+  return isTrustedMutationOrigin({
+    method: request.method,
+    origin: request.headers.get("origin"),
+    requestOrigin: request.nextUrl.origin,
+    requestHost: request.headers.get("host"),
+    publicOrigin: getConfiguredPublicAppUrl(),
+  })
+    ? null
+    : fail("Cross-origin request blocked.", 403);
 }

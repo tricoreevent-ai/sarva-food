@@ -1,5 +1,7 @@
 # Known Limitations
 
+Phase 5C closes the Hostinger reverse-proxy origin mismatch that blocked POS draft saves and payment collection. The fix still requires Hostinger redeployment before the currently hosted runtime changes.
+
 Phase 5B closes the repository-side POS Active Orders hang, inconsistent accordion, hidden-action, and low-density defects. Remaining QA is authenticated hosted owner/waiter/cashier/manager workflow observation, real printer/device checks, React Profiler/FPS/INP capture, and long-run browser heap stability.
 
 Phase 5A closes the repository-side Kitchen Serve responsibility violation, unbounded time labels, fixed-width Kanban, and missing waiter notification/acknowledgement/escalation workflow. Real push delivery, browser permission, multi-device timing, sound policy, and printer hardware remain external QA.

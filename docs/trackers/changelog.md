@@ -2,6 +2,7 @@
 
 ## 2026-07-16
 
+- Fixed Hostinger reverse-proxy origin validation so same-site POS drafts and payment mutations reach authorization while foreign origins remain blocked.
 - Replaced the POS Active Orders nested accordion with a memoized high-density board: 88px cards, 56px summary, cards-only scrolling, 4/5/6 desktop columns, deterministic expansion, and always-visible Serve/Notify/Payment/Print/Preview/More actions.
 - Reduced deterministic expansion invalidation from 30 cards to 1 when opening and 2 when switching; preserved all lifecycle, repository, API, payment, and notification contracts.
 - Added Phase 4C push readiness: bounded queue retry, 34-scenario contract matrix, owner FCM test endpoint, token/device controls, browser/foreground/background/action/deep-link diagnostics, badge/sound checks, and local delivery history.

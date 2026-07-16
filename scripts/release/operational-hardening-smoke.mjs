@@ -26,6 +26,8 @@ const activeOrders = read("src/components/flows/pos-billing-flow.tsx");
 const stateMachine = read("src/lib/order-state-machine.ts");
 const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
+const ownerAccess = read("src/lib/server/owner-api-access.ts");
+const mutationOrigin = read("src/lib/server/mutation-origin.ts");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -64,6 +66,29 @@ await check("roles:owner-waiter-cashier-kitchen-isolation", () => {
   for (const role of ["owner", "manager", "cashier", "waiter", "chef", "\"kitchen-manager\"", "admin"]) assert.ok(access.includes(`${role}:`), role);
   assert.ok(access.includes("canRolePerform"));
   assert.ok(access.includes("filterOwnerNavigation"));
+});
+
+await check("owner-api:proxy-safe-origin-guard", () => {
+  for (const token of ["getConfiguredPublicAppUrl", "isTrustedMutationOrigin", "request.nextUrl.origin"]) assert.ok(ownerAccess.includes(token), token);
+  for (const token of ["safeMethods", "requestOrigin", "requestHost", "publicOrigin", "normalizeOrigin"]) assert.ok(mutationOrigin.includes(token), token);
+  const normalize = (value) => {
+    try {
+      return new URL(value).origin;
+    } catch {
+      return null;
+    }
+  };
+  const trusted = ({ method = "POST", origin, requestOrigin, requestHost, publicOrigin }) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(method) || !origin) return true;
+    const normalized = normalize(origin);
+    const hostOrigin = normalized && requestHost ? normalize(`${new URL(normalized).protocol}//${requestHost}`) : null;
+    return Boolean(normalized && [requestOrigin, publicOrigin, hostOrigin].some((candidate) => candidate && normalize(candidate) === normalized));
+  };
+  const productionOrigin = "https://violet-squid-380447.hostingersite.com";
+  assert.equal(trusted({ origin: productionOrigin, requestOrigin: "http://127.0.0.1:3000", requestHost: "127.0.0.1:3000", publicOrigin: productionOrigin }), true);
+  assert.equal(trusted({ origin: "https://attacker.example", requestOrigin: "http://127.0.0.1:3000", requestHost: "violet-squid-380447.hostingersite.com", publicOrigin: productionOrigin }), false);
+  assert.equal(trusted({ origin: "http://localhost:3000", requestOrigin: "http://0.0.0.0:3000", requestHost: "localhost:3000", publicOrigin: productionOrigin }), true);
+  assert.equal(trusted({ origin: "not-a-url", requestOrigin: "http://localhost:3000", requestHost: "localhost:3000", publicOrigin: productionOrigin }), false);
 });
 
 await check("notifications:matrix-and-manual-reservations", () => {

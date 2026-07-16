@@ -13,12 +13,23 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Current Sprint | RC5 Production Closure Sprint |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Phase 5B starts from branch head `baa65e7a2a8acbe4f8252e9bc2228d9d14281aee`; the high-density Active Orders changes are validated locally and pending commit/deployment. Existing RC tags must not be moved. |
+| Latest Git Commit | Phase 5C starts from pushed Active Orders head `8429a9163511c1f5ec590f3249f7cb16d5bf744d`; the Hostinger origin-guard fix is validated locally and pending commit/deployment. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Phase 5B passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (14/14), `profile:runtime`, and final diff check. Build/analyze retain the accepted Firebase/protobuf warning. Production launch remains NO-GO pending manual hosted gates. |
-| Scope | Phase 5B redesigns only the POS Active Orders presentation/render path. Existing order/Kitchen/POS repositories, APIs, lifecycle, auth, payment, notifications, and Firestore collection/schema/rule/index contracts are unchanged. |
+| Verification Status | Phase 5C passed `typecheck`, `lint`, `build`, `audit:release`, `smoke:operational` (15/15), production-mode origin probes, and final diff check. Build retains the accepted Firebase/protobuf warning. |
+| Scope | Phase 5C fixes only owner mutation origin validation behind the production reverse proxy. Existing order/Kitchen/POS repositories, API payloads, lifecycle, auth, payment, notifications, and Firestore collection/schema/rule/index contracts are unchanged. |
+
+## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
+
+| Area | Result |
+| --- | --- |
+| Root cause | Hostinger terminates public HTTPS before forwarding to Next, so `request.nextUrl.origin` used an internal origin while browser mutations sent the canonical public HTTPS `Origin`. |
+| Impact | `/api/owner/pos` draft PATCH/DELETE and `/api/owner/orders` payment PATCH requests failed with `403 Cross-origin request blocked` before session/permission handling. |
+| Fix | Owner mutation validation now accepts only the internal request origin, request Host origin, or configured canonical public app origin. Foreign/malformed origins remain rejected. |
+| Verification | Production probe reproduced the existing 403. Final production-mode local probes show public-origin POS/payment requests reach normal permission checks, local Host requests pass, and attacker origin remains blocked. |
+| Validation | `typecheck`, `lint`, `build`, `smoke:operational` (15/15), pure origin-contract checks, and `git diff --check` pass. |
+| Remaining step | Redeploy the final commit to Hostinger, clear cache/restart, then retry New Order draft save and Active Orders payment with an authenticated operator. |
 
 ## Phase 5B POS Active Orders High-Density Board - 2026-07-16
 

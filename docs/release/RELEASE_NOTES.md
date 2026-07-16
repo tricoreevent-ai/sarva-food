@@ -1,5 +1,12 @@
 # Release Notes
 
+## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
+
+- Fixed production POS draft save and payment collection requests being rejected as cross-origin behind Hostinger's HTTPS reverse proxy.
+- Owner mutation CSRF validation now accepts the internal Next origin, the request Host origin, or the configured canonical public app origin.
+- Foreign and malformed origins remain blocked.
+- Added deterministic proxy/public/local/attacker origin checks to `smoke:operational`.
+
 ## Phase 5B POS Active Orders - 2026-07-16
 
 - Replaced the POS Active Orders nested accordion path with a flattened memoized operational card.
