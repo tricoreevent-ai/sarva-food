@@ -1,16 +1,16 @@
 # Release Certification
 
 Feature ID: `RC5-SYNCHRONIZED-READINESS`
-Date: 2026-07-13
+Date: 2026-07-16
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
 Branch: `release/production-nammude`
 Decision: `NO GO` for production launch, `GO` for RC5 candidate commit/tag
 
 ## Executive Summary
 
-RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current RC5 production testing baseline `2b8a348c416b0d952ab80d80083202280548c4d9` is pushed to `origin/release/production-nammude`; deploy it before tagging RC5 after hosted gates pass.
+RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. The current RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` is pushed to `origin/release/production-nammude`; hosted RC5 currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`, so redeploy the latest pushed commit before tagging RC5 after hosted gates pass.
 
-Production go-live remains blocked by hosted configuration: `/api/release-info` and health metadata still report `deploymentEnvironment: development`. Manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke remain required.
+Production go-live remains blocked by latest SHA deployment plus manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke.
 
 ## Repository Evidence
 
@@ -29,12 +29,13 @@ Production go-live remains blocked by hosted configuration: `/api/release-info` 
 | 2026-07-13 pending-work audit | No actionable repository-side TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read found |
 | 2026-07-13 final optimization cleanup | Duplicated client error-reason helpers consolidated; compact order action controls received explicit accessible labels; pure phone normalization extracted away from Firebase-backed service imports |
 | 2026-07-13 release package verification | Production environment matrix corrected to `v1.0.0-rc5` |
+| 2026-07-16 Active Orders closure | Active Orders workspace redesign passed typecheck, lint, build, analyze, release audit, operational smoke, runtime profile, and diff check |
 
 ## Hosted Evidence
 
 | Gate | Result |
 | --- | --- |
-| Deployment verification | `14` pass, `1` warning, `2` errors: hosted version still reports `v1.0.0-rc4` and hosted env reports `development` |
+| Deployment verification | `16` pass, `1` warning, `0` errors: hosted metadata is RC5/production but SHA trails `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Public production smoke | `7` pass, `18` manual |
 | Provider verification | `8` pass, `3` manual |
 | Memory monitor | `1` pass, `2` manual |
@@ -62,11 +63,11 @@ Production go-live remains blocked by hosted configuration: `/api/release-info` 
 | Area | Score |
 | --- | ---: |
 | Repository readiness | 99% |
-| Production readiness | 86% |
-| Risk level | Medium-high until env/manual gates pass |
+| Production readiness | 88% |
+| Risk level | Medium-high until latest SHA/manual gates pass |
 
 ## Go / No-Go
 
 Repository decision: `GO` for RC5 candidate commit/tag.
 
-Production decision: `NO GO` until Hostinger `deploymentEnvironment=production`, production env validation, Lighthouse/Core Web Vitals, Firebase Console checks, provider dashboard checks, authenticated browser smoke, and hardware/printer checks pass.
+Production decision: `NO GO` until Hostinger serves `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, production env validation, Lighthouse/Core Web Vitals, Firebase Console checks, provider dashboard checks, authenticated browser smoke, and hardware/printer checks pass.

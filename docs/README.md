@@ -8,10 +8,11 @@ This is the single entry point for repository documentation on `release/producti
 | --- | --- |
 | Release candidate | `v1.0.0-rc5` |
 | Branch | `release/production-nammude` |
-| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
+| Current pushed commit | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Current hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
-| Production readiness | `86%` |
-| Production launch | `NO GO` until deployment, provider, browser, device, Lighthouse, and hardware gates pass |
+| Production readiness | `88%` |
+| Production launch | `NO GO` until latest commit deployment, provider, browser, device, Lighthouse, and hardware gates pass |
 | AI handoff | `docs/AI_HANDOFF.md` |
 
 ## Trackers

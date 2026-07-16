@@ -1,19 +1,19 @@
 # Production Acceptance Checklist
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Date: 2026-07-13
+Date: 2026-07-16
 
 ## Acceptance Decision
 
 Current decision: `NO GO`.
 
-Production readiness score: `86%`.
+Production readiness score: `88%`.
 
 ## Required Pass Gates
 
 | Gate | Status | Required Evidence |
 | --- | --- | --- |
-| Release metadata | 🔴 Blocking | `/api/release-info` shows final SHA, branch, `v1.0.0-rc5`, HTTPS URL, `deploymentEnvironment: production`. |
+| Release metadata | 🔴 Blocking | `/api/release-info` shows latest pushed SHA, branch, `v1.0.0-rc5`, HTTPS URL, `deploymentEnvironment: production`. |
 | Production env validation | 🔴 Blocking | `npm run validate:prod-env` passes with real production values. |
 | Health endpoints | ✅ Completed | `/health/live`, `/health/ready`, `/health/startup` return healthy/safe metadata after final redeploy. |
 | Build pipeline | ✅ Completed | Typecheck, lint, build, analyze pass. |
@@ -30,7 +30,7 @@ Production readiness score: `86%`.
 
 | Endpoint | Status | Current Result | Required Result |
 | --- | --- | --- | --- |
-| `/api/release-info` | FAIL | Hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node `v22.18.0`, but `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`. | Deploy pushed baseline `2b8a348c416b0d952ab80d80083202280548c4d9`, report `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, and Node 22. |
+| `/api/release-info` | FAIL | Hosted SHA is `2b8a348c416b0d952ab80d80083202280548c4d9`, Node `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`, but latest pushed SHA is `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. | Deploy latest pushed baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, keep `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, and Node 22. |
 | `/health/live` | PASS | Endpoint returns `ok` with safe public metadata. | Endpoint returns `ok` after final RC5 redeploy. |
 | `/health/ready` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok`; provider gaps are either configured or explicitly accepted for production scope. |
 | `/health/startup` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok` after final RC5 redeploy/restart. |
@@ -39,8 +39,8 @@ Production readiness score: `86%`.
 
 | Item | Status | Current Evidence | Required Action |
 | --- | --- | --- | --- |
-| `NEXT_PUBLIC_APP_ENV` | FAIL | Hosted metadata reports `development`. | Set `production` in Hostinger and redeploy/restart. |
-| `NEXT_PUBLIC_APP_VERSION` | FAIL | Hosted metadata reports `v1.0.0-rc4`. | Set `v1.0.0-rc5` in Hostinger and redeploy/restart. |
+| `NEXT_PUBLIC_APP_ENV` | PASS | Hosted metadata reports `production`. | Keep value set during latest SHA redeploy/restart. |
+| `NEXT_PUBLIC_APP_VERSION` | PASS | Hosted metadata reports `v1.0.0-rc5`. | Keep value set during latest SHA redeploy/restart. |
 | `NEXT_PUBLIC_APP_URL` | PASS | Hosted metadata reports `https://violet-squid-380447.hostingersite.com`. | Replace only if final custom HTTPS domain is used. |
 | Firebase Admin | PASS | Health endpoints report Admin configured. | Keep service account values in Hostinger only. |
 | Firebase Client | PASS | Health endpoints report public Firebase configured. | Confirm Firebase authorized domains before launch. |

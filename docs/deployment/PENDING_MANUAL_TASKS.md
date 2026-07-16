@@ -1,12 +1,12 @@
 # Pending Manual Tasks
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Date: 2026-07-13
+Date: 2026-07-16
 
 | Status | Area | Task | Evidence / Exit Criteria |
 | --- | --- | --- | --- |
-| 🔴 Blocking | Hostinger | Set `NEXT_PUBLIC_APP_ENV=production`, redeploy/restart, clear cache. | `/api/release-info` and `/health/ready` report `deploymentEnvironment: production`. |
-| 🔴 Blocking | Environment | Configure real Firebase Admin/VAPID, QR secret, database alert email, Razorpay live keys/webhook, HTTPS app URL. | `npm run validate:prod-env` passes in production-equivalent env. |
+| 🔴 Blocking | Hostinger | Redeploy/restart from `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, clear cache. | `/api/release-info` reports latest pushed SHA, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`. |
+| 🔴 Blocking | Environment | Configure/verify Firebase VAPID, QR secret, database alert email, Razorpay live keys/webhook, and final provider values. | `npm run validate:prod-env` passes in production-equivalent env and health/provider probes have no launch blockers. |
 | 🟡 Pending Manual | Lighthouse | Run hosted mobile and desktop Lighthouse/Core Web Vitals. | Scores and warnings added to release notes/certification. |
 | 🟡 Pending Manual | Browser QA | Chrome, Edge, Firefox, Safari, Android Chrome, iPhone Safari, tablet, Kitchen TV, desktop. | Hydration, responsive, dark mode, print, clipboard, QR, camera, upload, offline, notifications pass. |
 | 🟡 Pending Manual | Authenticated flows | Customer, owner, admin, POS, Kitchen, QR/table ordering. | No role leak, redirect bug, console error, or realtime regression. |

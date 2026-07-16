@@ -1,22 +1,23 @@
 # Final Deployment Signoff
 
-Date: 2026-07-13
+Date: 2026-07-16
 Branch: `release/production-nammude`
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Pushed RC5 baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
+Pushed RC5 baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
+Hosted RC5 baseline: `2b8a348c416b0d952ab80d80083202280548c4d9`
 Decision: `NO GO`
 
 ## Deployment Status
 
-Hostinger is reachable at `https://violet-squid-380447.hostingersite.com` and currently serves `v1.0.0-rc4` from branch `release/production-nammude`; this is expected to fail the RC5 version check until the final RC5 commit is deployed. Deployment verification reports branch, runtime `v22.18.0`, plugin flags, and `/health/live`, `/health/ready`, `/health/startup` as passing.
+Hostinger is reachable at `https://violet-squid-380447.hostingersite.com` and currently serves `v1.0.0-rc5` from branch `release/production-nammude` with `deploymentEnvironment=production`, runtime `v22.18.0`, plugin flags, and `/health/live`, `/health/ready`, `/health/startup` passing.
 
-Deployment is not signable because hosted metadata still reports `deploymentEnvironment: development`.
+Deployment is not signable because hosted metadata still serves `2b8a348c416b0d952ab80d80083202280548c4d9`, while the latest pushed Active Orders baseline is `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 
 ## Verification Summary
 
 | Report | Result |
 | --- | --- |
-| `docs/validation/DEPLOYMENT_VERIFICATION_REPORT.md` | `14` pass, `1` warning, `2` errors |
+| `docs/validation/DEPLOYMENT_VERIFICATION_REPORT.md` | `16` pass, `1` warning, `0` errors; warning is latest SHA redeploy |
 | `docs/validation/PRODUCTION_SMOKE_REPORT.md` | `7` pass, `18` manual |
 | `docs/validation/PROVIDER_VERIFICATION_REPORT.md` | `8` pass, `3` manual |
 | `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md` | `3` pass, `1` warning, `2` manual |
@@ -27,9 +28,8 @@ Deployment is not signable because hosted metadata still reports `deploymentEnvi
 
 | Item | Required Action |
 | --- | --- |
-| `deploymentEnvironment` | Set Hostinger `NEXT_PUBLIC_APP_ENV=production`, restart/redeploy, clear cache. |
-| Final SHA after docs/code changes | Commit/push final RC5 validation evidence if present, create immutable `v1.0.0-rc5`, redeploy that commit, keep `v1.0.0-rc4` unchanged. |
-| Production secrets | Configure Firebase Admin/VAPID, QR secret, database alert email, Razorpay live keys/webhook, HTTPS app URL. |
+| Latest SHA after Active Orders changes | Redeploy `ba8e957d57b949a94d0c42a3b170cf198917c0d8`, restart if required, clear cache, and verify `/api/release-info`. |
+| Production secrets | Configure/verify Firebase VAPID, QR secret, database alert email, Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboards. |
 
 ## Infrastructure Status
 
@@ -44,4 +44,4 @@ Deployment is not signable because hosted metadata still reports `deploymentEnvi
 
 ## Signoff
 
-Final deployment signoff remains `NO GO` until Hostinger environment metadata reports `production`, production env validation passes with real values, and browser/device/provider/Lighthouse/printer gates are completed.
+Final deployment signoff remains `NO GO` until Hostinger serves the latest pushed SHA, production env validation passes with real values, and browser/device/provider/Lighthouse/printer gates are completed.

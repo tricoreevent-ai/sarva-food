@@ -8,9 +8,10 @@ Future AI agents must read this file before making changes.
 | --- | --- |
 | Branch | `release/production-nammude` |
 | Release | `v1.0.0-rc5` candidate |
-| Current image closure commit | `fc0986e9ba5dedb302dedcdd5eb9e20346844dba` |
+| Current pushed commit | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Current hosted commit | `2b8a348c416b0d952ab80d80083202280548c4d9` |
 | Repository readiness | `99%` |
-| Production readiness | `86%` |
+| Production readiness | `88%` |
 | Production launch | `NO GO` |
 | Documentation hub | `docs/README.md` |
 | Master tracker | `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md` |
@@ -24,11 +25,10 @@ Future AI agents must read this file before making changes.
 
 ## Pending Deployment Work
 
-- Set Hostinger production environment values, especially `NEXT_PUBLIC_APP_ENV=production` and `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`.
-- Configure final HTTPS `NEXT_PUBLIC_APP_URL`.
-- Configure Firebase Admin credentials, Firebase VAPID key, `TABLE_QR_SECRET`, and `DATABASE_ALERT_EMAIL`.
-- Configure provider secrets in Hostinger/provider dashboards only.
-- Redeploy `release/production-nammude`, clear Hostinger cache, and verify `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`.
+- Redeploy `release/production-nammude` so Hostinger serves `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; current hosted RC5 metadata still serves `2b8a348c416b0d952ab80d80083202280548c4d9`.
+- Keep `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, and final HTTPS `NEXT_PUBLIC_APP_URL`.
+- Configure/verify Firebase VAPID key, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, Razorpay live keys/webhook, WhatsApp/SMS/push, and provider dashboard secrets.
+- Clear Hostinger cache and reverify `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup`.
 
 ## Pending Manual QA
 

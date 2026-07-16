@@ -9,7 +9,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 | ✅ Completed | Public hosted smoke | `docs/validation/PRODUCTION_SMOKE_REPORT.md`: `7` pass, `18` manual. |
 | ✅ Completed | Hosted provider probe | `docs/validation/PROVIDER_VERIFICATION_REPORT.md`: `8` pass, `3` manual. |
 | ✅ Completed | Bundle/performance reports | `docs/performance/FINAL_BUNDLE_REPORT.md`, `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md`. |
-| 🔴 Blocking | Hostinger release metadata | Hosted metadata reports `applicationVersion=v1.0.0-rc4` and `deploymentEnvironment=development`; set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5` and `NEXT_PUBLIC_APP_ENV=production`. |
+| 🔴 Blocking | Hostinger latest SHA | Hosted metadata reports `applicationVersion=v1.0.0-rc5` and `deploymentEnvironment=production`, but still serves `2b8a348c416b0d952ab80d80083202280548c4d9`; redeploy latest pushed commit `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. |
 | 🔴 Blocking | Production env validation | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `24` errors needing real production values. |
 | 🟡 Pending Manual | Browser/device/provider/hardware/Lighthouse | Complete before go-live. |
 
@@ -28,9 +28,9 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 - Verify `/api/release-info` reports final SHA, `applicationVersion: v1.0.0-rc5`, and `deploymentEnvironment: production`.
 - Verify `/health/live`, `/health/ready`, and `/health/startup`.
 
-Current hosted probe on 2026-07-13:
+Current hosted probe on 2026-07-16:
 
-- `/api/release-info`: hosted SHA is still `dcff59e050de1dace19460198cb2909372bce7d5`, Node is `v22.18.0`, but version/env remain `v1.0.0-rc4` and `development`; deploy pushed baseline `2b8a348c416b0d952ab80d80083202280548c4d9`.
+- `/api/release-info`: hosted SHA is `2b8a348c416b0d952ab80d80083202280548c4d9`, Node is `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`; deploy pushed Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 - `/health/ready`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 - `/health/startup`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 

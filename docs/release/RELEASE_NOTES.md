@@ -2,7 +2,7 @@
 
 ## v1.0.0-rc5 - Release Candidate
 
-Commit: pushed RC5 production testing baseline `2b8a348c416b0d952ab80d80083202280548c4d9`; existing RC4 tag remains unchanged
+Commit: pushed RC5 Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`; existing RC4 tag remains unchanged
 Branch: `release/production-nammude`
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
@@ -11,7 +11,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - Active release metadata, package metadata, environment templates, and deployment docs now align on `v1.0.0-rc5` / `1.0.0-rc.5`.
 - The existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags remain immutable; tag the final RC5 validation commit as the new `v1.0.0-rc5` candidate.
 - Phase 4 hardening and report synchronization are complete repository-side.
-- Production release remains blocked by hosted `deploymentEnvironment=development`, production env validation, Firebase Console, provider dashboard, authenticated browser, Lighthouse, and hardware smoke gates.
+- Production release remains blocked by latest Hostinger SHA redeploy, production env/provider validation, Firebase Console, provider dashboard, authenticated browser, Lighthouse, and hardware smoke gates.
 
 ### Completed
 
@@ -27,6 +27,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - Consolidated duplicated client error-reason helpers into `src/lib/client-diagnostics.ts`.
 - Added explicit accessible names to compact order icon-only action controls.
 - Completed RC5 image optimization: shared Cloudinary presets, AVIF-first upload compression, WebP/JPEG fallback, incoming Cloudinary transforms, `dpr_auto` delivery cleanup, and right-sized `SafeImage` thumbnails.
+- Completed the Owner Active Orders operational workspace redesign: status summary cards, live tab counts, advanced search, workflow ribbon, status rail, kitchen progress, KOT/payment indicators, compact expanded details, context-aware actions, and mobile workflow cues.
 - Corrected the production environment matrix to require `v1.0.0-rc5`.
 - Regenerated bundle, runtime, render, network, memory, provider, smoke, deployment, env, performance, and certification reports.
 - Completed the RC5 pending-work audit: no repository-side code blocker remains; remaining work is Hostinger/Firebase/provider/browser/Lighthouse/hardware validation.
@@ -41,7 +42,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - `cmd /c npm run audit:release`: passed.
 - `cmd /c npm run smoke:operational`: passed.
 - `cmd /c npm run validate:prod-env`: failed locally with `46` pass, `1` warning, and `24` errors requiring real production Hostinger/Firebase/Razorpay/provider secrets.
-- `PRODUCTION_URL=... cmd /c npm run verify:deployment`: `15` pass, `1` warning, `1` error because hosted env still reports `development`.
+- `PRODUCTION_URL=... cmd /c npm run verify:deployment`: `16` pass, `1` warning, `0` errors; warning is hosted SHA `2b8a348c416b0d952ab80d80083202280548c4d9` trailing pushed SHA `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
 - `PRODUCTION_URL=... cmd /c npm run verify:providers`: `8` pass, `3` manual.
 - `PRODUCTION_URL=... cmd /c npm run smoke:production`: `7` pass, `18` manual.
 - `PRODUCTION_URL=... cmd /c npm run monitor:memory`: `1` pass, `2` manual.
@@ -49,6 +50,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - 2026-07-13 RC5 closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; build/analyze retain the accepted Firebase/protobuf warning.
 - 2026-07-13 pending-work audit: runtime source scan found no actionable TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read requiring a release-freeze code change.
 - 2026-07-15 image optimization closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; analyzer timeout resolved and bundle evidence regenerated.
+- 2026-07-16 Active Orders closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` passed; hosted probes are RC5/production but latest SHA redeploy remains pending.
 
 ## v1.0.0-rc3 - Release Candidate
 

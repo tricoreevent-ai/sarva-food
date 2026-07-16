@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-16
+
+- Redesigned Owner Active Orders as an operational workspace: status summary cards, live tab counts, advanced search over orders/tables/items/waiters, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues.
+- Preserved feature-freeze boundaries: no Firestore schema/rule/index, API contract, repository, order lifecycle, payment flow, Kitchen logic, auth, or plugin architecture change.
+- Pushed `ba8e957d57b949a94d0c42a3b170cf198917c0d8` to `origin/release/production-nammude`; hosted RC5 production currently serves `2b8a348c416b0d952ab80d80083202280548c4d9`.
+- Re-probed Hostinger: `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup` return ok with `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, Firebase VAPID missing, and Razorpay owner-scoped or missing.
+- Verified `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## 2026-07-15
 
 - Completed the RC5 image optimization closure: shared Cloudinary presets, AVIF-first browser upload compression with WebP/JPEG fallback, signed incoming Cloudinary transforms, right-sized `SafeImage` delivery, CMS/public thumbnail reuse, and legacy `dpr_auto` cleanup.
