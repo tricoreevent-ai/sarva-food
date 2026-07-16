@@ -2,7 +2,6 @@ import { memo } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OrderPriorityBadge } from "./OrderPriorityBadge";
-import { workflowStepClass } from "./OrderAccordion.utils";
 import type { CompactOrderAccordionProps } from "./OrderAccordion.types";
 
 type Props = Pick<CompactOrderAccordionProps, "orderNumber" | "etaLabel" | "orderTypeLabel" | "tableLabel" | "itemCountLabel" | "status" | "priority" | "badges" | "workflow" | "sideStats" | "isOpen" | "onOpenChange">;
@@ -25,15 +24,14 @@ export const CompactOrderAccordionHeader = memo(function CompactOrderAccordionHe
     <button
       type="button"
       className={cn(
-        "relative grid min-h-[88px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 px-4 py-3 text-left",
-        (workflow.length || sideStats.length) && "xl:grid-cols-[minmax(15rem,1.05fr)_minmax(32rem,2.25fr)_minmax(13rem,0.9fr)_auto]",
+        "relative grid min-h-[84px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-3 text-left",
       )}
       onClick={() => onOpenChange(!isOpen)}
       aria-expanded={isOpen}
     >
       <span className="min-w-0">
         <span className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="truncate text-xl font-black leading-tight text-slate-950">{orderNumber}</span>
+          <span className="truncate text-base font-black leading-tight text-slate-950">{orderNumber}</span>
           <OrderPriorityBadge badge={status} />
         </span>
         <span className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -47,24 +45,14 @@ export const CompactOrderAccordionHeader = memo(function CompactOrderAccordionHe
         </span>
       </span>
       {workflow.length ? (
-        <span className="col-span-2 grid min-w-0 grid-cols-6 items-start gap-1 border-t border-slate-100 pt-3 md:col-span-1 md:border-0 md:pt-0 xl:grid" aria-label="Order workflow">
+        <span className="col-span-2 flex h-1 min-w-0 overflow-hidden rounded-full bg-slate-100" aria-label="Order progress">
           {workflow.map((step) => (
-            <span key={step.id} className="grid min-w-0 gap-1">
-              <span className="flex items-center">
-                <span className={cn("h-px flex-1", step.state === "pending" ? "bg-slate-200" : step.state === "blocked" ? "bg-red-200" : step.state === "active" ? "bg-orange-200" : "bg-emerald-300")} />
-                <span className={cn("mx-1 grid size-7 shrink-0 place-items-center rounded-full border text-[11px] font-black", workflowStepClass(step.state, step.tone))}>
-                  {step.icon ?? null}
-                </span>
-                <span className={cn("h-px flex-1", step.state === "pending" ? "bg-slate-200" : step.state === "blocked" ? "bg-red-200" : step.state === "active" ? "bg-orange-200" : "bg-emerald-300")} />
-              </span>
-              <span className="truncate text-center text-[10px] font-black text-slate-700 sm:text-[11px]">{step.label}</span>
-              {step.sublabel ? <span className="hidden truncate text-center text-[10px] font-semibold text-slate-500 sm:block">{step.sublabel}</span> : null}
-            </span>
+            <span key={step.id} title={`${step.label}${step.sublabel ? ` · ${step.sublabel}` : ""}`} className={cn("h-full flex-1", step.state === "complete" ? "bg-emerald-500" : step.state === "active" ? "bg-orange-500" : step.state === "blocked" ? "bg-red-500" : "bg-slate-200")} />
           ))}
         </span>
       ) : null}
       {sideStats.length ? (
-        <span className="hidden min-w-0 grid-cols-2 justify-end gap-4 xl:grid">
+        <span className="col-span-2 grid min-w-0 grid-cols-2 gap-3 border-t border-slate-100 pt-2">
           {sideStats.map((stat) => (
             <span key={stat.label} className="min-w-0 text-right">
               <span className="block truncate text-[10px] font-black uppercase text-slate-400">{stat.label}</span>

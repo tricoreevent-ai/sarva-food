@@ -48,7 +48,6 @@ export function assertLegalKitchenTransition(current: KitchenOrderStatus, next: 
   const currentIndex = kitchenFlow.indexOf(current);
   const nextIndex = kitchenFlow.indexOf(next);
   if (currentIndex < 0 || nextIndex < 0) throw new Error(`Invalid kitchen status transition from ${current} to ${next}.`);
-  if (current === "ready" && next === "completed") return;
   if (nextIndex !== currentIndex + 1) throw new Error(`Invalid kitchen status transition from ${current} to ${next}.`);
 }
 
@@ -98,7 +97,7 @@ function isNextOrderState(current: OrderStatus, next: OrderStatus) {
   const currentIndex = orderFlow.indexOf(current);
   const nextIndex = orderFlow.indexOf(next);
   if (currentIndex < 0 || nextIndex < 0) return false;
-  if (current === "ready" && (next === "served" || next === "completed")) return true;
+  if (current === "ready" && next === "served") return true;
   if (current === "served" && (next === "completed" || next === "delivered")) return true;
   return nextIndex === currentIndex + 1;
 }

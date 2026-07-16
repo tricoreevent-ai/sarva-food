@@ -1,5 +1,12 @@
 # Release Notes
 
+## Phase 4E Active Orders - 2026-07-16
+
+- Fixed premature completion and enforced Ready → Served → Paid → Completed.
+- Added bounded delay formatting, stale-order labeling, sequential timeline deduplication, and correct 100% green kitchen progress.
+- Wired and regression-checked every Active Orders contextual action, including waiter reassignment and kitchen recall.
+- Compacted `/owner/pos?panel=active` into a responsive operational card grid with thin progress and sticky summary metrics.
+
 ## Phase 4D Operational Hardening - 2026-07-16
 
 - Expanded `smoke:operational` from static source checks to 9/9 deterministic draft, role, notification, service-worker, and accessibility contract simulations.

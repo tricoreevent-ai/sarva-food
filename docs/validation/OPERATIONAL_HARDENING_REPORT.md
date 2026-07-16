@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-16T08:41:41.677Z
+Generated: 2026-07-16T09:05:39.089Z
 
-Result: PASS — 9/9 checks passed.
+Result: PASS — 12/12 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -15,5 +15,8 @@ Result: PASS — 9/9 checks passed.
 | notifications:retry-dedup-and-token-lifecycle | PASS |  |
 | notifications:service-worker-behavior | PASS |  |
 | active-orders:a11y-and-operational-controls | PASS |  |
+| active-orders:all-actions-wired | PASS |  |
+| active-orders:strict-lifecycle | PASS |  |
+| active-orders:delay-timeline-progress-layout | PASS |  |
 
 This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

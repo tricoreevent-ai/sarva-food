@@ -23,7 +23,7 @@ import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib
 import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PaperWidth, PosBill, PosTable, PrintLog, PrintTemplate, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
-import { getKitchenDelay } from "@/lib/kitchen-delay";
+import { formatDelayTime, getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/lib/phone";
 import { getRetryDelayMs } from "@/lib/offline/retry-manager";
@@ -1573,7 +1573,17 @@ export function PosBillingFlow() {
   }
 
   async function updateActiveOrderStatus(order: TableOrder, status: TableOrder["status"]) {
+    if (status === "served" && order.status !== "ready") {
+      toast.error("Only a ready order can be marked served.");
+      return;
+    }
+    if (status === "completed" && (order.status !== "served" || order.paymentStatus !== "paid")) {
+      toast.error("Serve the order and collect full payment before completion.");
+      return;
+    }
     const canonical = canonicalForKitchenOrder(order);
+    setActiveAction(`${status}:${order.id}`);
+    try {
     let updatedKitchen: TableOrder | undefined;
     if ((order as OperationalOrder).hasKitchenTicket !== false) {
       const response = await fetch("/api/owner/kitchen", {
@@ -1606,7 +1616,12 @@ export function PosBillingFlow() {
       tableOrders: current.tableOrders.map((item) => item.id === order.id ? updatedKitchen ?? { ...item, status } : item),
       orders: canonical ? current.orders.map((item) => item.id === canonical.id ? { ...item, status: demoStatusForTableStatus(status) } : item) : current.orders,
     }));
-    toast.success(activeStatusToast(status));
+      toast.success(activeStatusToast(status));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `Order could not be marked ${status}.`);
+    } finally {
+      setActiveAction(null);
+    }
   }
 
   async function splitActiveBill(order: OperationalOrder, splits: SplitBillPayload[]) {
@@ -1926,14 +1941,14 @@ export function PosBillingFlow() {
             }}
           /> : null}
         </main>
-        <footer className="grid gap-3 border-t border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto]">
-          <div className="grid gap-3 sm:grid-cols-4">
-            <StatusPill icon={Grid2X2} label="Menu Items" value={String(menu.length)} />
+        <footer className={cn("sticky bottom-0 z-20 grid gap-2 border-t border-slate-200 bg-white/95 backdrop-blur", panel === "active" ? "p-2" : "p-4 md:grid-cols-[1fr_auto]")}>
+          <div className="grid grid-cols-4 gap-2">
+            <StatusPill icon={panel === "active" ? ClipboardList : Grid2X2} label={panel === "active" ? "Orders" : "Menu Items"} value={String(panel === "active" ? activeOrderCount : menu.length)} />
             <StatusPill icon={UsersRound} label="Customers" value={String(loyaltyCustomers.length)} />
-            <StatusPill icon={ClipboardList} label="Orders" value={String(orders.length)} />
-            <StatusPill icon={Utensils} label="Kitchen Operations" value={`${tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length} Active`} />
+            <StatusPill icon={Utensils} label="Kitchen" value={`${tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length} Active`} />
+            <StatusPill icon={CircleDollarSign} label={panel === "active" ? "Revenue" : "Orders"} value={panel === "active" ? formatCurrency(orders.filter((order) => order.paymentStatus === "paid").reduce((sum, order) => sum + order.totals.total, 0)) : String(orders.length)} />
           </div>
-          <div className="flex gap-2">
+          {panel !== "active" ? <div className="flex gap-2">
             <Button variant="outline" onClick={() => printTicket("kot")} disabled={!bill.lines.length}>
               <ChefHat className="size-4" />
               View Kitchen Operations
@@ -1942,7 +1957,7 @@ export function PosBillingFlow() {
               <Eye className="size-4" />
               Preview Bill
             </Button>
-          </div>
+          </div> : null}
         </footer>
         <div className="hidden print-ticket-active">
           {showKot ? (
@@ -3162,7 +3177,7 @@ function timelineEntries(canonical: ExtendedDemoOrder | undefined, order: Operat
     ...safeTimeline(order.auditTimeline),
     ...safeTimeline(order.statusHistory),
     ...safeTimeline(order.paymentTimeline),
-  ]).sort((first, second) => timelineMillis(first) - timelineMillis(second));
+  ].sort((first, second) => timelineMillis(first) - timelineMillis(second)));
 }
 
 function paymentEntries(canonical: ExtendedDemoOrder | undefined, order: OperationalOrder) {
@@ -3255,11 +3270,11 @@ function safeTimeline(value?: TimelineEntry[]) {
 }
 
 function dedupeTimeline(entries: TimelineEntry[]) {
-  const seen = new Set<string>();
+  let previous = "";
   return entries.filter((entry) => {
-    const key = [timelineLabel(entry), timelineMillis(entry), entry.amount ?? "", entry.method ?? "", entry.user ?? "", entry.device ?? ""].join("|");
-    if (seen.has(key)) return false;
-    seen.add(key);
+    const key = `${timelineLabel(entry).toLowerCase()}|${timelineMillis(entry)}`;
+    if (key === previous) return false;
+    previous = key;
     return true;
   });
 }
@@ -3830,7 +3845,7 @@ function ActiveOrdersPanel({
         servedTrend={`${completedToday} completed today`}
         requestTrend={`${activeStaff.length} staff online`}
       />
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         {displayedOrders.length ? displayedOrders.map((order, index) => (
           <PosOrderAccordion
             key={order.id}
@@ -3940,12 +3955,15 @@ function PosOrderAccordion({
   const collect = { id: "collect", label: "Collect Payment", icon: <CircleDollarSign className="size-4" />, disabled: !canCollect || busy === `payment:${order.id}`, onClick: () => onCollectPayment(order) };
   const serve = { id: "serve", label: "Serve Order", icon: <Utensils className="size-4" />, variant: "success" as const, disabled: !ready, onClick: () => onServe(order) };
   const edit = { id: "edit", label: "Edit", icon: <PlusCircle className="size-4" />, variant: "primary" as const, onClick: () => onAddItems(order) };
-  const complete = { id: "complete", label: "Complete", icon: <CheckCircle2 className="size-4" />, disabled: !served && order.status !== "ready", onClick: () => onComplete(order) };
-  const transfer = { id: "transfer", label: "Transfer", icon: <ArrowRightLeft className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
-  const merge = { id: "merge", label: "Merge", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy === `merge:${order.id}`, onClick: () => onMerge(order) };
-  const cancel = { id: "cancel", label: "Cancel", icon: <XCircle className="size-4" />, variant: "danger" as const, onClick: () => onCancel(order) };
+  const complete = { id: "complete", label: "Complete Order", icon: <CheckCircle2 className="size-4" />, disabled: !served || !paid || busy === `completed:${order.id}`, onClick: () => onComplete(order) };
+  const transfer = { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
+  const merge = { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || busy === `merge:${order.id}`, onClick: () => onMerge(order) };
+  const cancel = { id: "cancel", label: "Cancel Order", icon: <XCircle className="size-4" />, variant: "danger" as const, onClick: () => onCancel(order) };
+  const reassign = { id: "reassign", label: "Reassign Waiter", icon: <UserRound className="size-4" />, disabled: busy === `transfer:${order.id}`, onClick: () => onTransfer(order) };
+  const recall = { id: "recall", label: "Kitchen Recall", icon: <BellRing className="size-4" />, onClick: () => onReminder(order) };
+  const markServed = { ...serve, label: "Mark Served" };
   const primaryAction = view === "waiter"
-    ? ready ? serve : viewKitchen
+    ? ready ? markServed : viewKitchen
     : view === "cashier"
       ? paid ? receipt : canCollect ? { ...collect, variant: "primary" as const } : preview
       : view === "manager"
@@ -3979,8 +3997,10 @@ function PosOrderAccordion({
             { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, onClick: () => onAddItems(order) },
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: busy === `split:${order.id}`, onClick: () => onSplit(order) },
             transfer,
+            reassign,
             merge,
             { id: "reminder", label: "Reminder", icon: <BellRing className="size-4" />, onClick: () => onReminder(order) },
+            recall,
             complete,
             cancel,
             { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" />, onClick: () => onTimeline(order) },
@@ -3995,7 +4015,7 @@ function PosOrderAccordion({
     <CompactOrderAccordion
       id={`pos-active-${order.id}`}
       orderNumber={readableTableOrderId(order, index + 1)}
-      etaLabel={delay.lateMinutes > 2 ? `${delay.lateMinutes}m late` : delay.lateMinutes > 0 ? `Within grace ${delay.lateMinutes}m` : `ETA ${order.etaMinutes ?? 12}m`}
+      etaLabel={delay.lateMinutes > 2 ? `${formatDelayTime(delay.lateMinutes).label} late` : delay.lateMinutes > 0 ? `Within grace ${formatDelayTime(delay.lateMinutes).label}` : `ETA ${order.etaMinutes ?? 12}m`}
       orderTypeLabel={readablePosOrderType(order.orderType ?? "dine-in")}
       tableLabel={`${table} • ${order.customerName || order.guestName || "Walk-in"}`}
       itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
@@ -4005,7 +4025,7 @@ function PosOrderAccordion({
       badges={[]}
       workflow={workflow}
       sideStats={[
-        { label: delay.lateMinutes > 2 ? "Delayed" : ready ? "Ready" : served ? "Awaiting Payment" : "Waiting", value: delay.lateMinutes > 2 ? `${delay.lateMinutes} min` : delay.elapsedLabel.replace(/^(Placed|Preparing|Ready for|Accepted)\s*/i, ""), subvalue: delay.lateMinutes > 2 ? "Beyond ETA" : delay.lateMinutes > 0 ? "Within grace" : `ETA ${order.etaMinutes ?? 12} min`, tone: delay.lateMinutes >= 10 ? "danger" : delay.lateMinutes > 0 || ready ? "success" : "default" },
+        { label: delay.lateMinutes > 2 ? formatDelayTime(delay.lateMinutes).severity === "stale" ? "Stale" : "Delayed" : ready ? "Ready" : served ? "Awaiting Payment" : "Waiting", value: delay.lateMinutes > 2 ? formatDelayTime(delay.lateMinutes).label : delay.elapsedLabel.replace(/^(Placed|Preparing|Ready for|Accepted)\s*/i, ""), subvalue: delay.lateMinutes > 2 ? "Beyond ETA" : delay.lateMinutes > 0 ? "Within grace" : `ETA ${order.etaMinutes ?? 12} min`, tone: delay.lateMinutes >= 10 ? "danger" : delay.lateMinutes > 0 || ready ? "success" : "default" },
         { label: "Amount", value: formatCurrency(total), subvalue: paymentLabel(order.paymentStatus), tone: paid ? "success" : "danger" },
       ]}
       delay={posAccordionDelay(delay)}
@@ -4027,7 +4047,7 @@ function PosOrderAccordion({
         { label: "Order Type", value: readablePosOrderType(order.orderType ?? "dine-in") },
         { label: "Payment", value: paymentLabel(order.paymentStatus), tone: paid ? "success" : "default" },
         { label: "Total", value: formatCurrency(total) },
-        { label: "ETA", value: delay.delayed ? `${delay.lateMinutes} min over` : `${order.etaMinutes ?? 12} min`, tone: delay.delayed ? "danger" : "default" },
+        { label: "ETA", value: delay.delayed ? `${formatDelayTime(delay.lateMinutes).label} over` : `${order.etaMinutes ?? 12} min`, tone: delay.delayed ? "danger" : "default" },
         { label: "Waiting Time", value: delay.elapsedLabel, tone: delay.lateMinutes >= 10 ? "danger" : "default" },
       ]}
       timeline={timeline.length ? timeline.map((entry) => ({ label: timelineLabel(entry), time: formatTimelineTime(entryTimeValue(entry)) })) : [{ label: "Created", time: actualOrderTime(order.createdAt) }]}
@@ -4038,7 +4058,7 @@ function PosOrderAccordion({
         readyLabel: `${readyItems} ready`,
         pendingLabel: `${pendingItems} pending`,
         kotLabel: `${Math.max(1, order.printedCount ?? 0)} KOT`,
-        tone: delay.lateMinutes >= 10 ? "danger" : ready || served ? "success" : preparing ? "warning" : "default",
+        tone: order.status === "cancelled" ? "danger" : progress === 100 ? "success" : progress <= 40 ? "default" : "warning",
       }}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
@@ -4254,9 +4274,9 @@ function ActiveOrderSummaryBoard({
         const tone = activeOrderSummaryTone(card.tone);
         const Icon = card.icon;
         return (
-          <article key={card.label} className={cn("min-w-0 rounded-lg border bg-white p-3 shadow-sm", tone.border)}>
-            <div className="flex items-start gap-3">
-              <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", tone.bg, tone.text)}><Icon className="size-5" /></span>
+          <article key={card.label} className={cn("relative flex min-h-32 min-w-0 flex-col justify-center rounded-lg border bg-white p-3 text-center shadow-sm", tone.border)}>
+            <div className="grid justify-items-center gap-2">
+              <span className={cn("absolute right-3 top-3 grid size-8 shrink-0 place-items-center rounded-full", tone.bg, tone.text)}><Icon className="size-4" /></span>
               <div className="min-w-0">
                 <p className="truncate text-[10px] font-black uppercase text-slate-500">{card.label}</p>
                 <p className="text-xl font-black text-slate-950">{card.value}</p>

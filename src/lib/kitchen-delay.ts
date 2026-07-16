@@ -16,6 +16,15 @@ export type DelayState = {
   elapsedLabel: string;
 };
 
+export type FormattedDelay = { label: string; severity: "warning" | "critical" | "stale" };
+
+export function formatDelayTime(minutes: number): FormattedDelay {
+  const value = Math.max(0, Math.floor(Number.isFinite(minutes) ? minutes : 0));
+  if (value >= 24 * 60) return { label: "Stale Order", severity: "stale" };
+  if (value >= 60) return { label: `${Math.floor(value / 60)} hr${value >= 120 ? "s" : ""} ${value % 60} min`, severity: "critical" };
+  return { label: `${value} min`, severity: value >= 30 ? "critical" : "warning" };
+}
+
 type DelayInput = {
   status: DelayStatus;
   createdAt?: string;

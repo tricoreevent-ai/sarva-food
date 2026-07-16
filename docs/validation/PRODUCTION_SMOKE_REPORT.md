@@ -4,6 +4,10 @@
 
 `npm run smoke:operational` passes 9/9 deterministic draft recovery, operator/restaurant isolation, fault classification, lifecycle replay, role, notification retry/dedup/token, service-worker background action/deep-link, and Active Orders accessibility checks. This closes repository-simulatable lifecycle gaps; hosted authenticated/provider/device/hardware observations remain manual.
 
+## Phase 4E Active Orders Addendum
+
+Operational smoke now passes 12/12. Added checks prove every visible/contextual Active Orders action has a callback, Ready cannot skip Served, completion requires paid service, large delays are bounded/stale, duplicate timeline events collapse, 100% progress uses success green, and the responsive 1/2/3-column card layout remains present.
+
 Generated: 2026-07-10T15:16:12.607Z
 
 ## Summary

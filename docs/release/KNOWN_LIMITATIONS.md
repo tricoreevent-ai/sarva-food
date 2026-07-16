@@ -1,5 +1,7 @@
 # Known Limitations
 
+Phase 4E closes the repository-side Active Orders broken-action, skipped-lifecycle, unbounded-delay, duplicate-timeline, progress-color, and excessive-density issues. Remaining Active Orders work is authenticated hosted multi-role/device/provider/printer observation only.
+
 Feature ID: `RC1-PRODUCTION-GO-LIVE`
 
 ## Current No-Go Items

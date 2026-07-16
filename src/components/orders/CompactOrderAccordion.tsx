@@ -27,7 +27,7 @@ export const CompactOrderAccordion = memo(function CompactOrderAccordion(props: 
       <div id={`${id}-header`}>
         <CompactOrderAccordionHeader {...props} />
       </div>
-      {delay?.delayed ? <div className="px-4 pb-3"><OrderDelayIndicator delay={delay} /></div> : null}
+      {delay?.delayed ? <div className="px-3 pb-3"><OrderDelayIndicator delay={delay} /></div> : null}
       <AnimatePresence initial={false}>
         {isOpen ? (
           <motion.div
@@ -38,7 +38,7 @@ export const CompactOrderAccordion = memo(function CompactOrderAccordion(props: 
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="grid border-t border-slate-100 bg-slate-50/35 xl:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="grid border-t border-slate-100 bg-slate-50/35">
               <CompactOrderAccordionBody items={items} facts={facts} timeline={timeline} notes={notes} progress={progress} />
               <CompactOrderAccordionActions primaryAction={primaryAction} secondaryActions={secondaryActions} moreActions={moreActions} />
             </div>

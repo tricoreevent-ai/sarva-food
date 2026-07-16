@@ -30,6 +30,16 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Boundaries | No UI redesign, Firestore schema/rule/index, repository, or feature change. |
 | Readiness | Repository `100%`; production `92%`; NO-GO until external environment, provider, Firebase Console, authenticated browser/device, Lighthouse, and hardware gates pass. |
 
+## Phase 4E Active Orders Functional Closure - 2026-07-16
+
+| Area | Result |
+| --- | --- |
+| Actions | Serve/Mark Served, Complete, payment, bill/receipt/KOT print, preview, split, transfer, merge, waiter reassignment, reminder/recall, cancel, timeline, and history callbacks are wired and covered by operational contract checks. |
+| Lifecycle | Ready → Served and Served + Paid → Completed are enforced in UI, handler, and shared state machine; skipped Ready → Completed is rejected. |
+| Operational data | Delay labels never expose thousands of minutes; 24h+ is `Stale Order`. Sequential same-title/same-timestamp timeline duplicates collapse. Kitchen 100% is always green. |
+| Layout | Active cards use responsive 1/2/3-column layout, compact metadata, thin phase progress, single-card expansion, consistent action sizing, aligned metrics, and sticky Orders/Kitchen/Customers/Revenue summary. |
+| Validation | `smoke:operational` passes 12/12 including action wiring, strict lifecycle, delay/timeline/progress/layout contracts. |
+
 ## Phase 4C Push, Owner Razorpay, and Production Readiness - 2026-07-16
 
 | Area | Result |

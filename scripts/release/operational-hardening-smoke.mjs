@@ -22,6 +22,8 @@ const push = read("src/lib/server/push-notifications.ts");
 const fcm = read("src/services/fcm-client.ts");
 const swSource = read("public/sw.js");
 const scenarios = JSON.parse(read("src/data/notification-scenarios.json"));
+const activeOrders = read("src/components/flows/pos-billing-flow.tsx");
+const stateMachine = read("src/lib/order-state-machine.ts");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -130,6 +132,23 @@ await check("active-orders:a11y-and-operational-controls", () => {
     read("src/components/orders/CompactOrderAccordionActions.tsx"),
   ].join("\n");
   for (const token of ["aria-", "Accordion", "kitchen", "delay"]) assert.ok(files.toLowerCase().includes(token.toLowerCase()), token);
+});
+
+await check("active-orders:all-actions-wired", () => {
+  for (const label of ["Serve Order", "Mark Served", "Complete Order", "Collect Payment", "Print Bill", "View / Preview", "Reminder", "Merge Tables", "Transfer Table", "Split Bill", "Reassign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT"]) {
+    assert.ok(activeOrders.includes(`label: \"${label}\"`) || activeOrders.includes(`label=\"${label}\"`), label);
+  }
+  for (const callback of ["onServe(order)", "onComplete(order)", "onCollectPayment(order)", "onPrintBill(order)", "onPrintKot(order)", "onSplit(order)", "onTransfer(order)", "onMerge(order)", "onReminder(order)", "onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
+});
+
+await check("active-orders:strict-lifecycle", () => {
+  assert.ok(activeOrders.includes('order.status !== "served" || order.paymentStatus !== "paid"'));
+  assert.ok(stateMachine.includes('current === "ready" && next === "served"'));
+  assert.ok(!stateMachine.includes('current === "ready" && next === "completed"'));
+});
+
+await check("active-orders:delay-timeline-progress-layout", () => {
+  for (const token of ["formatDelayTime(delay.lateMinutes)", "Stale Order", "key === previous", "progress === 100 ? \"success\"", "md:grid-cols-2 xl:grid-cols-3"]) assert.ok(`${activeOrders}\n${read("src/lib/kitchen-delay.ts")}`.includes(token), token);
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

@@ -76,7 +76,7 @@ export const CompactOrderAccordionActions = memo(function CompactOrderAccordionA
   if (!hasActions) return null;
 
   return (
-    <div className="relative grid content-start gap-2 border-t border-slate-100 bg-white p-4 xl:border-l xl:border-t-0">
+    <div className="relative grid content-start gap-2 border-t border-slate-100 bg-white p-3 sm:grid-cols-2">
       <p className="text-[11px] font-black uppercase text-slate-500">Actions</p>
       {primaryAction ? (
         <button type="button" disabled={primaryAction.disabled} title={primaryAction.title ?? primaryAction.label} onClick={() => run(primaryAction)} className={cn("inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50", actionClass(primaryAction))}>
