@@ -1,14 +1,14 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-16T11:07:13.123Z
+Generated: 2026-07-17T05:53:29.744Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
 | runtime-console | 15 | Runtime console call; prefer productionLogger or operational logging. |
-| raw-error-message | 44 | Raw error-message access; ensure returned/logged text is sanitized. |
+| raw-error-message | 54 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 46 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| listener-lifecycle | 45 | Realtime/listener site; verify cleanup and reconnect bounds. |
 | api-error-envelope | 164 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
@@ -28,7 +28,7 @@ Generated: 2026-07-16T11:07:13.123Z
 - `src/app/api/auth/phone-verification/route.ts` (1)
 - `src/app/api/auth/session/route.ts` (1)
 - `src/app/api/customer/account/route.ts` (1)
-- `src/app/api/owner/kitchen/route.ts` (1)
+- `src/app/api/owner/kitchen/route.ts` (4)
 - `src/app/api/owner/orders/route.ts` (1)
 - `src/app/api/owner/payment-settings/route.ts` (1)
 - `src/app/api/owner/pos/route.ts` (1)
@@ -38,11 +38,12 @@ Generated: 2026-07-16T11:07:13.123Z
 - `src/hooks/useWhatsAppShare.ts` (1)
 - `src/components/flows/admin-portal-login-flow.tsx` (1)
 - `src/components/flows/auth-login-flow.tsx` (1)
-- `src/components/flows/kitchen-display-flow.tsx` (1)
+- `src/components/flows/kitchen-display-flow.tsx` (3)
 - `src/components/flows/owner-menu-management-flow.tsx` (2)
+- `src/components/flows/owner-order-management-flow.tsx` (2)
 - `src/components/flows/owner-portal-login-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (8)
-- `src/components/flows/pos-billing-flow.tsx` (11)
+- `src/components/flows/pos-billing-flow.tsx` (14)
 - `src/components/flows/restaurant-detail-flow.tsx` (1)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 - `src/components/flows/schedule-order-flow.tsx` (1)
@@ -66,7 +67,7 @@ Generated: 2026-07-16T11:07:13.123Z
 - `src/components/flows/kitchen-display-flow.tsx` (10)
 - `src/components/flows/owner-order-management-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (1)
-- `src/components/flows/pos-billing-flow.tsx` (12)
+- `src/components/flows/pos-billing-flow.tsx` (11)
 - `src/components/flows/restaurant-browser-flow.tsx` (1)
 - `src/components/flows/restaurant-detail-flow.tsx` (3)
 - `src/components/flows/table-qr-ordering-flow.tsx` (3)

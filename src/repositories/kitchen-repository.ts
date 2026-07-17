@@ -2,7 +2,7 @@ import "server-only";
 
 import { FieldValue, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
-import { assertLegalKitchenTransition } from "@/lib/order-state-machine";
+import { assertLegalKitchenTransition, assertLegalOrderTransition } from "@/lib/order-state-machine";
 import { hasOperationKey } from "@/lib/server/operation-idempotency";
 import type { KitchenOrderDoc, KitchenOrderStatus, OrderDoc, OrderLineDoc, OrderStatus, PaymentStatus } from "@/types/firebase";
 import { dataWithId, dateMs, readTenantDocs, type TenantScope } from "@/repositories/shared";
@@ -228,10 +228,7 @@ export class KitchenRepository {
   }
 }
 
-const orderFlow: OrderStatus[] = ["new", "accepted", "preparing", "ready", "served", "delivered", "completed"];
 const terminalOrders = new Set<OrderStatus>(["cancelled", "rejected"]);
-const billClosedOrders = new Set<OrderStatus>(["delivered", "completed"]);
-const activePaymentStatuses = new Set<PaymentStatus>(["authorized", "partial", "paid"]);
 
 function orderStatusForKitchenStatus(status: KitchenOrderStatus): OrderStatus {
   if (status === "cancelled") return "cancelled";
@@ -247,11 +244,8 @@ function statusEventForKitchenStatus(status: OrderStatus) {
 
 function shouldSyncOrderStatus(current: OrderStatus | undefined, next: OrderStatus, paymentStatus: PaymentStatus | undefined) {
   if (!current || current === "draft" || current === next || terminalOrders.has(current)) return false;
-  if (next === "cancelled") return !billClosedOrders.has(current) && !activePaymentStatuses.has(paymentStatus ?? "pending");
-  if (billClosedOrders.has(current)) return false;
-  const currentIndex = orderFlow.indexOf(current);
-  const nextIndex = orderFlow.indexOf(next);
-  return currentIndex >= 0 && nextIndex >= 0 && nextIndex >= currentIndex;
+  assertLegalOrderTransition({ status: current, paymentStatus }, next);
+  return true;
 }
 
 function cleanRecord(input: Record<string, unknown>) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import * as Popover from "@radix-ui/react-popover";
@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
+import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
 import { OrderFilters } from "@/components/orders/order-filters";
 import { OrderMetricCard } from "@/components/orders/metric-card";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
@@ -38,7 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAlert } from "@/hooks/useAlert";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
-import { getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
+import { formatDelayTime, getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/lib/phone";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
@@ -199,18 +200,20 @@ export function OwnerOrderManagementFlow() {
   }, [dateRange]);
 
   const updateOrder = useCallback(async (orderId: string, status: OrderStatus, note?: string) => {
-    const response = await fetch("/api/owner/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, status, note }),
-    });
-    if (!response.ok) {
-      toast.error("Order status could not be updated.");
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status, note }),
+      });
+      await readOwnerPayload(response, "Order status could not be updated.");
+      setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order));
+      toast.success(orderStatusToast(status));
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Order status could not be updated.");
       return false;
     }
-    setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order));
-    toast.success(orderStatusToast(status));
-    return true;
   }, []);
 
   const focusOrder = useCallback((order: ActiveOpsOrder) => {
@@ -334,14 +337,15 @@ export function OwnerOrderManagementFlow() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ id: order.id, status }),
     }).catch(() => null);
-    const payload = await response?.json().catch(() => ({})) as { data?: TableOrder } | undefined;
-    if (!response?.ok) {
+    try {
+      if (!response) throw new Error("Kitchen connection is unavailable.");
+      const payload = await readOwnerPayload<{ data?: TableOrder }>(response, "Kitchen status could not be updated.");
+      if (payload.data) setTableOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
+      toast.success(orderStatusToast(status));
+    } catch (error) {
       setTableOrders(previous);
-      toast.error("Kitchen status could not be updated.");
-      return;
+      toast.error(error instanceof Error ? error.message : "Kitchen status could not be updated.");
     }
-    if (payload?.data) setTableOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
-    toast.success(orderStatusToast(status));
   }, []);
 
   async function updateCateringInquiryStatus() {
@@ -392,10 +396,10 @@ export function OwnerOrderManagementFlow() {
                 type="button"
                 onClick={() => setAutoAccept((value) => !value)}
                 title="Quickly pause or resume auto-accept. Configure rules in Settings."
-                className={autoAccept ? "h-7 w-12 rounded-full bg-orange-500 p-1" : "h-7 w-12 rounded-full bg-slate-300 p-1"}
+                className={autoAccept ? "h-11 w-16 rounded-full bg-orange-500 p-1" : "h-11 w-16 rounded-full bg-slate-300 p-1"}
                 aria-pressed={autoAccept}
               >
-                <span className={autoAccept ? "block size-5 translate-x-5 rounded-full bg-white transition" : "block size-5 rounded-full bg-white transition"} />
+                <span className={autoAccept ? "block size-9 translate-x-5 rounded-full bg-white transition" : "block size-9 rounded-full bg-white transition"} />
               </button>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/owner/settings">
@@ -430,29 +434,36 @@ export function OwnerOrderManagementFlow() {
             {activeView ? (
               <ActiveOrdersGrid
                 orders={activeOrders}
+                loading={loading}
                 highlightedOrderIds={highlightedOrderIds}
                 onAccept={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
                 onReject={(order) => void rejectKitchenOrder(order)}
-                onReady={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
+                onReady={(order) => {
+                  const status = order.status === "accepted" ? "preparing" : "ready";
+                  return order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, status) : void updateOrder(order.id, status);
+                }}
                 onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
                 onView={focusOrder}
               />
             ) : visibleOrders.length ? (
               <ActiveOrdersGrid
                 orders={visibleOrders}
+                loading={loading}
                 highlightedOrderIds={highlightedOrderIds}
                 limit={80}
                 onAccept={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
                 onReject={(order) => void rejectKitchenOrder(order)}
-                onReady={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "ready") : void updateOrder(order.id, "ready")}
+                onReady={(order) => {
+                  const status = order.status === "accepted" ? "preparing" : "ready";
+                  return order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, status) : void updateOrder(order.id, status);
+                }}
                 onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
                 onView={focusOrder}
               />
             ) : null}
             {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={(order) => void updateKitchenOrder(order)} /> : null}
-            {!visibleOrders.length && !visibleCatering.length && tab !== "kot" && !activeView ? <EmptyOrders /> : null}
-            {activeView && !activeOrders.length && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
-            {loading ? <p className="text-sm font-bold text-slate-500">Loading canonical orders...</p> : null}
+            {!loading && !visibleOrders.length && !visibleCatering.length && tab !== "kot" && !activeView ? <EmptyOrders /> : null}
+            {!loading && activeView && !activeOrders.length && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
           </div>
         </main>
 
@@ -598,6 +609,7 @@ function ActiveOrderStatusBoard({ summary }: { summary: ActiveOrderSummary }) {
 
 function ActiveOrdersGrid({
   orders,
+  loading = false,
   highlightedOrderIds,
   limit = 30,
   onAccept,
@@ -607,6 +619,7 @@ function ActiveOrdersGrid({
   onView,
 }: {
   orders: ActiveOpsOrder[];
+  loading?: boolean;
   highlightedOrderIds: Set<string>;
   limit?: number;
   onAccept: (order: ActiveOpsOrder) => void;
@@ -633,7 +646,13 @@ function ActiveOrdersGrid({
         </div>
       </div>
       <div className="grid gap-2 p-2 xl:p-3">
-        {visible.map((order) => (
+        {loading && !visible.length ? Array.from({ length: 5 }, (_, index) => (
+          <div key={index} className="h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-50 p-3" aria-hidden="true">
+            <div className="h-4 w-1/3 rounded bg-slate-200" />
+            <div className="mt-3 h-3 w-3/4 rounded bg-slate-200" />
+            <div className="mt-4 h-8 rounded bg-slate-100" />
+          </div>
+        )) : visible.map((order) => (
           <MemoActiveOrderCard
             key={order.id}
             order={order}
@@ -679,24 +698,32 @@ function ActiveOrderCard({
   const ready = order.status === "ready";
   const served = order.status === "served";
   const isNew = order.status === "new";
-  const preparing = order.status === "accepted" || order.status === "preparing";
+  const accepted = order.status === "accepted";
+  const preparing = order.status === "preparing";
   const [mobileQuickOpen, setMobileQuickOpen] = useState(false);
   const primaryAction = isNew
     ? { label: "Accept Order", onClick: onAccept }
-    : preparing
+    : accepted
+      ? { label: "Start Cooking", onClick: onReady }
+      : preparing
       ? { label: "Mark Ready", onClick: onReady }
       : ready
         ? { label: "Serve Order", onClick: onComplete }
         : null;
   const paid = order.paymentStatusLabel.toLowerCase().includes("paid");
   const progress = orderProgressPercent(order.status);
+  const openDetails = () => {
+    onExpandedChange(true);
+    setMobileQuickOpen(true);
+    onView();
+  };
   return (
     <>
       <div className="hidden xl:block">
         <CompactOrderAccordion
           id={`active-order-${order.id}`}
           orderNumber={order.displayId ?? "Order"}
-          etaLabel={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel}
+          etaLabel={delayed ? `${formatDelayTime(order.delay?.lateMinutes ?? 0).label} late` : order.etaLabel}
           orderTypeLabel={order.type}
           tableLabel={order.tableNumber || order.customer}
           itemCountLabel={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"}`}
@@ -710,7 +737,7 @@ function ActiveOrderCard({
           ]}
           workflow={buildOwnerWorkflow(order)}
           sideStats={[
-            { label: delayed ? "Delayed" : ready ? "Ready" : "ETA", value: delayed ? `${order.delay?.lateMinutes} min` : ready ? order.age : order.etaLabel, tone: delayed ? "danger" : ready ? "success" : "default" },
+            { label: delayed ? "Delayed" : ready ? "Ready" : "ETA", value: delayed ? formatDelayTime(order.delay?.lateMinutes ?? 0).label : ready ? order.age : order.etaLabel, tone: delayed ? "danger" : ready ? "success" : "default" },
             { label: "Total", value: formatCurrency(order.total), tone: paid ? "success" : "default" },
           ]}
           delay={ownerAccordionDelay(order)}
@@ -743,13 +770,9 @@ function ActiveOrderCard({
             onClick: primaryAction.onClick,
           } : undefined}
           secondaryActions={[
-            ...(served && !paid ? [{ id: "payment", label: "Collect Payment", icon: <IndianRupee className="size-4" />, onClick: onView }] : []),
-            ...(ready || served || paid ? [{ id: "bill", label: "Print Bill", icon: <ReceiptText className="size-4" />, onClick: onView }] : []),
-            { id: "view", label: "View / Preview", icon: <Eye className="size-4" />, onClick: onView },
+            { id: "view", label: "View / Preview", icon: <Eye className="size-4" />, onClick: openDetails },
           ]}
           moreActions={[
-            { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" />, onClick: onView },
-            { id: "add-items", label: "Add Items", icon: <ShoppingBag className="size-4" />, onClick: onView },
             ...(isNew ? [{ id: "reject", label: "Reject", icon: <AlertTriangle className="size-4" />, variant: "danger" as const, onClick: onReject }] : []),
           ]}
           isOpen={expanded}
@@ -761,14 +784,14 @@ function ActiveOrderCard({
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <p className="truncate text-base font-black text-slate-950">{order.displayId ?? "Order"}</p>
-          <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status), delayed && "order-delay-soft-blink")}>{order.status}</span>
+          <OperationalOrderStatusBadge status={order.status} className={cn(delayed && "order-delay-soft-blink")} />
         </div>
         <p className="mt-0.5 truncate text-xs font-bold text-slate-500">{order.customer} · {order.tableNumber || order.type} · {order.source}</p>
       </div>
       <OrderCell label="Priority" value={order.priorityLabel} tone={critical || delayed ? "danger" : "default"}>
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black", priorityTone(order.delay?.priority))}>
           {delayed || critical ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" />}
-          {order.delay?.lateMinutes ? `${order.delay.lateMinutes}m` : "On time"}
+          {order.delay?.lateMinutes ? formatDelayTime(order.delay.lateMinutes).label : "On time"}
         </span>
       </OrderCell>
       <OrderCell label="Progress" value={order.kitchenStatus} subvalue={`${order.itemCount} item${order.itemCount === 1 ? "" : "s"} · ${order.itemSummary}`} strong>
@@ -776,25 +799,26 @@ function ActiveOrderCard({
           <span className={cn("block h-full rounded-full", ready ? "bg-emerald-500" : preparing ? "bg-blue-500" : isNew ? "bg-orange-500" : "bg-slate-400")} style={{ width: `${orderProgressPercent(order.status)}%` }} />
         </span>
       </OrderCell>
-      <OrderCell label="ETA" value={delayed ? `${order.delay?.lateMinutes}m late` : order.etaLabel} subvalue={order.age} tone={delayed ? "danger" : ready ? "success" : "default"} blink={delayed} />
+      <OrderCell label="ETA" value={delayed ? `${formatDelayTime(order.delay?.lateMinutes ?? 0).label} late` : order.etaLabel} subvalue={order.age} tone={delayed ? "danger" : ready ? "success" : "default"} blink={delayed} />
       <MobileWorkflowSteps order={order} />
       <QuickViewCell order={order} mobileOpen={mobileQuickOpen} onMobileToggle={() => setMobileQuickOpen((value) => !value)} />
       <div className="flex items-center gap-2 xl:justify-end">
         {primaryAction ? (
-          <Button size="sm" variant={primaryAction.label === "Serve" ? "default" : "outline"} className={cn("min-h-9", delayed && primaryAction.label === "Serve" && "order-delay-soft-blink")} onClick={primaryAction.onClick}>
+          <Button size="sm" variant={primaryAction.label === "Serve" ? "default" : "outline"} className={cn("min-h-11", delayed && primaryAction.label === "Serve" && "order-delay-soft-blink")} onClick={primaryAction.onClick}>
             <CheckCircle2 className="size-4" />
             {primaryAction.label}
           </Button>
         ) : null}
         <ActiveOrderMenu
           isNew={isNew}
+          accepted={accepted}
           preparing={preparing}
           ready={ready}
           onAccept={onAccept}
           onReject={onReject}
           onReady={onReady}
           onComplete={onComplete}
-          onView={onView}
+          onView={openDetails}
         />
       </div>
       {mobileQuickOpen ? <div className="xl:hidden"><QuickViewContent order={order} /></div> : null}
@@ -823,6 +847,7 @@ function MobileWorkflowSteps({ order }: { order: ActiveOpsOrder }) {
 
 function ActiveOrderMenu({
   isNew,
+  accepted,
   preparing,
   ready,
   onAccept,
@@ -832,6 +857,7 @@ function ActiveOrderMenu({
   onView,
 }: {
   isNew: boolean;
+  accepted: boolean;
   preparing: boolean;
   ready: boolean;
   onAccept: () => void;
@@ -841,6 +867,7 @@ function ActiveOrderMenu({
   onView: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
   const act = (fn: () => void) => () => {
     close();
@@ -848,39 +875,41 @@ function ActiveOrderMenu({
   };
   const actions = [
     ...(isNew ? [{ label: "Accept", onClick: onAccept }, { label: "Reject", onClick: onReject, danger: true }] : []),
+    ...(accepted ? [{ label: "Start Cooking", onClick: onReady }] : []),
     ...(preparing ? [{ label: "Mark Ready", onClick: onReady }] : []),
     ...(ready ? [{ label: "Serve", onClick: onComplete }] : []),
-    { label: "Edit", onClick: onView },
-    { label: "Add Items", onClick: onView },
-    { label: "Split Bill", onClick: onView },
-    { label: "Merge Table", onClick: onView },
-    { label: "Transfer Table", onClick: onView },
-    { label: "Print Bill", onClick: onView },
-    { label: "Print Receipt", onClick: onView },
-    { label: "Print KOT", onClick: onView },
-    { label: "Timeline", onClick: onView },
-    { label: "Kitchen Details", onClick: onView },
-    { label: "Reminder", onClick: onView },
-    { label: "Payment", onClick: onView },
-    { label: "History", onClick: onView },
-    { label: "Communication", onClick: onView },
-    { label: "Refund", onClick: onView },
-    { label: "Cancel", onClick: onReject, danger: true },
+    { label: "View / Preview", onClick: onView },
   ];
+  function handleMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("[role='menuitem']") ?? []);
+    if (!items.length) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    const index = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : event.key === "ArrowDown"
+          ? (current + 1 + items.length) % items.length
+          : (current - 1 + items.length) % items.length;
+    items[index]?.focus();
+  }
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
-        <Button size="icon-sm" variant="outline" aria-label="More actions" title="More actions">
+        <Button size="icon-sm" variant="outline" className="size-11" aria-label="More actions" title="More actions">
           <MoreHorizontal className="size-4" />
         </Button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          ref={menuRef}
           align="end"
           sideOffset={8}
           collisionPadding={12}
-          onOpenAutoFocus={(event) => event.preventDefault()}
+          onKeyDown={handleMenuKeyDown}
           className="z-[70] max-h-80 w-52 overflow-y-auto rounded-xl border border-white/50 bg-white/90 p-1 shadow-2xl backdrop-blur data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
         >
           {actions.map((action) => (
@@ -888,7 +917,7 @@ function ActiveOrderMenu({
               key={action.label}
               type="button"
               role="menuitem"
-              className={cn("flex min-h-9 w-full items-center rounded-lg px-3 text-left text-xs font-black hover:bg-slate-50", action.danger ? "text-red-600" : "text-slate-700")}
+              className={cn("flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs font-black hover:bg-slate-50", action.danger ? "text-red-600" : "text-slate-700")}
               onClick={act(action.onClick)}
             >
               {action.label}
@@ -905,7 +934,7 @@ function QuickViewCell({ order, mobileOpen, onMobileToggle }: { order: ActiveOps
     <div className="flex items-center xl:justify-center">
       <Popover.Root>
         <Popover.Trigger asChild>
-          <Button size="icon-sm" variant="outline" className="hidden xl:inline-flex" aria-label={`View ${order.displayId ?? order.id}`} title="Quick view">
+          <Button size="icon-sm" variant="outline" className="hidden size-11 xl:inline-flex" aria-label={`View ${order.displayId ?? order.id}`} title="Quick view">
             <Eye className="size-4" />
           </Button>
         </Popover.Trigger>
@@ -921,7 +950,7 @@ function QuickViewCell({ order, mobileOpen, onMobileToggle }: { order: ActiveOps
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
-      <Button size="sm" variant="outline" className="xl:hidden" onClick={onMobileToggle} aria-expanded={mobileOpen}>
+      <Button size="sm" variant="outline" className="min-h-11 xl:hidden" onClick={onMobileToggle} aria-expanded={mobileOpen}>
         <Eye className="size-4" />
         View
       </Button>
@@ -936,7 +965,7 @@ function QuickViewContent({ order }: { order: ActiveOpsOrder }) {
         <p className="text-xs font-black uppercase text-orange-600">Quick view</p>
         <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
           <h3 className="truncate text-xl font-black text-slate-950">{order.displayId ?? order.id}</h3>
-          <span className={cn("rounded-full px-2 py-1 text-[10px] font-black uppercase", statusTone(order.status))}>{order.status}</span>
+          <OperationalOrderStatusBadge status={order.status} />
         </div>
         <p className="mt-1 font-semibold text-slate-600">{order.customer || "Customer"} · {order.tableNumber || order.type}</p>
       </div>
@@ -944,7 +973,7 @@ function QuickViewContent({ order }: { order: ActiveOpsOrder }) {
       <div className="grid gap-2 sm:grid-cols-3">
         <QuickFact label="Payment" value={`${order.paymentStatusLabel} · ${formatCurrency(order.total)}`} />
         <QuickFact label="Kitchen" value={order.kitchenStatus} />
-        <QuickFact label="ETA" value={order.delay?.delayed ? `${order.delay.lateMinutes}m late` : order.etaLabel} tone={order.delay?.delayed ? "danger" : undefined} />
+        <QuickFact label="ETA" value={order.delay?.delayed ? `${formatDelayTime(order.delay.lateMinutes).label} late` : order.etaLabel} tone={order.delay?.delayed ? "danger" : undefined} />
         <QuickFact label="Order time" value={order.actualTime || "-"} />
         <QuickFact label="Waiting" value={order.age} tone={order.delay?.delayed ? "danger" : undefined} />
         <QuickFact label="Priority" value={order.priorityLabel} tone={order.delay?.delayed ? "danger" : undefined} />
@@ -1550,17 +1579,19 @@ function compactItems(lines: DemoOrder["lines"] | TableOrder["lines"]) {
 }
 
 function compactTimeline(status: string, createdAt: string, createdLabel: string, history: TableOrder["statusHistory"] = []) {
-  const entries = history
+  const entries = [...history]
+    .reverse()
     .map((entry) => ({
       label: kitchenStatusLabel(String(entry.status ?? entry.foodStatus ?? entry.event ?? status)),
       at: formatTimelineTime(entry.at),
     }))
     .filter((entry) => entry.label)
-    .slice(-5);
+    .filter((entry, index, values) => values.findIndex((value) => value.label === entry.label && value.at === entry.at) === index)
+    .slice(0, 5);
   return [
-    { label: "Created", at: createdLabel || formatTimelineTime(createdAt) },
-    ...entries,
     ...(entries.some((entry) => entry.label.toLowerCase() === kitchenStatusLabel(status).toLowerCase()) ? [] : [{ label: kitchenStatusLabel(status), at: "Now" }]),
+    ...entries,
+    { label: "Created", at: createdLabel || formatTimelineTime(createdAt) },
   ];
 }
 
@@ -1610,7 +1641,7 @@ function timelineTime(order: ActiveOpsOrder, needles: string[]) {
 }
 
 function kitchenProgressHelper(order: ActiveOpsOrder) {
-  if (order.delay?.delayed) return `${order.delay.lateMinutes} minutes beyond ETA`;
+  if (order.delay?.delayed) return `${formatDelayTime(order.delay.lateMinutes).label} beyond ETA`;
   if (!order.kitchenOrder && order.status === "new") return "Not sent to kitchen";
   if (order.status === "ready") return "All items are ready";
   if (order.status === "served") return "Served, bill pending";
@@ -1688,14 +1719,6 @@ function priorityTone(priority?: DelayPriority) {
   if (priority === "high") return "bg-orange-100 text-orange-800";
   if (priority === "medium") return "bg-amber-100 text-amber-800";
   return "bg-slate-100 text-slate-600";
-}
-
-function statusTone(status: string) {
-  if (status === "new") return "bg-orange-100 text-orange-700";
-  if (["accepted", "preparing"].includes(status)) return "bg-blue-100 text-blue-700";
-  if (["ready", "served"].includes(status)) return "bg-emerald-100 text-emerald-700";
-  if (["rejected", "cancelled"].includes(status)) return "bg-red-100 text-red-700";
-  return "bg-slate-100 text-slate-700";
 }
 
 function summaryCardTone(tone: "blue" | "orange" | "green" | "purple" | "amber" | "red") {

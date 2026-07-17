@@ -25,16 +25,17 @@ export function normalizeOperationalOrderState(order: OrderLike) {
 }
 
 export function assertLegalOrderTransition(order: OrderLike, next: OrderStatus) {
-  const { status, paymentStatus } = normalizeOperationalOrderState(order);
+  const { status, paymentStatus, paymentStarted } = normalizeOperationalOrderState(order);
   if (status === next) return;
   if (terminalOrders.has(status)) throw new Error(`Invalid order status transition from ${status} to ${next}.`);
   if (billClosedOrders.has(status) && !billClosedOrders.has(next)) throw new Error(`Invalid order status transition from ${status} to ${next}.`);
   if (paymentStatus === "refunded" && next !== "cancelled") throw new Error("Refunded orders cannot move back to active service.");
   if (paymentStatus === "paid" && isEarlierOrderState(status, next)) throw new Error(`Invalid order status transition from paid ${status} to ${next}.`);
   if (next === "cancelled" || next === "rejected") {
-    if (activePaymentStatuses.has(paymentStatus)) throw new Error("Paid or payment-started orders cannot be cancelled without refund.");
+    if (activePaymentStatuses.has(paymentStatus) || paymentStarted) throw new Error("Paid or payment-started orders cannot be cancelled without refund.");
     return;
   }
+  if (next === "completed" && paymentStatus !== "paid") throw new Error("Full payment is required before completing the order.");
   if (!isNextOrderState(status, next)) throw new Error(`Invalid order status transition from ${status} to ${next}.`);
 }
 
@@ -56,14 +57,15 @@ export function assertCanStartPayment(order: OrderLike) {
   if (paymentStatus === "paid") throw new Error("Payment has already been collected.");
   if (paymentStatus === "refunded") throw new Error("Refunded orders cannot be paid again.");
   if (paymentStarted) throw new Error("Order currently being modified.");
-  if (!["ready", "served", "completed"].includes(foodStatus)) throw new Error("Kitchen still preparing.");
+  if (foodStatus !== "served") throw new Error("Serve the order before collecting payment.");
 }
 
 export function assertCanRecordPayment(order: OrderLike) {
-  const { status, paymentStatus } = normalizeOperationalOrderState(order);
+  const { status, foodStatus, paymentStatus } = normalizeOperationalOrderState(order);
   if (terminalOrders.has(status)) throw new Error("Cancelled orders cannot be paid.");
   if (paymentStatus === "paid") throw new Error("Payment has already been collected.");
   if (paymentStatus === "refunded") throw new Error("Refunded orders cannot be paid again.");
+  if (foodStatus !== "served") throw new Error("Serve the order before collecting payment.");
 }
 
 export function assertCanRefund(order: OrderLike) {

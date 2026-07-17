@@ -20,7 +20,7 @@ export type FormattedDelay = { label: string; severity: "warning" | "critical" |
 
 export function formatOperationalDuration(minutes: number) {
   const value = Math.max(0, Math.floor(Number.isFinite(minutes) ? minutes : 0));
-  if (value >= 24 * 60) return "Stale";
+  if (value >= 24 * 60) return "24h+";
   if (value >= 60) {
     const hours = Math.floor(value / 60);
     const remainder = value % 60;
@@ -94,10 +94,11 @@ function priorityFor({ delayed, ratio, rush }: { delayed: boolean; ratio: number
 }
 
 function elapsedLabel(status: string, minutes: number) {
-  if (status === "preparing") return `Preparing ${minutes} min`;
-  if (status === "ready") return `Ready for ${minutes} min`;
-  if (status === "accepted") return `Accepted ${minutes} min`;
-  return `Placed ${minutes} min ago`;
+  const label = formatOperationalDuration(minutes);
+  if (status === "preparing") return `Preparing ${label}`;
+  if (status === "ready") return `Ready for ${label}`;
+  if (status === "accepted") return `Accepted ${label}`;
+  return `Placed ${label} ago`;
 }
 
 function statusMs(history: StatusEntry[] | undefined, status: string) {

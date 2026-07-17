@@ -24,6 +24,11 @@ const swSource = read("public/sw.js");
 const scenarios = JSON.parse(read("src/data/notification-scenarios.json"));
 const activeOrders = read("src/components/flows/pos-billing-flow.tsx");
 const stateMachine = read("src/lib/order-state-machine.ts");
+const orderRepository = read("src/repositories/order-repository.ts");
+const kitchenRepository = read("src/repositories/kitchen-repository.ts");
+const delayFormatter = read("src/lib/kitchen-delay.ts");
+const statusBadge = read("src/components/orders/OperationalOrderStatusBadge.tsx");
+const compactActions = read("src/components/orders/CompactOrderAccordionActions.tsx");
 const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 const ownerAccess = read("src/lib/server/owner-api-access.ts");
@@ -162,15 +167,21 @@ await check("active-orders:a11y-and-operational-controls", () => {
 });
 
 await check("active-orders:all-actions-wired", () => {
-  for (const label of ["Serve Order", "Notify Waiter", "Complete Order", "Collect Payment", "Print Bill", "Print Receipt", "View / Preview", "Add Items", "Reminder", "Merge Tables", "Transfer Table", "Split Bill", "Reassign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT", "Timeline", "History", "Payment History"]) {
+  for (const label of ["Serve Order", "Notify Waiter", "Complete Order", "Collect Payment", "Mark Paid", "Print Bill", "Print Receipt", "View / Preview", "Add Items", "Reminder", "Merge Tables", "Transfer Table", "Split Bill", "Assign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT", "Timeline", "History", "Payment History"]) {
     assert.ok(activeOrders.includes(label), label);
   }
-  for (const callback of ["handlers.onServe(order)", "handlers.onNotifyWaiter(order)", "handlers.onComplete(order)", "handlers.onCollectPayment(order)", "handlers.onPrintBill(order)", "handlers.onPrintReceipt(order)", "handlers.onPrintKot(order)", "handlers.onAddItems(order)", "handlers.onSplit(order)", "handlers.onTransfer(order)", "handlers.onMerge(order)", "handlers.onTimeline(order)", "handlers.onPaymentHistory(order)", "handlers.onReminder(order)", "handlers.onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
+  for (const callback of ["handlers.onServe(order)", "handlers.onNotifyWaiter(order)", "handlers.onComplete(order)", "handlers.onCollectPayment(order)", "handlers.onPrintBill(order)", "handlers.onPrintReceipt(order)", "handlers.onPrintKot(order)", "handlers.onAddItems(order)", "handlers.onSplit(order)", "handlers.onTransfer(order)", "handlers.onAssignWaiter(order)", "handlers.onMerge(order)", "handlers.onTimeline(order)", "handlers.onPaymentHistory(order)", "handlers.onReminder(order)", "handlers.onRecall(order)", "handlers.onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
 });
 
 await check("active-orders:strict-lifecycle", () => {
   assert.ok(activeOrders.includes('order.status !== "served" || order.paymentStatus !== "paid"'));
+  assert.ok(activeOrders.includes('const canCollect = served && !paid && !paymentLocked'));
   assert.ok(stateMachine.includes('current === "ready" && next === "served"'));
+  assert.ok(stateMachine.includes('next === "completed" && paymentStatus !== "paid"'));
+  assert.ok(stateMachine.includes('foodStatus !== "served"'));
+  assert.ok(orderRepository.includes("assertCanRecordPayment(order)"));
+  assert.ok(orderRepository.includes("assertPaymentLockOwner(order"));
+  assert.ok(kitchenRepository.includes("assertLegalOrderTransition({ status: current, paymentStatus }, next)"));
   assert.ok(!stateMachine.includes('current === "ready" && next === "completed"'));
 });
 
@@ -178,6 +189,21 @@ await check("active-orders:dense-memoized-layout", () => {
   for (const token of ["useDebouncedValue(search, 120)", "MemoPosActiveOrderCard", "handlersRef", "h-[calc(100dvh-6rem)]", "md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6", "data-action=\"serve\"", "data-action=\"notify\"", "data-action=\"payment\"", "data-action=\"print\"", "data-action=\"preview\""]) assert.ok(activeOrders.includes(token), token);
   assert.ok(!activeOrders.includes("function PosOrderAccordion"));
   assert.ok(activeOrders.includes("formatDelayTime(delay.lateMinutes)"));
+});
+
+await check("active-orders:status-duration-and-timeline-consistency", () => {
+  for (const token of ['key === "accepted"', 'key === "preparing"', 'key === "ready"', 'key === "served"', '"completed"']) assert.ok(statusBadge.includes(token), token);
+  assert.ok(delayFormatter.includes('if (value >= 24 * 60) return "24h+"'));
+  assert.ok(delayFormatter.includes('return { label: "Stale Order", severity: "stale" }'));
+  assert.ok(activeOrders.includes("formatOperationalDuration(delay.elapsedMinutes)"));
+  assert.ok(activeOrders.includes("timelineMillis(second) - timelineMillis(first)"));
+  assert.ok(activeOrders.includes("const seen = new Set<string>()"));
+});
+
+await check("active-orders:search-loading-keyboard-and-touch", () => {
+  for (const token of ["order.customerPhone", "order.tableNumber", "raw.vehicleNumber", "raw.qrTableCode", "order.waiterName", "order.orderType"]) assert.ok(activeOrders.includes(token), token);
+  for (const token of ["allActiveKitchenOrders", "delaysById", "MemoPosActiveOrderCard", "ActiveOrdersSkeleton", "readModelError"]) assert.ok(activeOrders.includes(token), token);
+  for (const token of ["ArrowDown", "ArrowUp", "Home", "End", "min-h-11"]) assert.ok(compactActions.includes(token) || activeOrders.includes(token), token);
 });
 
 await check("kitchen:notify-without-serving", () => {
@@ -188,7 +214,7 @@ await check("kitchen:notify-without-serving", () => {
 });
 
 await check("kitchen:responsive-settings-and-duration", () => {
-  for (const token of ["autoNotifyWaiter", "autoPrintOrders", "soundAlerts", "repeatNotification", "escalationTimeout", "notificationMethod", "auto-fit", "--column-weight", "formatOperationalDuration"]) assert.ok(kitchen.includes(token) || read("src/lib/kitchen-delay.ts").includes(token), token);
+  for (const token of ["autoNotifyWaiter", "autoPrintOrders", "soundAlerts", "repeatNotification", "escalationTimeout", "notificationMethod", "auto-fit", "grid-template-columns:repeat(auto-fit", "formatOperationalDuration"]) assert.ok(kitchen.includes(token) || read("src/lib/kitchen-delay.ts").includes(token), token);
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

@@ -1,6 +1,6 @@
 # Render Analysis
 
-Date: 2026-07-16T11:07:12.791Z
+Date: 2026-07-17T05:53:33.987Z
 
 ## Source Hot Paths
 
@@ -8,10 +8,10 @@ Date: 2026-07-16T11:07:12.791Z
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | src/components/flows/customer-discovery-home.tsx | 696 | 10 | 0 | 1 | 0 | 1 | 11/6/4 |
 | src/app/profile/page.tsx | 1367 | 0 | 0 | 0 | 0 | 2 | 10/4/0 |
-| src/components/flows/owner-order-management-flow.tsx | 1744 | 11 | 5 | 1 | 0 | 4 | 27/37/2 |
+| src/components/flows/owner-order-management-flow.tsx | 1767 | 11 | 5 | 1 | 0 | 4 | 27/38/2 |
 | src/components/flows/owner-settings-flow.tsx | 2112 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
-| src/components/flows/kitchen-display-flow.tsx | 2129 | 16 | 5 | 2 | 8 | 4 | 44/40/5 |
-| src/components/flows/pos-billing-flow.tsx | 4700 | 30 | 18 | 1 | 11 | 16 | 89/52/7 |
+| src/components/flows/kitchen-display-flow.tsx | 2163 | 16 | 5 | 2 | 8 | 4 | 44/40/5 |
+| src/components/flows/pos-billing-flow.tsx | 4890 | 31 | 19 | 1 | 10 | 17 | 89/53/9 |
 | src/modules/owner/pos/components/product-grid.tsx | 48 | 0 | 0 | 1 | 0 | 0 | 1/0/0 |
 | src/modules/owner/pos/components/product-card.tsx | 79 | 0 | 0 | 1 | 0 | 0 | 0/0/0 |
 

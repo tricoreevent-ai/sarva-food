@@ -46,6 +46,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAppStore } from "@/lib/app-store";
 import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
+import { formatOperationalDuration } from "@/lib/kitchen-delay";
 import { playOperationalSound } from "@/lib/operational-sounds";
 import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status";
 import type { DemoOrder, NavItem, TableOrder } from "@/lib/types";
@@ -1174,7 +1175,7 @@ function buildNotifications(input: {
           id: `critical-delay-${order.id}`,
           group: "Kitchen",
           title: `${readableTableOrderId(order)} is critically delayed`,
-          description: `${order.tableNumber} order delayed by ${minutes} minutes.`,
+          description: `${order.tableNumber} order delayed by ${formatOperationalDuration(minutes)}.`,
           priority: "critical",
           href: `/owner/kitchen?search=${encodeURIComponent(readableTableOrderId(order))}`,
           createdAt: order.createdAt,

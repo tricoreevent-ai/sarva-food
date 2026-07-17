@@ -1,6 +1,16 @@
 # Final Release Readiness
 
-Date: 2026-07-16T11:07:12.791Z
+Date: 2026-07-17T05:53:33.987Z
+
+## Phase 5B Finalization Addendum
+
+| Area | Status |
+| --- | --- |
+| Active Orders optimization | Complete: memoized cards, lazy details, cached/shared duration formatting, and shared operational status badges remain in place. |
+| Kitchen workflow | Complete: Accepted → Preparing → Ready, Notify Waiter, Reminder, Kitchen Recall, timeline, acknowledgement, and escalation are covered. |
+| Payment lifecycle | Complete: payment before Served and completion before fully Paid are rejected; partial payments and lock release/retry paths remain supported. |
+| Print context | Complete: active-order Preview/Print/Receipt/KOT use the selected order context instead of stale POS bill state. |
+| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 17/17, `profile:runtime`, and `git diff --check` passed. |
 
 ## Local Validation
 
@@ -14,6 +24,7 @@ Date: 2026-07-16T11:07:12.791Z
 | `npm run audit:release` | Passed. |
 | `npm run smoke:operational` | Passed. |
 | `npm run profile:runtime` | Passed. |
+| `git diff --check` | Passed with Git line-ending normalization warnings only. |
 
 ## Certification Audit
 
@@ -29,9 +40,9 @@ Date: 2026-07-16T11:07:12.791Z
 
 | Area | Status |
 | --- | --- |
-| Repository readiness | 99% |
-| Production readiness | 90% |
-| Recommendation | NO-GO until Phase 4C is deployed and provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, and hardware gates pass. |
+| Repository readiness | 100% |
+| Production readiness | 92% |
+| Recommendation | NO-GO until the final Phase 5B commit is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Remaining Manual Gates
 
@@ -45,7 +56,8 @@ Date: 2026-07-16T11:07:12.791Z
 | Hosted VAPID | Manual | Set the documented public key in Hostinger, redeploy, and verify `vapidConfigured=true`. |
 | Push delivery | Manual | Register real devices and verify foreground/background/action/deep-link behavior in Chrome, Edge, Firefox, Android, and supported Safari/iPhone PWA. |
 | Razorpay | Manual | Complete owner sandbox checkout, failed/cancel/timeout, capture/refund, dashboard webhook, live key rotation, and settlement checks. |
-| Hostinger redeploy | Manual | Deploy Phase 4C, clear cache, and verify release info plus all health endpoints. |
+| Active Orders multi-role QA | Manual | Verify Owner, Manager, Waiter, Cashier, and Kitchen Serve/Complete/Payment/Print/Reminder/Transfer/Split/Merge/Timeline/History/Assign Waiter flows on hosted runtime. |
+| Hostinger redeploy | Manual | Deploy the final Phase 5B commit, clear cache, and verify release info plus all health endpoints. |
 
 ## Accepted Warning
 

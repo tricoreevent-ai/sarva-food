@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,26 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Production Closure Sprint |
+| Current Sprint | Phase 5B Operational Hardening Finalization |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Phase 5C starts from pushed Active Orders head `8429a9163511c1f5ec590f3249f7cb16d5bf744d`; the Hostinger origin-guard fix is validated locally and pending commit/deployment. Existing RC tags must not be moved. |
+| Latest Git Commit | Pending Phase 5B finalization commit; existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Phase 5C passed `typecheck`, `lint`, `build`, `audit:release`, `smoke:operational` (15/15), production-mode origin probes, and final diff check. Build retains the accepted Firebase/protobuf warning. |
-| Scope | Phase 5C fixes only owner mutation origin validation behind the production reverse proxy. Existing order/Kitchen/POS repositories, API payloads, lifecycle, auth, payment, notifications, and Firestore collection/schema/rule/index contracts are unchanged. |
+| Verification Status | Phase 5B finalization passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (17/17), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | Phase 5B finalizes Active Orders/POS/Kitchen operational hardening, strict payment lifecycle enforcement, print-context safety, refreshed runtime reports, and tracker synchronization without redesigning completed UI or changing Firestore schema/rules/indexes. |
+
+## Phase 5B Operational Hardening Finalization - 2026-07-17
+
+| Area | Result |
+| --- | --- |
+| Active Orders optimization | Complete. POS active cards remain memoized, details/timelines are lazy-mounted, search/grouping is memoized, and shared duration/status badge utilities are used across POS, Owner Orders, and Kitchen. |
+| Kitchen workflow | Complete. Kitchen owns Accepted → Preparing → Ready, waiter notification, recall/reminder timeline entries, acknowledgement/escalation, and no Kitchen Serve path. |
+| Payment lifecycle | Complete. Payment cannot start before Served, completion requires full Paid status, partial payments stay editable through the payment flow, locks release on record/unlock, and stale/foreign lock attempts are rejected. |
+| Owner/POS actions | Serve, Complete, Collect Payment, Preview, Print, Reminder, Transfer, Split, Merge, Timeline, History, Kitchen Recall, and Assign Waiter are wired through guarded handlers/API routes. |
+| Print context fix | Active-order print/KOT paths now build print context from the selected order instead of stale POS bill state, so Preview/Print/KOT target the intended order. |
+| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (17/17), `profile:runtime`, and `git diff --check` passed. |
+| Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` until authenticated hosted browser/device/provider/printer/Lighthouse/Chrome profiling gates complete. |
 
 ## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
 

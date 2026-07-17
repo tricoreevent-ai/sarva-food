@@ -8,6 +8,15 @@
 - Lifecycle/actions: unchanged and covered by 14/14 operational smoke checks.
 - Hosted authenticated multi-role/device/printer and Chrome profiler QA: pending.
 
+## Phase 5B Finalization - 2026-07-17
+
+- Active Orders optimization, Kitchen workflow, waiter notification architecture, payment lifecycle enforcement, print context, and POS print preview are repository complete.
+- `smoke:operational` now passes 17/17 and covers strict lifecycle, all active-order actions, status/duration/timeline consistency, keyboard/touch affordances, and Kitchen notify contracts.
+- Final validation completed: typecheck, lint, build, analyze, audit:release, runtime profile, operational smoke, and diff check passed.
+- Repository readiness: 100%.
+- Production readiness: 92%.
+- Remaining QA: hosted authenticated owner/manager/waiter/cashier/Kitchen flows, provider dashboards, browser/device matrix, printer hardware, Lighthouse/Core Web Vitals, Chrome/React profiling, and long-run heap.
+
 ## Phase 5A Kitchen Operations - 2026-07-16
 
 - Repository implementation: complete.
@@ -25,7 +34,7 @@
 - Production readiness: 92%.
 - Release decision: NO-GO pending external production gates listed in `docs/deployment/PENDING_MANUAL_TASKS.md`.
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 | Feature | Status | Progress % | Pending Work | Owner | Date |
 | --- | --- | ---: | --- | --- | --- |
@@ -67,6 +76,7 @@ Last updated: 2026-07-16
 | RC5 Production Observability | Implemented | 95 | Hosted Admin/Owner monitoring smoke, export check, and long-run alert verification remain manual | Codex | 2026-07-13 |
 | RC5 Image Optimization | Repository Complete | 95 | Hosted visual smoke, Cloudinary credential upload check, and real-device image quality review remain manual | Codex | 2026-07-15 |
 | POS Active Orders High-Density Board | Repository Complete | 95 | Deploy; run authenticated owner/waiter/cashier/manager/device/printer visual and workflow QA plus Chrome profiling | Codex | 2026-07-16 |
+| Phase 5B Operational Hardening Finalization | Repository Complete | 100 | Deploy final commit; run hosted authenticated multi-role, provider, browser/device, printer, Lighthouse, Chrome profiling, and long-run heap QA | Codex | 2026-07-17 |
 | RC5 Phase 4C Push & Owner Payments | Repository Implemented | 95 | Deploy Phase 4C; verify hosted VAPID, real-device push, owner Razorpay sandbox/live webhook/payment, browsers, and providers | Codex | 2026-07-16 |
 | POS Draft Autosave P0 | Repository Fixed | 95 | Deploy and run hosted owner/waiter/cashier, offline/reconnect, refresh, close/reopen, restaurant switch, and multi-device smoke | Codex | 2026-07-16 |
 
@@ -90,8 +100,8 @@ Last updated: 2026-07-16
 | RC4 tag | `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38` |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
 | Hosted runtime status | RC5 production runtime includes Active Orders baseline; exact SHA comes from `/api/release-info` |
-| Repository readiness | `99%` |
-| Production readiness | `90%` |
+| Repository readiness | `100%` |
+| Production readiness | `92%` |
 | Current decision | Repository `GO`; production launch `NO GO` |
 | Recommendation | Keep RC4 unchanged; tag the final RC5 validation commit after local gates pass |
 | Pending work matrix | Repository-side audit found no remaining code blocker; current pending work is external/manual only. |
@@ -100,7 +110,7 @@ Last updated: 2026-07-16
 | Image optimization | Shared Cloudinary presets, AVIF/WebP browser upload optimization, incoming Cloudinary transforms, and right-sized `SafeImage` thumbnails added without business logic/API/schema/repository changes. |
 | Active Orders workspace | Operational summary cards, workflow ribbon, status rails, kitchen progress, KOT count display, advanced search, live filters, compact details, and context-aware actions added without API/schema/repository/workflow changes. |
 | Release package verification | Hosted metadata now reports `v1.0.0-rc5` and `deploymentEnvironment=production`; historical RC4 references remain only as immutable tag/history notes. |
-| Remaining work | Firebase VAPID/Console, Razorpay/WhatsApp/SMS/push provider checks, authenticated browser/device, Lighthouse, Chrome profiling, and hardware validation |
+| Remaining work | Firebase VAPID/Console, Razorpay/WhatsApp/SMS/push provider checks, authenticated browser/device, Lighthouse, Chrome profiling, Active Orders multi-role QA, and hardware validation |
 
 ## Sprint 1 Repository Migration
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -26,8 +26,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
+import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
-import { delaySortRank, formatOperationalDuration, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
+import { delaySortRank, formatDelayTime, formatOperationalDuration, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { readableTableOrderId } from "@/lib/order-display";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,8 @@ export function KitchenDisplayFlow() {
   const [orders, setOrders] = useState<TableOrder[]>([]);
   const [tables, setTables] = useState<PosTable[]>([]);
   const [connectionState, setConnectionState] = useState<"realtime" | "fallback" | "error" | "loading">("loading");
+  const [connectionError, setConnectionError] = useState("");
+  const connectionStateRef = useRef(connectionState);
   const [selectedPrinterId, setSelectedPrinterId] = useState("browser-kitchen");
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [soundAlerts, setSoundAlerts] = useState(true);
@@ -144,6 +147,10 @@ export function KitchenDisplayFlow() {
   }, [orders]);
 
   useEffect(() => {
+    connectionStateRef.current = connectionState;
+  }, [connectionState]);
+
+  useEffect(() => {
     selectedPrinterRef.current = selectedPrinter;
   }, [selectedPrinter]);
 
@@ -198,13 +205,16 @@ export function KitchenDisplayFlow() {
         setTables(tablePayload.data ?? []);
         setOperationalSettings(normalizeOperationalSettings(settingsPayload.data));
         setConnectionState("fallback");
+        setConnectionError("");
       })
       .catch((error) => {
         if ((error as Error).name === "AbortError") return;
         console.error("[kitchen] bootstrap failed", { reason: error instanceof Error ? error.name : typeof error });
         if (active) {
           setConnectionState("error");
-          toast.error("Kitchen board could not be loaded.");
+          const message = error instanceof Error ? error.message : "Kitchen board could not be loaded.";
+          setConnectionError(message);
+          toast.error(message);
         }
       });
     const events = new EventSource("/api/owner/kitchen/stream");
@@ -214,13 +224,17 @@ export function KitchenDisplayFlow() {
         const payload = JSON.parse((event as MessageEvent).data) as { data?: TableOrder[] };
         setOrders((current) => reconcileKitchenOrders(current, payload.data ?? []));
         setConnectionState("realtime");
+        setConnectionError("");
       } catch (error) {
         console.error("[kitchen] stream parse failed", { reason: error instanceof Error ? error.name : typeof error });
         setConnectionState("error");
+        setConnectionError("Kitchen realtime update could not be read. Refresh the board.");
       }
     });
     events.addEventListener("error", () => {
-      if (active) setConnectionState((current) => current === "realtime" ? current : "error");
+      if (!active || connectionStateRef.current === "realtime") return;
+      setConnectionState("error");
+      setConnectionError("Kitchen realtime connection is unavailable. Refresh to load a new snapshot.");
     });
     return () => {
       active = false;
@@ -305,7 +319,7 @@ export function KitchenDisplayFlow() {
       console.error("[kitchen] status update failed", { orderId: order.id, status, reason: error instanceof Error ? error.name : typeof error });
       setOrders((current) => current.map((item) => item.id === order.id ? previousOrder : item));
       setConnectionState("error");
-      if (!options.silent) toast.error("Kitchen status could not be updated.");
+      if (!options.silent) toast.error(error instanceof Error ? error.message : "Kitchen status could not be updated.");
       return false;
     } finally {
       busyOrders.current.delete(order.id);
@@ -530,7 +544,7 @@ export function KitchenDisplayFlow() {
           </Badge>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <label className="flex h-10 items-center gap-2 rounded-lg border bg-white px-3 text-xs font-black text-slate-600">
+          <label className="flex h-11 items-center gap-2 rounded-lg border bg-white px-3 text-xs font-black text-slate-600">
             <Printer className="size-4" />
             <select className="max-w-52 bg-transparent text-sm font-bold outline-none" value={selectedPrinter?.id ?? selectedPrinterId} onChange={(event) => setSelectedPrinterId(event.target.value)} aria-label="Select kitchen printer">
               {(kitchenPrinters.length ? kitchenPrinters : [{ id: "browser-kitchen", name: "Browser print", paperWidth: "80mm" } as PrinterProfile]).map((profile) => (
@@ -547,6 +561,13 @@ export function KitchenDisplayFlow() {
           <Button variant="outline" onClick={() => setFullscreen((value) => !value)} title="Toggle kitchen full screen"><Maximize2 className="size-4" />{fullscreen ? "Exit" : "Full"}</Button>
         </div>
       </header>
+
+      {connectionError ? (
+        <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-800" role="alert">
+          <span>{connectionError}</span>
+          <Button variant="outline" className="min-h-11 border-red-300 bg-white text-red-700" onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      ) : null}
 
       {filtersOpen ? (
         <section className="grid gap-2 rounded-lg border bg-white p-2 shadow-sm lg:grid-cols-[160px_160px_160px_160px_160px_auto]">
@@ -636,12 +657,23 @@ export function KitchenDisplayFlow() {
       </section>
 
       <section className="pb-2">
-        {!visibleOrders.length ? (
+        {connectionState === "loading" && !visibleOrders.length ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Loading kitchen orders">
+            {Array.from({ length: 8 }, (_, index) => (
+              <div key={index} className="h-44 animate-pulse rounded-xl border border-slate-200 bg-white p-3" aria-hidden="true">
+                <div className="h-4 w-1/2 rounded bg-slate-200" />
+                <div className="mt-3 h-3 w-3/4 rounded bg-slate-100" />
+                <div className="mt-4 h-16 rounded bg-slate-100" />
+                <div className="mt-4 h-10 rounded bg-slate-200" />
+              </div>
+            ))}
+          </div>
+        ) : !visibleOrders.length ? (
           <p className="mb-3 rounded-xl border border-dashed bg-white p-6 text-center text-sm font-semibold text-slate-500">
             No kitchen orders match the current filters.
           </p>
         ) : null}
-        <div className="flex min-w-0 gap-3 overflow-x-auto">
+        {connectionState === "loading" && !visibleOrders.length ? null : <div className="grid min-w-0 items-start gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))]">
           {desktopColumns.map((column) => {
             const columnOrders = visibleOrders.filter((order) => column.statuses.includes(order.status));
             return (
@@ -666,7 +698,7 @@ export function KitchenDisplayFlow() {
               />
             );
           })}
-        </div>
+        </div>}
       </section>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold text-white">
@@ -853,11 +885,11 @@ function KitchenHistoryOrderAccordion({ order, now, expanded, onExpandedChange, 
       ]}
       notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
       timeline={[
-        { label: "Created", time: timeOnly(order.createdAt) },
-        ...(order.statusHistory ?? []).slice(-5).map((entry) => ({
+        ...(order.statusHistory ?? []).slice(-5).reverse().map((entry) => ({
           label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
           time: entry.at ? timeOnly(String(entry.at)) : undefined,
         })),
+        { label: "Created", time: timeOnly(order.createdAt) },
       ]}
       secondaryActions={[{ id: "details", label: "Details", icon: <Eye className="size-4" />, onClick: onDetails }]}
       isOpen={expanded}
@@ -928,8 +960,7 @@ function KitchenOrderColumn({
   return (
     <div
       ref={ref}
-      className={cn("max-h-[calc(100vh-270px)] min-w-[clamp(17rem,22vw,24rem)] flex-[var(--column-weight)] overflow-y-auto rounded-lg border bg-white shadow-sm", hidden && "hidden", columnBorder(column.tone))}
-      style={{ "--column-weight": Math.max(1, orders.length) } as CSSProperties}
+      className={cn("max-h-[calc(100vh-270px)] min-w-0 overflow-y-auto rounded-lg border bg-white shadow-sm", hidden && "hidden", columnBorder(column.tone))}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
     >
       <div className={cn("sticky top-0 z-10 flex items-center justify-between border-b px-3 py-2", columnHeader(column.tone))}>
@@ -1341,7 +1372,7 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
   return (
     <article
       className={cn("overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/50 kitchen-delay-pulse")}
-      aria-label={delayed ? `${order.tableNumber} delayed by ${delay.lateMinutes} minutes` : undefined}
+      aria-label={delayed ? `${order.tableNumber} delayed by ${formatDelayTime(delay.lateMinutes).label}` : undefined}
       onPointerDown={(event) => {
         startX.current = event.clientX;
         longPress.current = window.setTimeout(onPreview, 650);
@@ -1366,7 +1397,10 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs font-black text-slate-500">{delay.elapsedLabel}</span>
-            <Badge variant={delayed ? "destructive" : order.status === "ready" ? "success" : "outline"}>{delayed ? "LATE" : statusLabel(order.status)}</Badge>
+            <span className="flex flex-wrap justify-end gap-1">
+              <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} />
+              {delayed ? <Badge variant="destructive">LATE</Badge> : null}
+            </span>
           </div>
         </div>
 
@@ -1374,7 +1408,7 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
 
         <div className="grid grid-cols-3 gap-2 text-xs font-black text-slate-700">
           <span className="rounded-lg bg-slate-50 px-2 py-1.5">ETA {order.etaMinutes ?? 12}m</span>
-          <span className="rounded-lg bg-slate-50 px-2 py-1.5">{ageMinutes}m</span>
+          <span className="rounded-lg bg-slate-50 px-2 py-1.5">{formatOperationalDuration(ageMinutes)}</span>
           <span className="truncate rounded-lg bg-slate-50 px-2 py-1.5">{priorityLabel(order, delay)}</span>
         </div>
 
@@ -1383,12 +1417,12 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
             <p key={`${line.itemId}-${index}`} className="truncate text-sm font-black text-slate-900">{line.name} x{line.quantity}</p>
           ))}
           {hiddenCount || order.lines.length > 2 ? (
-            <button type="button" onClick={() => setItemsOpen((value) => !value)} className="mt-1 text-xs font-black text-orange-600">
+            <button type="button" onClick={() => setItemsOpen((value) => !value)} className="mt-1 inline-flex min-h-11 items-center text-xs font-black text-orange-600">
               {itemsOpen ? "Hide items" : `View items +${hiddenCount} more`}
             </button>
           ) : null}
         </div>
-        <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-10 w-full items-center justify-between rounded-lg border px-3 text-xs font-black text-slate-600" aria-expanded={detailsOpen}>
+        <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between rounded-lg border px-3 text-xs font-black text-slate-600" aria-expanded={detailsOpen}>
           Details
           <ChevronDown className={cn("size-4 transition", detailsOpen && "rotate-180")} />
         </button>
@@ -1545,11 +1579,11 @@ function KitchenOrderCard({ order, signal, nowBucket, orderDelayThresholdMinutes
       ]}
       notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
       timeline={[
-        { label: "Created", time: timeOnly(order.createdAt) },
-        ...(order.statusHistory ?? []).slice(-5).map((entry) => ({
+        ...(order.statusHistory ?? []).slice(-5).reverse().map((entry) => ({
           label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
           time: entry.at ? timeOnly(String(entry.at)) : undefined,
         })),
+        { label: "Created", time: timeOnly(order.createdAt) },
       ]}
       primaryAction={order.status === "ready" && !signal?.acknowledgedAt ? {
         id: "notify-waiter",
@@ -1648,11 +1682,11 @@ function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = d
             ]}
             notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
             timeline={[
-              { label: "Created", time: timeOnly(order.createdAt) },
-              ...(order.statusHistory ?? []).slice(-8).map((entry) => ({
+              ...(order.statusHistory ?? []).slice(-8).reverse().map((entry) => ({
                 label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
                 time: entry.at ? timeOnly(String(entry.at)) : undefined,
               })),
+              { label: "Created", time: timeOnly(order.createdAt) },
             ]}
             primaryAction={order.status === "ready" && !signal?.acknowledgedAt ? {
               id: "notify-waiter",
@@ -1684,7 +1718,7 @@ function DelayWarning({ delay, compact }: { delay: DelayState; compact?: boolean
   return (
     <div className={cn("flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-black text-red-700", compact ? "text-xs" : "text-sm")} role="status" aria-live="polite">
       <AlertTriangle className="size-4 shrink-0" />
-      <span>DELAYED · {delay.lateMinutes} min over ETA · Immediate attention required</span>
+      <span>DELAYED · {formatDelayTime(delay.lateMinutes).label} over ETA · Immediate attention required</span>
     </div>
   );
 }
@@ -1717,7 +1751,7 @@ function HistoryPanel({ orders }: { orders: TableOrder[] }) {
           <div key={order.id} className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg border p-3 text-sm">
             <span className="font-black">{displayOrderNumber(order)}</span>
             <span>{order.tableNumber}</span>
-            <Badge variant={order.status === "cancelled" ? "destructive" : "success"}>{statusLabel(order.status)}</Badge>
+            <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} />
           </div>
         ))}
         {!orders.length ? <p className="rounded-lg border border-dashed p-5 text-center text-sm font-semibold text-slate-500">No archived orders</p> : null}

@@ -72,6 +72,15 @@ export async function PATCH(request: NextRequest) {
       if (error instanceof Error && /Invalid kitchen status transition/i.test(error.message)) {
         return fail("That kitchen status cannot be applied from the current state.", 409);
       }
+      if (error instanceof Error && /Full payment is required before completing/i.test(error.message)) {
+        return fail("Cannot complete order while payment is pending.", 409);
+      }
+      if (error instanceof Error && /Invalid order status transition/i.test(error.message)) {
+        return fail("The linked order is not ready for that kitchen state.", 409);
+      }
+      if (error instanceof Error && /cannot be cancelled without refund/i.test(error.message)) {
+        return fail("Paid or payment-started orders require a refund before cancellation.", 409);
+      }
       throw error;
     });
     if (data instanceof NextResponse) return data;

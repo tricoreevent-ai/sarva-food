@@ -1,5 +1,15 @@
 # Release Notes
 
+## Phase 5B Operational Hardening Finalization - 2026-07-17
+
+- Completed Active Orders/POS/Kitchen operational hardening without redesigning the UI or changing Firestore schema/rules/indexes.
+- Enforced Order Taken → Accepted → Preparing → Ready → Served → Paid → Completed across UI, API, repository, and smoke contracts; illegal transitions are rejected.
+- Payment collection is blocked before Served, completion is blocked before fully Paid, partial payments remain editable, and payment locks release through record/unlock flows.
+- Kitchen remains responsible for Accepted → Preparing → Ready plus Notify Waiter, Reminder, Kitchen Recall, timeline, acknowledgement, and escalation.
+- Fixed active-order print context so Preview, Print, Receipt, and KOT use the selected order instead of stale POS bill state.
+- Final validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 17/17, `profile:runtime`, and `git diff --check`.
+- Repository readiness: `100%`. Production readiness: `92%`. Production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse, Chrome profiling, and long-run heap QA.
+
 ## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
 
 - Fixed production POS draft save and payment collection requests being rejected as cross-origin behind Hostinger's HTTPS reverse proxy.
@@ -89,6 +99,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - 2026-07-15 image optimization closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; analyzer timeout resolved and bundle evidence regenerated.
 - 2026-07-16 Active Orders closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` passed; hosted probes are RC5/production but latest SHA redeploy remains pending.
 - 2026-07-16 Phase 5B high-density board: all required gates passed on the final source; operational smoke is 14/14, `/owner/pos` remains 587 KB (+29 bytes), and the accepted Firebase/protobuf warning is unchanged.
+- 2026-07-17 Phase 5B finalization: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 17/17, `profile:runtime`, and `git diff --check` passed; Active Orders/Kitchen/payment/print-context closure is repository complete.
 - 2026-07-16 POS draft P0 browser QA: former waiter/cashier `403 pos:update` paths now reach validation, three rapid adds retained quantity `3` with one toast, offline quantity `2` recovered and synced on reconnect, refresh restored the pending draft, and Clear/Hold server deletion now uses the same recoverable retry path.
 
 ## v1.0.0-rc3 - Release Candidate

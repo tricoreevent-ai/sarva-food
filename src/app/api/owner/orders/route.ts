@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 const statuses = new Set<OrderStatus>(["new", "accepted", "rejected", "preparing", "ready", "served", "picked-up", "delivered", "completed", "cancelled"]);
 const paymentMethods = new Set(["cash", "upi", "card", "credit"]);
 const printTypes = new Set(["bill", "kot", "receipt"]);
-const timelineEvents = new Set(["order_created", "item_added", "item_removed", "discount", "coupon", "kitchen_sent", "kitchen_accepted", "kitchen_ready", "reminder", "payment", "completion", "split_bill", "transfer_table", "merge_tables", "payment_started", "payment_unlock", "bill_correction"]);
+const timelineEvents = new Set(["order_created", "item_added", "item_removed", "discount", "coupon", "kitchen_sent", "kitchen_accepted", "kitchen_ready", "reminder", "kitchen_recall", "payment", "completion", "split_bill", "transfer_table", "assign_waiter", "merge_tables", "payment_started", "payment_unlock", "bill_correction"]);
 type PaymentMethod = "cash" | "upi" | "card" | "credit";
 type OrderPatchBody = {
   action?: string;
@@ -156,10 +156,12 @@ export async function PATCH(request: NextRequest) {
       });
       return send(data);
     }
-    if (body.action === "transfer_table") {
+    if (body.action === "transfer_table" || body.action === "assign_waiter") {
       const tableNumber = body.tableNumber?.trim();
-      if (!tableNumber) return fail("Target table is required.");
-      const data = await orders.transferTable(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, tableNumber, waiterName: body.waiterName });
+      const waiterName = body.waiterName?.trim();
+      if (body.action === "transfer_table" && !tableNumber) return fail("Target table is required.");
+      if (body.action === "assign_waiter" && !waiterName) return fail("An active waiter is required.");
+      const data = await orders.transferTable(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, tableNumber, waiterName, mode: body.action === "assign_waiter" ? "waiter" : "table" });
       return send(data);
     }
     if (body.action === "merge_tables") {
@@ -217,11 +219,13 @@ function orderError(error: unknown, trace: TraceContext, context: Record<string,
   const message = error instanceof Error ? error.message : "";
   if (/Order not found|no longer active/i.test(message)) return response("This order is no longer active. Please refresh.", 404);
   if (/Kitchen ticket not found/i.test(message)) return response("Kitchen ticket not found.", 404);
-  if (/Kitchen still preparing/i.test(message)) return response("Kitchen still preparing.", 409);
+  if (/Kitchen still preparing|Serve the order before collecting payment/i.test(message)) return response("Serve the order before collecting payment.", 409);
+  if (/Full payment is required before completing/i.test(message)) return response("Cannot complete order while payment is pending.", 409);
   if (/currently being modified/i.test(message)) return response("Order currently being modified. Refresh and retry.", 409);
+  if (/cannot be modified after payment has started/i.test(message)) return response("Cannot modify this order after payment has started.", 409);
   if (/already been collected|already paid/i.test(message)) return response("Payment has already been collected.", 409);
   if (/invalid .*transition|cannot move back|cancelled orders|refunded orders|without refund/i.test(message)) return response("That order state change is no longer valid. Refresh and retry.", 409);
-  if (/split bill|balance due|source order|target table|required|completed bills|correction|unlock reason/i.test(message)) return response(safeBusinessMessage(message), 400);
+  if (/split bill|balance due|source order|target table|active waiter|required|completed bills|correction|unlock reason/i.test(message)) return response(safeBusinessMessage(message), 400);
   if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return response("Unable to contact server. Please retry.", 503);
   return response(`Unexpected error. Reference ID ${requestId}`, 500);
 }

@@ -78,7 +78,9 @@ export type OperationalEvent =
   | "completion"
   | "split_bill"
   | "transfer_table"
+  | "assign_waiter"
   | "merge_tables"
+  | "kitchen_recall"
   | "payment_started"
   | "payment_unlock"
   | "bill_correction";
@@ -112,8 +114,9 @@ type SplitBillInput = ActorInput & {
 type TransferTableInput = ActorInput & {
   orderId: string;
   kitchenOrderId?: string;
-  tableNumber: string;
+  tableNumber?: string;
   waiterName?: string;
+  mode?: "table" | "waiter";
 };
 
 type MergeTablesInput = ActorInput & {
@@ -437,6 +440,7 @@ export class OrderRepository {
         return;
       }
       assertCanRecordPayment(order);
+      assertPaymentLockOwner(order, input.cashierId);
       const previousPaid = paidAmount(order);
       const amount = money(input.amount);
       if (order.paymentStatus === "paid" || previousPaid + 0.01 >= Number(order.total ?? 0)) throw new Error("Payment has already been collected.");
@@ -459,6 +463,15 @@ export class OrderRepository {
         paymentStatus: nextStatus,
         paidAmount: paidTotal,
         splitPayment: nextStatus === "partial" || Boolean(order.splitPayment),
+        paymentLock: cleanRecord({
+          locked: false,
+          completedAt: now,
+          by: input.cashierId ?? scope.uid ?? "",
+          role: input.role,
+          device: input.device,
+          method: input.method,
+          amount,
+        }),
         paymentTimeline: FieldValue.arrayUnion(...timeline),
         auditTimeline: FieldValue.arrayUnion(...audit),
         statusHistory: FieldValue.arrayUnion(...timeline.map((entry) => ({ event: String(entry.type), paymentStatus: nextStatus, at: now, by: input.cashierId ?? scope.uid }))),
@@ -920,6 +933,8 @@ export class OrderRepository {
       }
       const kitchen = kitchenSnapshot?.data() ?? {};
       if (kitchenRef && ![kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
+      assertCanRecordPayment(order);
+      if ((order.paymentLock as { locked?: boolean } | undefined)?.locked) throw new Error("Order currently being modified.");
       const previousPaid = paidAmount(order);
       const total = money(Number(order.total ?? 0));
       if (order.paymentStatus === "paid" || previousPaid + 0.01 >= total) throw new Error("Payment has already been collected.");
@@ -1034,25 +1049,37 @@ export class OrderRepository {
         nextOrder = order;
         return;
       }
+      assertCanModifyOperationalOrder(order);
       const kitchen = kitchenSnapshot?.data() ?? {};
       if (kitchenRef && ![kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
-      const tableNumber = input.tableNumber.trim();
-      if (!tableNumber) throw new Error("Target table is required.");
-      const entry = auditEvent("transfer_table", scope, input, now, { fromTable: order.tableNumber, toTable: tableNumber, waiterName: input.waiterName });
+      const assigningWaiter = input.mode === "waiter";
+      const tableNumber = input.tableNumber?.trim() || order.tableNumber;
+      const waiterName = input.waiterName?.trim();
+      if (!assigningWaiter && !tableNumber) throw new Error("Target table is required.");
+      if (assigningWaiter && !waiterName) throw new Error("An active waiter is required.");
+      const event = assigningWaiter ? "assign_waiter" : "transfer_table";
+      const entry = auditEvent(event, scope, input, now, { fromTable: order.tableNumber, toTable: tableNumber, waiterName });
       const patch = cleanRecord({
         tableNumber,
-        waiterName: input.waiterName?.trim() || order.waiterName,
+        waiterName: waiterName || order.waiterName,
         auditTimeline: FieldValue.arrayUnion(entry),
-        statusHistory: FieldValue.arrayUnion({ event: "transfer_table", fromTable: order.tableNumber, toTable: tableNumber, at: now, by: input.userId ?? scope.uid }),
+        statusHistory: FieldValue.arrayUnion({ event, fromTable: order.tableNumber, toTable: tableNumber, waiterName, at: now, by: input.userId ?? scope.uid }),
         updatedAt: FieldValue.serverTimestamp(),
         ...operationPatch(input.operationKey),
       });
       transaction.set(orderRef, patch, { merge: true });
       transaction.set(customerOrderRef, patch, { merge: true });
-      if (kitchenRef) transaction.set(kitchenRef, cleanRecord({ tableNumber, waiterName: input.waiterName?.trim(), statusHistory: FieldValue.arrayUnion({ event: "transfer_table", fromTable: order.tableNumber, toTable: tableNumber, at: now, by: input.userId ?? scope.uid }), updatedAt: FieldValue.serverTimestamp() }), { merge: true });
-      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "transfer_table", entityId: input.orderId, after: entry, device: input.device });
-      writeNotification(transaction, scope, { type: "order_update", title: "Table transferred", message: `${order.tableNumber || "Order"} moved to ${tableNumber}.`, priority: "normal", orderId: input.orderId, kitchenOrderId: input.kitchenOrderId });
-      nextOrder = { ...order, tableNumber, waiterName: input.waiterName?.trim() || order.waiterName };
+      if (kitchenRef) transaction.set(kitchenRef, cleanRecord({ tableNumber, waiterName, statusHistory: FieldValue.arrayUnion({ event, fromTable: order.tableNumber, toTable: tableNumber, waiterName, at: now, by: input.userId ?? scope.uid }), updatedAt: FieldValue.serverTimestamp() }), { merge: true });
+      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: event, entityId: input.orderId, after: entry, device: input.device });
+      writeNotification(transaction, scope, {
+        type: "order_update",
+        title: assigningWaiter ? "Waiter assigned" : "Table transferred",
+        message: assigningWaiter ? `${waiterName} assigned to ${tableNumber || order.id}.` : `${order.tableNumber || "Order"} moved to ${tableNumber}.`,
+        priority: "normal",
+        orderId: input.orderId,
+        kitchenOrderId: input.kitchenOrderId,
+      });
+      nextOrder = { ...order, tableNumber, waiterName: waiterName || order.waiterName };
     });
     await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return nextOrder!;
@@ -1075,6 +1102,7 @@ export class OrderRepository {
         nextOrder = target;
         return;
       }
+      [target, ...sources].forEach(assertCanModifyOperationalOrder);
       const targetKitchenId = input.kitchenOrderId || target.kitchenOrderId;
       const sourceKitchenIds = Array.from(new Set([
         ...sources.map((order) => order.kitchenOrderId).filter(isString),
@@ -1283,6 +1311,18 @@ function posDraftId(scope: TenantScope) {
 function paidAmount(order: OrderDoc) {
   const value = (order as OrderDoc & { paidAmount?: number }).paidAmount;
   return Number.isFinite(value) ? Number(value) : order.paymentStatus === "paid" ? Number(order.total ?? 0) : 0;
+}
+
+function assertCanModifyOperationalOrder(order: OrderDoc) {
+  if (["cancelled", "rejected", "delivered", "completed"].includes(order.status)) throw new Error("This order is no longer active.");
+  if ((order.paymentLock as { locked?: boolean } | undefined)?.locked || ["authorized", "partial", "paid", "refunded"].includes(order.paymentStatus ?? "pending")) {
+    throw new Error("Order cannot be modified after payment has started.");
+  }
+}
+
+function assertPaymentLockOwner(order: OrderDoc, userId?: string) {
+  const lock = order.paymentLock as { locked?: boolean; by?: string } | undefined;
+  if (lock?.locked && lock.by && lock.by !== userId) throw new Error("Order currently being modified.");
 }
 
 function operationPatch(key?: string) {

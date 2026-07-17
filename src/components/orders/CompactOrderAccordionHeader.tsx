@@ -2,6 +2,7 @@ import { memo } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OrderPriorityBadge } from "./OrderPriorityBadge";
+import { OperationalOrderStatusBadge } from "./OperationalOrderStatusBadge";
 import type { CompactOrderAccordionProps } from "./OrderAccordion.types";
 
 type Props = Pick<CompactOrderAccordionProps, "orderNumber" | "etaLabel" | "orderTypeLabel" | "tableLabel" | "itemCountLabel" | "status" | "priority" | "badges" | "workflow" | "sideStats" | "isOpen" | "onOpenChange">;
@@ -32,7 +33,7 @@ export const CompactOrderAccordionHeader = memo(function CompactOrderAccordionHe
       <span className="min-w-0">
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="truncate text-base font-black leading-tight text-slate-950">{orderNumber}</span>
-          <OrderPriorityBadge badge={status} />
+          <OperationalOrderStatusBadge status={status.label} tone={status.tone} />
         </span>
         <span className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           {tableLabel ? <span className="truncate text-xs font-black text-slate-700">{tableLabel}</span> : null}

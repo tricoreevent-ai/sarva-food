@@ -1,5 +1,15 @@
 # Production Stabilization Pass
 
+## Phase 5B Operational Finalization
+
+- Completed Active Orders optimization without a redesign: memoized cards, lazy details, stable callbacks, shared duration formatting, and shared status badges.
+- Completed strict lifecycle enforcement for Order Taken -> Accepted -> Preparing -> Ready -> Served -> Paid -> Completed.
+- Completed payment guards: no payment before Served, no completion before full Paid status, partial payments remain editable, and payment locks release through record/unlock retry paths.
+- Completed Kitchen workflow boundary: Kitchen accepts, prepares, marks ready, notifies waiter, supports recall/reminder/timeline/escalation, and does not serve orders.
+- Fixed active-order print context so Preview, Print, Receipt, and KOT target the selected order instead of stale POS bill state.
+- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 17/17, runtime profile, and diff check.
+- Remaining production QA: hosted authenticated owner/manager/waiter/cashier/Kitchen action matrix, providers, browser/device coverage, real printer/KOT/receipt output, Lighthouse, Chrome/React profiling, and long-run heap.
+
 ## POS Fixes
 
 - Removed unstable Zustand selectors from the POS route by selecting store arrays directly and deriving filtered menu/category arrays with `useMemo`.
