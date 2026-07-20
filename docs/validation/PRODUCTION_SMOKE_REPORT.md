@@ -1,5 +1,9 @@
 # Production Smoke Report
 
+## Phase 5C Workflow Addendum
+
+`npm run smoke:operational` passes 20/20 deterministic checks. Added checks cover payment independence from Kitchen/service state, POS New Order cancel draft resume, Owner Orders payment state, item-first Kitchen card actions, Kitchen notify contracts, and all Active Orders action wiring. Hosted authenticated/provider/device/hardware observations remain manual.
+
 ## Phase 4D Automation Addendum
 
 `npm run smoke:operational` passes 9/9 deterministic draft recovery, operator/restaurant isolation, fault classification, lifecycle replay, role, notification retry/dedup/token, service-worker background action/deep-link, and Active Orders accessibility checks. This closes repository-simulatable lifecycle gaps; hosted authenticated/provider/device/hardware observations remain manual.

@@ -1,6 +1,6 @@
 # Deployment Verification Report
 
-Phase 4C status: repository implementation and local validation pass; this hosted report predates the Phase 4C commit. Redeploy, clear cache, then verify the exact SHA, `vapidConfigured=true`, service-worker v15, registered-device push, and owner Razorpay sandbox/dashboard evidence before production signoff.
+Phase 5C status: repository implementation and local validation pass; this hosted report predates the Phase 5C commit. Redeploy, clear cache, then verify the exact SHA, `vapidConfigured=true`, service-worker v15, registered-device push, payment before/during/after Kitchen preparation, and owner Razorpay sandbox/dashboard evidence before production signoff.
 
 Generated: 2026-07-16T04:57:07.245Z
 
