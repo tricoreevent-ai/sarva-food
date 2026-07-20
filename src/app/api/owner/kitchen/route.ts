@@ -8,6 +8,7 @@ import { AuditRepository } from "@/repositories/audit-repository";
 import { kitchenDocToTableOrder } from "@/lib/operational-api-mappers";
 import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields } from "@/lib/server/request-trace";
 import type { KitchenOrderStatus } from "@/types/firebase";
+import type { TableOrder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,13 +22,35 @@ export async function GET(request: NextRequest) {
     if (access.error) return access.error;
     const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
     trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
-    const limit = Number(request.nextUrl.searchParams.get("limit") ?? 200);
-    const data = await new KitchenRepository().list(scope, {
+    const pageSize = clampNumber(request.nextUrl.searchParams.get("pageSize"), 20, 200, 50);
+    const page = clampNumber(request.nextUrl.searchParams.get("page"), 1, 10000, 1);
+    const search = cleanSearch(request.nextUrl.searchParams.get("query"));
+    const status = cleanFilter(request.nextUrl.searchParams.get("status"));
+    const payment = cleanFilter(request.nextUrl.searchParams.get("payment"));
+    const priority = cleanFilter(request.nextUrl.searchParams.get("priority"));
+    const table = cleanFilter(request.nextUrl.searchParams.get("table"));
+    const waiter = cleanFilter(request.nextUrl.searchParams.get("waiter"));
+    const customer = cleanFilter(request.nextUrl.searchParams.get("customer"));
+    const item = cleanFilter(request.nextUrl.searchParams.get("item"));
+    const printStatus = cleanFilter(request.nextUrl.searchParams.get("printStatus"));
+    const limit = Math.min(Math.max(pageSize * page, 200), 1000);
+    const orders = (await new KitchenRepository().list(scope, {
       from: startDate(request.nextUrl.searchParams.get("from")),
       to: endDate(request.nextUrl.searchParams.get("to")),
-      limit: Number.isFinite(limit) ? limit : 200,
-    });
-    return NextResponse.json({ data: data.map(kitchenDocToTableOrder), count: data.length });
+      limit,
+    })).map(kitchenDocToTableOrder);
+    const filtered = orders
+      .filter((order) => status === "all" || order.status === status)
+      .filter((order) => payment === "all" || order.paymentStatus === payment)
+      .filter((order) => priority === "all" || (order.priority ?? "normal") === priority)
+      .filter((order) => table === "all" || String(order.tableNumber ?? "").toLowerCase().includes(table))
+      .filter((order) => waiter === "all" || String(order.assignedStaffName || order.waiterName || "unassigned").toLowerCase().includes(waiter))
+      .filter((order) => customer === "all" || String(order.customerName || order.guestName || "walk-in").toLowerCase().includes(customer))
+      .filter((order) => item === "all" || order.lines.some((line) => line.name.toLowerCase().includes(item)))
+      .filter((order) => printStatus === "all" || (printStatus === "printed" ? Number(order.printedCount ?? 0) > 0 : Number(order.printedCount ?? 0) <= 0))
+      .filter((order) => !search || kitchenSearchText(order).includes(search));
+    const start = (page - 1) * pageSize;
+    return NextResponse.json({ data: filtered.slice(start, start + pageSize), count: filtered.length, page, pageSize });
   } catch (error) {
     logKitchenError("list", error, traceLogFields(trace), traceDurationMs(trace));
     return NextResponse.json({ error: "Kitchen orders could not be loaded.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 500 });
@@ -98,6 +121,40 @@ export async function PATCH(request: NextRequest) {
 function cleanOperationKey(value: unknown) {
   const key = String(value ?? "").replace(/[^a-zA-Z0-9:_.-]/g, "").slice(0, 120);
   return key || undefined;
+}
+
+function clampNumber(value: string | null, min: number, max: number, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+function cleanFilter(value: string | null) {
+  const next = String(value ?? "all").trim().toLowerCase();
+  return next || "all";
+}
+
+function cleanSearch(value: string | null) {
+  return String(value ?? "").trim().toLowerCase().slice(0, 120);
+}
+
+function kitchenSearchText(order: TableOrder) {
+  return [
+    order.id,
+    order.displayOrderNumber,
+    order.orderNumber,
+    order.tableNumber,
+    order.customerName,
+    order.guestName,
+    order.assignedStaffName,
+    order.waiterName,
+    order.status,
+    order.paymentStatus,
+    order.priority,
+    order.source,
+    order.orderType,
+    ...order.lines.map((line) => line.name),
+  ].filter(Boolean).join(" ").toLowerCase();
 }
 
 function logKitchenError(action: string, error: unknown, context: Record<string, unknown> = {}, durationMs = 0) {

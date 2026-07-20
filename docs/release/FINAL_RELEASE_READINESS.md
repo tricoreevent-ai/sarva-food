@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-20T11:22:07.694Z
+Date: 2026-07-20T14:04:49.897Z
 
 ## Local Validation
 
@@ -11,7 +11,7 @@ Date: 2026-07-20T11:22:07.694Z
 | `npm run build` | Passed with accepted Firebase/protobuf warning. |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed 24/24, including payment-independent split and partial-payment bill-only merge guards. |
+| `npm run smoke:operational` | Passed 26/26, including owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |
 | `npm run profile:runtime` | Passed. |
 | `git diff --check` | Passed as a final release gate. |
 

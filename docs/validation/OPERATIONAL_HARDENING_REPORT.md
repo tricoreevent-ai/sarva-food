@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-20T11:22:02.930Z
+Generated: 2026-07-20T14:03:48.250Z
 
-Result: PASS — 24/24 checks passed.
+Result: PASS — 26/26 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -12,6 +12,8 @@ Result: PASS — 24/24 checks passed.
 | draft:lifecycle-replay | PASS |  |
 | roles:owner-waiter-cashier-kitchen-isolation | PASS |  |
 | owner-api:proxy-safe-origin-guard | PASS |  |
+| owner-login:enterprise-auth-experience | PASS |  |
+| kitchen-history:enterprise-management-table | PASS |  |
 | notifications:matrix-and-manual-reservations | PASS |  |
 | notifications:retry-dedup-and-token-lifecycle | PASS |  |
 | notifications:service-worker-behavior | PASS |  |
@@ -31,4 +33,4 @@ Result: PASS — 24/24 checks passed.
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise table contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

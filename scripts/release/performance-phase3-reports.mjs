@@ -282,7 +282,7 @@ function writeReports() {
       ["Provider/hardware", "Manual", "Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access."],
     ],
   );
-  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, image delivery, observability, and push/payment readiness measurements. Firestore collections, auth flows, and provider contracts remain backward compatible.";
+  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, owner login UX, Kitchen History enterprise table, image delivery, observability, and push/payment readiness measurements. Firestore collections, auth flows, and provider contracts remain backward compatible.";
   const firebaseWarningNote = "The remaining Firebase/protobuf dynamic dependency warning is expected. Build/analyze trace it through `@protobufjs/inquire -> protobufjs -> @grpc/proto-loader -> @firebase/firestore -> firebase/firestore -> src/firebase/collections.ts -> src/app/api/admin/system-diagnostics/route.ts`. It originates in upstream Firebase/protobuf server dependency code, not application debug code. The application already keeps Firebase client startup behind config/accessor boundaries where touched; replacing or aliasing Firebase/protobuf internals during certification is not safe, so the warning remains documented and accepted.";
 
   writeDoc("performance", "RUNTIME_PROFILE.md", `# Runtime Profile\n\nDate: ${generatedAt}\n\n## Measurement Inputs\n\n| Source | Result |\n| --- | --- |\n| Build route manifests | ${existsSync(appManifestDir) ? "Read from `.next/server/app/**/page_client-reference-manifest.js`." : "Unavailable until `npm run build` or `npm run analyze` runs."} |\n| Browser profiler | No local Chrome/Lighthouse executable is assumed by this script; production Chrome Performance remains manual. |\n| Synthetic load | 100 kitchen orders and 1000 POS products measured with Node performance timers. |\n\n## Route Runtime Budget Snapshot\n\n${measuredRoutes}\n\n## Stress Timing Snapshot\n\n${stressRows}\n\n## Notes\n\nHydration time, FPS, long tasks, Chrome memory, and real network waterfalls still require hosted production Chrome profiling because this workspace script cannot observe browser main-thread scheduling.\n`);
@@ -296,7 +296,7 @@ function writeReports() {
   writeDoc("performance", "PERFORMANCE_BUDGET.md", `# Performance Budget\n\nDate: ${generatedAt}\n\n${measuredRoutes}\n\n## Runtime Budgets\n\n| Surface | Budget | Current control |\n| --- | --- | --- |\n| POS category switch | <50ms | Debounced search, precomputed product arrays, memoized product cards. |\n| Kitchen realtime update | <100ms | Snapshot reconciliation, memoized cards, desktop queue windowing. |\n| Memory stability | 30 minutes stable | No new unbounded listeners/timers; manual Chrome heap profiling required. |\n| CPU usage | Minimized | Expensive filter/sort paths are memoized or debounced where touched. |\n`);
 
   writeDoc("performance", "PERFORMANCE_PHASE3_REPORT.md", `# Performance Phase 3 Report\n\nDate: ${generatedAt}\n\n## Scope\n\nFinal runtime smoothness pass for Customer, Owner, Kitchen, and POS without changing business workflows, APIs, Firestore schema, auth, payment, or repository contracts.\n\n## Implementation Summary\n\n| Phase | Result |\n| --- | --- |\n| Owner Orders | Search filtering is debounced; hidden partner integration UI is dynamically loaded; active row component is memo-ready. |\n| Owner Settings | Heavy tab-only dependencies are dynamically loaded: Mapbox, Cloudinary upload, push settings, fullscreen, loyalty rules. |\n| Kitchen | Stream snapshots reconcile unchanged tickets; cards are memoized by ticket reference/minute bucket; desktop columns use lightweight windowing for long queues. |\n| POS | Product search is debounced; menu/custom product arrays are precomputed; product grid/cards are memoized; cart item actions use stable refs. |\n| Profile | App preferences and react-hot-toast runtime are no longer static profile startup imports. |\n\n## Runtime Profile\n\n${measuredRoutes}\n\n## Stress Summary\n\n${stressRows}\n\n## Remaining Manual Gates\n\nProduction Chrome Performance/Coverage/Memory, authenticated owner/POS/Kitchen smoke, 30-minute heap stability, hosted Lighthouse/Core Web Vitals, and real provider/hardware validation remain manual gates.\n`);
-  writeDoc("performance", "FINAL_PERFORMANCE_REPORT.md", `# Final Performance Report\n\nDate: ${generatedAt}\n\n${finalScope}\n\n## Root Cause Summary\n\n| Area | Finding | Final action |\n| --- | --- | --- |\n| Startup JS | Route-owned shared customer/profile/owner chunks remain the largest production risk. | Phase 2 removed eager Firebase/Auth/Stack/XLSX/Mapbox ownership from critical initial routes where safe. |\n| Runtime CPU | POS search/category and Kitchen filter/reconciliation paths were the highest repeat-interaction risks. | Phase 3 added debouncing, precomputation, memoized cards/grids, stable refs, and Kitchen reconciliation/windowing. |\n| Hydration | Profile and settings surfaces owned action/tab-only code too early. | Toast, preferences, Mapbox, Cloudinary, push, fullscreen, and loyalty code now load only when needed. |\n| Browser proof | Flame graphs, Coverage, FPS, INP, and real heap growth remain unmeasured locally. | Manual production Chrome profiling is required after Hostinger redeploy. |\n\n## Route Budget Snapshot\n\n${measuredRoutes}\n\n## Over-Budget Routes\n\n${overBudgetRoutes.length ? overBudgetTable : "All tracked routes are inside the configured script budgets."}\n\n## Stress Snapshot\n\n${stressRows}\n\n## Conclusion\n\nRuntime smoothness is improved and local production validation passed, but route-owned JS remains above aspirational final goals. Production signoff stays blocked on hosted Chrome/Lighthouse/manual provider and hardware gates.\n`);
+  writeDoc("performance", "FINAL_PERFORMANCE_REPORT.md", `# Final Performance Report\n\nDate: ${generatedAt}\n\n${finalScope}\n\n## Root Cause Summary\n\n| Area | Finding | Final action |\n| --- | --- | --- |\n| Startup JS | Route-owned shared customer/profile/owner chunks remain the largest production risk. | Phase 2 removed eager Firebase/Auth/Stack/XLSX/Mapbox ownership from critical initial routes where safe. |\n| Runtime CPU | POS search/category and Kitchen filter/reconciliation paths were the highest repeat-interaction risks. | Phase 3 added debouncing, precomputation, memoized cards/grids, stable refs, and Kitchen reconciliation/windowing. |\n| Hydration | Profile and settings surfaces owned action/tab-only code too early. | Toast, preferences, Mapbox, Cloudinary, push, fullscreen, and loyalty code now load only when needed. |\n| Owner Login | Owner auth rendered as a compact legacy card with limited operational states. | Rebuilt as a responsive SaaS auth surface with remembered email, Caps Lock detection, session-timeout state, and stronger loading/a11y feedback. |\n| Kitchen History | Long card history was not scalable for thousands of tickets or management workflows. | Replaced it with server-filtered paging, table sorting, column controls, bulk actions, sticky action column, and lazy Excel export. |\n| Browser proof | Flame graphs, Coverage, FPS, INP, and real heap growth remain unmeasured locally. | Manual production Chrome profiling is required after Hostinger redeploy. |\n\n## Route Budget Snapshot\n\n${measuredRoutes}\n\n## Over-Budget Routes\n\n${overBudgetRoutes.length ? overBudgetTable : "All tracked routes are inside the configured script budgets."}\n\n## Stress Snapshot\n\n${stressRows}\n\n## Conclusion\n\nRuntime smoothness is improved and local production validation passed, but route-owned JS remains above aspirational final goals. Production signoff stays blocked on hosted Chrome/Lighthouse/manual provider and hardware gates.\n`);
 
   writeDoc("performance", "FINAL_RUNTIME_REPORT.md", `# Final Runtime Report\n\nDate: ${generatedAt}\n\n## Runtime Measurements\n\n${stressRows}\n\n## Continuous Operation Controls\n\n| Surface | Control |\n| --- | --- |\n| Kitchen | EventSource cleanup preserved, unchanged ticket references are retained, card renders are memoized, and long desktop columns are windowed. |\n| POS | Debounced search, memoized product lists, memoized grid/cards, memoized billing templates, and stable cart handlers reduce repeat input work. |\n| Owner Orders | Debounced search and deferred hidden operations panel code reduce idle render work. |\n| Active Orders | Status/Priority/Progress/ETA/Quick View/Actions columns keep fixed desktop tracks; mobile Quick View expands inline without overlaying row controls. |\n| Delay Alerts | Owner Orders, Kitchen, and POS reuse \`getKitchenDelay\` with the persisted prepared-not-served threshold; no new realtime listener was added. |\n| Owner Settings | Heavy tab-only dependencies are dynamically imported only for visible tabs. |\n| Profile | Preferences and toast runtime are action/surface loaded instead of static startup ownership. |\n\n## Manual Runtime Gates\n\n${finalManualGates}\n`);
 
@@ -321,10 +321,10 @@ Date: ${generatedAt}
 
 | Area | Result |
 | --- | --- |
-| Scope | RC5 production hardening only; no feature redesign, Firestore schema/rule/index change, auth flow change, or provider contract change. |
-| Smart Bill Merge | Partial-payment tickets were incorrectly blocked from billing-only merge; open partial-payment tickets now merge while locked, authorized, paid, refunded, closed, or already merged bills remain blocked. |
-| Split Bill | Split Bill was service-gated even though payment is independent of Kitchen/service state; split now follows payment-state guards only. |
-| Security | Tenant isolation, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
+| Scope | RC5 owner-login and Kitchen History enterprise UI hardening; authentication APIs, Firestore schema/rules/indexes, and provider contracts remain backward compatible. |
+| Owner Login | Legacy compact owner login lacked enterprise state handling; new surface adds remembered email, autofocus/autocomplete, Caps Lock detection, session-timeout messaging, stronger loading state, and accessible feedback. |
+| Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, sticky table actions, sorting, saved filters, bulk selection, export, print, and expandable details. |
+| Security | Tenant isolation, owner permissions, auth endpoints, and provider-secret boundaries remain unchanged. |
 | Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
@@ -332,9 +332,10 @@ Date: ${generatedAt}
 
 | File | Fix |
 | --- | --- |
-| \`src/components/flows/pos-billing-flow.tsx\` | Split Bill no longer requires Served; Smart Bill Merge uses a billing-specific guard that allows partial-payment open tickets and blocks locked/terminal/finalized bills. |
-| \`src/repositories/order-repository.ts\` | Merge transactions use a repository billing guard matching the UI guard, preserving tenant checks and kitchen-ticket separation. |
-| \`scripts/release/operational-hardening-smoke.mjs\` | Operational smoke verifies payment-independent split flow and partial-payment bill-only merge guards. |
+| \`src/components/flows/owner-portal-login-flow.tsx\` | Rebuilt the owner login UX while preserving the existing owner auth and password OTP flows. |
+| \`src/components/flows/kitchen-display-flow.tsx\` | Replaced Kitchen History cards with an enterprise table, filters, exports, bulk selection, sticky actions, and expandable row details. |
+| \`src/app/api/owner/kitchen/route.ts\` | Added bounded page/pageSize/search/date/status/payment/priority/table/waiter/customer/item/print filters for Kitchen History. |
+| \`scripts/release/operational-hardening-smoke.mjs\` | Operational smoke now verifies owner-login UX and Kitchen History table contracts. |
 
 ## Accepted Warning
 
@@ -347,16 +348,16 @@ Date: ${generatedAt}
 
 ## Scope
 
-No Firestore collection, schema, rule, or index changed. RC5 hardening adjusted only the billing merge repository guard so partial-payment open tickets can merge while locked/finalized/terminal bills remain blocked.
+No Firestore collection, schema, rule, or index changed. RC5 Login and Kitchen History UI hardening adds only bounded read filters to the existing Kitchen API and keeps Kitchen ticket documents unchanged.
 
 ## Result
 
 | Area | Result |
 | --- | --- |
-| Orders | Existing order documents are reused; bill-only merge continues writing merged-bill links without merging kitchen ticket lines. |
-| Kitchen orders | Existing kitchen ticket documents remain independent and auditable during bill merge. |
-| Billing | Existing payment status and lock fields are reused; partial-payment tickets stay editable until finalized. |
-| Audit/timeline | Existing event paths remain unchanged and no duplicate listener/write path was added. |
+| Kitchen orders | Existing kitchen ticket documents are read through the current tenant-scoped repository and mapped to the same TableOrder shape. |
+| History paging | Server accepts bounded page/pageSize and filter parameters before returning rows to the UI. |
+| Billing/payment | Existing payment fields are displayed and exported only; no billing write path changed. |
+| Audit/timeline | Existing statusHistory, print count, payment status, and merged-ticket metadata are displayed without adding write paths. |
 | Listeners and indexes | No listener, rule, or index added. |
 
 Firebase Console deployment and authenticated protected read/write smoke remain manual.
@@ -375,7 +376,7 @@ Date: ${generatedAt}
 | \`npm run build\` | Passed with accepted Firebase/protobuf warning. |
 | \`npm run analyze\` | Passed with accepted Firebase/protobuf warning. |
 | \`npm run audit:release\` | Passed. |
-| \`npm run smoke:operational\` | Passed 24/24, including payment-independent split and partial-payment bill-only merge guards. |
+| \`npm run smoke:operational\` | Passed 26/26, including owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |
 | \`npm run profile:runtime\` | Passed. |
 | \`git diff --check\` | Passed as a final release gate. |
 

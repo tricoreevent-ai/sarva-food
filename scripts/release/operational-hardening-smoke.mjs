@@ -30,6 +30,8 @@ const delayFormatter = read("src/lib/kitchen-delay.ts");
 const statusBadge = read("src/components/orders/OperationalOrderStatusBadge.tsx");
 const compactActions = read("src/components/orders/CompactOrderAccordionActions.tsx");
 const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
+const ownerLogin = read("src/components/flows/owner-portal-login-flow.tsx");
+const kitchenApi = read("src/app/api/owner/kitchen/route.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 const ownerAccess = read("src/lib/server/owner-api-access.ts");
@@ -95,6 +97,18 @@ await check("owner-api:proxy-safe-origin-guard", () => {
   assert.equal(trusted({ origin: "https://attacker.example", requestOrigin: "http://127.0.0.1:3000", requestHost: "violet-squid-380447.hostingersite.com", publicOrigin: productionOrigin }), false);
   assert.equal(trusted({ origin: "http://localhost:3000", requestOrigin: "http://0.0.0.0:3000", requestHost: "localhost:3000", publicOrigin: productionOrigin }), true);
   assert.equal(trusted({ origin: "not-a-url", requestOrigin: "http://localhost:3000", requestHost: "localhost:3000", publicOrigin: productionOrigin }), false);
+});
+
+await check("owner-login:enterprise-auth-experience", () => {
+  for (const token of ["Nammude OS", "Remember email", "Caps Lock is on", "sarva.owner.login.email", "autoFocus", "autoComplete", "Secure access", "Securing session"]) assert.ok(ownerLogin.includes(token), token);
+  assert.ok(ownerLogin.includes("Forgot password?"));
+  assert.ok(ownerLogin.includes("one-time-code"));
+});
+
+await check("kitchen-history:enterprise-management-table", () => {
+  for (const token of ["kitchenHistoryColumns", "sticky right-0", "Select visible", "Save filter", "CSV", "Excel", "Print status", "Column", "KitchenHistoryDetails", "recordsToCsv", "xlsx"]) assert.ok(kitchen.includes(token), token);
+  for (const token of ["pageSize", "page", "query", "printStatus", "customer", "count", "filtered.slice"]) assert.ok(kitchenApi.includes(token), token);
+  assert.ok(!kitchen.includes("KitchenHistoryOrderAccordion"));
 });
 
 await check("notifications:matrix-and-manual-reservations", () => {
@@ -288,6 +302,6 @@ await check("notifications:configurable-operational-sounds", () => {
 
 const failed = results.filter(({ status }) => status === "FAIL");
 const rows = results.map(({ name, status, detail = "" }) => `| ${name} | ${status} | ${detail.replaceAll("|", "\\|")} |`).join("\n");
-fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
+fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise table contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
 for (const result of results) console.log(`${result.status} ${result.name}${result.detail ? `: ${result.detail}` : ""}`);
 if (failed.length) process.exitCode = 1;

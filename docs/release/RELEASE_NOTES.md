@@ -1,5 +1,13 @@
 # Release Notes
 
+## RC5 Login and Kitchen History Enterprise UI - 2026-07-20
+
+- Redesigned Owner Login into a premium mobile-first SaaS authentication surface while preserving the existing owner auth and OTP reset APIs.
+- Added login UX hardening: remembered email, autofocus, autocomplete, Caps Lock warning, session-timeout message, stronger loading state, password visibility controls, and accessible inline status/error messaging.
+- Replaced Kitchen Order History card/accordion layout with an enterprise management table: server-filtered paging, sticky header/action column, sorting, column visibility, saved filters, multi-field filtering, bulk selection, CSV/Excel export, print, and expandable in-row details.
+- Kitchen History row details now expose timeline, kitchen status history, payment/print metadata, items, notes, station, delay, and merged-ticket references without navigating away.
+- Validation covers the new owner-login and kitchen-history contracts through `smoke:operational`; full release gates are refreshed in the validation reports.
+
 ## RC5 Enterprise Waiter Operational Workflow - 2026-07-20
 
 - Enterprise dining update: tables can now keep multiple independent active kitchen tickets while bill merge remains billing-only and preserves each original kitchen ticket audit trail.

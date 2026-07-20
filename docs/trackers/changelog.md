@@ -2,6 +2,8 @@
 
 ## 2026-07-20
 
+- Redesigned Owner Login for RC5 with premium responsive layout, remembered email, autofocus/autocomplete, Caps Lock warning, password visibility, session-timeout messaging, and accessible loading/error/status feedback.
+- Rebuilt Kitchen Order History as an enterprise management table with server-filtered paging, sticky header/action column, sorting, column visibility, saved filters, multi-field filters, bulk selection, CSV/Excel export, print, and expandable timeline/payment/print/audit details.
 - Completed RC5 enterprise waiter workflow: Active Orders Waiter view now stages New/Accepted/Preparing/Ready/Serving/Completed and keeps Kitchen status/progress visible after payment.
 - Added multi-ticket table sessions, add-on kitchen tickets, smart bill merge, billing-only merge audit, and 30-minute Completed holding with manual Move To History.
 - Hardened Smart Bill Merge and Split Bill: open partial-payment tickets can be merged bill-only, locked/authorized/paid/refunded/closed/merged bills remain blocked, and Split Bill is no longer wrongly service-gated.

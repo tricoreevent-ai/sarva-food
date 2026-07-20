@@ -1,13 +1,20 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  Archive,
   AlertTriangle,
+  ArrowDownUp,
   BellRing,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
+  Copy,
+  Download,
   Eye,
+  FileSpreadsheet,
   Filter,
   History,
   Maximize2,
@@ -38,12 +45,29 @@ import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/l
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 type KitchenColumnId = "new" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
-type PaymentState = "unpaid" | "partial" | "paid" | "refunded";
+type PaymentState = "unpaid" | "pending" | "authorized" | "partial" | "paid" | "failed" | "refunded";
 type ConfirmAction = { title: string; description: string; confirmLabel: string; onConfirm: () => void | Promise<void> };
 type CompactTabId = "new" | "accepted" | "preparing" | "ready" | "completed";
 type CompactPane = "orders" | "kitchen" | "more";
 type CompactOrderTypeFilter = NonNullable<TableOrder["orderType"]> | "all";
 type KitchenReadySignal = { kitchenOrderId?: string; notifiedAt?: unknown; acknowledgedAt?: unknown };
+type KitchenHistoryRange = "today" | "yesterday" | "7d" | "month" | "all";
+type KitchenHistorySortKey = "order" | "table" | "customer" | "status" | "payment" | "priority" | "eta" | "waiter" | "items" | "created" | "delay" | "amount" | "prints";
+type KitchenHistoryColumnKey = KitchenHistorySortKey | "session" | "ready" | "completed" | "actions";
+type KitchenHistoryFilter = {
+  query: string;
+  range: KitchenHistoryRange;
+  status: TableOrderStatus | "all";
+  payment: PaymentState | "all";
+  priority: TableOrder["priority"] | "all";
+  table: string;
+  waiter: string;
+  customer: string;
+  item: string;
+  printStatus: "all" | "printed" | "unprinted";
+};
+type SavedKitchenHistoryFilter = KitchenHistoryFilter & { id: string; name: string };
+type KitchenHistoryPayload = { data?: TableOrder[]; count?: number; page?: number; pageSize?: number };
 const desktopColumns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
   { id: "new", title: "New", tone: "red", statuses: ["new", "occupied"] },
   { id: "accepted", title: "Accepted", tone: "orange", statuses: ["accepted"] },
@@ -73,6 +97,26 @@ const actionLabel: Partial<Record<TableOrderStatus, string>> = {
   preparing: "Ready",
   ready: "Signal Ready",
 };
+
+const kitchenHistoryColumns: Array<{ key: KitchenHistoryColumnKey; label: string; width: string; sortable?: boolean }> = [
+  { key: "order", label: "Order No", width: "min-w-[132px]" },
+  { key: "table", label: "Table", width: "min-w-[96px]" },
+  { key: "session", label: "Session", width: "min-w-[120px]", sortable: false },
+  { key: "customer", label: "Customer", width: "min-w-[150px]" },
+  { key: "status", label: "Kitchen Status", width: "min-w-[140px]" },
+  { key: "payment", label: "Payment", width: "min-w-[116px]" },
+  { key: "priority", label: "Priority", width: "min-w-[104px]" },
+  { key: "eta", label: "ETA", width: "min-w-[84px]" },
+  { key: "waiter", label: "Waiter", width: "min-w-[140px]" },
+  { key: "items", label: "Items", width: "min-w-[180px]" },
+  { key: "created", label: "Created", width: "min-w-[112px]" },
+  { key: "ready", label: "Ready", width: "min-w-[112px]", sortable: false },
+  { key: "completed", label: "Completed", width: "min-w-[112px]", sortable: false },
+  { key: "delay", label: "Delay", width: "min-w-[116px]" },
+  { key: "amount", label: "Amount", width: "min-w-[104px]" },
+  { key: "prints", label: "Print", width: "min-w-[96px]" },
+  { key: "actions", label: "Actions", width: "min-w-[220px]", sortable: false },
+];
 
 export function KitchenDisplayFlow() {
   const [fullscreen, setFullscreen] = useState(false);
@@ -768,22 +812,58 @@ export function KitchenDisplayFlow() {
 
 export function KitchenOrderHistoryFlow() {
   const [orders, setOrders] = useState<TableOrder[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [range, setRange] = useState<"today" | "yesterday" | "7d" | "month" | "all">("today");
-  const [status, setStatus] = useState<TableOrderStatus | "all">("all");
-  const [payment, setPayment] = useState<PaymentState | "all">("all");
+  const [filters, setFilters] = useState<KitchenHistoryFilter>(() => ({
+    query: "",
+    range: "today",
+    status: "all",
+    payment: "all",
+    priority: "all",
+    table: "",
+    waiter: "",
+    customer: "",
+    item: "",
+    printStatus: "all",
+  }));
+  const deferredQuery = useDeferredValue(filters.query);
+  const [savedFilters, setSavedFilters] = useState<SavedKitchenHistoryFilter[]>(() => readSavedKitchenHistoryFilters());
+  const [hiddenColumns, setHiddenColumns] = useState<KitchenHistoryColumnKey[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<KitchenHistorySortKey>("created");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
-    void fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal })
-      .then((response) => readKitchenPayload<{ data?: TableOrder[] }>(response, "Kitchen history could not be loaded."))
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+      query: deferredQuery,
+      status: filters.status,
+      payment: filters.payment,
+      priority: filters.priority,
+      table: filters.table.trim().toLowerCase() || "all",
+      waiter: filters.waiter.trim().toLowerCase() || "all",
+      customer: filters.customer.trim().toLowerCase() || "all",
+      item: filters.item.trim().toLowerCase() || "all",
+      printStatus: filters.printStatus,
+    });
+    const dates = kitchenHistoryDates(filters.range);
+    if (dates.from) params.set("from", dates.from);
+    if (dates.to) params.set("to", dates.to);
+    void fetch(`/api/owner/kitchen?${params.toString()}`, { cache: "no-store", signal: controller.signal })
+      .then((response) => readKitchenPayload<KitchenHistoryPayload>(response, "Kitchen history could not be loaded."))
       .then((payload) => {
-        if (active) setOrders(payload.data ?? []);
+        if (!active) return;
+        setOrders(payload.data ?? []);
+        setTotalCount(Number(payload.count ?? payload.data?.length ?? 0));
+        setSelectedIds([]);
       })
       .catch((error) => {
         if ((error as Error).name !== "AbortError") toast.error("Kitchen history could not be loaded.");
@@ -795,77 +875,232 @@ export function KitchenOrderHistoryFlow() {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [deferredQuery, filters.customer, filters.item, filters.payment, filters.printStatus, filters.priority, filters.range, filters.status, filters.table, filters.waiter, page, pageSize]);
 
-  const filtered = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    return orders
-      .filter((order) => matchesDateRange(order.createdAt, range))
-      .filter((order) => status === "all" || order.status === status)
-      .filter((order) => payment === "all" || order.paymentStatus === payment)
-      .filter((order) => !search || [
-        displayOrderNumber(order),
-        order.id,
-        order.tableNumber,
-        order.customerName,
-        order.guestName,
-        order.assignedStaffName,
-        order.waiterName,
-        order.source,
-        order.orderType,
-        paymentLabel(order.paymentStatus),
-        ...order.lines.map((line) => line.name),
-      ].filter(Boolean).join(" ").toLowerCase().includes(search))
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  }, [orders, payment, query, range, status]);
+  const visibleColumns = useMemo(() => kitchenHistoryColumns.filter((column) => !hiddenColumns.includes(column.key)), [hiddenColumns]);
+  const sortedOrders = useMemo(() => [...orders].sort((first, second) => compareKitchenHistoryRows(first, second, sortKey, now) * (sortDirection === "asc" ? 1 : -1)), [now, orders, sortDirection, sortKey]);
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
+  const expandedOrder = orders.find((order) => order.id === expandedOrderId) ?? null;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const allVisibleSelected = sortedOrders.length > 0 && sortedOrders.every((order) => selectedIds.includes(order.id));
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== "range" && value && value !== "all").length + (filters.range !== "today" ? 1 : 0);
+
+  function updateFilter<K extends keyof KitchenHistoryFilter>(key: K, value: KitchenHistoryFilter[K]) {
+    setLoading(true);
+    setPage(1);
+    setFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateSort(key: KitchenHistoryColumnKey) {
+    if (key === "session" || key === "ready" || key === "completed" || key === "actions") return;
+    setSortKey((current) => {
+      if (current === key) {
+        setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+        return current;
+      }
+      setSortDirection(key === "created" ? "desc" : "asc");
+      return key;
+    });
+  }
+
+  function toggleRow(orderId: string) {
+    setSelectedIds((current) => current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId]);
+  }
+
+  function toggleAllVisible() {
+    setSelectedIds(allVisibleSelected ? [] : sortedOrders.map((order) => order.id));
+  }
+
+  function toggleColumn(key: KitchenHistoryColumnKey) {
+    if (key === "actions") return;
+    setHiddenColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
+  }
+
+  function saveFilter() {
+    const name = window.prompt("Name this Kitchen History filter");
+    if (!name?.trim()) return;
+    const next = [{ ...filters, id: `filter-${Date.now()}`, name: name.trim().slice(0, 40) }, ...savedFilters].slice(0, 8);
+    setSavedFilters(next);
+    window.localStorage.setItem("sarva.kitchen.history.filters", JSON.stringify(next));
+    toast.success("Kitchen history filter saved.");
+  }
+
+  function applySavedFilter(id: string) {
+    const saved = savedFilters.find((item) => item.id === id);
+    if (!saved) return;
+    setLoading(true);
+    setPage(1);
+    setFilters({
+      query: saved.query,
+      range: saved.range,
+      status: saved.status,
+      payment: saved.payment,
+      priority: saved.priority,
+      table: saved.table,
+      waiter: saved.waiter,
+      customer: saved.customer,
+      item: saved.item,
+      printStatus: saved.printStatus,
+    });
+  }
+
+  function exportRows(kind: "csv" | "excel", rows = sortedOrders) {
+    const exportable = rows.length ? rows : sortedOrders;
+    if (!exportable.length) {
+      toast.error("No kitchen history rows to export.");
+      return;
+    }
+    const records = exportable.map(kitchenHistoryExportRow);
+    if (kind === "csv") {
+      downloadText(`kitchen-history-${Date.now()}.csv`, recordsToCsv(records), "text/csv;charset=utf-8");
+      return;
+    }
+    void import("xlsx").then((xlsx) => {
+      const worksheet = xlsx.utils.json_to_sheet(records);
+      const workbook = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Kitchen History");
+      xlsx.writeFile(workbook, `kitchen-history-${Date.now()}.xlsx`);
+    }).catch(() => toast.error("Excel export could not be prepared."));
+  }
 
   return (
-    <main className="space-y-4">
+    <main className="space-y-4 pb-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-950">Kitchen Order History</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Search completed, cancelled, and active kitchen tickets by order number, table, staff, payment, and item.</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Enterprise table for kitchen tickets, payment state, audit timeline, print history, and billing traceability.</p>
         </div>
-        <Button variant="outline" asChild><Link href="/owner/kitchen"><UtensilsCrossed className="size-4" />Kitchen Operations</Link></Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => exportRows("csv")}><Download className="size-4" />CSV</Button>
+          <Button variant="outline" onClick={() => exportRows("excel")}><FileSpreadsheet className="size-4" />Excel</Button>
+          <Button variant="outline" onClick={() => window.print()}><Printer className="size-4" />Print</Button>
+          <Button variant="outline" asChild><Link href="/owner/kitchen"><UtensilsCrossed className="size-4" />Kitchen Operations</Link></Button>
+        </div>
       </header>
-      <section className="grid gap-2 rounded-lg border bg-white p-3 shadow-sm xl:grid-cols-[minmax(220px,1fr)_150px_150px_150px]">
-        <label className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Search order number, table, customer, item" aria-label="Search kitchen history" />
-        </label>
-        <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={range} onChange={(event) => setRange(event.target.value as typeof range)} aria-label="Date range">
-          <option value="today">Today</option>
-          <option value="yesterday">Yesterday</option>
-          <option value="7d">Last 7 Days</option>
-          <option value="month">This Month</option>
-          <option value="all">Past / Future</option>
-        </select>
-        <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={status} onChange={(event) => setStatus(event.target.value as TableOrderStatus | "all")} aria-label="Status">
-          <option value="all">All status</option>
-          {(["new", "accepted", "preparing", "ready", "served", "completed", "billed", "cancelled"] as TableOrderStatus[]).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
-        </select>
-        <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={payment} onChange={(event) => setPayment(event.target.value as PaymentState | "all")} aria-label="Payment">
-          <option value="all">All payments</option>
-          <option value="unpaid">Unpaid</option>
-          <option value="partial">Partial</option>
-          <option value="paid">Paid</option>
-          <option value="refunded">Refunded</option>
-        </select>
+
+      <section className="grid gap-3 rounded-xl border bg-white p-3 shadow-sm">
+        <div className="grid gap-2 xl:grid-cols-[minmax(240px,1.2fr)_150px_150px_150px_140px]">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <input value={filters.query} onChange={(event) => updateFilter("query", event.target.value)} className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Search order, table, customer, item, waiter" aria-label="Search kitchen history" />
+          </label>
+          <HistorySelect label="Date range" value={filters.range} onChange={(value) => updateFilter("range", value as KitchenHistoryRange)} options={[["today", "Today"], ["yesterday", "Yesterday"], ["7d", "Last 7 Days"], ["month", "This Month"], ["all", "Past / Future"]]} />
+          <HistorySelect label="Status" value={filters.status} onChange={(value) => updateFilter("status", value as TableOrderStatus | "all")} options={[["all", "All status"], ...(["new", "accepted", "preparing", "ready", "served", "completed", "billed", "cancelled"] as TableOrderStatus[]).map((item) => [item, statusLabel(item)] as [string, string])]} />
+          <HistorySelect label="Payment" value={filters.payment} onChange={(value) => updateFilter("payment", value as PaymentState | "all")} options={[["all", "All payments"], ["unpaid", "Unpaid"], ["pending", "Pending"], ["partial", "Partial"], ["authorized", "Authorized"], ["paid", "Paid"], ["refunded", "Refunded"]]} />
+          <HistorySelect label="Priority" value={filters.priority} onChange={(value) => updateFilter("priority", value as TableOrder["priority"] | "all")} options={[["all", "All priority"], ["normal", "Normal"], ["rush", "Rush"]]} />
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[120px_150px_160px_160px_150px_160px]">
+          <input value={filters.table} onChange={(event) => updateFilter("table", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Table" aria-label="Table filter" />
+          <input value={filters.waiter} onChange={(event) => updateFilter("waiter", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Waiter" aria-label="Waiter filter" />
+          <input value={filters.customer} onChange={(event) => updateFilter("customer", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Customer" aria-label="Customer filter" />
+          <input value={filters.item} onChange={(event) => updateFilter("item", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Item" aria-label="Item filter" />
+          <HistorySelect label="Print status" value={filters.printStatus} onChange={(value) => updateFilter("printStatus", value as KitchenHistoryFilter["printStatus"])} options={[["all", "All prints"], ["printed", "Printed"], ["unprinted", "Unprinted"]]} />
+          <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value="" onChange={(event) => applySavedFilter(event.target.value)} aria-label="Saved filters">
+            <option value="">Saved filters</option>
+            {savedFilters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={saveFilter}><Filter className="size-4" />Save filter</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => {
+              setLoading(true);
+              setPage(1);
+              setFilters({ query: "", range: "today", status: "all", payment: "all", priority: "all", table: "", waiter: "", customer: "", item: "", printStatus: "all" });
+            }}>Reset</Button>
+            <Badge variant="secondary">{activeFilterCount} active filters</Badge>
+            <Badge variant="outline">{totalCount} matching tickets</Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {kitchenHistoryColumns.filter((column) => column.key !== "actions").map((column) => (
+              <label key={column.key} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold text-slate-600">
+                <input type="checkbox" checked={!hiddenColumns.includes(column.key)} onChange={() => toggleColumn(column.key)} className="size-3 accent-orange-500" />
+                {column.label}
+              </label>
+            ))}
+          </div>
+        </div>
       </section>
-      <section className="rounded-lg border bg-white p-3 shadow-sm">
-        <div className="grid max-h-[calc(100vh-280px)] gap-3 overflow-y-auto">
-          {filtered.map((order) => (
-            <KitchenHistoryOrderAccordion
-              key={order.id}
-              order={order}
-              now={now}
-              expanded={expandedOrderId === order.id}
-              onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
-              onDetails={() => setSelectedOrderId(order.id)}
-            />
-          ))}
-          {!filtered.length ? <p className="p-8 text-center text-sm font-semibold text-slate-500">{loading ? "Loading kitchen history..." : "No kitchen orders match the selected filters."}</p> : null}
+
+      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600">
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="size-4 accent-orange-500" />
+              Select visible
+            </label>
+            <span>{selectedIds.length} selected</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length} onClick={() => exportRows("csv", sortedOrders.filter((order) => selectedIds.includes(order.id)))}><Download className="size-4" />Export selected</Button>
+            <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length} onClick={() => toast.success(`${selectedIds.length} ticket${selectedIds.length === 1 ? "" : "s"} queued for archive review.`)}><Archive className="size-4" />Archive review</Button>
+            <select className="h-9 rounded-lg border bg-white px-2 text-sm font-semibold" value={pageSize} onChange={(event) => {
+              setLoading(true);
+              setPage(1);
+              setPageSize(Number(event.target.value));
+            }} aria-label="Rows per page">
+              {[25, 50, 100, 200].map((size) => <option key={size} value={size}>{size} rows</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="max-h-[calc(100vh-330px)] overflow-auto">
+          <table className="w-full min-w-[1500px] border-separate border-spacing-0 text-sm">
+            <thead className="sticky top-0 z-20 bg-slate-50 shadow-sm">
+              <tr>
+                <th className="sticky left-0 z-30 w-11 border-b bg-slate-50 px-3 py-3 text-left">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="size-4 accent-orange-500" aria-label="Select all visible kitchen history rows" />
+                </th>
+                {visibleColumns.map((column) => (
+                  <th key={column.key} className={cn("border-b px-3 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500", column.width, column.key === "actions" && "sticky right-0 z-30 bg-slate-50 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.8)]")}>
+                    <button type="button" className="inline-flex items-center gap-1" onClick={() => updateSort(column.key)} disabled={column.sortable === false}>
+                      {column.label}
+                      {column.sortable === false ? null : <ArrowDownUp className="size-3" />}
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedOrders.map((order) => (
+                <KitchenHistoryTableRow
+                  key={order.id}
+                  order={order}
+                  now={now}
+                  selected={selectedIds.includes(order.id)}
+                  expanded={expandedOrderId === order.id}
+                  visibleColumns={visibleColumns}
+                  onSelect={() => toggleRow(order.id)}
+                  onExpand={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}
+                  onPreview={() => setSelectedOrderId(order.id)}
+                  onExport={() => exportRows("csv", [order])}
+                />
+              ))}
+              {!sortedOrders.length ? (
+                <tr>
+                  <td colSpan={visibleColumns.length + 1} className="p-12 text-center text-sm font-semibold text-slate-500">
+                    {loading ? "Loading kitchen history..." : "No kitchen orders match the selected filters."}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+
+        {expandedOrder ? <KitchenHistoryDetails order={expandedOrder} now={now} /> : null}
+
+        <div className="flex flex-col gap-3 border-t p-3 text-sm font-semibold text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>Page {page} of {pageCount} · {totalCount} matching tickets</span>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => {
+              setLoading(true);
+              setPage((value) => Math.max(1, value - 1));
+            }}><ChevronLeft className="size-4" />Prev</Button>
+            <Button type="button" variant="outline" size="sm" disabled={page >= pageCount} onClick={() => {
+              setLoading(true);
+              setPage((value) => Math.min(pageCount, value + 1));
+            }}>Next<ChevronRight className="size-4" /></Button>
+          </div>
         </div>
       </section>
       {selectedOrder ? (
@@ -882,54 +1117,253 @@ export function KitchenOrderHistoryFlow() {
   );
 }
 
-function KitchenHistoryOrderAccordion({ order, now, expanded, onExpandedChange, onDetails }: { order: TableOrder; now: number; expanded: boolean; onExpandedChange: (open: boolean) => void; onDetails: () => void }) {
+function KitchenHistoryTableRow({
+  order,
+  now,
+  selected,
+  expanded,
+  visibleColumns,
+  onSelect,
+  onExpand,
+  onPreview,
+  onExport,
+}: {
+  order: TableOrder;
+  now: number;
+  selected: boolean;
+  expanded: boolean;
+  visibleColumns: Array<{ key: KitchenHistoryColumnKey; label: string; width: string; sortable?: boolean }>;
+  onSelect: () => void;
+  onExpand: () => void;
+  onPreview: () => void;
+  onExport: () => void;
+}) {
   const delay = getKitchenDelay(order, now);
-  const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
   return (
-    <CompactOrderAccordion
-      id={`kitchen-history-${order.id}`}
-      orderNumber={displayOrderNumber(order)}
-      etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
-      orderTypeLabel={orderType}
-      tableLabel={order.tableNumber || order.customerName || order.guestName}
-      itemCountLabel={`${order.lines.length} item${order.lines.length === 1 ? "" : "s"}`}
-      status={{ label: statusLabel(order.status), tone: kitchenStatusTone(order.status) }}
-      priority={{ label: priorityLabel(order, delay), tone: kitchenPriorityTone(order, delay), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
-      badges={[
-        { label: order.source || "POS", tone: "muted" },
-        { label: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
-        { label: `${order.printedCount ?? 0} prints`, tone: "muted" },
-      ]}
-      delay={kitchenAccordionDelay(delay)}
-      items={order.lines.map((line, index) => ({
-        id: `${line.itemId ?? order.id}-${index}`,
-        name: line.name,
-        quantity: line.quantity,
-        note: line.notes,
-        meta: line.modifiers?.join(", "),
-        warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
-      }))}
-      facts={[
-        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
-        { label: "Payment", value: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
-        { label: "Staff", value: order.assignedStaffName || order.waiterName || "Unassigned" },
-        { label: "Station", value: order.kitchenStation || stationForOrder(order) },
-        { label: "Created", value: timeOnly(order.createdAt) },
-        { label: "Total", value: typeof order.total === "number" ? `₹${order.total}` : "Pending" },
-      ]}
-      notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
-      timeline={[
-        ...(order.statusHistory ?? []).slice(-5).reverse().map((entry) => ({
-          label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
-          time: entry.at ? timeOnly(String(entry.at)) : undefined,
-        })),
-        { label: "Created", time: timeOnly(order.createdAt) },
-      ]}
-      secondaryActions={[{ id: "details", label: "Details", icon: <Eye className="size-4" />, onClick: onDetails }]}
-      isOpen={expanded}
-      onOpenChange={onExpandedChange}
-    />
+    <tr className={cn("border-b align-top hover:bg-orange-50/40", expanded && "bg-orange-50/60")}>
+      <td className="sticky left-0 z-10 border-b bg-inherit px-3 py-3">
+        <input type="checkbox" checked={selected} onChange={onSelect} className="size-4 accent-orange-500" aria-label={`Select ${displayOrderNumber(order)}`} />
+      </td>
+      {visibleColumns.map((column) => (
+        <td key={column.key} className={cn("border-b px-3 py-3", column.key === "actions" && "sticky right-0 z-10 bg-inherit shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.8)]")}>
+          <KitchenHistoryCell column={column.key} order={order} delay={delay} onExpand={onExpand} onPreview={onPreview} onExport={onExport} />
+        </td>
+      ))}
+    </tr>
   );
+}
+
+function KitchenHistoryCell({
+  column,
+  order,
+  delay,
+  onExpand,
+  onPreview,
+  onExport,
+}: {
+  column: KitchenHistoryColumnKey;
+  order: TableOrder;
+  delay: DelayState;
+  onExpand: () => void;
+  onPreview: () => void;
+  onExport: () => void;
+}) {
+  if (column === "order") {
+    return (
+      <button type="button" onClick={onExpand} className="text-left">
+        <span className="block font-black text-slate-950">{displayOrderNumber(order)}</span>
+        <span className="text-xs font-bold text-slate-500">{order.source || "POS"} · {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
+      </button>
+    );
+  }
+  if (column === "table") return <span className="font-black text-slate-900">{order.tableNumber || "Direct"}</span>;
+  if (column === "session") return <span className="font-mono text-xs font-bold text-slate-500">{order.id.slice(0, 10)}</span>;
+  if (column === "customer") return <span className="font-semibold text-slate-700">{order.customerName || order.guestName || "Walk-in"}</span>;
+  if (column === "status") return <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} compact />;
+  if (column === "payment") return <Badge variant={order.paymentStatus === "paid" ? "success" : order.paymentStatus === "partial" ? "warning" : "muted"}>{paymentLabel(order.paymentStatus)}</Badge>;
+  if (column === "priority") return <Badge variant={delay.priority === "critical" ? "destructive" : delay.delayed ? "warning" : order.priority === "rush" ? "warning" : "muted"}>{priorityLabel(order, delay)}</Badge>;
+  if (column === "eta") return <span className="font-bold">{order.etaMinutes ?? 12}m</span>;
+  if (column === "waiter") return <span className="font-semibold text-slate-700">{order.assignedStaffName || order.waiterName || "Unassigned"}</span>;
+  if (column === "items") return <span className="line-clamp-2 font-semibold text-slate-700">{order.lines.map((line) => `${line.quantity}× ${line.name}`).join(", ") || "No items"}</span>;
+  if (column === "created") return <span className="font-semibold">{timeOnly(order.createdAt)}</span>;
+  if (column === "ready") return <span className="text-xs font-bold text-slate-500">{historyEventTime(order, "ready") || "—"}</span>;
+  if (column === "completed") return <span className="text-xs font-bold text-slate-500">{historyEventTime(order, "completed") || "—"}</span>;
+  if (column === "delay") return <Badge variant={delay.priority === "critical" ? "destructive" : delay.delayed ? "warning" : "muted"}>{delay.delayed ? formatDelayTime(delay.lateMinutes).label : "On time"}</Badge>;
+  if (column === "amount") return <span className="font-black">₹{moneyValue(order.total)}</span>;
+  if (column === "prints") return <span className="font-semibold">{order.printedCount ?? 0} print{Number(order.printedCount ?? 0) === 1 ? "" : "s"}</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      <Button type="button" variant="outline" size="sm" onClick={onPreview}><Eye className="size-3.5" />Preview</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => window.print()}><Printer className="size-3.5" />Print</Button>
+      <Button type="button" variant="outline" size="sm" onClick={onExpand}><History className="size-3.5" />Timeline</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => copyText(displayOrderNumber(order))}><Copy className="size-3.5" />Copy</Button>
+      <Button type="button" variant="outline" size="sm" onClick={onExport}><Download className="size-3.5" />Export</Button>
+    </div>
+  );
+}
+
+function KitchenHistoryDetails({ order, now }: { order: TableOrder; now: number }) {
+  const delay = getKitchenDelay(order, now);
+  const timeline = [
+    ...(order.statusHistory ?? []).slice().reverse().map((entry) => ({
+      label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
+      meta: [entry.paymentStatus ? paymentLabel(entry.paymentStatus as PaymentState) : undefined, entry.by].filter(Boolean).join(" · "),
+      time: entry.at ? timeOnly(String(entry.at)) : undefined,
+    })),
+    { label: "Created", meta: order.source || "POS", time: timeOnly(order.createdAt) },
+  ];
+  return (
+    <div className="grid gap-4 border-t bg-slate-50 p-4 xl:grid-cols-[1.1fr_0.9fr_0.9fr]">
+      <HistoryDetailCard title="Timeline">
+        {timeline.map((entry, index) => (
+          <div key={`${entry.label}-${entry.time}-${index}`} className="rounded-lg border bg-white p-3">
+            <p className="text-sm font-black text-slate-800">{entry.label}</p>
+            <p className="text-xs font-semibold text-slate-500">{entry.time || "Time unavailable"}{entry.meta ? ` · ${entry.meta}` : ""}</p>
+          </div>
+        ))}
+      </HistoryDetailCard>
+      <HistoryDetailCard title="Items and notes">
+        {order.lines.map((line, index) => (
+          <div key={`${line.itemId ?? line.name}-${index}`} className="rounded-lg border bg-white p-3">
+            <p className="font-black text-slate-900">{line.quantity}× {line.name}</p>
+            {[line.modifiers?.join(", "), line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined].filter(Boolean).map((note) => <p key={note} className="text-xs font-semibold text-slate-500">{note}</p>)}
+          </div>
+        ))}
+      </HistoryDetailCard>
+      <HistoryDetailCard title="Audit, payment, print">
+        <div className="grid gap-2 text-sm font-semibold text-slate-700">
+          <span>Payment: {paymentLabel(order.paymentStatus)}</span>
+          <span>Amount: ₹{moneyValue(order.total)}</span>
+          <span>Delay: {delay.delayed ? formatDelayTime(delay.lateMinutes).label : "On time"}</span>
+          <span>Printed: {order.printedCount ?? 0} time{Number(order.printedCount ?? 0) === 1 ? "" : "s"}</span>
+          <span>Last print: {order.lastPrintedAt ? timeOnly(order.lastPrintedAt) : "Not printed"}</span>
+          <span>Merged tickets: {(order as TableOrder & { mergedOrderIds?: string[] }).mergedOrderIds?.join(", ") || "None"}</span>
+          <span>Kitchen station: {order.kitchenStation || stationForOrder(order)}</span>
+        </div>
+      </HistoryDetailCard>
+    </div>
+  );
+}
+
+function HistoryDetailCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="grid content-start gap-2">
+      <h3 className="text-xs font-black uppercase tracking-wide text-slate-500">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function HistorySelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<[string, string]> }) {
+  return (
+    <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
+      {options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}
+    </select>
+  );
+}
+
+function compareKitchenHistoryRows(first: TableOrder, second: TableOrder, key: KitchenHistorySortKey, now: number) {
+  const firstValue = kitchenHistorySortValue(first, key, now);
+  const secondValue = kitchenHistorySortValue(second, key, now);
+  if (typeof firstValue === "number" && typeof secondValue === "number") return firstValue - secondValue;
+  return String(firstValue ?? "").localeCompare(String(secondValue ?? ""));
+}
+
+function kitchenHistorySortValue(order: TableOrder, key: KitchenHistorySortKey, now: number) {
+  if (key === "order") return displayOrderNumber(order);
+  if (key === "table") return order.tableNumber || "";
+  if (key === "customer") return order.customerName || order.guestName || "";
+  if (key === "status") return order.status;
+  if (key === "payment") return order.paymentStatus || "";
+  if (key === "priority") return order.priority || "";
+  if (key === "eta") return Number(order.etaMinutes ?? 0);
+  if (key === "waiter") return order.assignedStaffName || order.waiterName || "";
+  if (key === "items") return order.lines.length;
+  if (key === "created") return Date.parse(order.createdAt);
+  if (key === "delay") return getKitchenDelay(order, now).lateMinutes;
+  if (key === "amount") return Number(order.total ?? 0);
+  return Number(order.printedCount ?? 0);
+}
+
+function kitchenHistoryDates(range: KitchenHistoryRange) {
+  const now = new Date();
+  const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
+  if (range === "all") return {};
+  if (range === "today") return { from: dateOnly(now), to: dateOnly(now) };
+  const start = new Date(now);
+  if (range === "yesterday") {
+    start.setDate(now.getDate() - 1);
+    return { from: dateOnly(start), to: dateOnly(start) };
+  }
+  if (range === "7d") start.setDate(now.getDate() - 6);
+  if (range === "month") start.setDate(1);
+  return { from: dateOnly(start), to: dateOnly(now) };
+}
+
+function kitchenHistoryExportRow(order: TableOrder) {
+  return {
+    "Order No": displayOrderNumber(order),
+    Table: order.tableNumber || "Direct",
+    Session: order.id,
+    Customer: order.customerName || order.guestName || "Walk-in",
+    "Kitchen Status": statusLabel(order.status),
+    "Payment Status": paymentLabel(order.paymentStatus),
+    Priority: order.priority || "normal",
+    ETA: `${order.etaMinutes ?? 12}m`,
+    Waiter: order.assignedStaffName || order.waiterName || "Unassigned",
+    Items: order.lines.map((line) => `${line.quantity}x ${line.name}`).join("; "),
+    Created: order.createdAt,
+    Ready: historyEventTime(order, "ready") || "",
+    Completed: historyEventTime(order, "completed") || "",
+    Amount: moneyValue(order.total),
+    Prints: Number(order.printedCount ?? 0),
+  };
+}
+
+function recordsToCsv(records: Array<Record<string, string | number>>) {
+  const headers = Object.keys(records[0] ?? {});
+  return [headers.join(","), ...records.map((row) => headers.map((header) => escapeKitchenCsv(String(row[header] ?? ""))).join(","))].join("\n");
+}
+
+function escapeKitchenCsv(value: string) {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+function downloadText(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyText(value: string) {
+  if (!navigator.clipboard) {
+    toast.error("Clipboard is not available.");
+    return;
+  }
+  void navigator.clipboard.writeText(value).then(() => toast.success("Order number copied."), () => toast.error("Copy failed."));
+}
+
+function historyEventTime(order: TableOrder, status: TableOrderStatus) {
+  const entry = order.statusHistory?.find((item) => item.status === status || item.foodStatus === status);
+  return entry?.at ? timeOnly(String(entry.at)) : undefined;
+}
+
+function moneyValue(value: unknown) {
+  return Number(value ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
+function readSavedKitchenHistoryFilters() {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem("sarva.kitchen.history.filters") ?? "[]") as SavedKitchenHistoryFilter[];
+    return Array.isArray(parsed) ? parsed.slice(0, 8) : [];
+  } catch {
+    return [];
+  }
 }
 
 function KitchenOrderColumn({
@@ -2006,26 +2440,6 @@ function isCompleted(status: TableOrderStatus) {
 function isToday(value: string) {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) && date.toDateString() === new Date().toDateString();
-}
-
-function matchesDateRange(value: string, range: "today" | "yesterday" | "7d" | "month" | "all") {
-  if (range === "all") return true;
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return false;
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  if (range === "today") return date >= start;
-  if (range === "yesterday") {
-    const yesterday = new Date(start);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return date >= yesterday && date < start;
-  }
-  if (range === "7d") {
-    const week = new Date(start);
-    week.setDate(week.getDate() - 6);
-    return date >= week;
-  }
-  return date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth();
 }
 
 function readyActionLabel(order: TableOrder) {

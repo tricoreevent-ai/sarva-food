@@ -1,5 +1,13 @@
 # Project Tracker
 
+## RC5 Login and Kitchen History Enterprise UI - 2026-07-20
+
+- Owner Login now uses a premium responsive SaaS layout while preserving existing owner login and password OTP APIs.
+- Login UX now includes remembered email, autofocus, autocomplete, Caps Lock warning, session-timeout messaging, stronger loading state, password visibility, and accessible inline feedback.
+- Kitchen Order History is now a true enterprise management table instead of long cards: server-filtered paging, sorting, sticky header/action column, column visibility, saved filters, multi-field filters, bulk selection, CSV/Excel export, print, and expandable row details.
+- Kitchen History API now returns bounded filtered pages with count for date/status/payment/priority/table/waiter/customer/item/print/search filters.
+- Repository readiness remains 100%; production readiness remains 92% pending hosted manual QA.
+
 ## RC5 Enterprise Waiter Operational Workflow - 2026-07-20
 
 - Active Orders Waiter view is now a live stage board for New, Accepted, Preparing, Ready, Serving, and Completed.

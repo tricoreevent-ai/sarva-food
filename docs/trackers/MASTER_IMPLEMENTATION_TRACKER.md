@@ -11,14 +11,25 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Enterprise Multi-Ticket Waiter Workflow |
+| Current Sprint | RC5 Login and Kitchen History Enterprise UI |
 | Release Version | `v1.0.0-rc5` candidate |
 | Latest Git Commit | Pending final waiter workflow commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
 | Verification Status | RC5 enterprise waiter workflow passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 enterprise waiter workflow keeps Kitchen/payment/billing state independent, allows multiple active kitchen tickets per table/session, changes merge to billing-only, moves Ready signals away from Waiter push, adds Waiter live Ready sound/card signals, keeps completed orders for 30 minutes before history, tags timeline categories, and preserves Firestore schema/rule/index contracts. |
+| Scope | RC5 preserves the completed enterprise waiter workflow and adds owner-login UX hardening plus a true Kitchen History management table with server-filtered paging, exports, saved filters, sticky actions, expandable details, and no Firestore schema/rule/index change. |
+
+## RC5 Login and Kitchen History Enterprise UI - 2026-07-20
+
+| Area | Result |
+| --- | --- |
+| Owner Login | Complete. Premium responsive SaaS layout preserves existing auth while adding remembered email, autofocus, autocomplete, Caps Lock detection, session-timeout messaging, password visibility, loading micro-state, and accessible status/error regions. |
+| Login performance | Complete. The page remains self-contained, uses no extra data listener, keeps auth requests unchanged, and stores remembered email in localStorage only. |
+| Kitchen History | Complete. The previous long accordion/card history was replaced with an enterprise table with sticky header/action column, sorting, column visibility, saved filters, bulk selection, responsive overflow, print, CSV export, and lazy Excel export. |
+| Server filtering | Complete. `/api/owner/kitchen` now accepts page/pageSize/query/date/status/payment/priority/table/waiter/customer/item/print filters and returns a bounded page plus count. |
+| Row details | Complete. Expandable in-place details show timeline, items, notes, audit/payment/print metadata, delay, station, and merged-ticket references. |
+| Validation | `typecheck` and `lint` passed during implementation; full RC5 gates are refreshed in the final validation report. |
 
 ## RC5 Enterprise Multi-Ticket Waiter Workflow - 2026-07-20
 

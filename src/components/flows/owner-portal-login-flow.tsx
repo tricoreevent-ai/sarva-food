@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
-import { Eye, EyeOff, KeyRound, Mail, ShieldAlert, Store } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, Mail, ShieldAlert, ShieldCheck, Store } from "lucide-react";
 import type { UserRole } from "@/types/firebase";
 
 type LoginResponse = {
@@ -21,8 +21,9 @@ type AlertTone = "error" | "success" | "info";
 export function OwnerPortalLoginFlow() {
   const searchParams = useSearchParams();
   const next = useMemo(() => normalizeNextPath(searchParams.get("redirect") ?? searchParams.get("next"), "/owner"), [searchParams]);
+  const sessionReason = searchParams.get("reason") ?? searchParams.get("timeout");
   const [step, setStep] = useState<ResetStep>("sign-in");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => typeof window === "undefined" ? "" : window.localStorage.getItem("sarva.owner.login.email") ?? "");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -30,8 +31,10 @@ export function OwnerPortalLoginFlow() {
   const [verificationToken, setVerificationToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [message, setMessage] = useState("");
-  const [tone, setTone] = useState<AlertTone>("error");
+  const [capsLock, setCapsLock] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(() => typeof window !== "undefined" && Boolean(window.localStorage.getItem("sarva.owner.login.email")));
+  const [message, setMessage] = useState(sessionReason ? "Your secure owner session ended. Sign in again to continue operations." : "");
+  const [tone, setTone] = useState<AlertTone>(sessionReason ? "info" : "error");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -53,6 +56,8 @@ export function OwnerPortalLoginFlow() {
         }
         const payload = await postJson("/api/owner/auth/login", { email, password });
         if (!payload.ok || !payload.uid || !payload.role) throw new Error(payload.error || "Owner sign in failed.");
+        if (rememberEmail) window.localStorage.setItem("sarva.owner.login.email", email.trim());
+        else window.localStorage.removeItem("sarva.owner.login.email");
         window.location.replace(next);
         return;
       }
@@ -128,7 +133,7 @@ export function OwnerPortalLoginFlow() {
 
   const title = step === "sign-in" ? "Owner portal login" : "Reset owner password";
   const description = step === "sign-in"
-    ? "Restaurant operations accounts only."
+    ? "Secure access for restaurant owners, managers, cashiers, and operations leads."
     : step === "request"
       ? "We will send a 6 digit OTP to your owner email."
       : step === "verify"
@@ -136,14 +141,40 @@ export function OwnerPortalLoginFlow() {
         : "Set a new password for the owner portal.";
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#07120d] px-4 py-10 text-[#fff7e9]">
-      <section className="w-full max-w-md rounded-3xl border border-white/10 bg-[#111a12] p-7 shadow-2xl">
-        <div className="mb-6 grid size-12 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300">
-          {step === "sign-in" ? <Store className="size-6" /> : <KeyRound className="size-6" />}
-        </div>
-        <p className="text-xs font-black uppercase tracking-wide text-emerald-300">Owner portal</p>
-        <h1 className="mt-2 text-2xl font-black text-white">{title}</h1>
-        <p className="mt-2 text-sm font-semibold leading-6 text-[#f7e4c2]">{description}</p>
+    <main className="relative grid min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#1e4d34_0%,#07120d_38%,#040806_100%)] px-4 py-6 text-[#fff7e9] md:px-8">
+      <div className="pointer-events-none absolute inset-x-6 top-6 h-44 rounded-full bg-emerald-300/10 blur-3xl" />
+      <section className="relative mx-auto grid w-full max-w-6xl items-center gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <aside className="hidden rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 shadow-2xl backdrop-blur lg:block">
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3">
+            <div className="grid size-11 place-items-center rounded-xl bg-emerald-300 text-[#07120d]">
+              <Store className="size-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-200">Nammude OS</p>
+              <p className="text-sm font-black text-white">Enterprise restaurant command</p>
+            </div>
+          </div>
+          <h2 className="mt-10 max-w-xl text-5xl font-black leading-[1.02] tracking-tight text-white">Run dining, kitchen, billing, and staff ops from one secure portal.</h2>
+          <div className="mt-8 grid gap-3 text-sm font-bold text-emerald-50/90">
+            {["Owner-grade access control", "Realtime kitchen and POS visibility", "Fast recovery for busy service hours"].map((item) => (
+              <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                <CheckCircle2 className="size-4 text-emerald-300" />
+                {item}
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <section className="mx-auto w-full max-w-md rounded-[2rem] border border-white/10 bg-[#111a12]/95 p-6 shadow-2xl backdrop-blur md:p-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="grid size-12 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+              {step === "sign-in" ? <ShieldCheck className="size-6" /> : <KeyRound className="size-6" />}
+            </div>
+            <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-emerald-200">Secure</span>
+          </div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Owner portal</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-white">{title}</h1>
+          <p className="mt-2 text-sm font-semibold leading-6 text-[#f7e4c2]">{description}</p>
 
         <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
           <Field label="Email" htmlFor="owner-email">
@@ -155,6 +186,8 @@ export function OwnerPortalLoginFlow() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="email"
+                autoFocus
+                required
                 className="h-12 w-full rounded-xl border border-white/10 bg-white/10 px-10 text-sm font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/20"
                 placeholder="owner@example.com"
               />
@@ -174,7 +207,20 @@ export function OwnerPortalLoginFlow() {
                 visible={showPassword}
                 onToggle={() => setShowPassword((current) => !current)}
                 autoComplete="current-password"
+                onCapsLock={setCapsLock}
               />
+              <div className="flex items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    onChange={(event) => setRememberEmail(event.target.checked)}
+                    className="size-4 rounded border-white/20 bg-white/10 accent-emerald-400"
+                  />
+                  Remember email
+                </label>
+                {capsLock ? <span className="text-xs font-black text-amber-200">Caps Lock is on</span> : null}
+              </div>
             </Field>
           ) : null}
 
@@ -186,6 +232,7 @@ export function OwnerPortalLoginFlow() {
                 maxLength={6}
                 value={otp}
                 onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                autoComplete="one-time-code"
                 className="h-12 w-full rounded-xl border border-white/10 bg-white/10 px-4 text-center text-xl font-black tracking-[0.45em] text-white outline-none transition placeholder:text-white/30 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/20"
                 placeholder="000000"
               />
@@ -202,6 +249,7 @@ export function OwnerPortalLoginFlow() {
                   visible={showNewPassword}
                   onToggle={() => setShowNewPassword((current) => !current)}
                   autoComplete="new-password"
+                  onCapsLock={setCapsLock}
                 />
               </Field>
               <Field label="Confirm password" htmlFor="owner-confirm-password">
@@ -211,6 +259,7 @@ export function OwnerPortalLoginFlow() {
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
+                  required
                   className="h-12 w-full rounded-xl border border-white/10 bg-white/10 px-4 text-sm font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/20"
                 />
               </Field>
@@ -220,10 +269,11 @@ export function OwnerPortalLoginFlow() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="h-12 rounded-xl bg-emerald-400 px-4 text-sm font-black text-[#07120d] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-black text-[#07120d] shadow-lg shadow-emerald-950/30 transition hover:-translate-y-0.5 hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:ring-offset-2 focus:ring-offset-[#111a12] disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
           >
+            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
             {isSubmitting
-              ? "Please wait..."
+              ? "Securing session..."
               : step === "sign-in"
                 ? "Sign in"
                 : step === "request"
@@ -231,6 +281,7 @@ export function OwnerPortalLoginFlow() {
                   : step === "verify"
                     ? "Verify OTP"
                     : "Update password"}
+            {!isSubmitting ? <ArrowRight className="size-4" /> : null}
           </button>
         </form>
 
@@ -245,6 +296,11 @@ export function OwnerPortalLoginFlow() {
         )}
 
         {message ? <InlineAlert tone={tone} message={message} /> : null}
+        <p className="mt-5 flex items-center gap-2 text-xs font-bold text-white/45">
+          <LockKeyhole className="size-3.5" />
+          Protected by encrypted owner sessions and role-based permissions.
+        </p>
+      </section>
       </section>
     </main>
   );
@@ -269,6 +325,7 @@ function PasswordInput({
   visible,
   onToggle,
   autoComplete,
+  onCapsLock,
 }: {
   id: string;
   value: string;
@@ -276,6 +333,7 @@ function PasswordInput({
   visible: boolean;
   onToggle: () => void;
   autoComplete: string;
+  onCapsLock?: (value: boolean) => void;
 }) {
   return (
     <div className="relative">
@@ -284,7 +342,10 @@ function PasswordInput({
         type={visible ? "text" : "password"}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyUp={(event) => onCapsLock?.(event.getModifierState("CapsLock"))}
+        onBlur={() => onCapsLock?.(false)}
         autoComplete={autoComplete}
+        required
         className="h-12 w-full rounded-xl border border-white/10 bg-white/10 px-4 pr-11 text-sm font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/20"
       />
       <button type="button" className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-white/60 hover:bg-white/10" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"}>

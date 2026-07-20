@@ -1,15 +1,15 @@
 # Final Bug Report
 
-Date: 2026-07-20T11:22:07.694Z
+Date: 2026-07-20T14:04:49.897Z
 
 ## Final RC Bug-Hunt Result
 
 | Area | Result |
 | --- | --- |
-| Scope | RC5 production hardening only; no feature redesign, Firestore schema/rule/index change, auth flow change, or provider contract change. |
-| Smart Bill Merge | Partial-payment tickets were incorrectly blocked from billing-only merge; open partial-payment tickets now merge while locked, authorized, paid, refunded, closed, or already merged bills remain blocked. |
-| Split Bill | Split Bill was service-gated even though payment is independent of Kitchen/service state; split now follows payment-state guards only. |
-| Security | Tenant isolation, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
+| Scope | RC5 owner-login and Kitchen History enterprise UI hardening; authentication APIs, Firestore schema/rules/indexes, and provider contracts remain backward compatible. |
+| Owner Login | Legacy compact owner login lacked enterprise state handling; new surface adds remembered email, autofocus/autocomplete, Caps Lock detection, session-timeout messaging, stronger loading state, and accessible feedback. |
+| Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, sticky table actions, sorting, saved filters, bulk selection, export, print, and expandable details. |
+| Security | Tenant isolation, owner permissions, auth endpoints, and provider-secret boundaries remain unchanged. |
 | Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
@@ -17,9 +17,10 @@ Date: 2026-07-20T11:22:07.694Z
 
 | File | Fix |
 | --- | --- |
-| `src/components/flows/pos-billing-flow.tsx` | Split Bill no longer requires Served; Smart Bill Merge uses a billing-specific guard that allows partial-payment open tickets and blocks locked/terminal/finalized bills. |
-| `src/repositories/order-repository.ts` | Merge transactions use a repository billing guard matching the UI guard, preserving tenant checks and kitchen-ticket separation. |
-| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke verifies payment-independent split flow and partial-payment bill-only merge guards. |
+| `src/components/flows/owner-portal-login-flow.tsx` | Rebuilt the owner login UX while preserving the existing owner auth and password OTP flows. |
+| `src/components/flows/kitchen-display-flow.tsx` | Replaced Kitchen History cards with an enterprise table, filters, exports, bulk selection, sticky actions, and expandable row details. |
+| `src/app/api/owner/kitchen/route.ts` | Added bounded page/pageSize/search/date/status/payment/priority/table/waiter/customer/item/print filters for Kitchen History. |
+| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke now verifies owner-login UX and Kitchen History table contracts. |
 
 ## Accepted Warning
 
