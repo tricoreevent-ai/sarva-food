@@ -12,7 +12,7 @@ import type { KitchenOrderStatus } from "@/types/firebase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const statuses = new Set<KitchenOrderStatus>(["new", "accepted", "preparing", "ready", "served", "completed", "cancelled"]);
+const statuses = new Set<KitchenOrderStatus>(["new", "accepted", "preparing", "ready", "cancelled"]);
 
 export async function GET(request: NextRequest) {
   let trace = createTraceContext(request);

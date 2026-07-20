@@ -1,10 +1,10 @@
 # Final Firestore Audit
 
-Date: 2026-07-20T09:37:00.019Z
+Date: 2026-07-20T10:41:18.170Z
 
 ## Scope
 
-No Firestore collection, rule, index, or repository contract changed. RC5 waiter workflow stores backward-compatible operational notification sound preferences inside the existing `restaurantSettings.operationalSettings` document field.
+No Firestore collection, schema, rule, index, or repository contract changed. Phase 4C adds one protected notification-test endpoint and backward-compatible owner payment verification actions.
 
 ## Result
 
@@ -12,7 +12,6 @@ No Firestore collection, rule, index, or repository contract changed. RC5 waiter
 | --- | --- |
 | Push tokens | Existing `user_preferences` storage and tenant targeting are reused. |
 | Notification queue | Existing notification fields are reused for bounded retry. |
-| Operational sounds | Existing `restaurantSettings` storage is reused; missing sound preferences normalize to defaults. |
 | Razorpay settings | Existing encrypted owner profile settings and legacy restaurant fallback are reused. |
 | Payment intents | Existing owner/restaurant/tenant/provider mapping is unchanged. |
 | Listeners and indexes | No listener, rule, or index added. |

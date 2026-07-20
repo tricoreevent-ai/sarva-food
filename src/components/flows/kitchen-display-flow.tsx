@@ -71,7 +71,7 @@ const actionLabel: Partial<Record<TableOrderStatus, string>> = {
   occupied: "Accept",
   accepted: "Start Cooking",
   preparing: "Ready",
-  ready: "Notify Waiter",
+  ready: "Signal Ready",
 };
 
 export function KitchenDisplayFlow() {
@@ -180,7 +180,7 @@ export function KitchenDisplayFlow() {
   useEffect(() => {
     let active = true;
     const load = () => fetch("/api/owner/kitchen/notify-waiter", { cache: "no-store" })
-      .then((response) => readKitchenPayload<{ data?: KitchenReadySignal[] }>(response, "Waiter notifications could not be loaded."))
+      .then((response) => readKitchenPayload<{ data?: KitchenReadySignal[] }>(response, "Ready signals could not be loaded."))
       .then((payload) => {
         if (!active) return;
         setReadySignals(Object.fromEntries((payload.data ?? []).filter((item) => item.kitchenOrderId).map((item) => [item.kitchenOrderId!, item])));
@@ -278,13 +278,13 @@ export function KitchenDisplayFlow() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ kitchenOrderId: order.id, orderId: (order as TableOrder & { orderId?: string }).orderId, orderNumber: displayOrderNumber(order), tableNumber: order.tableNumber, waiterName: order.waiterName || order.assignedStaffName, branchId: order.branchId, repeat: repeatNotification, notificationMethod, sound: operationalSettings.notificationSounds.readyForPickup.sound }),
       });
-      await readKitchenPayload(response, "Waiter notification could not be sent.");
+      await readKitchenPayload(response, "Ready signal could not be sent.");
       setReadySignals((current) => ({ ...current, [order.id]: { kitchenOrderId: order.id, notifiedAt: new Date().toISOString() } }));
-      showLazySarvaNotification({ id: `waiter-notified-${order.id}`, tone: "success", title: "Waiter notified", message: `${displayOrderNumber(order)} · ${order.tableNumber}`, meta: "Ready for pickup" });
-      toast.success("Waiter notified. Order state remains Ready.");
+      showLazySarvaNotification({ id: `ready-signaled-${order.id}`, tone: "success", title: "Ready signal sent", message: `${displayOrderNumber(order)} · ${order.tableNumber}`, meta: "Floor operations updated" });
+      toast.success("Ready signal sent. Order state remains Ready.");
       playConfiguredSound("readyForPickup");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Waiter notification could not be sent.");
+      toast.error(error instanceof Error ? error.message : "Ready signal could not be sent.");
     } finally {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
@@ -321,7 +321,7 @@ export function KitchenDisplayFlow() {
           duration: Infinity,
           actions: [
             { label: "Open", variant: "primary", onClick: () => { setSelectedOrderId(order.id); toast.dismiss(toastId); } },
-            { label: "Notify Waiter", variant: "secondary", onClick: () => { void notifyWaiter(order); toast.dismiss(toastId); } },
+            { label: "Signal Ready", variant: "secondary", onClick: () => { void notifyWaiter(order); toast.dismiss(toastId); } },
             { label: "Dismiss", variant: "secondary", onClick: () => toast.dismiss(toastId) },
           ],
         });
@@ -650,12 +650,12 @@ export function KitchenDisplayFlow() {
           <Button variant={settings.autoPrintOrders ? "default" : "outline"} onClick={toggleAutoPrint} title="Toggle automatic KOT printing">
             <Printer className="size-4" />Auto Print {settings.autoPrintOrders ? "ON" : "OFF"}
           </Button>
-          <Button variant={autoNotifyWaiter ? "default" : "outline"} onClick={() => setAutoNotifyWaiter((value) => !value)}><BellRing className="size-4" />Auto Notify {autoNotifyWaiter ? "ON" : "OFF"}</Button>
+          <Button variant={autoNotifyWaiter ? "default" : "outline"} onClick={() => setAutoNotifyWaiter((value) => !value)}><BellRing className="size-4" />Auto Signal {autoNotifyWaiter ? "ON" : "OFF"}</Button>
           <Button variant={repeatNotification ? "default" : "outline"} onClick={() => setRepeatNotification((value) => !value)}><RefreshCw className="size-4" />Repeat {repeatNotification ? "ON" : "OFF"}</Button>
           <label className="grid gap-1 rounded-lg border px-3 py-2 text-xs font-black text-slate-600">Escalation timeout<select className="bg-white text-sm" value={escalationTimeout} onChange={(event) => setEscalationTimeout(Number(event.target.value))}><option value={2}>2 min</option><option value={5}>5 min</option><option value={10}>10 min</option></select></label>
           <label className="grid gap-1 rounded-lg border px-3 py-2 text-xs font-black text-slate-600">Notification method<select className="bg-white text-sm" value={notificationMethod} onChange={(event) => setNotificationMethod(event.target.value as typeof notificationMethod)}><option value="push">Push</option><option value="in-app">In-app</option><option value="both">Both</option></select></label>
           <Button variant="outline" onClick={() => void bulkUpdateStatus(preparingOrders, "ready")} disabled={!preparingOrders.length} title="Mark all preparing orders ready"><CheckCircle2 className="size-4" />Bulk Ready</Button>
-          <Button variant="outline" onClick={() => readyOrders.forEach((order) => void notifyWaiter(order))} disabled={!readyOrders.length} title="Notify waiters for all ready orders"><BellRing className="size-4" />Notify Ready</Button>
+          <Button variant="outline" onClick={() => readyOrders.forEach((order) => void notifyWaiter(order))} disabled={!readyOrders.length} title="Signal all ready orders to floor operations"><BellRing className="size-4" />Signal Ready</Button>
           <Button variant="outline" className="text-red-600" onClick={requestBulkCancel} disabled={!cancellableOrders.length} title="Cancel all visible active kitchen tickets"><XCircle className="size-4" />Bulk Cancel</Button>
           <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
             {visibleOrders.length} visible / {boardOrders.length} board orders
@@ -1755,7 +1755,7 @@ function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = d
             ]}
             primaryAction={order.status === "ready" && !signal?.acknowledgedAt ? {
               id: "notify-waiter",
-              label: "Notify Waiter",
+              label: "Signal Ready",
               icon: <BellRing className="size-4" />,
               variant: "success",
               onClick: onNotify,
@@ -2029,7 +2029,7 @@ function matchesDateRange(value: string, range: "today" | "yesterday" | "7d" | "
 }
 
 function readyActionLabel(order: TableOrder) {
-  if (order.status === "ready") return "Notify Waiter";
+  if (order.status === "ready") return "Signal Ready";
   return order.orderType === "delivery" ? "Ready for Rider" : "Ready for Pickup";
 }
 
@@ -2041,7 +2041,7 @@ function kitchenWaiterSignal(signal: KitchenReadySignal | undefined, now: number
   const elapsed = notified ? Math.max(0, Math.floor((now - notified) / 60000)) : 0;
   if (elapsed >= 5) return { label: "Owner alerted", detail: `Waiting for waiter · ${formatOperationalDuration(elapsed)}`, tone: "danger" };
   if (elapsed >= 2) return { label: "Waiting for waiter", detail: `${formatOperationalDuration(elapsed)} since notification`, tone: "warning" };
-  return { label: "Waiter notified", detail: notified ? `Sent ${new Date(notified).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Sent now", tone: "info" };
+  return { label: "Ready signaled", detail: notified ? `Sent ${new Date(notified).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Sent now", tone: "info" };
 }
 
 function operationalTimestamp(value: unknown): number {

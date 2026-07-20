@@ -4,7 +4,7 @@ import { FieldValue, type QueryDocumentSnapshot, type Transaction } from "fireba
 import { adminDb } from "@/firebase/admin";
 import { assertLegalKitchenTransition, assertLegalOrderTransition } from "@/lib/order-state-machine";
 import { hasOperationKey } from "@/lib/server/operation-idempotency";
-import type { KitchenOrderDoc, KitchenOrderStatus, OrderDoc, OrderLineDoc, OrderStatus, PaymentStatus } from "@/types/firebase";
+import type { KitchenOrderDoc, KitchenOrderStatus, OrderDoc, OrderStatus, PaymentStatus } from "@/types/firebase";
 import { dataWithId, dateMs, readTenantDocs, type TenantScope } from "@/repositories/shared";
 
 type KitchenOrderPatch = Partial<KitchenOrderDoc> & { printedCountIncrement?: number; operationKey?: string };
@@ -123,9 +123,6 @@ export class KitchenRepository {
       if (patch.status && linkedOrder) this.syncLinkedOrderStatus(transaction, scope, linkedOrder, patch.status, operationKey);
     });
     if (unchanged) return { ...dataWithId<KitchenOrderDoc>(id, current), unchanged: true } satisfies KitchenUpdateResult;
-    if (patch.status === "ready" && (current as Partial<KitchenOrderDoc> & { parentKitchenOrderId?: string }).parentKitchenOrderId) {
-      await this.mergeIncrementalIntoParent(scope, id, current);
-    }
     const snapshot = await ref.get();
     return dataWithId<KitchenOrderDoc>(id, snapshot.data() ?? {});
   }
@@ -169,63 +166,6 @@ export class KitchenRepository {
     transaction.set(this.db.collection("customerOrders").doc(doc.id), patch, { merge: true });
   }
 
-  private async mergeIncrementalIntoParent(scope: TenantScope, childId: string, child: Partial<KitchenOrderDoc>) {
-    const parentId = String((child as Partial<KitchenOrderDoc> & { parentKitchenOrderId?: string }).parentKitchenOrderId ?? "");
-    if (!parentId) return;
-    const parentRef = this.db.collection("kitchenOrders").doc(parentId);
-    const orderQuery = this.db.collection("orders").where("kitchenOrderId", "==", parentId).limit(1);
-    await this.db.runTransaction(async (transaction) => {
-      const parentSnapshot = await transaction.get(parentRef);
-      const orderSnapshot = await transaction.get(orderQuery);
-      if (!parentSnapshot.exists) return;
-      const parent = dataWithId<KitchenOrderDoc>(parentSnapshot.id, parentSnapshot.data() ?? {});
-      if (![parent.tenantId, parent.restaurantId].includes(scope.tenantId)) return;
-      const mergedIds = Array.isArray(parent.incrementalKitchenOrderIds) ? parent.incrementalKitchenOrderIds : [];
-      if (mergedIds.includes(childId)) return;
-      const childLines = Array.isArray(child.lines) ? child.lines : [];
-      const parentLines = mergeKitchenLines(parent.lines ?? [], childLines);
-      const subtotal = parentLines.reduce((sum, line) => sum + Number(line.price ?? 0) * Number(line.quantity ?? 0), 0);
-      const now = new Date();
-      transaction.set(parentRef, {
-        lines: parentLines,
-        subtotal,
-        total: subtotal + Number(parent.tax ?? 0),
-        incrementalKitchenOrderIds: FieldValue.arrayUnion(childId),
-        statusHistory: FieldValue.arrayUnion({ event: "incremental_kot_merged", status: "ready", childKitchenOrderId: childId, at: now.toISOString() }),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-      const orderDoc = orderSnapshot.docs.find((doc) => {
-        const data = doc.data() as Partial<OrderDoc>;
-        return [data.tenantId, data.restaurantId].includes(scope.tenantId);
-      });
-      if (!orderDoc) return;
-      const order = dataWithId<OrderDoc>(orderDoc.id, orderDoc.data() ?? {});
-      const orderLines = mergeOrderLines(order.lines ?? [], childLines);
-      const orderSubtotal = orderLines.reduce((sum, line) => sum + Number(line.price ?? 0) * Number(line.quantity ?? 0), 0);
-      const total = orderSubtotal - Number(order.discount ?? 0) + Number(order.tax ?? 0) + Number(order.deliveryFee ?? 0);
-      const audit = {
-        type: "incremental_kot_merged",
-        timestamp: now,
-        user: scope.uid ?? "",
-        role: "kitchen",
-        device: "kitchen-ready",
-        restaurant: scope.tenantId,
-        childKitchenOrderId: childId,
-        parentKitchenOrderId: parentId,
-        lines: childLines.map((line) => ({ name: line.name, quantity: line.quantity })),
-      };
-      const orderPatch = {
-        lines: orderLines,
-        subtotal: orderSubtotal,
-        total,
-        auditTimeline: FieldValue.arrayUnion(audit),
-        statusHistory: FieldValue.arrayUnion({ event: "incremental_kot_merged", at: now, by: scope.uid ?? "", childKitchenOrderId: childId }),
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-      transaction.set(this.db.collection("orders").doc(order.id), orderPatch, { merge: true });
-      transaction.set(this.db.collection("customerOrders").doc(order.id), orderPatch, { merge: true });
-    });
-  }
 }
 
 const terminalOrders = new Set<OrderStatus>(["cancelled", "rejected"]);
@@ -250,31 +190,6 @@ function shouldSyncOrderStatus(current: OrderStatus | undefined, next: OrderStat
 
 function cleanRecord(input: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => typeof value !== "undefined"));
-}
-
-function mergeKitchenLines(parent: KitchenOrderDoc["lines"], child: KitchenOrderDoc["lines"]) {
-  const lines = new Map<string, KitchenOrderDoc["lines"][number]>();
-  for (const line of [...parent, ...child]) {
-    const item = line as KitchenOrderDoc["lines"][number] & { itemId?: string };
-    const key = String(item.itemId ?? line.menuItemId ?? line.name);
-    const existing = lines.get(key);
-    lines.set(key, existing ? { ...existing, quantity: Number(existing.quantity ?? 0) + Number(line.quantity ?? 0) } : { ...line, quantity: Number(line.quantity ?? 0) });
-  }
-  return Array.from(lines.values()).filter((line) => Number(line.quantity ?? 0) > 0);
-}
-
-function mergeOrderLines(parent: OrderLineDoc[], child: KitchenOrderDoc["lines"]) {
-  const lines = new Map<string, OrderLineDoc>();
-  for (const line of parent) lines.set(line.menuItemId || line.name, { ...line, quantity: Number(line.quantity ?? 0) });
-  for (const line of child) {
-    const item = line as KitchenOrderDoc["lines"][number] & { itemId?: string };
-    const key = String(line.menuItemId ?? item.itemId ?? line.name);
-    const existing = lines.get(key);
-    lines.set(key, existing
-      ? { ...existing, quantity: Number(existing.quantity ?? 0) + Number(line.quantity ?? 0) }
-      : { menuItemId: key, name: String(line.name ?? "Item"), price: Number(line.price ?? 0), quantity: Number(line.quantity ?? 0), notes: line.notes });
-  }
-  return Array.from(lines.values()).filter((line) => Number(line.quantity ?? 0) > 0);
 }
 
 function matchesDateRange(order: KitchenOrderDoc, from?: Date, to?: Date) {

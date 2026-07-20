@@ -27,6 +27,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { formatDelayTime, formatOperationalDuration, getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
+import { playOperationalSound } from "@/lib/operational-sounds";
 import { normalizePhone } from "@/lib/phone";
 import { getRetryDelayMs } from "@/lib/offline/retry-manager";
 import {
@@ -245,6 +246,7 @@ export function PosBillingFlow() {
   const [splitTarget, setSplitTarget] = useState<OperationalOrder | null>(null);
   const [transferTarget, setTransferTarget] = useState<TransferTarget | null>(null);
   const [mergeTarget, setMergeTarget] = useState<OperationalOrder | null>(null);
+  const [smartPaymentTargetId, setSmartPaymentTargetId] = useState<string | null>(null);
   const [timelineTarget, setTimelineTarget] = useState<OperationalOrder | null>(null);
   const [paymentHistoryTarget, setPaymentHistoryTarget] = useState<OperationalOrder | null>(null);
   const [detailsTarget, setDetailsTarget] = useState<OperationalOrder | null>(null);
@@ -1030,12 +1032,12 @@ export function PosBillingFlow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...kitchenPayload, id: `inc-${operationKey}`, operationKey, lines, parentKitchenOrderId: bill.linkedKitchenOrderId, status: "new", priority: "rush" }),
       });
-      const result = await readPosPayload<{ data?: TableOrder }>(response, "Incremental KOT could not be created.");
-      if (!result.data) throw new Error("Incremental KOT could not be created.");
+      const result = await readPosPayload<{ data?: TableOrder }>(response, "Add-on kitchen ticket could not be created.");
+      if (!result.data) throw new Error("Add-on kitchen ticket could not be created.");
       const next = result.data;
       setReadModel((current) => ({ ...current, tableOrders: [next, ...current.tableOrders] }));
       setShowKot(true);
-      toast.success("Incremental KOT sent with only the new items.");
+      toast.success("Add-on kitchen ticket sent with only the new items.");
       return next;
     }
     const response = await fetch("/api/owner/kitchen", {
@@ -1248,10 +1250,10 @@ export function PosBillingFlow() {
       });
       await wait(180);
       setWizardStep(5);
-      toast.success("Incremental KOT sent with only the new items.");
+      toast.success("Add-on kitchen ticket sent with only the new items.");
       if (capturePayment) toast("Collect payment after the new items are prepared.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Incremental KOT could not be created.");
+      toast.error(error instanceof Error ? error.message : "Add-on kitchen ticket could not be created.");
       setProcessingState("idle");
       setWizardStep(3);
     }
@@ -1422,9 +1424,12 @@ export function PosBillingFlow() {
       toast.error("Payment started. Unlock with reason before editing this bill.");
       return;
     }
-    setPosBill(tableOrderToBill(order, bill));
+    const next = addOnBillForOrder(order, bill);
+    billRef.current = next;
+    setPosBill(next);
     setPanel("new");
-    setWizardStep(3);
+    setWizardStep(1);
+    toast.success(`${order.tableNumber || "Table"} add-on ticket started.`);
   }
 
   function acknowledgeKitchenReady(order: TableOrder) {
@@ -1439,7 +1444,7 @@ export function PosBillingFlow() {
 
   async function notifyActiveOrderWaiter(order: TableOrder) {
     if (order.status !== "ready" || (order as OperationalOrder).hasKitchenTicket === false) {
-      toast.error("Only a ready kitchen order can notify the waiter.");
+      toast.error("Only a ready kitchen order can send a floor signal.");
       return;
     }
     setActiveAction(`notify:${order.id}`);
@@ -1458,10 +1463,10 @@ export function PosBillingFlow() {
           sound: operationalSettings.notificationSounds.readyForPickup.sound,
         }),
       });
-      await readPosPayload(response, "Waiter notification could not be sent.");
-      toast.success("Waiter notified. Order remains Ready.");
+      await readPosPayload(response, "Ready signal could not be sent.");
+      toast.success("Ready signal sent. Waiter view updates live.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Waiter notification could not be sent.");
+      toast.error(error instanceof Error ? error.message : "Ready signal could not be sent.");
     } finally {
       setActiveAction(null);
     }
@@ -1474,7 +1479,7 @@ export function PosBillingFlow() {
       : orders.find((item) => item.kitchenOrderId === order.id);
   }
 
-  async function collectActivePayment(order: TableOrder) {
+  async function collectActivePayment(order: TableOrder, options: { skipMergeCheck?: boolean } = {}) {
     const active = order as OperationalOrder;
     const canonical = canonicalForKitchenOrder(order) as ExtendedDemoOrder | undefined;
     if (!canonical) {
@@ -1484,6 +1489,15 @@ export function PosBillingFlow() {
     if (!canCollectOrderPayment(active)) {
       toast.error(paymentUnavailableReason(active));
       return;
+    }
+    if (!options.skipMergeCheck) {
+      const candidates = smartBillMergeCandidates(active, activeOperationalOrders);
+      if (candidates.length) {
+        setSmartPaymentTargetId(active.id);
+        setMergeTarget(active);
+        toast(`Table ${active.tableNumber || "session"} has ${candidates.length + 1} open tickets. Merge bills or pay separately.`);
+        return;
+      }
     }
     const amount = orderBalanceDue(canonical, active) || Number(order.total ?? canonical.totals.total ?? 0);
     setPaymentDraft({ order: active, amount: moneyRound(amount), method: "cash", stage: "verify", unlockReason: "", attemptId: newPaymentAttemptId() });
@@ -1678,40 +1692,37 @@ export function PosBillingFlow() {
       return;
     }
     const canonical = canonicalForKitchenOrder(order);
+    if (!canonical && ["served", "completed"].includes(status)) {
+      toast.error("Open and save this order before updating service status.");
+      return;
+    }
     setActiveAction(`${status}:${order.id}`);
     try {
-    let updatedKitchen: TableOrder | undefined;
-    if ((order as OperationalOrder).hasKitchenTicket !== false) {
-      const response = await fetch("/api/owner/kitchen", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: order.id, operationKey: clientOperationKey(["kitchen-status", order.id, status]), status }),
-      });
-      const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
-      updatedKitchen = result.data;
-    }
-    if (canonical && ((order as OperationalOrder).hasKitchenTicket === false ? isOrderBackedTableStatus(status) : status === "completed" || status === "cancelled")) {
-      const response = await fetch("/api/owner/orders", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ operationKey: clientOperationKey(["order-status", canonical.id, status]), orderId: canonical.id, kitchenOrderId: (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id, status }),
-      });
-      await readPosPayload(response, "Order status could not be updated.");
-    }
-    const event = status === "ready" ? "kitchen_ready" : status === "accepted" ? "kitchen_accepted" : status === "completed" ? "completion" : null;
-    if (canonical && event) {
-      const kitchenOrderId = (order as OperationalOrder).hasKitchenTicket === false ? undefined : order.id;
-      await fetch("/api/owner/orders", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "event", operationKey: clientOperationKey(["order-event", canonical.id, event, kitchenOrderId]), event, orderId: canonical.id, kitchenOrderId }),
-      }).catch(() => undefined);
-    }
-    setReadModel((current) => ({
-      ...current,
-      tableOrders: current.tableOrders.map((item) => item.id === order.id ? updatedKitchen ?? { ...item, status } : item),
-      orders: canonical ? current.orders.map((item) => item.id === canonical.id ? { ...item, status: demoStatusForTableStatus(status) } : item) : current.orders,
-    }));
+      let updatedKitchen: TableOrder | undefined;
+      const hasKitchenTicket = (order as OperationalOrder).hasKitchenTicket !== false;
+      const kitchenOwnedStatus = ["accepted", "preparing", "ready", "cancelled"].includes(status);
+      if (hasKitchenTicket && kitchenOwnedStatus) {
+        const response = await fetch("/api/owner/kitchen", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: order.id, operationKey: clientOperationKey(["kitchen-status", order.id, status]), status }),
+        });
+        const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
+        updatedKitchen = result.data;
+      }
+      if (canonical && (!hasKitchenTicket || ["served", "completed", "cancelled"].includes(status))) {
+        const response = await fetch("/api/owner/orders", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ operationKey: clientOperationKey(["order-status", canonical.id, status]), orderId: canonical.id, kitchenOrderId: hasKitchenTicket ? order.id : undefined, status }),
+        });
+        await readPosPayload(response, "Order status could not be updated.");
+      }
+      setReadModel((current) => ({
+        ...current,
+        tableOrders: current.tableOrders.map((item) => item.id === order.id ? updatedKitchen ?? { ...item, status } : item),
+        orders: canonical ? current.orders.map((item) => item.id === canonical.id ? { ...item, status: demoStatusForTableStatus(status) } : item) : current.orders,
+      }));
       toast.success(activeStatusToast(status));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Order could not be marked ${status}.`);
@@ -1797,7 +1808,7 @@ export function PosBillingFlow() {
 
   async function mergeActiveTables(order: OperationalOrder, sourceOrders: OperationalOrder[], tableNumber?: string) {
     if ([order, ...sourceOrders].some((item) => item.paymentLock?.locked || ["authorized", "partial", "paid", "refunded"].includes(String(item.paymentStatus ?? "pending")))) {
-      toast.error("Cannot merge tables after payment has started on any selected order.");
+      toast.error("Cannot merge bills after payment has started on any selected order.");
       return;
     }
     const canonical = canonicalForKitchenOrder(order);
@@ -1828,12 +1839,13 @@ export function PosBillingFlow() {
           tableNumber,
         }),
       });
-      await readPosPayload(response, "Tables could not be merged.");
+      await readPosPayload(response, "Bills could not be merged.");
       await refreshPosReadModel({ applyDraft: false });
       setMergeTarget(null);
-      toast.success("Tables merged.");
+      setSmartPaymentTargetId(null);
+      toast.success("Bills merged. Kitchen tickets remain separate.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Tables could not be merged.");
+      toast.error(error instanceof Error ? error.message : "Bills could not be merged.");
     } finally {
       setActiveAction(null);
     }
@@ -1987,6 +1999,7 @@ export function PosBillingFlow() {
               loading={readModelLoading}
               error={readModelError}
               orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
+              readySound={operationalSettings.notificationSounds.readyForPickup}
               onRetry={() => void refreshPosReadModel({ applyDraft: false })}
               onOpenNew={requestNewOrder}
               onOpen={(order) => { acknowledgeKitchenReady(order); setDetailsTarget(order as OperationalOrder); }}
@@ -1999,7 +2012,7 @@ export function PosBillingFlow() {
               onSplit={(order) => setSplitTarget(order)}
               onTransfer={(order) => setTransferTarget({ order, mode: "table" })}
               onAssignWaiter={(order) => setTransferTarget({ order, mode: "waiter" })}
-              onMerge={(order) => setMergeTarget(order)}
+              onMerge={(order) => { setSmartPaymentTargetId(null); setMergeTarget(order); }}
               onTimeline={(order) => setTimelineTarget(order)}
               onPaymentHistory={(order) => setPaymentHistoryTarget(order)}
               onReminder={(order) => void remindKitchen(order, "reminder")}
@@ -2164,9 +2177,15 @@ export function PosBillingFlow() {
         {mergeTarget ? (
           <MergeTablesDialog
             target={mergeTarget}
-            orders={activeOperationalOrders.filter((order) => order.id !== mergeTarget.id)}
+            orders={(smartPaymentTargetId === mergeTarget.id ? smartBillMergeCandidates(mergeTarget, activeOperationalOrders) : activeOperationalOrders.filter((order) => order.id !== mergeTarget.id))}
             busy={activeAction === `merge:${mergeTarget.id}`}
-            onClose={() => setMergeTarget(null)}
+            onClose={() => { setMergeTarget(null); setSmartPaymentTargetId(null); }}
+            onPaySeparately={smartPaymentTargetId === mergeTarget.id ? () => {
+              const target = mergeTarget;
+              setMergeTarget(null);
+              setSmartPaymentTargetId(null);
+              void collectActivePayment(target, { skipMergeCheck: true });
+            } : undefined}
             onSubmit={(sourceOrders, tableNumber) => void mergeActiveTables(mergeTarget, sourceOrders, tableNumber)}
           />
         ) : null}
@@ -2940,16 +2959,16 @@ function TransferTableDialog({ order, mode, tables, staff, busy, onClose, onSubm
   );
 }
 
-function MergeTablesDialog({ target, orders, busy, onClose, onSubmit }: { target: OperationalOrder; orders: OperationalOrder[]; busy?: boolean; onClose: () => void; onSubmit: (orders: OperationalOrder[], tableNumber?: string) => void }) {
+function MergeTablesDialog({ target, orders, busy, onClose, onPaySeparately, onSubmit }: { target: OperationalOrder; orders: OperationalOrder[]; busy?: boolean; onClose: () => void; onPaySeparately?: () => void; onSubmit: (orders: OperationalOrder[], tableNumber?: string) => void }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [tableNumber, setTableNumber] = useState(target.tableNumber || "");
   const selected = orders.filter((order) => selectedIds.includes(order.id));
   const total = moneyRound([target, ...selected].reduce((sum, order) => sum + Number(order.total ?? 0), 0));
   return (
-    <PosDialogFrame title="Merge Tables" subtitle={`Target ${readableTableOrderId(target)} · ${formatCurrency(target.total ?? 0)}`} onClose={onClose}>
+    <PosDialogFrame title="Smart Bill Merge" subtitle={`Table ${target.tableNumber || "session"} has ${orders.length + 1} open kitchen ticket${orders.length ? "s" : ""}. Kitchen tickets stay separate.`} onClose={onClose}>
       <div className="max-h-[70vh] overflow-y-auto p-4">
         <label className="mb-3 grid gap-2 text-sm font-black text-slate-700">
-          Final table label
+          Move to another bill / final table label
           <input className="h-11 rounded-xl border px-3 text-sm font-semibold" value={tableNumber} onChange={(event) => setTableNumber(event.target.value)} />
         </label>
         <div className="grid gap-2">
@@ -2968,9 +2987,11 @@ function MergeTablesDialog({ target, orders, busy, onClose, onSubmit }: { target
         </div>
       </div>
       <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]">
-        <div className="text-sm font-black text-slate-700">Merged total {formatCurrency(total)}</div>
+        <div className="text-sm font-black text-slate-700">Selected bill total {formatCurrency(total)}</div>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={busy || !selected.length} onClick={() => onSubmit(selected, tableNumber || undefined)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <GitMerge className="size-4" />}Merge</Button>
+        {onPaySeparately ? <Button variant="outline" disabled={busy} onClick={onPaySeparately}>Pay Separately</Button> : null}
+        <Button variant="outline" disabled={busy || !orders.length} onClick={() => onSubmit(orders, tableNumber || undefined)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <GitMerge className="size-4" />}Merge All</Button>
+        <Button className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={busy || !selected.length} onClick={() => onSubmit(selected, tableNumber || undefined)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <GitMerge className="size-4" />}Merge Selected</Button>
       </div>
     </PosDialogFrame>
   );
@@ -3467,9 +3488,12 @@ function timelineLabel(entry: TimelineEntry) {
 
 function timelineCategory(entry: TimelineEntry) {
   const raw = String(entry.type ?? entry.event ?? "").toLowerCase();
+  const status = String(entry.status ?? "").toLowerCase();
   if (raw.includes("payment") || entry.paymentStatus) return "Payment";
   if (raw.includes("print") || raw.includes("kot")) return "Print";
-  if (entry.status || entry.foodStatus || /(accepted|preparing|ready|served|completed|cancelled|rejected)/.test(raw)) return "Kitchen";
+  if (status === "served" || status === "completed" || raw.includes("completion")) return "Service";
+  if (entry.foodStatus || /(accepted|preparing|ready|cancelled|rejected)/.test(raw)) return "Kitchen";
+  if (entry.status) return "Service";
   return "Audit";
 }
 
@@ -3541,14 +3565,14 @@ function findTableByName(tables: PosTable[], value?: string) {
 function tableAvailability(table: PosTable, occupiedTables: Set<string>) {
   const status = String(table.status ?? "").toLowerCase();
   if (table.active === false || table.dineInEnabled === false || status === "inactive") return { label: "Disabled", selectable: false, tone: "slate" as const };
-  if (occupiedTables.has(normalizeTableName(table.table)) || status === "occupied" || status === "dining" || status === "bill requested") return { label: "Occupied", selectable: false, tone: "red" as const };
+  if (occupiedTables.has(normalizeTableName(table.table)) || status === "occupied" || status === "dining" || status === "bill requested") return { label: "Open Session", selectable: true, tone: "orange" as const };
   if (status === "reserved") return { label: "Reserved", selectable: false, tone: "orange" as const };
   if (status === "cleaning") return { label: "Cleaning", selectable: false, tone: "amber" as const };
   return { label: "Available", selectable: true, tone: "green" as const };
 }
 
 function tableUnavailableMessage(table: string, label: string) {
-  if (label === "Occupied") return `Table ${table} was assigned to another order. Please choose another table.`;
+  if (label === "Open Session") return `Table ${table} already has active tickets. A new independent ticket can still be created.`;
   return `${table} is ${label.toLowerCase()}. Choose an available table.`;
 }
 
@@ -3576,6 +3600,7 @@ function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]
       canonicalOrderId: canonical?.id,
       canonicalStatus: canonical?.status,
       hasKitchenTicket: true,
+      status: serviceStatusForKitchenOrder(order.status, canonical?.status, (canonical as ExtendedDemoOrder | undefined)?.mergedIntoOrderId),
       paymentStatus: paymentStateForOrder(canonical) ?? order.paymentStatus,
       total: canonical?.totals.total ?? order.total,
       customerName: canonical?.customer.name || order.customerName,
@@ -3588,6 +3613,7 @@ function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]
       paymentLock: (canonical as ExtendedDemoOrder | undefined)?.paymentLock,
       paidAmount: (canonical as ExtendedDemoOrder | undefined)?.paidAmount,
       mergedOrderIds: (canonical as ExtendedDemoOrder | undefined)?.mergedOrderIds,
+      mergedIntoOrderId: (canonical as ExtendedDemoOrder | undefined)?.mergedIntoOrderId,
     } satisfies OperationalOrder;
   });
   const orderOnly = orders
@@ -3638,6 +3664,28 @@ function isActiveDemoOrder(order: DemoOrder) {
   return !["delivered", "completed", "cancelled", "rejected"].includes(order.status);
 }
 
+const completedHistoryHoldMinutes = 30;
+
+function isActiveOrRecentlyCompleted(order: OperationalOrder, nowMs: number) {
+  if (["cancelled", "billed"].includes(order.status)) return false;
+  if (order.status !== "completed") return true;
+  return completedHoldMinutesRemaining(order, nowMs) > 0;
+}
+
+function completedHoldMinutesRemaining(order: OperationalOrder, nowMs = Date.now()) {
+  const completedAt = latestStatusAt(order, "completed") ?? Date.parse(order.createdAt);
+  if (!Number.isFinite(completedAt)) return completedHistoryHoldMinutes;
+  return Math.max(0, completedHistoryHoldMinutes - Math.floor((nowMs - completedAt) / 60000));
+}
+
+function latestStatusAt(order: OperationalOrder, status: string) {
+  return safeTimeline(order.statusHistory)
+    .filter((entry) => String(entry.status ?? entry.event ?? entry.type ?? "").toLowerCase().includes(status))
+    .map((entry) => valueMillis(entry.at ?? entry.timestamp ?? entry.createdAt))
+    .filter((value) => Number.isFinite(value))
+    .sort((first, second) => second - first)[0];
+}
+
 function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] {
   if (status === "accepted") return "accepted";
   if (status === "preparing") return "preparing";
@@ -3646,6 +3694,14 @@ function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] 
   if (status === "completed" || status === "delivered") return "completed";
   if (status === "cancelled" || status === "rejected") return "cancelled";
   return "new";
+}
+
+function serviceStatusForKitchenOrder(kitchenStatus: TableOrder["status"], orderStatus?: DemoOrder["status"], mergedIntoOrderId?: string): TableOrder["status"] {
+  if (mergedIntoOrderId && !["completed", "cancelled", "billed"].includes(kitchenStatus)) return kitchenStatus;
+  if (orderStatus === "served") return "served";
+  if (orderStatus === "completed" || orderStatus === "delivered") return "completed";
+  if (orderStatus === "cancelled" || orderStatus === "rejected") return "cancelled";
+  return kitchenStatus;
 }
 
 function demoStatusForTableStatus(status: TableOrder["status"]): DemoOrder["status"] {
@@ -3658,13 +3714,9 @@ function demoStatusForTableStatus(status: TableOrder["status"]): DemoOrder["stat
   return "new";
 }
 
-function isOrderBackedTableStatus(status: TableOrder["status"]) {
-  return ["accepted", "preparing", "ready", "served", "completed", "cancelled"].includes(status);
-}
-
 function activeStatusToast(status: TableOrder["status"]) {
   if (status === "cancelled") return "Order cancelled.";
-  if (status === "served") return "Order served.";
+  if (status === "served") return "Order moved to Serving.";
   if (status === "ready") return "Order ready.";
   if (status === "preparing") return "Cooking started.";
   if (status === "accepted") return "Order accepted.";
@@ -3716,13 +3768,25 @@ function newPaymentAttemptId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function canCollectOrderPayment(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock">) {
+function canCollectOrderPayment(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock" | "mergedIntoOrderId">) {
   const status = String(order.status);
   const paymentStatus = String(order.paymentStatus ?? "pending");
-  return !["completed", "cancelled", "rejected", "billed"].includes(status) && !["paid", "refunded"].includes(paymentStatus) && !order.paymentLock?.locked;
+  return !order.mergedIntoOrderId && !["completed", "cancelled", "rejected", "billed"].includes(status) && !["paid", "refunded"].includes(paymentStatus) && !order.paymentLock?.locked;
 }
 
-function paymentUnavailableReason(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock">) {
+function smartBillMergeCandidates(target: OperationalOrder, orders: OperationalOrder[]) {
+  const table = normalizeTableName(target.tableNumber);
+  if (!table || table === "direct") return [];
+  return orders.filter((order) => (
+    order.id !== target.id &&
+    normalizeTableName(order.tableNumber) === table &&
+    canCollectOrderPayment(order) &&
+    !["completed", "cancelled", "billed"].includes(order.status)
+  ));
+}
+
+function paymentUnavailableReason(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock" | "mergedIntoOrderId">) {
+  if (order.mergedIntoOrderId) return "Payment is collected from the merged bill.";
   if (order.paymentLock?.locked) return "Order currently being modified. Refresh and retry.";
   if (order.paymentStatus === "paid") return "Payment has already been collected.";
   if (order.paymentStatus === "refunded") return "Refunded orders cannot be paid again.";
@@ -3808,6 +3872,24 @@ function tableOrderToBill(order: TableOrder, current: PosBill): PosBill {
     customerPhone: order.customerPhone,
     linkedKitchenOrderId: operational.hasKitchenTicket === false ? undefined : order.id,
     waiterName: order.waiterName,
+  };
+}
+
+function addOnBillForOrder(order: TableOrder, current: PosBill): PosBill {
+  return {
+    ...current,
+    table: order.tableNumber || "DIRECT",
+    orderType: order.orderType ?? "dine-in",
+    lines: [],
+    paid: false,
+    customerName: order.customerName || order.guestName,
+    customerPhone: order.customerPhone,
+    linkedKitchenOrderId: undefined,
+    waiterName: order.waiterName,
+    invoiceNumber: undefined,
+    billDeliveryLink: undefined,
+    billDeliveryQr: undefined,
+    tenderedAmount: 0,
   };
 }
 
@@ -3901,7 +3983,7 @@ function HeldOrdersPanel({
 }
 
 type ActiveOrderView = "all" | "operations" | "waiter" | "cashier" | "manager";
-type PosActiveActionId = "serve" | "notify" | "payment" | "print" | "preview" | "receipt" | "kot" | "add" | "split" | "transfer" | "reassign" | "merge" | "reminder" | "recall" | "complete" | "cancel" | "timeline" | "history";
+type PosActiveActionId = "serve" | "notify" | "payment" | "print" | "preview" | "receipt" | "kot" | "add" | "split" | "transfer" | "reassign" | "merge" | "reminder" | "recall" | "complete" | "archive" | "cancel" | "timeline" | "history";
 type PosActiveMenuAction = { id: PosActiveActionId; label: string; icon: ReactNode; disabled?: boolean; danger?: boolean; reason?: string };
 
 function ActiveOrdersPanel({
@@ -3912,6 +3994,7 @@ function ActiveOrdersPanel({
   loading,
   error,
   orderDelayThresholdMinutes,
+  readySound,
   onRetry,
   onOpenNew,
   onOpen,
@@ -3942,6 +4025,7 @@ function ActiveOrdersPanel({
   loading: boolean;
   error: string;
   orderDelayThresholdMinutes: number;
+  readySound: OperationalSettings["notificationSounds"]["readyForPickup"];
   onRetry: () => void;
   onOpenNew: () => void;
   onOpen: (order: TableOrder) => void;
@@ -3969,8 +4053,10 @@ function ActiveOrdersPanel({
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(() => new Set());
+  const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(() => new Set());
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const readyAlertedIds = useRef(new Set<string>());
   const debouncedSearch = useDebouncedValue(search, 120);
   const handlersRef = useRef({
     onOpen,
@@ -4017,10 +4103,11 @@ function ActiveOrdersPanel({
 
   const allActiveKitchenOrders = useMemo(() => {
     return kitchenOrders
-      .filter((order) => !["completed", "cancelled", "billed"].includes(order.status))
+      .filter((order) => !archivedOrderIds.has(order.id))
+      .filter((order) => isActiveOrRecentlyCompleted(order, now))
       .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
       .slice(0, 30);
-  }, [kitchenOrders]);
+  }, [archivedOrderIds, kitchenOrders, now]);
   const activeKitchenOrders = useMemo(() => {
     const value = debouncedSearch.trim().toLowerCase();
     return value ? allActiveKitchenOrders.filter((order) => activeOrderSearchText(order).includes(value)) : allActiveKitchenOrders;
@@ -4091,6 +4178,29 @@ function ActiveOrdersPanel({
     manager: groups.managerOrders.length,
   };
 
+  useEffect(() => {
+    if (!waiterView && view !== "waiter") return;
+    const readyOrders = groups.waiterOrders.filter((order) => order.status === "ready");
+    const readyIds = new Set(readyOrders.map((order) => order.id));
+    for (const id of Array.from(readyAlertedIds.current)) {
+      if (!readyIds.has(id)) readyAlertedIds.current.delete(id);
+    }
+    const fresh = readyOrders.find((order) => !readyAlertedIds.current.has(order.id));
+    if (!fresh) return;
+    readyAlertedIds.current.add(fresh.id);
+    showLazySarvaNotification({
+      id: `waiter-view-ready-${fresh.id}`,
+      tone: "success",
+      title: "Ready to Serve",
+      message: `${readableTableOrderId(fresh)} · ${fresh.tableNumber || readablePosOrderType(fresh.orderType ?? "dine-in")}`,
+      meta: "Live Waiter view",
+      duration: 8000,
+    });
+    if (!readySound.muted) {
+      void playOperationalSound({ sound: readySound.sound, volume: readySound.volume / 100, repeatCount: readySound.repeatCount });
+    }
+  }, [groups.waiterOrders, readySound, view, waiterView]);
+
   const markSeen = useCallback((orderId: string) => {
     setSeenOrderIds((current) => {
       if (current.has(orderId)) return current;
@@ -4130,6 +4240,15 @@ function ActiveOrdersPanel({
     else if (action === "reminder") handlers.onReminder(order);
     else if (action === "recall") handlers.onRecall(order);
     else if (action === "complete") handlers.onComplete(order);
+    else if (action === "archive") {
+      markSeen(order.id);
+      setArchivedOrderIds((current) => {
+        const next = new Set(current);
+        next.add(order.id);
+        return next;
+      });
+      toast.success("Moved to History.");
+    }
     else if (action === "cancel") handlers.onCancel(order);
     else if (action === "timeline") handlers.onTimeline(order);
     else handlers.onPaymentHistory(order);
@@ -4309,6 +4428,7 @@ function PosActiveOrderCard({
   const ready = order.status === "ready";
   const served = order.status === "served";
   const completed = ["completed", "billed"].includes(order.status);
+  const completedHold = completed ? completedHoldMinutesRemaining(order) : 0;
   const paymentLocked = Boolean(order.paymentLock?.locked);
   const paymentRestricted = paymentLocked || ["authorized", "partial", "paid", "refunded"].includes(String(order.paymentStatus ?? "pending"));
   const active = !["completed", "cancelled", "billed"].includes(order.status);
@@ -4341,13 +4461,15 @@ function PosActiveOrderCard({
     ["Kitchen", `${kitchenStatus} · ${preparationProgress}%`],
     ["Payment", `${paymentStatus} · ${formatCurrency(total)}`],
     ["Ready for Pickup", ready ? "Yes" : "No"],
-    ["Served", served ? "Yes" : "No"],
+    ["Serving", served ? "Yes" : "No"],
     ["Completed", completed ? "Yes" : "No"],
+    ...(completed ? [["Auto History", `${completedHold}m`]] : []),
   ] : [];
   const menuActions: PosActiveMenuAction[] = view === "waiter"
     ? [
         { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
         { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
+        { id: "archive", label: "Move To History", icon: <History className="size-4" />, disabled: !completed },
         { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
         { id: "history", label: "History", icon: <History className="size-4" /> },
       ]
@@ -4361,7 +4483,7 @@ function PosActiveOrderCard({
             { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
-            { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
+            { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
             { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
             { id: "history", label: "History", icon: <History className="size-4" /> },
@@ -4374,7 +4496,7 @@ function PosActiveOrderCard({
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
-            { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
+            { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
             { id: "reminder", label: "Reminder", icon: <BellRing className="size-4" />, disabled: !canContactKitchen || busy, reason: served ? "Order has already been served." : order.hasKitchenTicket === false ? "Kitchen ticket is unavailable." : undefined },
             { id: "recall", label: "Kitchen Recall", icon: <BellRing className="size-4" />, disabled: !canContactKitchen || busy, reason: served ? "Order has already been served." : order.hasKitchenTicket === false ? "Kitchen ticket is unavailable." : undefined },
             { id: "complete", label: "Complete Order", icon: <CheckCircle2 className="size-4" />, disabled: !served || !paid || busy, reason: !served ? "Cannot complete before service." : !paid ? "Cannot complete while payment is pending." : undefined },
@@ -4418,9 +4540,10 @@ function PosActiveOrderCard({
         </div>
         <div className="grid grid-cols-3 gap-1 text-[7px] font-black uppercase">
           <span className={activeOrderServiceFlagClass(ready, "pickup")} title="Ready for Pickup">Pickup</span>
-          <span className={activeOrderServiceFlagClass(served, "served")} title="Served">Served</span>
+          <span className={activeOrderServiceFlagClass(served, "served")} title="Serving">Serving</span>
           <span className={activeOrderServiceFlagClass(completed, "completed")} title="Completed">Done</span>
         </div>
+        {completed ? <div className="truncate text-[8px] font-black uppercase text-slate-500">Auto history in {completedHold}m</div> : null}
         <button
           type="button"
           className="absolute right-0 top-0 grid size-11 place-items-center rounded-tr-lg text-slate-500 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600"
@@ -4434,12 +4557,14 @@ function PosActiveOrderCard({
       </div>
 
       <div className="grid h-11 grid-cols-6 border-t border-slate-100" aria-label={`${orderNumber} actions`}>
-        {canComplete ? (
+        {completed ? (
+          <button type="button" data-action="archive" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Move To History" title="Move To History"><History className="size-4" /><span className="sr-only">History</span></button>
+        ) : canComplete ? (
           <button type="button" data-action="complete" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Complete Order" title="Complete Order"><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
         ) : (
           <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title={ready ? "Serve Order" : "Cannot Serve: kitchen has not marked Ready."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
         )}
-        <button type="button" data-action="notify" disabled={!canNotify || busy} onClick={handleAction} className={activeOrderActionClass(canNotify, "default")} aria-label="Notify Waiter" title={canNotify ? "Notify Waiter" : "Cannot Notify: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Notify</span></button>
+        <button type="button" data-action="notify" disabled={!canNotify || busy} onClick={handleAction} className={activeOrderActionClass(canNotify, "default")} aria-label="Ready Signal" title={canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
         <button type="button" data-action="payment" disabled={!canCollect || busy} onClick={handleAction} className={activeOrderActionClass(canCollect, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
         <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
         <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
@@ -4649,7 +4774,7 @@ function posActiveStatusLabel(order: TableOrder) {
   if (order.status === "accepted") return "Accepted";
   if (order.status === "preparing") return "Preparing";
   if (order.status === "ready") return "Ready To Serve";
-  if (order.status === "served") return "Served";
+  if (order.status === "served") return "Serving";
   return posOrderStatusLabel(order.status, order.paymentStatus);
 }
 
@@ -4726,7 +4851,7 @@ const activeOrderLegendItems = [
   ["With Waiter", "bg-blue-500"],
   ["In Kitchen", "bg-orange-500"],
   ["Ready", "bg-emerald-500"],
-  ["Served", "bg-violet-500"],
+  ["Serving", "bg-violet-500"],
   ["Pending", "bg-amber-500"],
   ["Delayed", "bg-red-500"],
 ] as const;
@@ -4767,7 +4892,7 @@ function ActiveOrderSummaryBoard({
     { label: "With Waiter", value: withWaiter, trend: tableTrend, icon: UserRound, tone: "blue" },
     { label: "In Kitchen", value: inKitchen, trend: "Live queue", icon: ChefHat, tone: "orange" },
     { label: "Ready To Serve", value: ready, trend: "Serve next", icon: Utensils, tone: "green" },
-    { label: "Served", value: served, trend: servedTrend, icon: CheckCircle2, tone: "violet" },
+    { label: "Serving", value: served, trend: servedTrend, icon: CheckCircle2, tone: "violet" },
     { label: "Pending Bills", value: pendingBills, trend: "Cashier action", icon: ReceiptText, tone: "amber" },
     { label: "Critical Delay", value: critical, trend: critical ? "Act now" : "On target", icon: BellRing, tone: "red" },
     { label: "Requests", value: requests, trend: requestTrend, icon: MessageCircle, tone: "slate" },

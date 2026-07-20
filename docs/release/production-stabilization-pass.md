@@ -1,5 +1,14 @@
 # Production Stabilization Pass
 
+## RC5 Enterprise Waiter Workflow
+
+- Completed multi-ticket dining: one table/session can hold multiple independent active kitchen tickets without mutating prior KOTs.
+- Completed Ready Signal architecture: Kitchen Ready targets Owner/Manager/Kitchen; Waiter devices are not push-notified and Waiter view provides live card/counter/sound cues.
+- Completed service boundary: Kitchen owns Accepted -> Preparing -> Ready; POS/Waiter owns Ready -> Serving -> Completed.
+- Completed Smart Bill Merge: payment checks same-table unpaid tickets and merges billing only while preserving each kitchen ticket timeline/audit.
+- Completed auto history: Completed cards remain visible for 30 minutes with countdown and manual Move To History.
+- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 24/24, runtime profile, and diff check.
+
 ## Phase 5B Operational Finalization
 
 - Completed Active Orders optimization without a redesign: memoized cards, lazy details, stable callbacks, shared duration formatting, and shared status badges.
@@ -7,7 +16,7 @@
 - Phase 5C supersedes the earlier service-dependent payment rule: payment is independent of Kitchen/service state, completion still requires Served + full Paid status, partial payments remain editable, and payment locks release through record/unlock retry paths.
 - Completed Kitchen workflow boundary: Kitchen accepts, prepares, marks ready, notifies waiter, supports recall/reminder/timeline/escalation, and does not serve orders.
 - Fixed active-order print context so Preview, Print, Receipt, and KOT target the selected order instead of stale POS bill state.
-- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 20/20, runtime profile, and diff check.
+- Final repository validation is superseded by RC5 enterprise waiter workflow: typecheck, lint, build, analyze, audit:release, smoke:operational 24/24, runtime profile, and diff check.
 - Remaining production QA: hosted authenticated owner/manager/waiter/cashier/Kitchen action matrix, providers, browser/device coverage, real printer/KOT/receipt output, Lighthouse, Chrome/React profiling, and long-run heap.
 
 ## Phase 5C Workflow Correction

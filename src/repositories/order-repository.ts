@@ -1108,11 +1108,7 @@ export class OrderRepository {
         ...sources.map((order) => order.kitchenOrderId).filter(isString),
         ...(input.sourceKitchenOrderIds ?? []).filter(isString),
       ])).filter((id) => id !== targetKitchenId);
-      const kitchenRefs = [
-        ...(targetKitchenId ? [this.db.collection("kitchenOrders").doc(targetKitchenId)] : []),
-        ...sourceKitchenIds.map((id) => this.db.collection("kitchenOrders").doc(id)),
-      ];
-      const kitchenSnapshots = await Promise.all(kitchenRefs.map((ref) => transaction.get(ref)));
+      const kitchenSnapshots = await Promise.all(sourceKitchenIds.map((id) => transaction.get(this.db.collection("kitchenOrders").doc(id))));
       const kitchenDocs = kitchenSnapshots
         .filter((snapshot) => snapshot.exists)
         .map((snapshot) => ({ id: snapshot.id, ...(snapshot.data() ?? {}) } as Record<string, unknown>));
@@ -1143,6 +1139,7 @@ export class OrderRepository {
         paidAmount: paidTotal,
         paymentStatus,
         tableNumber,
+        billingMerge: cleanRecord({ sourceOrderIds: sourceIds, sourceKitchenOrderIds: sourceKitchenIds, mergedBy: input.userId ?? scope.uid, mergedAt: now, mode: "billing-only" }),
         splitPayment: sourceSplits.length > 0 || ordersToMerge.some((order) => Boolean((order as OrderDoc & { splitPayment?: boolean }).splitPayment)),
         mergedOrderIds: FieldValue.arrayUnion(...sourceIds),
         auditTimeline: sourceAudit.length ? FieldValue.arrayUnion(...sourceAudit, entry) : FieldValue.arrayUnion(entry),
@@ -1158,6 +1155,7 @@ export class OrderRepository {
         const sourcePatch = {
           status: "cancelled" as const,
           mergedIntoOrderId: target.id,
+          billingMerge: cleanRecord({ targetOrderId: target.id, targetKitchenOrderId: targetKitchenId, mergedBy: input.userId ?? scope.uid, mergedAt: now, mode: "billing-only" }),
           auditTimeline: FieldValue.arrayUnion(auditEvent("merge_tables", scope, input, now, { mergedIntoOrderId: target.id })),
           statusHistory: FieldValue.arrayUnion({ event: "merge_tables", mergedIntoOrderId: target.id, at: now, by: input.userId ?? scope.uid }),
           updatedAt: FieldValue.serverTimestamp(),
@@ -1165,32 +1163,8 @@ export class OrderRepository {
         transaction.set(this.db.collection("orders").doc(source.id), sourcePatch, { merge: true });
         transaction.set(this.db.collection("customerOrders").doc(source.id), sourcePatch, { merge: true });
       });
-      const targetKitchenSnapshot = targetKitchenId ? kitchenSnapshots[0] : null;
-      const sourceKitchenSnapshots = targetKitchenId ? kitchenSnapshots.slice(1) : kitchenSnapshots;
-      if (targetKitchenId && targetKitchenSnapshot?.exists) {
-        const kitchenLines = mergeKitchenLines(kitchenDocs);
-        transaction.set(this.db.collection("kitchenOrders").doc(targetKitchenId), cleanRecord({
-          lines: kitchenLines.length ? kitchenLines : undefined,
-          total,
-          tableNumber,
-          paymentStatus,
-          mergedOrderIds: FieldValue.arrayUnion(...sourceIds),
-          statusHistory: FieldValue.arrayUnion({ event: "merge_tables", sourceOrderIds: sourceIds, at: now, by: input.userId ?? scope.uid }),
-          updatedAt: FieldValue.serverTimestamp(),
-        }), { merge: true });
-      }
-      sourceKitchenSnapshots.forEach((snapshot) => {
-        if (!snapshot.exists) return;
-        transaction.set(snapshot.ref, {
-          status: "cancelled",
-          foodStatus: "cancelled",
-          mergedIntoOrderId: target.id,
-          statusHistory: FieldValue.arrayUnion({ event: "merge_tables", mergedIntoOrderId: target.id, at: now, by: input.userId ?? scope.uid }),
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-      });
       writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "merge_tables", entityId: target.id, after: entry, device: input.device });
-      writeNotification(transaction, scope, { type: "order_update", title: "Tables merged", message: `${sourceIds.length + 1} orders merged into ${tableNumber || target.id}.`, priority: "normal", orderId: target.id, kitchenOrderId: targetKitchenId });
+      writeNotification(transaction, scope, { type: "order_update", title: "Bills merged", message: `${sourceIds.length + 1} bills merged into ${tableNumber || target.id}; kitchen tickets remain separate.`, priority: "normal", orderId: target.id, kitchenOrderId: targetKitchenId });
       nextOrder = { ...target, lines, subtotal, discount, tax, deliveryFee, total, paymentStatus, tableNumber };
     });
     await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
@@ -1436,22 +1410,6 @@ function mergeOrderLines(orders: OrderDoc[]) {
   return Array.from(lines.values()).filter((line) => Number(line.quantity ?? 0) > 0);
 }
 
-function mergeKitchenLines(kitchenDocs: Record<string, unknown>[]) {
-  const lines = new Map<string, Record<string, unknown>>();
-  for (const doc of kitchenDocs) {
-    const docLines = Array.isArray(doc.lines) ? doc.lines as Record<string, unknown>[] : [];
-    for (const line of docLines) {
-      const key = String(line.itemId ?? line.menuItemId ?? line.name ?? "");
-      if (!key) continue;
-      const existing = lines.get(key);
-      lines.set(key, existing
-        ? { ...existing, quantity: Number(existing.quantity ?? 0) + Number(line.quantity ?? 0), price: money(Number(line.price ?? existing.price ?? 0)) }
-        : { ...line, quantity: Number(line.quantity ?? 0), price: money(Number(line.price ?? 0)) });
-    }
-  }
-  return Array.from(lines.values()).filter((line) => Number(line.quantity ?? 0) > 0);
-}
-
 function paymentEvent(type: string, scope: TenantScope, input: ActorInput & { amount?: number; method?: string }, at: Date, extra: Record<string, unknown> = {}) {
   return cleanRecord({
     type,
@@ -1526,6 +1484,7 @@ function writeNotification(transaction: Transaction, scope: TenantScope, input: 
   priority: "normal" | "high";
   orderId?: string;
   kitchenOrderId?: string;
+  audience?: string[];
 }) {
   const ref = adminDb().collection("notifications").doc();
   transaction.set(ref, cleanRecord({
@@ -1542,7 +1501,7 @@ function writeNotification(transaction: Transaction, scope: TenantScope, input: 
     sound: notificationSound(input.type),
     pushStatus: "pending",
     pushAttempts: 0,
-    audience: ["owner", "manager", "cashier", "waiter", "kitchen"],
+    audience: input.audience ?? ["owner", "manager", "cashier", "kitchen"],
     readBy: [],
     createdAt: FieldValue.serverTimestamp(),
   }));
@@ -1567,8 +1526,8 @@ function logPushDispatchError(error: unknown) {
 
 function notificationForEvent(event: string, orderId?: string, kitchenOrderId?: string) {
   if (event === "reminder") return { type: "reminder", title: "Kitchen reminder", message: "Kitchen reminder sent.", priority: "high" as const, orderId, kitchenOrderId };
-  if (event === "kitchen_accepted") return { type: "new_order", title: "Order accepted", message: "Accepted order sent to kitchen and waiter.", priority: "high" as const, orderId, kitchenOrderId };
-  if (event === "kitchen_ready") return { type: "ready", title: "Order ready", message: "Kitchen marked an order ready.", priority: "high" as const, orderId, kitchenOrderId };
+  if (event === "kitchen_accepted") return { type: "new_order", title: "Order accepted", message: "Accepted order sent to kitchen and floor operations.", priority: "high" as const, orderId, kitchenOrderId };
+  if (event === "kitchen_ready") return { type: "ready", title: "Order ready", message: "Kitchen marked an order ready for service.", priority: "high" as const, orderId, kitchenOrderId, audience: ["owner", "manager", "kitchen"] };
   if (event === "completion") return { type: "completion", title: "Order completed", message: "Order completed.", priority: "normal" as const, orderId, kitchenOrderId };
   return null;
 }

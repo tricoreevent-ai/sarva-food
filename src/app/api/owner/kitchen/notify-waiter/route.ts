@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
   const snapshot = await adminDb().collection("notifications")
     .where("tenantId", "==", scope.tenantId)
-    .where("type", "==", "kitchen_ready_waiter")
+    .where("type", "==", "kitchen_ready_ops")
     .limit(100)
     .get();
   return NextResponse.json({ data: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (snapshot.data()?.escalatedAt || snapshot.data()?.acknowledgedAt) return NextResponse.json({ ok: true, deduplicated: true });
     const data = snapshot.data() ?? {};
     await ref.set({ escalatedAt: FieldValue.serverTimestamp(), priority: "high", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    const owner = await sendTenantPushNotification(scope, { type: "kitchen_waiter_escalation", title: "Kitchen waiter escalation", message: `${clean(data.orderNumber || data.message)} is still waiting for pickup.`, priority: "high", orderId: clean(data.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner"], sound: "silent" }).catch(() => ({ successCount: 0, failureCount: 0 }));
+    const owner = await sendTenantPushNotification(scope, { type: "kitchen_ready_escalation", title: "Ready ticket escalation", message: `${clean(data.orderNumber || data.message)} is still waiting for pickup.`, priority: "high", orderId: clean(data.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "kitchen"], sound: "silent" }).catch(() => ({ successCount: 0, failureCount: 0 }));
     return NextResponse.json({ ok: true, owner });
   }
 
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
   const tableNumber = clean(body.tableNumber, 40) || "Counter";
   const waiterName = clean(body.waiterName, 80);
   const sound = cleanSound(body.sound);
-  const title = "🍽 Order Ready";
-  const message = [`Order ${orderNumber}`, `Table ${tableNumber}`, "Food is ready for serving.", "Please collect immediately."].join(" · ");
+  const title = "🍽 Ready for Service";
+  const message = [`Order ${orderNumber}`, `Table ${tableNumber}`, "Kitchen ticket is ready.", waiterName ? `Assigned: ${waiterName}` : "Floor team can serve."].join(" · ");
   const existing = await ref.get();
   if (existing.exists && body.repeat !== true) return NextResponse.json({ ok: true, notificationId: ref.id, deduplicated: true });
   if (!existing.exists) {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       tenantId: scope.tenantId,
       restaurantId: scope.tenantId,
       branchId: clean(body.branchId, 60) || "main",
-      type: "kitchen_ready_waiter",
+      type: "kitchen_ready_ops",
       title,
       message,
       orderId: clean(body.orderId),
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       kitchenOrderId,
       tableNumber,
       waiterName,
-      audience: ["waiter", "owner"],
+      audience: ["owner", "manager", "kitchen"],
       priority: "high",
       link: "/owner/pos?panel=active",
       sound,
@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
   }
 
   const push = body.notificationMethod !== "in-app";
-  const waiter = push ? await sendTenantPushNotification(scope, { notificationId: ref.id, type: "kitchen_ready_waiter", title, message, priority: "high", orderId: clean(body.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["waiter"], sound }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
-  const owner = push ? await sendTenantPushNotification(scope, { type: "kitchen_ready_owner", title: "Kitchen Ready", message: `${orderNumber} · ${tableNumber}`, orderId: clean(body.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner"], sound: "silent" }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
-  return NextResponse.json({ ok: true, waiter, owner, notificationId: ref.id, deduplicated: existing.exists });
+  const operations = push ? await sendTenantPushNotification(scope, { notificationId: ref.id, type: "kitchen_ready_ops", title, message, priority: "high", orderId: clean(body.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "kitchen"], sound }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
+  return NextResponse.json({ ok: true, operations, notificationId: ref.id, deduplicated: existing.exists });
 }

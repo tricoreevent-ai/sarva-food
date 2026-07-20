@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-20T09:36:55.396Z
+Generated: 2026-07-20T10:41:08.546Z
 
-Result: PASS — 22/22 checks passed.
+Result: PASS — 24/24 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -24,9 +24,11 @@ Result: PASS — 22/22 checks passed.
 | active-orders:waiter-live-kitchen-payment-dashboard | PASS |  |
 | active-orders:status-duration-and-timeline-consistency | PASS |  |
 | active-orders:search-loading-keyboard-and-touch | PASS |  |
-| kitchen:notify-without-serving | PASS |  |
+| kitchen:ready-signal-without-serving | PASS |  |
+| active-orders:multi-ticket-and-bill-only-merge | PASS |  |
+| active-orders:auto-history-holding | PASS |  |
 | kitchen:item-first-card-actions | PASS |  |
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, Active Orders accessibility/actions, waiter Kitchen/payment dashboard visibility, Kitchen card density, timeline category separation, and configurable operational sounds. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

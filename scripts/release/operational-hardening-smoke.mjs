@@ -168,7 +168,7 @@ await check("active-orders:a11y-and-operational-controls", () => {
 });
 
 await check("active-orders:all-actions-wired", () => {
-  for (const label of ["Serve Order", "Notify Waiter", "Complete Order", "Collect Payment", "Mark Paid", "Print Bill", "Print Receipt", "View / Preview", "Add Items", "Reminder", "Merge Tables", "Transfer Table", "Split Bill", "Assign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT", "Timeline", "History", "Payment History"]) {
+  for (const label of ["Serve Order", "Ready Signal", "Complete Order", "Collect Payment", "Mark Paid", "Print Bill", "Print Receipt", "View / Preview", "Add Items", "Reminder", "Smart Bill Merge", "Merge Bills", "Merge All", "Merge Selected", "Pay Separately", "Transfer Table", "Split Bill", "Assign Waiter", "Cancel Order", "Kitchen Recall", "Print KOT", "Timeline", "History", "Payment History", "Move To History"]) {
     assert.ok(activeOrders.includes(label), label);
   }
   for (const callback of ["handlers.onServe(order)", "handlers.onNotifyWaiter(order)", "handlers.onComplete(order)", "handlers.onCollectPayment(order)", "handlers.onPrintBill(order)", "handlers.onPrintReceipt(order)", "handlers.onPrintKot(order)", "handlers.onAddItems(order)", "handlers.onSplit(order)", "handlers.onTransfer(order)", "handlers.onAssignWaiter(order)", "handlers.onMerge(order)", "handlers.onTimeline(order)", "handlers.onPaymentHistory(order)", "handlers.onReminder(order)", "handlers.onRecall(order)", "handlers.onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
@@ -183,6 +183,8 @@ await check("active-orders:strict-lifecycle", () => {
   assert.ok(orderRepository.includes("assertCanRecordPayment(order)"));
   assert.ok(orderRepository.includes("assertPaymentLockOwner(order"));
   assert.ok(kitchenRepository.includes("assertLegalOrderTransition({ status: current, paymentStatus }, next)"));
+  assert.ok(activeOrders.includes('const kitchenOwnedStatus = ["accepted", "preparing", "ready", "cancelled"].includes(status)'));
+  assert.ok(activeOrders.includes('["served", "completed", "cancelled"].includes(status)'));
   assert.ok(!stateMachine.includes('current === "ready" && next === "completed"'));
 });
 
@@ -217,7 +219,7 @@ await check("active-orders:dense-memoized-layout", () => {
 });
 
 await check("active-orders:waiter-live-kitchen-payment-dashboard", () => {
-  for (const token of ["activeOrderKanbanStages", "Ready for Pickup", "posPreparationProgress(order.status)", "P:{paymentStatus}", "activeOrderPaymentBadgeClass(order.paymentStatus)", "activeOrderServiceFlagClass(ready, \"pickup\")"]) assert.ok(activeOrders.includes(token), token);
+  for (const token of ["activeOrderKanbanStages", "Ready for Pickup", "Ready to Serve", "playOperationalSound", "posPreparationProgress(order.status)", "P:{paymentStatus}", "activeOrderPaymentBadgeClass(order.paymentStatus)", "activeOrderServiceFlagClass(ready, \"pickup\")"]) assert.ok(activeOrders.includes(token), token);
   assert.ok(activeOrders.includes('order.hasKitchenTicket !== false || ["ready", "served"].includes(order.status)'));
   assert.ok(!activeOrders.includes('if (order.paymentStatus === "paid") return "Paid";'));
   assert.ok(!activeOrders.includes('if (payment === "paid" && !["cancelled", "completed", "billed"].includes(status)) return "Paid";'));
@@ -239,11 +241,22 @@ await check("active-orders:search-loading-keyboard-and-touch", () => {
   for (const token of ["ArrowDown", "ArrowUp", "Home", "End", "min-h-11"]) assert.ok(compactActions.includes(token) || activeOrders.includes(token), token);
 });
 
-await check("kitchen:notify-without-serving", () => {
-  assert.ok(kitchen.includes('label: "Notify Waiter"'));
+await check("kitchen:ready-signal-without-serving", () => {
+  assert.ok(kitchen.includes('label: "Signal Ready"'));
   assert.ok(!kitchen.includes('ready: "served"'));
   assert.ok(kitchen.includes('/api/owner/kitchen/notify-waiter'));
-  for (const token of ["kitchen_ready_waiter", 'audience: ["waiter"]', 'audience: ["owner"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
+  for (const token of ["kitchen_ready_ops", 'audience: ["owner", "manager", "kitchen"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
+  assert.ok(!kitchenNotify.includes('audience: ["waiter"]'));
+});
+
+await check("active-orders:multi-ticket-and-bill-only-merge", () => {
+  for (const token of ["Open Session", "addOnBillForOrder", "Smart Bill Merge", "Pay Separately", "Merge All", "billing-only", "Kitchen tickets remain separate"]) assert.ok(activeOrders.includes(token) || orderRepository.includes(token), token);
+  assert.ok(!kitchenRepository.includes("incremental_kot_merged"));
+  assert.ok(!orderRepository.includes("mergeKitchenLines"));
+});
+
+await check("active-orders:auto-history-holding", () => {
+  for (const token of ["completedHistoryHoldMinutes = 30", "Auto history in", "Move To History", "isActiveOrRecentlyCompleted", "completedHoldMinutesRemaining"]) assert.ok(activeOrders.includes(token), token);
 });
 
 await check("kitchen:item-first-card-actions", () => {

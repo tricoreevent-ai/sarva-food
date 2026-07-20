@@ -1,8 +1,8 @@
 # Final Performance Report
 
-Date: 2026-07-20T09:37:00.019Z
+Date: 2026-07-20T10:41:18.170Z
 
-This final report pack consolidates Phase 2, Phase 3, Active Orders, image delivery, observability, Phase 4C push/payment readiness, and RC5 waiter workflow measurements. Business workflows, Firestore collections, auth flows, and provider contracts remain backward compatible.
+This final report pack consolidates Phase 2, Phase 3, Active Orders, image delivery, observability, and Phase 4C push/payment readiness measurements. Business workflows, Firestore collections, auth flows, and provider contracts remain backward compatible.
 
 ## Root Cause Summary
 
@@ -10,7 +10,6 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, image deliv
 | --- | --- | --- |
 | Startup JS | Route-owned shared customer/profile/owner chunks remain the largest production risk. | Phase 2 removed eager Firebase/Auth/Stack/XLSX/Mapbox ownership from critical initial routes where safe. |
 | Runtime CPU | POS search/category and Kitchen filter/reconciliation paths were the highest repeat-interaction risks. | Phase 3 added debouncing, precomputation, memoized cards/grids, stable refs, and Kitchen reconciliation/windowing. |
-| Waiter workflow | Waiter stage visibility required more card signals without extra realtime work. | Reused memoized Active Order cards, grouped from the existing filtered array, lazy-mounted details, and shared Kitchen delay/status formatting. |
 | Hydration | Profile and settings surfaces owned action/tab-only code too early. | Toast, preferences, Mapbox, Cloudinary, push, fullscreen, and loyalty code now load only when needed. |
 | Browser proof | Flame graphs, Coverage, FPS, INP, and real heap growth remain unmeasured locally. | Manual production Chrome profiling is required after Hostinger redeploy. |
 
@@ -44,11 +43,11 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, image deliv
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.50ms | 1.39ms | 6.26ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.06ms | 0.53ms | <100ms update |
-| POS 1000-item category switch | 0.08ms | 0.17ms | 0.34ms | <50ms switch |
-| POS 1000-item search filter | 0.12ms | 0.23ms | 0.60ms | debounced |
-| Active Orders 100-order filter/group | 0.21ms | 0.30ms | 0.74ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.36ms | 0.45ms | 1.60ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.29ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.11ms | 0.24ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.16ms | 0.39ms | debounced |
+| Active Orders 100-order filter/group | 0.16ms | 0.22ms | 0.52ms | <50ms interaction |
 
 ## Conclusion
 

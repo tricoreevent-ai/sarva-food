@@ -1,6 +1,6 @@
 # Performance Phase 3 Report
 
-Date: 2026-07-20T09:37:00.019Z
+Date: 2026-07-20T10:41:18.170Z
 
 ## Scope
 
@@ -14,7 +14,6 @@ Final runtime smoothness pass for Customer, Owner, Kitchen, and POS without chan
 | Owner Settings | Heavy tab-only dependencies are dynamically loaded: Mapbox, Cloudinary upload, push settings, fullscreen, loyalty rules. |
 | Kitchen | Stream snapshots reconcile unchanged tickets; cards are memoized by ticket reference/minute bucket; desktop columns use lightweight windowing for long queues. |
 | POS | Product search is debounced; menu/custom product arrays are precomputed; product grid/cards are memoized; cart item actions use stable refs. |
-| Active Orders Waiter | Stage columns reuse the filtered active-order set; card Kitchen/payment/progress signals are cheap derived values; expanded timelines remain lazy. |
 | Profile | App preferences and react-hot-toast runtime are no longer static profile startup imports. |
 
 ## Runtime Profile
@@ -37,11 +36,11 @@ Final runtime smoothness pass for Customer, Owner, Kitchen, and POS without chan
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.50ms | 1.39ms | 6.26ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.06ms | 0.53ms | <100ms update |
-| POS 1000-item category switch | 0.08ms | 0.17ms | 0.34ms | <50ms switch |
-| POS 1000-item search filter | 0.12ms | 0.23ms | 0.60ms | debounced |
-| Active Orders 100-order filter/group | 0.21ms | 0.30ms | 0.74ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.36ms | 0.45ms | 1.60ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.29ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.11ms | 0.24ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.16ms | 0.39ms | debounced |
+| Active Orders 100-order filter/group | 0.16ms | 0.22ms | 0.52ms | <50ms interaction |
 
 ## Remaining Manual Gates
 

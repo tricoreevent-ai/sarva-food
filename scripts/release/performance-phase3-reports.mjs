@@ -388,7 +388,7 @@ Date: ${generatedAt}
 | Branch baseline | \`release/production-nammude\` at \`1735938074e71598befcff2578b5220df218ede2\` before Phase 4C changes. |
 | Push | Public VAPID value is configured in commit-safe templates; lifecycle, service worker, retry, and owner test-center contracts pass. Hosted env and real-device delivery remain manual. |
 | Payments | Owner-scoped runtime, encrypted secrets, signatures, webhook controls, and ten-tenant mappings pass automated checks. Real Razorpay dashboard evidence remains manual. |
-| Firestore | No collection/schema/rule/index/repository change and no new listener. |
+| Firestore | No collection/schema/rule/index change and no new listener. |
 | Security | No service-account/provider secret committed; test responses are redacted and provider mutations are blocked in live mode. |
 
 ## Production Readiness
@@ -435,7 +435,7 @@ ${stressRows}
 | Desktop density | 4 columns at desktop, 5 at 2XL, and 6 at 1920px; the fixed-height cards-only viewport is designed to expose at least 20 collapsed orders without page growth. |
 | Card work | Collapsed cards build only the operational summary and action bar; details, timelines, notes, and history mount on expansion. |
 | Interaction | Expansion is immediate and uses no height animation. Search is debounced 120ms and grouping is a single memoized pass. |
-| Actions | Serve, Notify Waiter, Payment, Print, Preview, and More remain visible while collapsed. |
+| Actions | Serve, Ready Signal, Payment, Print, Preview, and More remain visible while collapsed. |
 | Browser gate | Chrome and React DevTools are available, but flame graphs/FPS/INP need a valid authenticated production-equivalent owner session. |
 
 ## Route Snapshot

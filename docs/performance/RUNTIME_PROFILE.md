@@ -1,6 +1,6 @@
 # Runtime Profile
 
-Date: 2026-07-20T09:37:00.019Z
+Date: 2026-07-20T10:41:18.170Z
 
 ## Measurement Inputs
 
@@ -30,14 +30,12 @@ Date: 2026-07-20T09:37:00.019Z
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.50ms | 1.39ms | 6.26ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.06ms | 0.53ms | <100ms update |
-| POS 1000-item category switch | 0.08ms | 0.17ms | 0.34ms | <50ms switch |
-| POS 1000-item search filter | 0.12ms | 0.23ms | 0.60ms | debounced |
-| Active Orders 100-order filter/group | 0.21ms | 0.30ms | 0.74ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.36ms | 0.45ms | 1.60ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.29ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.11ms | 0.24ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.16ms | 0.39ms | debounced |
+| Active Orders 100-order filter/group | 0.16ms | 0.22ms | 0.52ms | <50ms interaction |
 
 ## Notes
 
 Hydration time, FPS, long tasks, Chrome memory, and real network waterfalls still require hosted production Chrome profiling because this workspace script cannot observe browser main-thread scheduling.
-
-RC5 waiter workflow adds no new realtime listener or heavyweight dependency; the stage board reuses memoized Active Order cards and derives Kitchen/payment/progress labels from existing order data.

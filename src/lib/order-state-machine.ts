@@ -10,7 +10,7 @@ type OrderLike = {
 };
 
 const orderFlow: OrderStatus[] = ["draft", "new", "accepted", "preparing", "ready", "picked-up", "served", "delivered", "completed"];
-const kitchenFlow: KitchenOrderStatus[] = ["new", "accepted", "preparing", "ready", "served", "completed"];
+const kitchenFlow: KitchenOrderStatus[] = ["new", "accepted", "preparing", "ready"];
 const terminalOrders = new Set<OrderStatus>(["cancelled", "rejected"]);
 const billClosedOrders = new Set<OrderStatus>(["delivered", "completed"]);
 const activePaymentStatuses = new Set<PaymentStatus>(["authorized", "partial", "paid"]);
@@ -88,7 +88,8 @@ export function orderStatusToFoodStatus(status: OrderStatus): KitchenOrderStatus
   if (status === "accepted") return "accepted";
   if (status === "preparing") return "preparing";
   if (status === "ready" || status === "picked-up") return "ready";
-  if (status === "served" || status === "delivered") return "served";
+  if (status === "served") return "ready";
+  if (status === "delivered") return "served";
   if (status === "completed") return "completed";
   if (status === "cancelled" || status === "rejected") return "cancelled";
   return "new";

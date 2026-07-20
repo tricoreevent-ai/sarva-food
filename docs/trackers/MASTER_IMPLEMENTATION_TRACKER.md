@@ -11,25 +11,27 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Waiter Operational Workflow |
+| Current Sprint | RC5 Enterprise Multi-Ticket Waiter Workflow |
 | Release Version | `v1.0.0-rc5` candidate |
 | Latest Git Commit | Pending final waiter workflow commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | RC5 waiter workflow passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (22/22), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 waiter workflow keeps Kitchen/payment state independent, adds Waiter stage-board visibility, keeps Kitchen status/progress visible after payment, persists configurable operational sounds, tags timeline event categories, compacts Kitchen cards, and refreshes validation/performance reports without Firestore schema/rule/index changes. |
+| Verification Status | RC5 enterprise waiter workflow passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC5 enterprise waiter workflow keeps Kitchen/payment/billing state independent, allows multiple active kitchen tickets per table/session, changes merge to billing-only, moves Ready signals away from Waiter push, adds Waiter live Ready sound/card signals, keeps completed orders for 30 minutes before history, tags timeline categories, and preserves Firestore schema/rule/index contracts. |
 
-## RC5 Waiter Operational Workflow - 2026-07-20
+## RC5 Enterprise Multi-Ticket Waiter Workflow - 2026-07-20
 
 | Area | Result |
 | --- | --- |
-| Waiter Active Orders | Complete. The Waiter view groups live orders into New, Accepted, Preparing, Ready, Serving, and Completed columns and includes paid Kitchen tickets until the order is completed/history-only. |
-| Card visibility | Complete. Cards show order/table/customer, Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Served, Completed, and lazy timeline/history details without letting Paid mask Kitchen state. |
+| Multi-ticket dining | Complete. Occupied/open-session tables can receive additional independent kitchen tickets; Add Items starts a new add-on ticket instead of modifying the prior KOT. |
+| Waiter Active Orders | Complete. The Waiter view groups live orders into New, Accepted, Preparing, Ready, Serving, and Completed columns; Ready uses live card/counter/sound signals instead of Waiter push noise. |
+| Card visibility | Complete. Cards show order/table/customer, Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Serving, Completed, auto-history countdown, and lazy timeline/history details without letting Paid mask Kitchen state. |
 | Kitchen Operations Center | Complete. Item-first Kitchen cards now adapt to item count, remove fixed blank item wells, keep actions aligned/touch-friendly, and preserve memoized cards plus desktop windowing. |
-| Notifications | Complete. Owner Settings exposes six configurable operational sounds; Kitchen Ready pushes use the configured Ready for Pickup sound, in-app/toast signals remain deduped/persistent, and customer-request sounds skip bootstrap spam. |
-| Timeline | Complete. Timeline rows label Kitchen, Payment, Print, and Audit events independently with timestamps, preserving unrelated event separation. |
-| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (22/22), `profile:runtime`, and `git diff --check` passed. |
+| Notifications | Complete. Owner Settings exposes six configurable operational sounds; Kitchen Ready signals target Owner/Manager/Kitchen, Waiter screens update live, in-app/toast signals remain deduped/persistent, and customer-request sounds skip bootstrap spam. |
+| Billing merge | Complete. Smart Bill Merge prompts on payment when the same table/session has other unpaid tickets; Merge All/Selected affects billing only and leaves kitchen tickets auditable. |
+| Timeline | Complete. Timeline rows label Kitchen, Service, Payment, Print, and Audit events independently with timestamps, preserving unrelated event separation. |
+| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check` passed. |
 | Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse/Chrome profiling, long-run heap, Firebase Console, and hardware QA. |
 
 ## Phase 5C Payment Workflow and Kitchen Operations UI - 2026-07-20
@@ -40,7 +42,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | POS New Order cancel | Complete. Cancel on the clear-current-order dialog now returns to New Order with cart, customer, discounts, and payment draft preserved; Clear Order remains the only destructive path. |
 | Active/Owner Orders | Complete. Collect Payment, Split Bill, cashier pending counts, Owner workflow paid state, and served/paid completion affordances now reflect the independent payment lifecycle while illegal completion is still rejected. |
 | Kitchen UI | Complete. Kitchen cards are item-first with order number, priority, ETA, current status, and icon actions by default; customer/payment/staff/source details move into Preview/More. Virtual row sizing now matches the larger cards. |
-| Validation | Superseded by RC5 waiter workflow validation: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (22/22), `profile:runtime`, and `git diff --check` passed. |
+| Validation | Superseded by RC5 enterprise waiter workflow validation: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check` passed. |
 | Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse/Chrome profiling, and long-run heap QA. |
 
 ## Phase 5B Operational Hardening Finalization - 2026-07-17
@@ -48,11 +50,11 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Area | Result |
 | --- | --- |
 | Active Orders optimization | Complete. POS active cards remain memoized, details/timelines are lazy-mounted, search/grouping is memoized, and shared duration/status badge utilities are used across POS, Owner Orders, and Kitchen. |
-| Kitchen workflow | Complete. Kitchen owns Accepted → Preparing → Ready, waiter notification, recall/reminder timeline entries, acknowledgement/escalation, and no Kitchen Serve path. |
+| Kitchen workflow | Complete. Kitchen owns Accepted → Preparing → Ready, Ready Signal, recall/reminder timeline entries, acknowledgement/escalation, and no Kitchen Serve path. |
 | Payment lifecycle | Superseded by Phase 5C. Completion still requires full Paid status and Served state; payment itself is now independent of Kitchen/service state. |
 | Owner/POS actions | Serve, Complete, Collect Payment, Preview, Print, Reminder, Transfer, Split, Merge, Timeline, History, Kitchen Recall, and Assign Waiter are wired through guarded handlers/API routes. |
 | Print context fix | Active-order print/KOT paths now build print context from the selected order instead of stale POS bill state, so Preview/Print/KOT target the intended order. |
-| Validation | Superseded by RC5 waiter workflow validation: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (22/22), `profile:runtime`, and `git diff --check` passed. |
+| Validation | Superseded by RC5 enterprise waiter workflow validation: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check` passed. |
 | Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` until authenticated hosted browser/device/provider/printer/Lighthouse/Chrome profiling gates complete. |
 
 ## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
@@ -72,7 +74,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Root cause | Parent expansion state invalidated up to 30 un-memoized nested accordions; fresh workflows, timelines, arrays, callbacks, and Framer Motion height animation amplified each click. |
 | Redesign | Replaced the POS nested accordion path with one memoized 88px operational card, a 56px summary strip, fixed cards-only viewport, 4/5/6-column desktop grid, and collapsed bottom ribbon. |
-| Actions | Serve, Notify Waiter, Payment, Print, Preview, and More are always visible; all existing split/merge/transfer/reassign/reminder/recall/complete/cancel/timeline/history actions and lifecycle guards remain intact. |
+| Actions | Serve, Ready Signal, Payment, Print, Preview, and More are always visible; all existing split/merge/transfer/reassign/reminder/recall/complete/cancel/timeline/history actions and lifecycle guards remain intact. |
 | Performance | Opening one of 30 cards changes one card instead of 30 (96.7% render-scope reduction); switching cards changes two (93.3%). Synthetic 100-order filter/group p95 is below 1ms on the validation machine. |
 | Density | 3-4 production cards previously visible; the 1366×768 desktop layout now fits five rows × four columns, meeting the 20-card target without page scrolling. |
 | Boundaries | No repository, Firestore schema/rule/index, API contract, order lifecycle, auth, payment, or notification architecture change. |
@@ -103,11 +105,11 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Area | Result |
 | --- | --- |
 | Responsibility boundary | Removed all Kitchen Ready → Served UI paths. Kitchen prepares and notifies; waiter/POS remains responsible for service. |
-| Notification architecture | Existing notifications and push-token infrastructure provide idempotent waiter push across devices, silent owner information, in-app/toast/sound fallback, unread state, acknowledgement, and escalation. No schema or repository modification. |
+| Notification architecture | Superseded by RC5 enterprise waiter workflow: Ready signals no longer push to Waiter devices; Owner/Manager/Kitchen receive operational signals and Waiter view provides live card/counter/sound cues. |
 | Acknowledgement | Opening a Ready order from POS acknowledges the persisted notification; Kitchen shows `✓ Waiter informed` with time. |
 | Escalation | Unacknowledged notifications become orange after two minutes and red/owner-alerted at the configured timeout. |
 | Presentation | Demand-weighted flexible Kanban columns, auto-fit metrics, compact actions, reduced-motion critical animation, and shared bounded duration formatting. |
-| Settings | Auto Notify Waiter, Auto Print KOT, Kitchen Sound, Repeat Notification, Escalation Timeout, and Push/In-app/Both controls are exposed locally. |
+| Settings | Ready Signal, Auto Print KOT, Kitchen Sound, Repeat Notification, Escalation Timeout, and Push/In-app/Both controls are exposed locally. |
 | Validation | Operational smoke passes 14/14, including no Ready → Served Kitchen mapping and notify/ack/escalate contracts. |
 
 ## Phase 4C Push, Owner Razorpay, and Production Readiness - 2026-07-16
