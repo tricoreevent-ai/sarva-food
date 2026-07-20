@@ -1102,7 +1102,7 @@ export class OrderRepository {
         nextOrder = target;
         return;
       }
-      [target, ...sources].forEach(assertCanModifyOperationalOrder);
+      [target, ...sources].forEach(assertCanMergeBillingOrder);
       const targetKitchenId = input.kitchenOrderId || target.kitchenOrderId;
       const sourceKitchenIds = Array.from(new Set([
         ...sources.map((order) => order.kitchenOrderId).filter(isString),
@@ -1290,6 +1290,13 @@ function paidAmount(order: OrderDoc) {
 function assertCanModifyOperationalOrder(order: OrderDoc) {
   if (["cancelled", "rejected", "delivered", "completed"].includes(order.status)) throw new Error("This order is no longer active.");
   if ((order.paymentLock as { locked?: boolean } | undefined)?.locked || ["authorized", "partial", "paid", "refunded"].includes(order.paymentStatus ?? "pending")) {
+    throw new Error("Order cannot be modified after payment has started.");
+  }
+}
+
+function assertCanMergeBillingOrder(order: OrderDoc) {
+  if ((order as OrderDoc & { mergedIntoOrderId?: string }).mergedIntoOrderId || ["cancelled", "rejected", "delivered", "completed"].includes(order.status)) throw new Error("This order is no longer active.");
+  if ((order.paymentLock as { locked?: boolean } | undefined)?.locked || ["authorized", "paid", "refunded"].includes(order.paymentStatus ?? "pending")) {
     throw new Error("Order cannot be modified after payment has started.");
   }
 }

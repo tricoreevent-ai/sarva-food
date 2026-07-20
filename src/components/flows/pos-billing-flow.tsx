@@ -1732,10 +1732,6 @@ export function PosBillingFlow() {
   }
 
   async function splitActiveBill(order: OperationalOrder, splits: SplitBillPayload[]) {
-    if (order.status !== "served") {
-      toast.error("Cannot split payment. Serve the order first.");
-      return;
-    }
     if (order.paymentLock?.locked) {
       toast.error("Cannot split payment. Another operator is modifying this bill.");
       return;
@@ -1807,8 +1803,8 @@ export function PosBillingFlow() {
   }
 
   async function mergeActiveTables(order: OperationalOrder, sourceOrders: OperationalOrder[], tableNumber?: string) {
-    if ([order, ...sourceOrders].some((item) => item.paymentLock?.locked || ["authorized", "partial", "paid", "refunded"].includes(String(item.paymentStatus ?? "pending")))) {
-      toast.error("Cannot merge bills after payment has started on any selected order.");
+    if ([order, ...sourceOrders].some((item) => !canMergeOrderBill(item))) {
+      toast.error("Cannot merge bills after payment is authorized, paid, refunded, locked, completed, or already merged.");
       return;
     }
     const canonical = canonicalForKitchenOrder(order);
@@ -3780,9 +3776,14 @@ function smartBillMergeCandidates(target: OperationalOrder, orders: OperationalO
   return orders.filter((order) => (
     order.id !== target.id &&
     normalizeTableName(order.tableNumber) === table &&
-    canCollectOrderPayment(order) &&
-    !["completed", "cancelled", "billed"].includes(order.status)
+    canMergeOrderBill(order)
   ));
+}
+
+function canMergeOrderBill(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock" | "mergedIntoOrderId">) {
+  const status = String(order.status);
+  const paymentStatus = String(order.paymentStatus ?? "pending");
+  return !order.mergedIntoOrderId && !order.paymentLock?.locked && !["completed", "cancelled", "rejected", "billed"].includes(status) && !["authorized", "paid", "refunded"].includes(paymentStatus);
 }
 
 function paymentUnavailableReason(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock" | "mergedIntoOrderId">) {
@@ -4431,6 +4432,7 @@ function PosActiveOrderCard({
   const completedHold = completed ? completedHoldMinutesRemaining(order) : 0;
   const paymentLocked = Boolean(order.paymentLock?.locked);
   const paymentRestricted = paymentLocked || ["authorized", "partial", "paid", "refunded"].includes(String(order.paymentStatus ?? "pending"));
+  const canMergeBill = canMergeOrderBill(order);
   const active = !["completed", "cancelled", "billed"].includes(order.status);
   const canModify = active && !paymentRestricted;
   const canCollect = canCollectOrderPayment(order);
@@ -4483,7 +4485,7 @@ function PosActiveOrderCard({
             { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
-            { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
+            { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canMergeBill || busy, reason: !canMerge ? "No other active order is available to merge." : !canMergeBill ? "Cannot merge authorized, paid, refunded, locked, completed, or already merged bills." : undefined },
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
             { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
             { id: "history", label: "History", icon: <History className="size-4" /> },
@@ -4496,7 +4498,7 @@ function PosActiveOrderCard({
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
-            { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
+            { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canMergeBill || busy, reason: !canMerge ? "No other active order is available to merge." : !canMergeBill ? "Cannot merge authorized, paid, refunded, locked, completed, or already merged bills." : undefined },
             { id: "reminder", label: "Reminder", icon: <BellRing className="size-4" />, disabled: !canContactKitchen || busy, reason: served ? "Order has already been served." : order.hasKitchenTicket === false ? "Kitchen ticket is unavailable." : undefined },
             { id: "recall", label: "Kitchen Recall", icon: <BellRing className="size-4" />, disabled: !canContactKitchen || busy, reason: served ? "Order has already been served." : order.hasKitchenTicket === false ? "Kitchen ticket is unavailable." : undefined },
             { id: "complete", label: "Complete Order", icon: <CheckCircle2 className="size-4" />, disabled: !served || !paid || busy, reason: !served ? "Cannot complete before service." : !paid ? "Cannot complete while payment is pending." : undefined },

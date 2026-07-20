@@ -4,6 +4,7 @@
 
 - Completed RC5 enterprise waiter workflow: Active Orders Waiter view now stages New/Accepted/Preparing/Ready/Serving/Completed and keeps Kitchen status/progress visible after payment.
 - Added multi-ticket table sessions, add-on kitchen tickets, smart bill merge, billing-only merge audit, and 30-minute Completed holding with manual Move To History.
+- Hardened Smart Bill Merge and Split Bill: open partial-payment tickets can be merged bill-only, locked/authorized/paid/refunded/closed/merged bills remain blocked, and Split Bill is no longer wrongly service-gated.
 - Added compact card signals for Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Serving, and Completed; timeline entries now identify Kitchen/Service/Payment/Print/Audit categories.
 - Persisted six Owner Settings operational sound targets and wired configured Ready/customer/Kitchen sounds through Owner/Manager/Kitchen Ready signals plus Waiter active-view sound without duplicate bootstrap alerts.
 - Confirmed completed gates: typecheck, lint, build, analyze, audit:release, smoke:operational 24/24, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.

@@ -4,6 +4,7 @@
 
 - Active Orders Waiter view is now a live stage board for New, Accepted, Preparing, Ready, Serving, and Completed.
 - Tables can now carry multiple independent active kitchen tickets; Add Items starts a new add-on ticket and Smart Bill Merge merges billing only.
+- Smart Bill Merge now supports open partial-payment tickets while blocking locked, authorized, paid, refunded, closed, or already merged bills; Split Bill remains independent of service state.
 - Paid orders no longer hide Kitchen status/progress; cards display Kitchen status, payment status, progress, priority, ETA, Ready for Pickup, Serving, Completed, and auto-history countdown together.
 - Kitchen Operations Center cards now adapt to item count with no fixed blank item well while preserving touch-friendly actions and windowing.
 - Owner Settings now persists configurable operational sounds for New Order, Kitchen Accepted, Preparing, Ready for Pickup, Urgent Delay, and Customer Request.

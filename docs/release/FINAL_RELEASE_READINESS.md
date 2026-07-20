@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-20T10:41:18.170Z
+Date: 2026-07-20T11:22:07.694Z
 
 ## Local Validation
 
@@ -10,42 +10,42 @@ Date: 2026-07-20T10:41:18.170Z
 | `npm run lint` | Passed. |
 | `npm run build` | Passed with accepted Firebase/protobuf warning. |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
-| `npm run verify:phase4c` | Passed notification, push lifecycle, payment security, deep-link, and ten-tenant checks. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed. |
+| `npm run smoke:operational` | Passed 24/24, including payment-independent split and partial-payment bill-only merge guards. |
 | `npm run profile:runtime` | Passed. |
+| `git diff --check` | Passed as a final release gate. |
 
 ## Certification Audit
 
 | Area | Result |
 | --- | --- |
-| Branch baseline | `release/production-nammude` at `1735938074e71598befcff2578b5220df218ede2` before Phase 4C changes. |
-| Push | Public VAPID value is configured in commit-safe templates; lifecycle, service worker, retry, and owner test-center contracts pass. Hosted env and real-device delivery remain manual. |
-| Payments | Owner-scoped runtime, encrypted secrets, signatures, webhook controls, and ten-tenant mappings pass automated checks. Real Razorpay dashboard evidence remains manual. |
-| Firestore | No collection/schema/rule/index change and no new listener. |
-| Security | No service-account/provider secret committed; test responses are redacted and provider mutations are blocked in live mode. |
+| Branch baseline | `release/production-nammude` RC5 enterprise waiter workflow before this production-hardening pass. |
+| Workflow | Payment remains independent of Kitchen/service state; completion still requires Served + Paid. Split Bill and Smart Bill Merge now follow payment-state guards consistently. |
+| Billing merge | Partial-payment open tickets can merge billing-only; locked, authorized, paid, refunded, closed, or already merged bills remain blocked in UI and repository. |
+| Firestore | No collection/schema/rule/index change and no new realtime listener. |
+| Security | Tenant checks, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
 
 ## Production Readiness
 
 | Area | Status |
 | --- | --- |
-| Repository readiness | 99% |
-| Production readiness | 90% |
-| Recommendation | NO-GO until Phase 4C is deployed and provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, and hardware gates pass. |
+| Repository readiness | 100% |
+| Production readiness | 92% |
+| Recommendation | NO-GO until final RC5 is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Remaining Manual Gates
 
 | Gate | Status | Reason |
 | --- | --- | --- |
 | Production Chrome Performance | Manual | Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session. |
-| Hosted Lighthouse/Core Web Vitals | Manual | Run after the Phase 4C commit is deployed with the production VAPID value. |
+| Hosted Lighthouse/Core Web Vitals | Manual | Run after the final RC5 hardening commit is deployed with production env and provider values. |
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
 | Hosted VAPID | Manual | Set the documented public key in Hostinger, redeploy, and verify `vapidConfigured=true`. |
 | Push delivery | Manual | Register real devices and verify foreground/background/action/deep-link behavior in Chrome, Edge, Firefox, Android, and supported Safari/iPhone PWA. |
 | Razorpay | Manual | Complete owner sandbox checkout, failed/cancel/timeout, capture/refund, dashboard webhook, live key rotation, and settlement checks. |
-| Hostinger redeploy | Manual | Deploy Phase 4C, clear cache, and verify release info plus all health endpoints. |
+| Hostinger redeploy | Manual | Deploy the final RC5 hardening commit, clear cache, and verify release info plus all health endpoints. |
 
 ## Accepted Warning
 

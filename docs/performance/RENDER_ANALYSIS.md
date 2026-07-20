@@ -1,6 +1,6 @@
 # Render Analysis
 
-Date: 2026-07-20T10:41:18.170Z
+Date: 2026-07-20T11:22:07.694Z
 
 ## Source Hot Paths
 
@@ -11,7 +11,7 @@ Date: 2026-07-20T10:41:18.170Z
 | src/components/flows/owner-order-management-flow.tsx | 1767 | 11 | 5 | 1 | 0 | 4 | 27/38/2 |
 | src/components/flows/owner-settings-flow.tsx | 2142 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
 | src/components/flows/kitchen-display-flow.tsx | 2204 | 16 | 6 | 2 | 8 | 4 | 44/40/5 |
-| src/components/flows/pos-billing-flow.tsx | 5138 | 32 | 19 | 1 | 10 | 17 | 94/59/10 |
+| src/components/flows/pos-billing-flow.tsx | 5140 | 32 | 19 | 1 | 10 | 17 | 94/59/10 |
 | src/modules/owner/pos/components/product-grid.tsx | 48 | 0 | 0 | 1 | 0 | 0 | 1/0/0 |
 | src/modules/owner/pos/components/product-card.tsx | 79 | 0 | 0 | 1 | 0 | 0 | 0/0/0 |
 

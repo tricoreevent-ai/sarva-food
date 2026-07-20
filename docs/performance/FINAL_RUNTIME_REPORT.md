@@ -1,16 +1,16 @@
 # Final Runtime Report
 
-Date: 2026-07-20T10:41:18.170Z
+Date: 2026-07-20T11:22:07.694Z
 
 ## Runtime Measurements
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.36ms | 0.45ms | 1.60ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.29ms | <100ms update |
-| POS 1000-item category switch | 0.06ms | 0.11ms | 0.24ms | <50ms switch |
-| POS 1000-item search filter | 0.09ms | 0.16ms | 0.39ms | debounced |
-| Active Orders 100-order filter/group | 0.16ms | 0.22ms | 0.52ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.45ms | 0.56ms | 2.18ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.05ms | 0.35ms | <100ms update |
+| POS 1000-item category switch | 0.07ms | 0.14ms | 0.29ms | <50ms switch |
+| POS 1000-item search filter | 0.11ms | 0.20ms | 0.51ms | debounced |
+| Active Orders 100-order filter/group | 0.19ms | 0.28ms | 0.65ms | <50ms interaction |
 
 ## Continuous Operation Controls
 
@@ -29,7 +29,7 @@ Date: 2026-07-20T10:41:18.170Z
 | Gate | Status | Reason |
 | --- | --- | --- |
 | Production Chrome Performance | Manual | Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session. |
-| Hosted Lighthouse/Core Web Vitals | Manual | Run after the Phase 4C commit is deployed with the production VAPID value. |
+| Hosted Lighthouse/Core Web Vitals | Manual | Run after the final RC5 hardening commit is deployed with production env and provider values. |
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |

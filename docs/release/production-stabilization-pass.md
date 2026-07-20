@@ -6,6 +6,7 @@
 - Completed Ready Signal architecture: Kitchen Ready targets Owner/Manager/Kitchen; Waiter devices are not push-notified and Waiter view provides live card/counter/sound cues.
 - Completed service boundary: Kitchen owns Accepted -> Preparing -> Ready; POS/Waiter owns Ready -> Serving -> Completed.
 - Completed Smart Bill Merge: payment checks same-table unpaid tickets and merges billing only while preserving each kitchen ticket timeline/audit.
+- RC5 hardening: Smart Bill Merge now accepts open partial-payment tickets and still rejects locked, authorized, paid, refunded, closed, or already merged bills; Split Bill stays payment-state driven and is no longer gated by Served.
 - Completed auto history: Completed cards remain visible for 30 minutes with countdown and manual Move To History.
 - Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 24/24, runtime profile, and diff check.
 

@@ -1,15 +1,15 @@
 # Final Bug Report
 
-Date: 2026-07-20T10:41:18.170Z
+Date: 2026-07-20T11:22:07.694Z
 
 ## Final RC Bug-Hunt Result
 
 | Area | Result |
 | --- | --- |
-| Scope | Phase 4C adds production push diagnostics and backward-compatible owner payment verification without changing order, Kitchen, POS, auth, repository, or Firestore collection contracts. |
-| Push retry | A transport exception could leave a notification in `dispatching`; bounded recovery now returns it to `pending` and stops after three attempts. |
-| Payment configuration | Production validation accepts owner-scoped Razorpay as the primary path; global keys are optional legacy fallback. |
-| Security | Payment test actions reuse same-origin owner permissions, redact responses, and block provider mutations in live mode. |
+| Scope | RC5 production hardening only; no feature redesign, Firestore schema/rule/index change, auth flow change, or provider contract change. |
+| Smart Bill Merge | Partial-payment tickets were incorrectly blocked from billing-only merge; open partial-payment tickets now merge while locked, authorized, paid, refunded, closed, or already merged bills remain blocked. |
+| Split Bill | Split Bill was service-gated even though payment is independent of Kitchen/service state; split now follows payment-state guards only. |
+| Security | Tenant isolation, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
 | Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
@@ -17,11 +17,9 @@ Date: 2026-07-20T10:41:18.170Z
 
 | File | Fix |
 | --- | --- |
-| `src/lib/server/push-notifications.ts` | Added bounded queue retry and terminal failure state. |
-| `src/components/pwa/notification-test-center.tsx` | Added owner device, foreground/background, badge, sound, action, deep-link, and history diagnostics. |
-| `src/app/api/owner/payment-settings/route.ts` | Added redacted test-mode diagnostics for keys, orders, signatures, webhooks, capture, and refund. |
-| `src/components/owner/payment-verification-center.tsx` | Added owner-operated payment verification and redacted in-memory logs. |
-| `src/services/razorpay-checkout-client.ts` | Shared the unchanged checkout loader between customer and owner test checkout. |
+| `src/components/flows/pos-billing-flow.tsx` | Split Bill no longer requires Served; Smart Bill Merge uses a billing-specific guard that allows partial-payment open tickets and blocks locked/terminal/finalized bills. |
+| `src/repositories/order-repository.ts` | Merge transactions use a repository billing guard matching the UI guard, preserving tenant checks and kitchen-ticket separation. |
+| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke verifies payment-independent split flow and partial-payment bill-only merge guards. |
 
 ## Accepted Warning
 

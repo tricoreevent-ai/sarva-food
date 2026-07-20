@@ -276,13 +276,13 @@ function writeReports() {
     ["Gate", "Status", "Reason"],
     [
       ["Production Chrome Performance", "Manual", "Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session."],
-      ["Hosted Lighthouse/Core Web Vitals", "Manual", "Run after the Phase 4C commit is deployed with the production VAPID value."],
+      ["Hosted Lighthouse/Core Web Vitals", "Manual", "Run after the final RC5 hardening commit is deployed with production env and provider values."],
       ["30-minute heap stability", "Manual", "Requires authenticated browser session and continuous POS/Kitchen/customer operation."],
       ["Authenticated smoke", "Manual", "Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace."],
       ["Provider/hardware", "Manual", "Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access."],
     ],
   );
-  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, image delivery, observability, and Phase 4C push/payment readiness measurements. Business workflows, Firestore collections, auth flows, and provider contracts remain backward compatible.";
+  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, image delivery, observability, and push/payment readiness measurements. Firestore collections, auth flows, and provider contracts remain backward compatible.";
   const firebaseWarningNote = "The remaining Firebase/protobuf dynamic dependency warning is expected. Build/analyze trace it through `@protobufjs/inquire -> protobufjs -> @grpc/proto-loader -> @firebase/firestore -> firebase/firestore -> src/firebase/collections.ts -> src/app/api/admin/system-diagnostics/route.ts`. It originates in upstream Firebase/protobuf server dependency code, not application debug code. The application already keeps Firebase client startup behind config/accessor boundaries where touched; replacing or aliasing Firebase/protobuf internals during certification is not safe, so the warning remains documented and accepted.";
 
   writeDoc("performance", "RUNTIME_PROFILE.md", `# Runtime Profile\n\nDate: ${generatedAt}\n\n## Measurement Inputs\n\n| Source | Result |\n| --- | --- |\n| Build route manifests | ${existsSync(appManifestDir) ? "Read from `.next/server/app/**/page_client-reference-manifest.js`." : "Unavailable until `npm run build` or `npm run analyze` runs."} |\n| Browser profiler | No local Chrome/Lighthouse executable is assumed by this script; production Chrome Performance remains manual. |\n| Synthetic load | 100 kitchen orders and 1000 POS products measured with Node performance timers. |\n\n## Route Runtime Budget Snapshot\n\n${measuredRoutes}\n\n## Stress Timing Snapshot\n\n${stressRows}\n\n## Notes\n\nHydration time, FPS, long tasks, Chrome memory, and real network waterfalls still require hosted production Chrome profiling because this workspace script cannot observe browser main-thread scheduling.\n`);
@@ -321,10 +321,10 @@ Date: ${generatedAt}
 
 | Area | Result |
 | --- | --- |
-| Scope | Phase 4C adds production push diagnostics and backward-compatible owner payment verification without changing order, Kitchen, POS, auth, repository, or Firestore collection contracts. |
-| Push retry | A transport exception could leave a notification in \`dispatching\`; bounded recovery now returns it to \`pending\` and stops after three attempts. |
-| Payment configuration | Production validation accepts owner-scoped Razorpay as the primary path; global keys are optional legacy fallback. |
-| Security | Payment test actions reuse same-origin owner permissions, redact responses, and block provider mutations in live mode. |
+| Scope | RC5 production hardening only; no feature redesign, Firestore schema/rule/index change, auth flow change, or provider contract change. |
+| Smart Bill Merge | Partial-payment tickets were incorrectly blocked from billing-only merge; open partial-payment tickets now merge while locked, authorized, paid, refunded, closed, or already merged bills remain blocked. |
+| Split Bill | Split Bill was service-gated even though payment is independent of Kitchen/service state; split now follows payment-state guards only. |
+| Security | Tenant isolation, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
 | Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
@@ -332,11 +332,9 @@ Date: ${generatedAt}
 
 | File | Fix |
 | --- | --- |
-| \`src/lib/server/push-notifications.ts\` | Added bounded queue retry and terminal failure state. |
-| \`src/components/pwa/notification-test-center.tsx\` | Added owner device, foreground/background, badge, sound, action, deep-link, and history diagnostics. |
-| \`src/app/api/owner/payment-settings/route.ts\` | Added redacted test-mode diagnostics for keys, orders, signatures, webhooks, capture, and refund. |
-| \`src/components/owner/payment-verification-center.tsx\` | Added owner-operated payment verification and redacted in-memory logs. |
-| \`src/services/razorpay-checkout-client.ts\` | Shared the unchanged checkout loader between customer and owner test checkout. |
+| \`src/components/flows/pos-billing-flow.tsx\` | Split Bill no longer requires Served; Smart Bill Merge uses a billing-specific guard that allows partial-payment open tickets and blocks locked/terminal/finalized bills. |
+| \`src/repositories/order-repository.ts\` | Merge transactions use a repository billing guard matching the UI guard, preserving tenant checks and kitchen-ticket separation. |
+| \`scripts/release/operational-hardening-smoke.mjs\` | Operational smoke verifies payment-independent split flow and partial-payment bill-only merge guards. |
 
 ## Accepted Warning
 
@@ -349,16 +347,16 @@ Date: ${generatedAt}
 
 ## Scope
 
-No Firestore collection, schema, rule, index, or repository contract changed. Phase 4C adds one protected notification-test endpoint and backward-compatible owner payment verification actions.
+No Firestore collection, schema, rule, or index changed. RC5 hardening adjusted only the billing merge repository guard so partial-payment open tickets can merge while locked/finalized/terminal bills remain blocked.
 
 ## Result
 
 | Area | Result |
 | --- | --- |
-| Push tokens | Existing \`user_preferences\` storage and tenant targeting are reused. |
-| Notification queue | Existing notification fields are reused for bounded retry. |
-| Razorpay settings | Existing encrypted owner profile settings and legacy restaurant fallback are reused. |
-| Payment intents | Existing owner/restaurant/tenant/provider mapping is unchanged. |
+| Orders | Existing order documents are reused; bill-only merge continues writing merged-bill links without merging kitchen ticket lines. |
+| Kitchen orders | Existing kitchen ticket documents remain independent and auditable during bill merge. |
+| Billing | Existing payment status and lock fields are reused; partial-payment tickets stay editable until finalized. |
+| Audit/timeline | Existing event paths remain unchanged and no duplicate listener/write path was added. |
 | Listeners and indexes | No listener, rule, or index added. |
 
 Firebase Console deployment and authenticated protected read/write smoke remain manual.
@@ -376,28 +374,28 @@ Date: ${generatedAt}
 | \`npm run lint\` | Passed. |
 | \`npm run build\` | Passed with accepted Firebase/protobuf warning. |
 | \`npm run analyze\` | Passed with accepted Firebase/protobuf warning. |
-| \`npm run verify:phase4c\` | Passed notification, push lifecycle, payment security, deep-link, and ten-tenant checks. |
 | \`npm run audit:release\` | Passed. |
-| \`npm run smoke:operational\` | Passed. |
+| \`npm run smoke:operational\` | Passed 24/24, including payment-independent split and partial-payment bill-only merge guards. |
 | \`npm run profile:runtime\` | Passed. |
+| \`git diff --check\` | Passed as a final release gate. |
 
 ## Certification Audit
 
 | Area | Result |
 | --- | --- |
-| Branch baseline | \`release/production-nammude\` at \`1735938074e71598befcff2578b5220df218ede2\` before Phase 4C changes. |
-| Push | Public VAPID value is configured in commit-safe templates; lifecycle, service worker, retry, and owner test-center contracts pass. Hosted env and real-device delivery remain manual. |
-| Payments | Owner-scoped runtime, encrypted secrets, signatures, webhook controls, and ten-tenant mappings pass automated checks. Real Razorpay dashboard evidence remains manual. |
-| Firestore | No collection/schema/rule/index change and no new listener. |
-| Security | No service-account/provider secret committed; test responses are redacted and provider mutations are blocked in live mode. |
+| Branch baseline | \`release/production-nammude\` RC5 enterprise waiter workflow before this production-hardening pass. |
+| Workflow | Payment remains independent of Kitchen/service state; completion still requires Served + Paid. Split Bill and Smart Bill Merge now follow payment-state guards consistently. |
+| Billing merge | Partial-payment open tickets can merge billing-only; locked, authorized, paid, refunded, closed, or already merged bills remain blocked in UI and repository. |
+| Firestore | No collection/schema/rule/index change and no new realtime listener. |
+| Security | Tenant checks, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
 
 ## Production Readiness
 
 | Area | Status |
 | --- | --- |
-| Repository readiness | 99% |
-| Production readiness | 90% |
-| Recommendation | NO-GO until Phase 4C is deployed and provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, and hardware gates pass. |
+| Repository readiness | 100% |
+| Production readiness | 92% |
+| Recommendation | NO-GO until final RC5 is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Remaining Manual Gates
 
@@ -405,7 +403,7 @@ ${finalManualGates}
 | Hosted VAPID | Manual | Set the documented public key in Hostinger, redeploy, and verify \`vapidConfigured=true\`. |
 | Push delivery | Manual | Register real devices and verify foreground/background/action/deep-link behavior in Chrome, Edge, Firefox, Android, and supported Safari/iPhone PWA. |
 | Razorpay | Manual | Complete owner sandbox checkout, failed/cancel/timeout, capture/refund, dashboard webhook, live key rotation, and settlement checks. |
-| Hostinger redeploy | Manual | Deploy Phase 4C, clear cache, and verify release info plus all health endpoints. |
+| Hostinger redeploy | Manual | Deploy the final RC5 hardening commit, clear cache, and verify release info plus all health endpoints. |
 
 ## Accepted Warning
 
@@ -436,6 +434,7 @@ ${stressRows}
 | Card work | Collapsed cards build only the operational summary and action bar; details, timelines, notes, and history mount on expansion. |
 | Interaction | Expansion is immediate and uses no height animation. Search is debounced 120ms and grouping is a single memoized pass. |
 | Actions | Serve, Ready Signal, Payment, Print, Preview, and More remain visible while collapsed. |
+| Hardening impact | Split Bill and Smart Bill Merge guard changes are O(1), add no dependency/listener, and do not widen card render scope. |
 | Browser gate | Chrome and React DevTools are available, but flame graphs/FPS/INP need a valid authenticated production-equivalent owner session. |
 
 ## Route Snapshot

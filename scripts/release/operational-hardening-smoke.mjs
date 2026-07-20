@@ -200,6 +200,7 @@ await check("active-orders:payment-independent-from-kitchen", () => {
   assert.ok(activeOrders.includes('data-action="payment"'));
   assert.ok(activeOrders.includes('data-action="complete"'));
   assert.ok(activeOrders.includes("const canComplete = served && paid"));
+  assert.ok(!activeOrders.includes("Cannot split payment. Serve the order first."));
   assert.ok(ownerOrders.includes('state: workflowState(paid, !paid && !blocked, blocked)'));
   assert.ok(!ownerOrders.includes("served && !paid"));
 });
@@ -250,7 +251,12 @@ await check("kitchen:ready-signal-without-serving", () => {
 });
 
 await check("active-orders:multi-ticket-and-bill-only-merge", () => {
-  for (const token of ["Open Session", "addOnBillForOrder", "Smart Bill Merge", "Pay Separately", "Merge All", "billing-only", "Kitchen tickets remain separate"]) assert.ok(activeOrders.includes(token) || orderRepository.includes(token), token);
+  for (const token of ["Open Session", "addOnBillForOrder", "Smart Bill Merge", "Pay Separately", "Merge All", "billing-only", "Kitchen tickets remain separate", "canMergeOrderBill", "assertCanMergeBillingOrder"]) assert.ok(activeOrders.includes(token) || orderRepository.includes(token), token);
+  const uiMergeGuard = activeOrders.slice(activeOrders.indexOf("function canMergeOrderBill"), activeOrders.indexOf("function paymentUnavailableReason"));
+  const repoMergeGuard = orderRepository.slice(orderRepository.indexOf("function assertCanMergeBillingOrder"), orderRepository.indexOf("function assertPaymentLockOwner"));
+  assert.ok(uiMergeGuard.includes('!["authorized", "paid", "refunded"].includes(paymentStatus)'));
+  assert.ok(!uiMergeGuard.includes('"partial"'));
+  assert.ok(!repoMergeGuard.includes('"partial"'));
   assert.ok(!kitchenRepository.includes("incremental_kot_merged"));
   assert.ok(!orderRepository.includes("mergeKitchenLines"));
 });
@@ -282,6 +288,6 @@ await check("notifications:configurable-operational-sounds", () => {
 
 const failed = results.filter(({ status }) => status === "FAIL");
 const rows = results.map(({ name, status, detail = "" }) => `| ${name} | ${status} | ${detail.replaceAll("|", "\\|")} |`).join("\n");
-fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
+fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
 for (const result of results) console.log(`${result.status} ${result.name}${result.detail ? `: ${result.detail}` : ""}`);
 if (failed.length) process.exitCode = 1;

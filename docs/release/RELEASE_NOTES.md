@@ -7,6 +7,7 @@
 - Waiter service now owns Ready → Serving → Completed; POS updates service/order state without asking Kitchen to mark Served, so Kitchen responsibility ends at Ready.
 - Completed orders stay in the Active Orders Completed lane for 30 minutes with a countdown and can be manually moved to History sooner.
 - Smart Bill Merge appears when payment starts on a table/session with other open unpaid tickets and offers Merge All, Merge Selected, Pay Separately, Move to another bill label, and Split Bill remains separate.
+- RC5 hardening fixed Smart Bill Merge for open partial-payment tickets while continuing to block locked, authorized, paid, refunded, closed, or already merged bills; Split Bill no longer incorrectly requires the order to be Served.
 - Active Orders Waiter view is now a live stage board for New, Accepted, Preparing, Ready, Serving, and Completed, so cards move by Kitchen/service status instead of being masked by Paid state.
 - Active order cards now keep Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Serving, and Completed indicators visible together.
 - Kitchen Operations Center cards now adapt to item count, remove fixed blank item areas, keep touch-friendly actions, and preserve memoization/windowing with the updated virtual row estimate.

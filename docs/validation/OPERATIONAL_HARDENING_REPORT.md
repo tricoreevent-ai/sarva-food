@@ -1,6 +1,6 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-20T10:41:08.546Z
+Generated: 2026-07-20T11:22:02.930Z
 
 Result: PASS — 24/24 checks passed.
 
@@ -31,4 +31,4 @@ Result: PASS — 24/24 checks passed.
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
