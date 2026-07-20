@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-20T14:03:48.250Z
+Generated: 2026-07-20T15:28:36.813Z
 
-Result: PASS — 26/26 checks passed.
+Result: PASS — 31/31 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -27,10 +27,15 @@ Result: PASS — 26/26 checks passed.
 | active-orders:status-duration-and-timeline-consistency | PASS |  |
 | active-orders:search-loading-keyboard-and-touch | PASS |  |
 | kitchen:ready-signal-without-serving | PASS |  |
+| rbac:waiter-serve-complete-without-bill-edit | PASS |  |
+| rbac:kitchen-cannot-serve | PASS |  |
+| rbac:owner-override-and-permission-denial | PASS |  |
+| rbac:firestore-role-parity | PASS |  |
+| kitchen:waiter-pos-kot-access-without-kitchen-update | PASS |  |
 | active-orders:multi-ticket-and-bill-only-merge | PASS |  |
 | active-orders:auto-history-holding | PASS |  |
 | kitchen:item-first-card-actions | PASS |  |
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise table contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

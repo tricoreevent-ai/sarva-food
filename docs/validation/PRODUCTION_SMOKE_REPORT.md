@@ -2,6 +2,8 @@
 
 ## RC5 Enterprise Waiter Workflow Addendum
 
+`npm.cmd run smoke:operational` now passes 31/31 deterministic checks after the waiter-serving RBAC and Kitchen History density pass. Added checks cover Waiter Serve, Waiter Complete, Kitchen cannot Serve, Owner override, permission-denial messaging, Firestore authorization parity, waiter KOT read/create fallback, waiter notification acknowledgement, and high-density Kitchen History grid contracts.
+
 `npm.cmd run smoke:operational` passes 24/24 deterministic checks. Added checks cover payment independence from Kitchen/service state, POS New Order cancel draft resume, Owner Orders payment state, item-first Kitchen card actions, Ready Signal without Waiter push, all Active Orders action wiring, Waiter live Kitchen/payment dashboard visibility, timeline event categories, multiple active tickets per table, bill-only merge, completed holding/history, and configurable operational sounds. Hosted authenticated/provider/device/hardware observations remain manual.
 
 ## Phase 4D Automation Addendum

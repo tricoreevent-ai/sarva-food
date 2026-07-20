@@ -1,5 +1,15 @@
 # Project Tracker
 
+## RC5 Waiter Serving RBAC and Kitchen History Density - 2026-07-20
+
+- Fixed Waiter Ready → Served and Served → Completed server authorization without granting bill-edit/payment privileges.
+- `/api/owner/orders`, `/api/owner/kitchen`, ready-signal notifications, and Firestore rules now describe the same role boundary: Kitchen stops at Ready, Waiter owns service completion, Cashier owns payment/refund, Owner/Admin override.
+- Waiter POS can read/create KOT tickets for add-on items without Kitchen update permission or Kitchen Operations navigation exposure.
+- Kitchen History is now a high-density enterprise grid with density modes, resizable persisted columns, compact filters, column chooser, icon-only actions, More menu, keyboard rows, compact chips/items, lazy details, and floating bulk toolbar.
+- `smoke:operational` now passes 31/31 and includes waiter Serve/Complete, Kitchen cannot Serve, owner override, permission denial, Firestore role parity, waiter KOT fallback, and dense grid contracts.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, operational smoke, runtime profile, and diff check.
+- Remaining QA: hosted authenticated multi-role workflow, Firebase rules deploy/smoke, provider dashboards, browser/device matrix, printer hardware, Lighthouse/Core Web Vitals, Chrome/React profiling, and long-run heap.
+
 ## RC5 Login and Kitchen History Enterprise UI - 2026-07-20
 
 - Owner Login now uses a premium responsive SaaS layout while preserving existing owner login and password OTP APIs.

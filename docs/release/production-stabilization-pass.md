@@ -3,7 +3,7 @@
 ## RC5 Enterprise Waiter Workflow
 
 - Completed multi-ticket dining: one table/session can hold multiple independent active kitchen tickets without mutating prior KOTs.
-- Completed Ready Signal architecture: Kitchen Ready targets Owner/Manager/Kitchen; Waiter devices are not push-notified and Waiter view provides live card/counter/sound cues.
+- Completed Ready Signal architecture: Kitchen Ready targets Waiters for acknowledgement/recovery, Owner/Manager escalation remains deduped, and Waiter view provides live card/counter/sound cues.
 - Completed service boundary: Kitchen owns Accepted -> Preparing -> Ready; POS/Waiter owns Ready -> Serving -> Completed.
 - Completed Smart Bill Merge: payment checks same-table unpaid tickets and merges billing only while preserving each kitchen ticket timeline/audit.
 - RC5 hardening: Smart Bill Merge now accepts open partial-payment tickets and still rejects locked, authorized, paid, refunded, closed, or already merged bills; Split Bill stays payment-state driven and is no longer gated by Served.

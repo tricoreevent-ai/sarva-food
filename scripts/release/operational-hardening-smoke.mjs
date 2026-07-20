@@ -32,10 +32,12 @@ const compactActions = read("src/components/orders/CompactOrderAccordionActions.
 const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
 const ownerLogin = read("src/components/flows/owner-portal-login-flow.tsx");
 const kitchenApi = read("src/app/api/owner/kitchen/route.ts");
+const orderApi = read("src/app/api/owner/orders/route.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 const ownerAccess = read("src/lib/server/owner-api-access.ts");
 const mutationOrigin = read("src/lib/server/mutation-origin.ts");
+const firestoreRules = read("firestore.rules");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -106,7 +108,7 @@ await check("owner-login:enterprise-auth-experience", () => {
 });
 
 await check("kitchen-history:enterprise-management-table", () => {
-  for (const token of ["kitchenHistoryColumns", "sticky right-0", "Select visible", "Save filter", "CSV", "Excel", "Print status", "Column", "KitchenHistoryDetails", "recordsToCsv", "xlsx"]) assert.ok(kitchen.includes(token), token);
+  for (const token of ["kitchenHistoryColumns", "sticky right-0", "saveFilter", "CSV", "Excel", "Print status", "KitchenHistoryDetails", "recordsToCsv", "xlsx", "kitchenHistoryDensityRowClass", "readKitchenHistoryColumnWidths", "resizeColumn", "MemoKitchenHistoryTableRow", "role=\"toolbar\"", "Advanced", "Columns", "Reset widths", "accessKey=\"v\"", "onKeyDown={handleKeyDown}"]) assert.ok(kitchen.includes(token), token);
   for (const token of ["pageSize", "page", "query", "printStatus", "customer", "count", "filtered.slice"]) assert.ok(kitchenApi.includes(token), token);
   assert.ok(!kitchen.includes("KitchenHistoryOrderAccordion"));
 });
@@ -260,8 +262,37 @@ await check("kitchen:ready-signal-without-serving", () => {
   assert.ok(kitchen.includes('label: "Signal Ready"'));
   assert.ok(!kitchen.includes('ready: "served"'));
   assert.ok(kitchen.includes('/api/owner/kitchen/notify-waiter'));
-  for (const token of ["kitchen_ready_ops", 'audience: ["owner", "manager", "kitchen"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
-  assert.ok(!kitchenNotify.includes('audience: ["waiter"]'));
+  for (const token of ["kitchen_ready_ops", 'audience: ["owner", "manager", "waiter"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
+});
+
+await check("rbac:waiter-serve-complete-without-bill-edit", () => {
+  for (const token of ['requireOwnerFeature(request, "orders", "read")', "orderMutationPermissionError", "waiterOrderActionAllowed", 'body.status === "served" || body.status === "completed"', "Waiter can serve, complete"]) assert.ok(orderApi.includes(token), token);
+  for (const token of ['view === "waiter" ? "Cashier handles payment collection."', 'view === "waiter" ? "Kitchen sends ready signals; serve the ticket after pickup."']) assert.ok(activeOrders.includes(token), token);
+});
+
+await check("rbac:kitchen-cannot-serve", () => {
+  assert.ok(kitchenApi.includes('const statuses = new Set<KitchenOrderStatus>(["new", "accepted", "preparing", "ready", "cancelled"])'));
+  assert.ok(kitchenApi.includes('requireOwnerFeature(request, "kitchen", "update")'));
+  assert.ok(firestoreRules.includes('request.resource.data.status in ["new", "accepted", "preparing", "ready", "cancelled"]'));
+  assert.ok(firestoreRules.includes('canUpdateKitchenStatusForRole(request.resource.data.status)'));
+});
+
+await check("rbac:owner-override-and-permission-denial", () => {
+  assert.ok(orderApi.includes('["owner", "admin", "super_admin"].includes(role)'));
+  assert.ok(orderApi.includes("Permission denied for orders:update."));
+  assert.ok(ownerAccess.includes("Permission denied for ${feature}:${operation}."));
+});
+
+await check("rbac:firestore-role-parity", () => {
+  const orderStatusOnly = firestoreRules.slice(firestoreRules.indexOf("function orderStatusOnlyUpdate"), firestoreRules.indexOf("match /users"));
+  assert.ok(firestoreRules.includes('currentUser().role == "waiter" && status in ["served", "completed"]'));
+  assert.ok(firestoreRules.includes('currentUser().role in ["chef", "kitchen-manager"] && status in ["accepted", "preparing", "ready", "cancelled"]'));
+  assert.ok(!orderStatusOnly.includes('"paymentStatus"'));
+});
+
+await check("kitchen:waiter-pos-kot-access-without-kitchen-update", () => {
+  for (const token of ["requireKitchenAccess", "isWaiterWorkflowSession", 'requireOwnerFeature(request, "pos", operation)']) assert.ok(kitchenApi.includes(token), token);
+  assert.ok(kitchenNotify.includes('action === "acknowledge" ? "read" : "update"'));
 });
 
 await check("active-orders:multi-ticket-and-bill-only-merge", () => {
@@ -302,6 +333,6 @@ await check("notifications:configurable-operational-sounds", () => {
 
 const failed = results.filter(({ status }) => status === "FAIL");
 const rows = results.map(({ name, status, detail = "" }) => `| ${name} | ${status} | ${detail.replaceAll("|", "\\|")} |`).join("\n");
-fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise table contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
+fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
 for (const result of results) console.log(`${result.status} ${result.name}${result.detail ? `: ${result.detail}` : ""}`);
 if (failed.length) process.exitCode = 1;

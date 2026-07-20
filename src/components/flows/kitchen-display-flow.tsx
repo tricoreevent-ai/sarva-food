@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Archive,
@@ -54,6 +54,7 @@ type KitchenReadySignal = { kitchenOrderId?: string; notifiedAt?: unknown; ackno
 type KitchenHistoryRange = "today" | "yesterday" | "7d" | "month" | "all";
 type KitchenHistorySortKey = "order" | "table" | "customer" | "status" | "payment" | "priority" | "eta" | "waiter" | "items" | "created" | "delay" | "amount" | "prints";
 type KitchenHistoryColumnKey = KitchenHistorySortKey | "session" | "ready" | "completed" | "actions";
+type KitchenHistoryDensity = "compact" | "comfortable" | "touch";
 type KitchenHistoryFilter = {
   query: string;
   range: KitchenHistoryRange;
@@ -68,6 +69,7 @@ type KitchenHistoryFilter = {
 };
 type SavedKitchenHistoryFilter = KitchenHistoryFilter & { id: string; name: string };
 type KitchenHistoryPayload = { data?: TableOrder[]; count?: number; page?: number; pageSize?: number };
+type KitchenHistoryColumnWidths = Record<KitchenHistoryColumnKey, number>;
 const desktopColumns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
   { id: "new", title: "New", tone: "red", statuses: ["new", "occupied"] },
   { id: "accepted", title: "Accepted", tone: "orange", statuses: ["accepted"] },
@@ -117,6 +119,26 @@ const kitchenHistoryColumns: Array<{ key: KitchenHistoryColumnKey; label: string
   { key: "prints", label: "Print", width: "min-w-[96px]" },
   { key: "actions", label: "Actions", width: "min-w-[220px]", sortable: false },
 ];
+
+const defaultKitchenHistoryColumnWidths: KitchenHistoryColumnWidths = {
+  order: 148,
+  table: 94,
+  session: 116,
+  customer: 142,
+  status: 118,
+  payment: 92,
+  priority: 92,
+  eta: 72,
+  waiter: 128,
+  items: 190,
+  created: 96,
+  ready: 92,
+  completed: 104,
+  delay: 92,
+  amount: 92,
+  prints: 76,
+  actions: 112,
+};
 
 export function KitchenDisplayFlow() {
   const [fullscreen, setFullscreen] = useState(false);
@@ -828,7 +850,13 @@ export function KitchenOrderHistoryFlow() {
   }));
   const deferredQuery = useDeferredValue(filters.query);
   const [savedFilters, setSavedFilters] = useState<SavedKitchenHistoryFilter[]>(() => readSavedKitchenHistoryFilters());
-  const [hiddenColumns, setHiddenColumns] = useState<KitchenHistoryColumnKey[]>([]);
+  const [hiddenColumns, setHiddenColumns] = useState<KitchenHistoryColumnKey[]>(() => readKitchenHistoryHiddenColumns());
+  const [columnWidths, setColumnWidths] = useState<KitchenHistoryColumnWidths>(() => readKitchenHistoryColumnWidths());
+  const [density, setDensity] = useState<KitchenHistoryDensity>(() => readKitchenHistoryDensity());
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -878,12 +906,16 @@ export function KitchenOrderHistoryFlow() {
   }, [deferredQuery, filters.customer, filters.item, filters.payment, filters.printStatus, filters.priority, filters.range, filters.status, filters.table, filters.waiter, page, pageSize]);
 
   const visibleColumns = useMemo(() => kitchenHistoryColumns.filter((column) => !hiddenColumns.includes(column.key)), [hiddenColumns]);
+  const visibleTableWidth = useMemo(() => visibleColumns.reduce((sum, column) => sum + (columnWidths[column.key] ?? defaultKitchenHistoryColumnWidths[column.key]), 36), [columnWidths, visibleColumns]);
   const sortedOrders = useMemo(() => [...orders].sort((first, second) => compareKitchenHistoryRows(first, second, sortKey, now) * (sortDirection === "asc" ? 1 : -1)), [now, orders, sortDirection, sortKey]);
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
   const expandedOrder = orders.find((order) => order.id === expandedOrderId) ?? null;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-  const allVisibleSelected = sortedOrders.length > 0 && sortedOrders.every((order) => selectedIds.includes(order.id));
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allVisibleSelected = sortedOrders.length > 0 && sortedOrders.every((order) => selectedIdSet.has(order.id));
+  const selectedOrders = useMemo(() => sortedOrders.filter((order) => selectedIdSet.has(order.id)), [selectedIdSet, sortedOrders]);
   const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== "range" && value && value !== "all").length + (filters.range !== "today" ? 1 : 0);
+  const rowClass = kitchenHistoryDensityRowClass(density);
 
   function updateFilter<K extends keyof KitchenHistoryFilter>(key: K, value: KitchenHistoryFilter[K]) {
     setLoading(true);
@@ -903,9 +935,9 @@ export function KitchenOrderHistoryFlow() {
     });
   }
 
-  function toggleRow(orderId: string) {
+  const toggleRow = useCallback((orderId: string) => {
     setSelectedIds((current) => current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId]);
-  }
+  }, []);
 
   function toggleAllVisible() {
     setSelectedIds(allVisibleSelected ? [] : sortedOrders.map((order) => order.id));
@@ -913,7 +945,36 @@ export function KitchenOrderHistoryFlow() {
 
   function toggleColumn(key: KitchenHistoryColumnKey) {
     if (key === "actions") return;
-    setHiddenColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
+    setHiddenColumns((current) => {
+      const next = current.includes(key) ? current.filter((item) => item !== key) : [...current, key];
+      writeKitchenHistoryPreference("sarva.kitchen.history.hiddenColumns", next);
+      return next;
+    });
+  }
+
+  function updateDensity(next: KitchenHistoryDensity) {
+    setDensity(next);
+    writeKitchenHistoryPreference("sarva.kitchen.history.density", next);
+  }
+
+  function resizeColumn(key: KitchenHistoryColumnKey, event: ReactPointerEvent<HTMLSpanElement>) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = columnWidths[key] ?? defaultKitchenHistoryColumnWidths[key];
+    const onMove = (moveEvent: PointerEvent) => {
+      const nextWidth = Math.min(360, Math.max(64, startWidth + moveEvent.clientX - startX));
+      setColumnWidths((current) => {
+        const next = { ...current, [key]: nextWidth };
+        writeKitchenHistoryPreference("sarva.kitchen.history.columnWidths", next);
+        return next;
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
   }
 
   function saveFilter() {
@@ -964,77 +1025,66 @@ export function KitchenOrderHistoryFlow() {
   }
 
   return (
-    <main className="space-y-4 pb-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <main className="space-y-3 pb-6">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-black text-slate-950">Kitchen Order History</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Enterprise table for kitchen tickets, payment state, audit timeline, print history, and billing traceability.</p>
+          <h1 className="text-xl font-black text-slate-950">Kitchen Order History</h1>
+          <p className="mt-0.5 text-xs font-semibold text-slate-500">High-density operational grid for tickets, payment state, audit timeline, print history, and billing traceability.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => exportRows("csv")}><Download className="size-4" />CSV</Button>
-          <Button variant="outline" onClick={() => exportRows("excel")}><FileSpreadsheet className="size-4" />Excel</Button>
-          <Button variant="outline" onClick={() => window.print()}><Printer className="size-4" />Print</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Button variant="outline" size="sm" onClick={() => setExportOpen((value) => !value)} aria-expanded={exportOpen} aria-haspopup="menu">
+              <Download className="size-4" />Export<ChevronDown className="size-3.5" />
+            </Button>
+            {exportOpen ? (
+              <div className="absolute right-0 z-40 mt-2 w-44 rounded-xl border bg-white p-1.5 text-sm font-bold shadow-xl" role="menu">
+                <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-orange-50" onClick={() => { setExportOpen(false); exportRows("csv"); }} role="menuitem"><Download className="size-4" />CSV</button>
+                <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-orange-50" onClick={() => { setExportOpen(false); exportRows("excel"); }} role="menuitem"><FileSpreadsheet className="size-4" />Excel</button>
+                <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-orange-50" onClick={() => { setExportOpen(false); window.print(); }} role="menuitem"><Printer className="size-4" />Print</button>
+              </div>
+            ) : null}
+          </div>
           <Button variant="outline" asChild><Link href="/owner/kitchen"><UtensilsCrossed className="size-4" />Kitchen Operations</Link></Button>
         </div>
       </header>
 
-      <section className="grid gap-3 rounded-xl border bg-white p-3 shadow-sm">
-        <div className="grid gap-2 xl:grid-cols-[minmax(240px,1.2fr)_150px_150px_150px_140px]">
+      <section className="rounded-xl border bg-white p-2 shadow-sm">
+        <div className="grid gap-2 2xl:grid-cols-[minmax(260px,1fr)_138px_132px_132px_auto]">
           <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input value={filters.query} onChange={(event) => updateFilter("query", event.target.value)} className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Search order, table, customer, item, waiter" aria-label="Search kitchen history" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+            <input value={filters.query} onChange={(event) => updateFilter("query", event.target.value)} className="h-9 w-full rounded-lg border bg-white pl-8 pr-3 text-xs font-bold outline-none focus:border-orange-500" placeholder="Search order, table, customer, item, waiter" aria-label="Search kitchen history" />
           </label>
           <HistorySelect label="Date range" value={filters.range} onChange={(value) => updateFilter("range", value as KitchenHistoryRange)} options={[["today", "Today"], ["yesterday", "Yesterday"], ["7d", "Last 7 Days"], ["month", "This Month"], ["all", "Past / Future"]]} />
           <HistorySelect label="Status" value={filters.status} onChange={(value) => updateFilter("status", value as TableOrderStatus | "all")} options={[["all", "All status"], ...(["new", "accepted", "preparing", "ready", "served", "completed", "billed", "cancelled"] as TableOrderStatus[]).map((item) => [item, statusLabel(item)] as [string, string])]} />
           <HistorySelect label="Payment" value={filters.payment} onChange={(value) => updateFilter("payment", value as PaymentState | "all")} options={[["all", "All payments"], ["unpaid", "Unpaid"], ["pending", "Pending"], ["partial", "Partial"], ["authorized", "Authorized"], ["paid", "Paid"], ["refunded", "Refunded"]]} />
-          <HistorySelect label="Priority" value={filters.priority} onChange={(value) => updateFilter("priority", value as TableOrder["priority"] | "all")} options={[["all", "All priority"], ["normal", "Normal"], ["rush", "Rush"]]} />
+          <div className="flex items-center gap-1 rounded-lg border bg-slate-50 p-1" aria-label="Kitchen history density">
+            {(["compact", "comfortable", "touch"] as KitchenHistoryDensity[]).map((item) => (
+              <button key={item} type="button" className={cn("h-7 rounded-md px-2 text-[11px] font-black uppercase text-slate-600", density === item && "bg-white text-orange-600 shadow-sm")} onClick={() => updateDensity(item)} aria-pressed={density === item}>
+                {item === "comfortable" ? "Comfy" : item}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[120px_150px_160px_160px_150px_160px]">
-          <input value={filters.table} onChange={(event) => updateFilter("table", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Table" aria-label="Table filter" />
-          <input value={filters.waiter} onChange={(event) => updateFilter("waiter", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Waiter" aria-label="Waiter filter" />
-          <input value={filters.customer} onChange={(event) => updateFilter("customer", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Customer" aria-label="Customer filter" />
-          <input value={filters.item} onChange={(event) => updateFilter("item", event.target.value)} className="h-10 rounded-lg border px-3 text-sm font-semibold outline-none focus:border-orange-500" placeholder="Item" aria-label="Item filter" />
-          <HistorySelect label="Print status" value={filters.printStatus} onChange={(value) => updateFilter("printStatus", value as KitchenHistoryFilter["printStatus"])} options={[["all", "All prints"], ["printed", "Printed"], ["unprinted", "Unprinted"]]} />
-          <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value="" onChange={(event) => applySavedFilter(event.target.value)} aria-label="Saved filters">
-            <option value="">Saved filters</option>
-            {savedFilters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={saveFilter}><Filter className="size-4" />Save filter</Button>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+          <div className="flex flex-wrap items-center gap-2">
+            <select className="h-8 rounded-lg border bg-white px-2 text-xs font-bold" value="" onChange={(event) => applySavedFilter(event.target.value)} aria-label="Saved filters">
+              <option value="">Saved filters</option>
+              {savedFilters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setAdvancedOpen((value) => !value)} aria-expanded={advancedOpen}><Filter className="size-3.5" />Advanced</Button>
+            <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setColumnsOpen((value) => !value)} aria-expanded={columnsOpen}><Settings2 className="size-3.5" />Columns</Button>
+            <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={saveFilter}>Save</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => {
               setLoading(true);
               setPage(1);
               setFilters({ query: "", range: "today", status: "all", payment: "all", priority: "all", table: "", waiter: "", customer: "", item: "", printStatus: "all" });
-            }}>Reset</Button>
+            }} className="h-8 px-2 text-xs">Reset</Button>
             <Badge variant="secondary">{activeFilterCount} active filters</Badge>
             <Badge variant="outline">{totalCount} matching tickets</Badge>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {kitchenHistoryColumns.filter((column) => column.key !== "actions").map((column) => (
-              <label key={column.key} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-bold text-slate-600">
-                <input type="checkbox" checked={!hiddenColumns.includes(column.key)} onChange={() => toggleColumn(column.key)} className="size-3 accent-orange-500" />
-                {column.label}
-              </label>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
-          <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600">
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="size-4 accent-orange-500" />
-              Select visible
-            </label>
+          <div className="flex items-center gap-2">
             <span>{selectedIds.length} selected</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length} onClick={() => exportRows("csv", sortedOrders.filter((order) => selectedIds.includes(order.id)))}><Download className="size-4" />Export selected</Button>
-            <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length} onClick={() => toast.success(`${selectedIds.length} ticket${selectedIds.length === 1 ? "" : "s"} queued for archive review.`)}><Archive className="size-4" />Archive review</Button>
-            <select className="h-9 rounded-lg border bg-white px-2 text-sm font-semibold" value={pageSize} onChange={(event) => {
+            <select className="h-8 rounded-lg border bg-white px-2 text-xs font-bold" value={pageSize} onChange={(event) => {
               setLoading(true);
               setPage(1);
               setPageSize(Number(event.target.value));
@@ -1043,37 +1093,74 @@ export function KitchenOrderHistoryFlow() {
             </select>
           </div>
         </div>
+        {advancedOpen ? (
+          <div className="mt-2 grid gap-2 rounded-lg border bg-slate-50 p-2 md:grid-cols-2 xl:grid-cols-[110px_140px_150px_150px_140px_140px]">
+            <input value={filters.table} onChange={(event) => updateFilter("table", event.target.value)} className="h-8 rounded-lg border px-2 text-xs font-bold outline-none focus:border-orange-500" placeholder="Table" aria-label="Table filter" />
+            <input value={filters.waiter} onChange={(event) => updateFilter("waiter", event.target.value)} className="h-8 rounded-lg border px-2 text-xs font-bold outline-none focus:border-orange-500" placeholder="Waiter" aria-label="Waiter filter" />
+            <input value={filters.customer} onChange={(event) => updateFilter("customer", event.target.value)} className="h-8 rounded-lg border px-2 text-xs font-bold outline-none focus:border-orange-500" placeholder="Customer" aria-label="Customer filter" />
+            <input value={filters.item} onChange={(event) => updateFilter("item", event.target.value)} className="h-8 rounded-lg border px-2 text-xs font-bold outline-none focus:border-orange-500" placeholder="Item" aria-label="Item filter" />
+            <HistorySelect label="Priority" value={filters.priority} onChange={(value) => updateFilter("priority", value as TableOrder["priority"] | "all")} options={[["all", "All priority"], ["normal", "Normal"], ["rush", "Rush"]]} />
+            <HistorySelect label="Print status" value={filters.printStatus} onChange={(value) => updateFilter("printStatus", value as KitchenHistoryFilter["printStatus"])} options={[["all", "All prints"], ["printed", "Printed"], ["unprinted", "Unprinted"]]} />
+          </div>
+        ) : null}
+        {columnsOpen ? (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border bg-slate-50 p-2">
+            {kitchenHistoryColumns.filter((column) => column.key !== "actions").map((column) => (
+              <label key={column.key} className="inline-flex h-7 items-center gap-1 rounded-full border bg-white px-2 text-[11px] font-black text-slate-600">
+                <input type="checkbox" checked={!hiddenColumns.includes(column.key)} onChange={() => toggleColumn(column.key)} className="size-3 accent-orange-500" />
+                {column.label}
+              </label>
+            ))}
+            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => {
+              setColumnWidths(defaultKitchenHistoryColumnWidths);
+              writeKitchenHistoryPreference("sarva.kitchen.history.columnWidths", defaultKitchenHistoryColumnWidths);
+            }}>Reset widths</Button>
+          </div>
+        ) : null}
+      </section>
 
-        <div className="max-h-[calc(100vh-330px)] overflow-auto">
-          <table className="w-full min-w-[1500px] border-separate border-spacing-0 text-sm">
+      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        <div className="max-h-[calc(100vh-245px)] overflow-auto">
+          <table className="w-full border-separate border-spacing-0 text-xs" style={{ minWidth: Math.max(980, visibleTableWidth) }}>
+            <colgroup>
+              <col style={{ width: 36 }} />
+              {visibleColumns.map((column) => <col key={column.key} style={{ width: columnWidths[column.key] ?? defaultKitchenHistoryColumnWidths[column.key] }} />)}
+            </colgroup>
             <thead className="sticky top-0 z-20 bg-slate-50 shadow-sm">
               <tr>
-                <th className="sticky left-0 z-30 w-11 border-b bg-slate-50 px-3 py-3 text-left">
-                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="size-4 accent-orange-500" aria-label="Select all visible kitchen history rows" />
+                <th className="sticky left-0 z-30 border-b bg-slate-50 px-2 py-1.5 text-left">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="size-3.5 accent-orange-500" aria-label="Select all visible kitchen history rows" />
                 </th>
                 {visibleColumns.map((column) => (
-                  <th key={column.key} className={cn("border-b px-3 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500", column.width, column.key === "actions" && "sticky right-0 z-30 bg-slate-50 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.8)]")}>
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => updateSort(column.key)} disabled={column.sortable === false}>
-                      {column.label}
-                      {column.sortable === false ? null : <ArrowDownUp className="size-3" />}
-                    </button>
+                  <th key={column.key} className={cn("group relative border-b px-2 py-1.5 text-left text-[10px] font-black uppercase tracking-wide text-slate-500", column.key === "actions" && "sticky right-0 z-30 bg-slate-50 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.8)]")}>
+                    <div className="flex h-6 items-center justify-between gap-1">
+                      <button type="button" className="inline-flex items-center gap-1 truncate" onClick={() => updateSort(column.key)} disabled={column.sortable === false} title={`Sort by ${column.label}`}>
+                        <span className="truncate">{column.label}</span>
+                        {column.sortable === false ? null : <ArrowDownUp className="size-3 shrink-0" />}
+                      </button>
+                    </div>
+                    <span className="absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none bg-transparent group-hover:bg-orange-200" onPointerDown={(event) => resizeColumn(column.key, event)} aria-label={`Resize ${column.label} column`} role="separator" />
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {sortedOrders.map((order) => (
-                <KitchenHistoryTableRow
+                <MemoKitchenHistoryTableRow
                   key={order.id}
                   order={order}
                   now={now}
-                  selected={selectedIds.includes(order.id)}
+                  selected={selectedIdSet.has(order.id)}
                   expanded={expandedOrderId === order.id}
                   visibleColumns={visibleColumns}
-                  onSelect={() => toggleRow(order.id)}
-                  onExpand={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}
-                  onPreview={() => setSelectedOrderId(order.id)}
-                  onExport={() => exportRows("csv", [order])}
+                  rowClass={rowClass}
+                  actionMenuOpen={actionMenuId === order.id}
+                  onSelect={toggleRow}
+                  onExpand={(orderId) => setExpandedOrderId((current) => current === orderId ? null : orderId)}
+                  onPreview={setSelectedOrderId}
+                  onExport={(row) => exportRows("csv", [row])}
+                  onActionMenuToggle={(orderId) => setActionMenuId((current) => current === orderId ? null : orderId)}
+                  onActionMenuClose={() => setActionMenuId(null)}
                 />
               ))}
               {!sortedOrders.length ? (
@@ -1103,6 +1190,14 @@ export function KitchenOrderHistoryFlow() {
           </div>
         </div>
       </section>
+      {selectedIds.length ? (
+        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-2xl" role="toolbar" aria-label="Kitchen history bulk actions">
+          <span>{selectedIds.length} selected</span>
+          <button type="button" className="rounded-full bg-white/10 px-3 py-1 hover:bg-white/20" onClick={() => exportRows("csv", selectedOrders)}>Export</button>
+          <button type="button" className="rounded-full bg-white/10 px-3 py-1 hover:bg-white/20" onClick={() => toast.success(`${selectedIds.length} ticket${selectedIds.length === 1 ? "" : "s"} queued for archive review.`)}>Archive review</button>
+          <button type="button" className="rounded-full bg-white px-3 py-1 text-slate-950 hover:bg-orange-100" onClick={() => setSelectedIds([])}>Clear</button>
+        </div>
+      ) : null}
       {selectedOrder ? (
         <KitchenOrderDrawer
           order={selectedOrder}
@@ -1123,83 +1218,182 @@ function KitchenHistoryTableRow({
   selected,
   expanded,
   visibleColumns,
+  rowClass,
+  actionMenuOpen,
   onSelect,
   onExpand,
   onPreview,
   onExport,
+  onActionMenuToggle,
+  onActionMenuClose,
 }: {
   order: TableOrder;
   now: number;
   selected: boolean;
   expanded: boolean;
   visibleColumns: Array<{ key: KitchenHistoryColumnKey; label: string; width: string; sortable?: boolean }>;
-  onSelect: () => void;
-  onExpand: () => void;
-  onPreview: () => void;
-  onExport: () => void;
+  rowClass: ReturnType<typeof kitchenHistoryDensityRowClass>;
+  actionMenuOpen: boolean;
+  onSelect: (orderId: string) => void;
+  onExpand: (orderId: string) => void;
+  onPreview: (orderId: string) => void;
+  onExport: (order: TableOrder) => void;
+  onActionMenuToggle: (orderId: string) => void;
+  onActionMenuClose: () => void;
 }) {
   const delay = getKitchenDelay(order, now);
+  const handleSelect = useCallback(() => onSelect(order.id), [onSelect, order.id]);
+  const handleExpand = useCallback(() => onExpand(order.id), [onExpand, order.id]);
+  const handlePreview = useCallback(() => onPreview(order.id), [onPreview, order.id]);
+  const handleExport = useCallback(() => onExport(order), [onExport, order]);
+  const handleMenuToggle = useCallback(() => onActionMenuToggle(order.id), [onActionMenuToggle, order.id]);
+  const handleKeyDown = useCallback((event: ReactKeyboardEvent<HTMLTableRowElement>) => {
+    if (event.key === "Enter") handleExpand();
+    if (event.key === " ") {
+      event.preventDefault();
+      handleSelect();
+    }
+    if (event.key === "Escape" && actionMenuOpen) onActionMenuClose();
+  }, [actionMenuOpen, handleExpand, handleSelect, onActionMenuClose]);
   return (
-    <tr className={cn("border-b align-top hover:bg-orange-50/40", expanded && "bg-orange-50/60")}>
-      <td className="sticky left-0 z-10 border-b bg-inherit px-3 py-3">
-        <input type="checkbox" checked={selected} onChange={onSelect} className="size-4 accent-orange-500" aria-label={`Select ${displayOrderNumber(order)}`} />
+    <tr
+      tabIndex={0}
+      role="row"
+      aria-selected={selected}
+      aria-expanded={expanded}
+      onKeyDown={handleKeyDown}
+      className={cn(rowClass.row, "border-b align-middle outline-none hover:bg-orange-50/40 focus-visible:bg-orange-50/70", selected && "bg-orange-50/40", expanded && "bg-orange-50/60")}
+    >
+      <td className={cn("sticky left-0 z-10 border-b bg-inherit", rowClass.cell)}>
+        <input type="checkbox" checked={selected} onChange={handleSelect} className="size-3.5 accent-orange-500" aria-label={`Select ${displayOrderNumber(order)}`} />
       </td>
       {visibleColumns.map((column) => (
-        <td key={column.key} className={cn("border-b px-3 py-3", column.key === "actions" && "sticky right-0 z-10 bg-inherit shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.8)]")}>
-          <KitchenHistoryCell column={column.key} order={order} delay={delay} onExpand={onExpand} onPreview={onPreview} onExport={onExport} />
+        <td key={column.key} className={cn("min-w-0 border-b", rowClass.cell, column.key === "actions" && "sticky right-0 z-10 bg-inherit shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.8)]")}>
+          <KitchenHistoryCell
+            column={column.key}
+            order={order}
+            delay={delay}
+            rowClass={rowClass}
+            actionMenuOpen={actionMenuOpen}
+            onExpand={handleExpand}
+            onPreview={handlePreview}
+            onExport={handleExport}
+            onActionMenuToggle={handleMenuToggle}
+            onActionMenuClose={onActionMenuClose}
+          />
         </td>
       ))}
     </tr>
   );
 }
 
+const MemoKitchenHistoryTableRow = memo(KitchenHistoryTableRow);
+
 function KitchenHistoryCell({
   column,
   order,
   delay,
+  rowClass,
+  actionMenuOpen,
   onExpand,
   onPreview,
   onExport,
+  onActionMenuToggle,
+  onActionMenuClose,
 }: {
   column: KitchenHistoryColumnKey;
   order: TableOrder;
   delay: DelayState;
+  rowClass: ReturnType<typeof kitchenHistoryDensityRowClass>;
+  actionMenuOpen: boolean;
   onExpand: () => void;
   onPreview: () => void;
   onExport: () => void;
+  onActionMenuToggle: () => void;
+  onActionMenuClose: () => void;
 }) {
   if (column === "order") {
     return (
-      <button type="button" onClick={onExpand} className="text-left">
-        <span className="block font-black text-slate-950">{displayOrderNumber(order)}</span>
-        <span className="text-xs font-bold text-slate-500">{order.source || "POS"} · {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
+      <button type="button" onClick={onExpand} className="grid max-w-full text-left" title={`${displayOrderNumber(order)} · ${order.source || "POS"}`}>
+        <span className={cn("truncate font-black text-slate-950", rowClass.text)}>{displayOrderNumber(order)}</span>
+        <span className="truncate text-[10px] font-bold text-slate-500">{order.tableNumber || "Direct"} · {order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in"}</span>
       </button>
     );
   }
-  if (column === "table") return <span className="font-black text-slate-900">{order.tableNumber || "Direct"}</span>;
-  if (column === "session") return <span className="font-mono text-xs font-bold text-slate-500">{order.id.slice(0, 10)}</span>;
-  if (column === "customer") return <span className="font-semibold text-slate-700">{order.customerName || order.guestName || "Walk-in"}</span>;
-  if (column === "status") return <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} compact />;
-  if (column === "payment") return <Badge variant={order.paymentStatus === "paid" ? "success" : order.paymentStatus === "partial" ? "warning" : "muted"}>{paymentLabel(order.paymentStatus)}</Badge>;
-  if (column === "priority") return <Badge variant={delay.priority === "critical" ? "destructive" : delay.delayed ? "warning" : order.priority === "rush" ? "warning" : "muted"}>{priorityLabel(order, delay)}</Badge>;
-  if (column === "eta") return <span className="font-bold">{order.etaMinutes ?? 12}m</span>;
-  if (column === "waiter") return <span className="font-semibold text-slate-700">{order.assignedStaffName || order.waiterName || "Unassigned"}</span>;
-  if (column === "items") return <span className="line-clamp-2 font-semibold text-slate-700">{order.lines.map((line) => `${line.quantity}× ${line.name}`).join(", ") || "No items"}</span>;
-  if (column === "created") return <span className="font-semibold">{timeOnly(order.createdAt)}</span>;
-  if (column === "ready") return <span className="text-xs font-bold text-slate-500">{historyEventTime(order, "ready") || "—"}</span>;
-  if (column === "completed") return <span className="text-xs font-bold text-slate-500">{historyEventTime(order, "completed") || "—"}</span>;
-  if (column === "delay") return <Badge variant={delay.priority === "critical" ? "destructive" : delay.delayed ? "warning" : "muted"}>{delay.delayed ? formatDelayTime(delay.lateMinutes).label : "On time"}</Badge>;
-  if (column === "amount") return <span className="font-black">₹{moneyValue(order.total)}</span>;
-  if (column === "prints") return <span className="font-semibold">{order.printedCount ?? 0} print{Number(order.printedCount ?? 0) === 1 ? "" : "s"}</span>;
+  if (column === "table") return <span className="block truncate font-black text-slate-900" title={order.tableNumber || "Direct"}>{order.tableNumber || "Direct"}</span>;
+  if (column === "session") return <span className="block truncate font-mono text-[10px] font-bold text-slate-500" title={order.id}>{order.id.slice(0, 10)}</span>;
+  if (column === "customer") return <span className="block truncate font-semibold text-slate-700" title={order.customerName || order.guestName || "Walk-in"}>{order.customerName || order.guestName || "Walk-in"}</span>;
+  if (column === "status") return <HistoryChip tone={statusHistoryTone(order.status)} rowClass={rowClass}>{statusLabel(order.status)}</HistoryChip>;
+  if (column === "payment") return <HistoryChip tone={paymentHistoryTone(order.paymentStatus)} rowClass={rowClass}>{paymentLabel(order.paymentStatus)}</HistoryChip>;
+  if (column === "priority") return <HistoryChip tone={delay.priority === "critical" ? "red" : delay.delayed || order.priority === "rush" ? "amber" : "slate"} rowClass={rowClass}>{priorityLabel(order, delay)}</HistoryChip>;
+  if (column === "eta") return <span className="block truncate font-bold">{order.etaMinutes ?? 12}m</span>;
+  if (column === "waiter") return <span className="block truncate font-semibold text-slate-700" title={order.assignedStaffName || order.waiterName || "Unassigned"}>{order.assignedStaffName || order.waiterName || "Unassigned"}</span>;
+  if (column === "items") return <KitchenHistoryItemsCell order={order} />;
+  if (column === "created") return <span className="block truncate font-semibold">{timeOnly(order.createdAt)}</span>;
+  if (column === "ready") return <span className="block truncate text-[10px] font-bold text-slate-500">{historyEventTime(order, "ready") || "—"}</span>;
+  if (column === "completed") return <span className="block truncate text-[10px] font-bold text-slate-500">{historyEventTime(order, "completed") || "—"}</span>;
+  if (column === "delay") return <HistoryChip tone={delay.priority === "critical" ? "red" : delay.delayed ? "amber" : "slate"} rowClass={rowClass}>{delay.delayed ? formatDelayTime(delay.lateMinutes).label : "On time"}</HistoryChip>;
+  if (column === "amount") return <span className="block truncate font-black">₹{moneyValue(order.total)}</span>;
+  if (column === "prints") return <span className="block truncate font-semibold">{order.printedCount ?? 0}×</span>;
   return (
-    <div className="flex flex-wrap gap-1">
-      <Button type="button" variant="outline" size="sm" onClick={onPreview}><Eye className="size-3.5" />Preview</Button>
-      <Button type="button" variant="outline" size="sm" onClick={() => window.print()}><Printer className="size-3.5" />Print</Button>
-      <Button type="button" variant="outline" size="sm" onClick={onExpand}><History className="size-3.5" />Timeline</Button>
-      <Button type="button" variant="outline" size="sm" onClick={() => copyText(displayOrderNumber(order))}><Copy className="size-3.5" />Copy</Button>
-      <Button type="button" variant="outline" size="sm" onClick={onExport}><Download className="size-3.5" />Export</Button>
+    <div className="relative flex items-center justify-end gap-1">
+      <button type="button" className="grid size-7 place-items-center rounded-md border hover:bg-orange-50" onClick={onPreview} title="Preview (V)" aria-label={`Preview ${displayOrderNumber(order)}`} accessKey="v"><Eye className="size-3.5" /></button>
+      <button type="button" className="grid size-7 place-items-center rounded-md border hover:bg-orange-50" onClick={() => window.print()} title="Print (P)" aria-label={`Print ${displayOrderNumber(order)}`} accessKey="p"><Printer className="size-3.5" /></button>
+      <button type="button" className="grid size-7 place-items-center rounded-md border hover:bg-orange-50" onClick={onActionMenuToggle} title="More actions" aria-label={`More actions for ${displayOrderNumber(order)}`} aria-haspopup="menu" aria-expanded={actionMenuOpen}><MoreHorizontal className="size-3.5" /></button>
+      {actionMenuOpen ? (
+        <div className="absolute right-0 top-8 z-40 w-40 rounded-xl border bg-white p-1 text-xs font-bold text-slate-700 shadow-xl" role="menu">
+          <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { onExpand(); onActionMenuClose(); }} role="menuitem"><History className="size-3.5" />Timeline</button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { copyText(displayOrderNumber(order)); onActionMenuClose(); }} role="menuitem"><Copy className="size-3.5" />Copy</button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { onExport(); onActionMenuClose(); }} role="menuitem"><Download className="size-3.5" />Export</button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { toast.success("Ticket queued for archive review."); onActionMenuClose(); }} role="menuitem"><Archive className="size-3.5" />Archive</button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { onExpand(); onActionMenuClose(); }} role="menuitem"><AlertTriangle className="size-3.5" />Audit</button>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function KitchenHistoryItemsCell({ order }: { order: TableOrder }) {
+  const [first, ...rest] = order.lines;
+  const label = order.lines.map((line) => `${line.quantity}× ${line.name}`).join(", ");
+  return (
+    <span className="flex min-w-0 items-center gap-1 font-semibold text-slate-700" title={label || "No items"}>
+      <span className="truncate">{first ? `${first.quantity}× ${first.name}` : "No items"}</span>
+      {rest.length ? <span className="shrink-0 rounded bg-slate-100 px-1 text-[10px] font-black text-slate-500">+{rest.length}</span> : null}
+    </span>
+  );
+}
+
+function HistoryChip({ tone, rowClass, children }: { tone: "green" | "amber" | "red" | "violet" | "slate"; rowClass: ReturnType<typeof kitchenHistoryDensityRowClass>; children: ReactNode }) {
+  return (
+    <span className={cn("inline-flex max-w-full items-center gap-1 rounded-full border font-black uppercase", rowClass.chip, kitchenHistoryChipClass(tone))}>
+      <span className="size-1.5 shrink-0 rounded-full bg-current" />
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+function kitchenHistoryChipClass(tone: "green" | "amber" | "red" | "violet" | "slate") {
+  if (tone === "green") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (tone === "amber") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (tone === "red") return "border-red-200 bg-red-50 text-red-700";
+  if (tone === "violet") return "border-violet-200 bg-violet-50 text-violet-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
+function statusHistoryTone(status: TableOrderStatus) {
+  if (status === "ready" || status === "completed") return "green";
+  if (status === "preparing" || status === "accepted") return "amber";
+  if (status === "served") return "violet";
+  if (status === "cancelled") return "red";
+  return "slate";
+}
+
+function paymentHistoryTone(status?: PaymentState) {
+  if (status === "paid") return "green";
+  if (status === "partial" || status === "authorized") return "amber";
+  if (status === "failed" || status === "refunded") return "red";
+  return "slate";
 }
 
 function KitchenHistoryDetails({ order, now }: { order: TableOrder; now: number }) {
@@ -1256,7 +1450,7 @@ function HistoryDetailCard({ title, children }: { title: string; children: React
 
 function HistorySelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<[string, string]> }) {
   return (
-    <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
+    <select className="h-9 rounded-lg border bg-white px-2 text-xs font-bold" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
       {options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}
     </select>
   );
@@ -1364,6 +1558,47 @@ function readSavedKitchenHistoryFilters() {
   } catch {
     return [];
   }
+}
+
+function readKitchenHistoryHiddenColumns(): KitchenHistoryColumnKey[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem("sarva.kitchen.history.hiddenColumns") ?? "[]") as KitchenHistoryColumnKey[];
+    return Array.isArray(parsed) ? parsed.filter((key) => kitchenHistoryColumns.some((column) => column.key === key) && key !== "actions") : [];
+  } catch {
+    return [];
+  }
+}
+
+function readKitchenHistoryColumnWidths(): KitchenHistoryColumnWidths {
+  if (typeof window === "undefined") return defaultKitchenHistoryColumnWidths;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem("sarva.kitchen.history.columnWidths") ?? "{}") as Partial<KitchenHistoryColumnWidths>;
+    return kitchenHistoryColumns.reduce<KitchenHistoryColumnWidths>((acc, column) => {
+      const width = Number(parsed[column.key] ?? defaultKitchenHistoryColumnWidths[column.key]);
+      acc[column.key] = Number.isFinite(width) ? Math.min(360, Math.max(64, width)) : defaultKitchenHistoryColumnWidths[column.key];
+      return acc;
+    }, { ...defaultKitchenHistoryColumnWidths });
+  } catch {
+    return defaultKitchenHistoryColumnWidths;
+  }
+}
+
+function readKitchenHistoryDensity(): KitchenHistoryDensity {
+  if (typeof window === "undefined") return "compact";
+  const value = window.localStorage.getItem("sarva.kitchen.history.density");
+  return value === "comfortable" || value === "touch" ? value : "compact";
+}
+
+function writeKitchenHistoryPreference(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+}
+
+function kitchenHistoryDensityRowClass(density: KitchenHistoryDensity) {
+  if (density === "touch") return { row: "h-[72px]", cell: "px-2.5 py-2", text: "text-sm", chip: "px-2 py-0.5 text-[11px]" };
+  if (density === "comfortable") return { row: "h-16", cell: "px-2.5 py-1.5", text: "text-[13px]", chip: "px-1.5 py-0.5 text-[10px]" };
+  return { row: "h-12", cell: "px-2 py-1", text: "text-xs", chip: "px-1.5 py-0.5 text-[10px]" };
 }
 
 function KitchenOrderColumn({

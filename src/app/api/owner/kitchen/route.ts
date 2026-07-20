@@ -18,7 +18,7 @@ const statuses = new Set<KitchenOrderStatus>(["new", "accepted", "preparing", "r
 export async function GET(request: NextRequest) {
   let trace = createTraceContext(request);
   try {
-    const access = await requireOwnerFeature(request, "kitchen", "read");
+    const access = await requireKitchenAccess(request, "read");
     if (access.error) return access.error;
     const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
     trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
   let trace = createTraceContext(request);
   let context: Record<string, unknown> = { ...traceLogFields(trace), action: "create" };
   try {
-    const access = await requireOwnerFeature(request, "kitchen", "create");
+    const access = await requireKitchenAccess(request, "create");
     if (access.error) return access.error;
     const body = await request.json().catch(() => ({}));
     const scope = tenantScope(access.session, body.restaurantId);
@@ -159,6 +159,18 @@ function kitchenSearchText(order: TableOrder) {
 
 function logKitchenError(action: string, error: unknown, context: Record<string, unknown> = {}, durationMs = 0) {
   logOperationalFailure(`owner.kitchen.${action}`, error, { ...context, durationMs });
+}
+
+async function requireKitchenAccess(request: NextRequest, operation: "read" | "create") {
+  const access = await requireOwnerFeature(request, "kitchen", operation);
+  if (!access.error) return access;
+  const fallback = await requireOwnerFeature(request, "pos", operation);
+  if (!fallback.error && isWaiterWorkflowSession(fallback.session)) return fallback;
+  return access;
+}
+
+function isWaiterWorkflowSession(session: { role: string; viewMode?: string }) {
+  return session.role === "waiter" || (session.role === "owner" && session.viewMode === "waiter");
 }
 
 function startDate(value: string | null) {

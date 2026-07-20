@@ -140,8 +140,22 @@ service cloud.firestore {
       return isAdmin()
         || (
           userHasTenant(tenantId)
-          && currentUser().role in ["owner", "manager", "cashier", "waiter", "chef", "kitchen-manager"]
+          && currentUser().role in ["owner", "manager", "chef", "kitchen-manager"]
         );
+    }
+
+    function canUpdateOrderStatusForRole(status) {
+      return isAdmin()
+        || currentUser().role in ["owner", "manager"]
+        || (currentUser().role == "waiter" && status in ["served", "completed"])
+        || (currentUser().role in ["chef", "kitchen-manager"] && status in ["accepted", "preparing", "ready", "cancelled"])
+        || (currentUser().role == "delivery-staff" && status in ["picked-up", "delivered"]);
+    }
+
+    function canUpdateKitchenStatusForRole(status) {
+      return isAdmin()
+        || currentUser().role in ["owner", "manager"]
+        || (currentUser().role in ["chef", "kitchen-manager"] && status in ["accepted", "preparing", "ready", "cancelled"]);
     }
 
     function employeeRole(role) {
@@ -239,7 +253,6 @@ service cloud.firestore {
         && request.resource.data.customerId == resource.data.customerId
         && request.resource.data.diff(resource.data).changedKeys().hasOnly([
           "status",
-          "paymentStatus",
           "updatedAt",
           "deliveryOtp"
         ]);
@@ -305,7 +318,7 @@ service cloud.firestore {
         );
       allow read: if ownsUser(resource.data.customerId) || tenantScopedRead() || isAdmin();
       allow update: if isAdmin()
-        || (tenantScopedUpdate() && canManageOrdersFor(resource.data.tenantId) && orderStatusOnlyUpdate())
+        || (tenantScopedUpdate() && canManageOrdersFor(resource.data.tenantId) && orderStatusOnlyUpdate() && canUpdateOrderStatusForRole(request.resource.data.status))
         || (
           ownsUser(resource.data.customerId)
           && request.resource.data.status == "cancelled"
@@ -493,7 +506,8 @@ service cloud.firestore {
         && request.resource.data.lines.size() <= 50;
       allow update: if tenantScopedUpdate()
         && canManageKitchenFor(resource.data.tenantId)
-        && request.resource.data.status in ["new", "preparing", "ready", "served", "completed", "cancelled"];
+        && request.resource.data.status in ["new", "accepted", "preparing", "ready", "cancelled"]
+        && canUpdateKitchenStatusForRole(request.resource.data.status);
       allow delete: if isAdmin();
     }
 

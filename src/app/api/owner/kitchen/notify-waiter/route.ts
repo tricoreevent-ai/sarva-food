@@ -16,7 +16,7 @@ const cleanSound = (value: unknown) => {
 };
 
 export async function GET(request: NextRequest) {
-  const access = await requireOwnerFeature(request, "kitchen", "read");
+  const access = await requireKitchenNotificationListAccess(request);
   if (access.error) return access.error;
   const scope = tenantScope(access.session, request.nextUrl.searchParams.get("restaurantId"));
   const snapshot = await adminDb().collection("notifications")
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireOwnerFeature(request, "kitchen", "update");
-  if (access.error) return access.error;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const access = await requireKitchenNotificationAccess(request, clean(body.action, 40));
+  if (access.error) return access.error;
   const scope = tenantScope(access.session, clean(body.restaurantId));
   const kitchenOrderId = clean(body.kitchenOrderId);
   if (!kitchenOrderId) return NextResponse.json({ error: "Kitchen order id is required." }, { status: 400 });
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (snapshot.data()?.escalatedAt || snapshot.data()?.acknowledgedAt) return NextResponse.json({ ok: true, deduplicated: true });
     const data = snapshot.data() ?? {};
     await ref.set({ escalatedAt: FieldValue.serverTimestamp(), priority: "high", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    const owner = await sendTenantPushNotification(scope, { type: "kitchen_ready_escalation", title: "Ready ticket escalation", message: `${clean(data.orderNumber || data.message)} is still waiting for pickup.`, priority: "high", orderId: clean(data.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "kitchen"], sound: "silent" }).catch(() => ({ successCount: 0, failureCount: 0 }));
+    const owner = await sendTenantPushNotification(scope, { type: "kitchen_ready_escalation", title: "Ready ticket escalation", message: `${clean(data.orderNumber || data.message)} is still waiting for pickup.`, priority: "high", orderId: clean(data.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "waiter", "kitchen"], sound: "silent" }).catch(() => ({ successCount: 0, failureCount: 0 }));
     return NextResponse.json({ ok: true, owner });
   }
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       kitchenOrderId,
       tableNumber,
       waiterName,
-      audience: ["owner", "manager", "kitchen"],
+      audience: ["owner", "manager", "waiter"],
       priority: "high",
       link: "/owner/pos?panel=active",
       sound,
@@ -84,6 +84,28 @@ export async function POST(request: NextRequest) {
   }
 
   const push = body.notificationMethod !== "in-app";
-  const operations = push ? await sendTenantPushNotification(scope, { notificationId: ref.id, type: "kitchen_ready_ops", title, message, priority: "high", orderId: clean(body.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "kitchen"], sound }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
+  const operations = push ? await sendTenantPushNotification(scope, { notificationId: ref.id, type: "kitchen_ready_ops", title, message, priority: "high", orderId: clean(body.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "waiter"], sound }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
   return NextResponse.json({ ok: true, operations, notificationId: ref.id, deduplicated: existing.exists });
+}
+
+async function requireKitchenNotificationAccess(request: NextRequest, action: string) {
+  const operation = action === "acknowledge" ? "read" : "update";
+  const access = await requireOwnerFeature(request, "kitchen", operation);
+  if (!access.error) return access;
+  if (action !== "acknowledge") return access;
+  const fallback = await requireOwnerFeature(request, "pos", "read");
+  if (!fallback.error && isWaiterWorkflowSession(fallback.session)) return fallback;
+  return access;
+}
+
+async function requireKitchenNotificationListAccess(request: NextRequest) {
+  const access = await requireOwnerFeature(request, "kitchen", "read");
+  if (!access.error) return access;
+  const fallback = await requireOwnerFeature(request, "pos", "read");
+  if (!fallback.error && isWaiterWorkflowSession(fallback.session)) return fallback;
+  return access;
+}
+
+function isWaiterWorkflowSession(session: { role: string; viewMode?: string }) {
+  return session.role === "waiter" || (session.role === "owner" && session.viewMode === "waiter");
 }

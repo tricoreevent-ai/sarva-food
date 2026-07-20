@@ -4441,6 +4441,8 @@ function PosActiveOrderCard({
   const canCancel = active && !paymentRestricted;
   const canContactKitchen = active && !served && order.hasKitchenTicket !== false;
   const canNotify = ready && order.hasKitchenTicket !== false;
+  const canCollectForView = view !== "waiter" && canCollect;
+  const canNotifyForView = view !== "waiter" && canNotify;
   const orderNumber = readableTableOrderId(order);
   const kitchenStatus = posActiveStatusLabel(order);
   const paymentStatus = paymentLabel(order.paymentStatus);
@@ -4471,6 +4473,10 @@ function PosActiveOrderCard({
     ? [
         { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
         { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
+        { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
+        { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canMergeBill || busy, reason: !canMerge ? "No other active order is available to merge." : !canMergeBill ? "Cannot merge authorized, paid, refunded, locked, completed, or already merged bills." : undefined },
+        { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
+        { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
         { id: "archive", label: "Move To History", icon: <History className="size-4" />, disabled: !completed },
         { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
         { id: "history", label: "History", icon: <History className="size-4" /> },
@@ -4566,8 +4572,8 @@ function PosActiveOrderCard({
         ) : (
           <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title={ready ? "Serve Order" : "Cannot Serve: kitchen has not marked Ready."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
         )}
-        <button type="button" data-action="notify" disabled={!canNotify || busy} onClick={handleAction} className={activeOrderActionClass(canNotify, "default")} aria-label="Ready Signal" title={canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
-        <button type="button" data-action="payment" disabled={!canCollect || busy} onClick={handleAction} className={activeOrderActionClass(canCollect, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
+        <button type="button" data-action="notify" disabled={!canNotifyForView || busy} onClick={handleAction} className={activeOrderActionClass(canNotifyForView, "default")} aria-label="Ready Signal" title={view === "waiter" ? "Kitchen sends ready signals; serve the ticket after pickup." : canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
+        <button type="button" data-action="payment" disabled={!canCollectForView || busy} onClick={handleAction} className={activeOrderActionClass(canCollectForView, "payment")} aria-label="Collect Payment" title={view === "waiter" ? "Cashier handles payment collection." : canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
         <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
         <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
         <PosActiveActionMenu order={order} actions={menuActions} disabled={busy} onAction={onAction} />

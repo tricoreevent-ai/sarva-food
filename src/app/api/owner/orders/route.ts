@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { OrderRepository, type OperationalEvent } from "@/repositories/order-repository";
 import { tenantScope } from "@/repositories/shared";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
+import { canAccessOperationalFeature } from "@/lib/operational-access";
+import type { VerifiedSession } from "@/lib/server-auth";
 import { operationKey as makeOperationKey } from "@/lib/server/operation-idempotency";
 import { logOperationalEvent, logOperationalFailure } from "@/lib/server/operational-logging";
 import { createTraceContext, extendTrace, publicTraceMeta, traceDurationMs, traceLogFields, type TraceContext } from "@/lib/server/request-trace";
@@ -74,10 +76,12 @@ export async function PATCH(request: NextRequest) {
   let context: Record<string, unknown> = traceLogFields(trace);
   const fail = (error: string, status = 400) => NextResponse.json({ error, requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status });
   try {
-    const access = await requireOwnerFeature(request, "orders", "update");
+    const access = await requireOwnerFeature(request, "orders", "read");
     if (access.error) return access.error;
     const body = await request.json().catch(() => ({})) as OrderPatchBody;
     if (!body.orderId) return fail("Order id is required.");
+    const permissionError = orderMutationPermissionError(access.session, body);
+    if (permissionError) return fail(permissionError, 403);
     const scope = tenantScope(access.session, body.restaurantId);
     trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
     const orders = new OrderRepository();
@@ -208,6 +212,34 @@ function canCorrectBill(role: string, permissions: string[]) {
 
 function canUnlockPayment(role: string) {
   return ["owner", "admin", "super_admin"].includes(role);
+}
+
+function orderMutationPermissionError(session: VerifiedSession, body: OrderPatchBody) {
+  const role = session.role;
+  if (["owner", "admin", "super_admin"].includes(role)) return null;
+  const action = body.action ?? (body.status ? "status" : "");
+  if (role === "manager") return canAccessOperationalFeature(session, "orders", "update") ? null : "Permission denied for orders:update.";
+  if (role === "cashier") return cashierOrderActionAllowed(action, body) ? null : "Cashier can update billing, payment, print, split, and merge workflows only.";
+  if (role === "waiter") return waiterOrderActionAllowed(action, body) ? null : "Waiter can serve, complete, add service events, split, merge, and update floor workflow only.";
+  if (role === "chef" || role === "kitchen-manager") return kitchenOrderActionAllowed(action, body) ? null : "Kitchen can accept, prepare, and ready tickets from Kitchen Operations only.";
+  return canAccessOperationalFeature(session, "orders", "update") ? null : "Permission denied for orders:update.";
+}
+
+function waiterOrderActionAllowed(action: string, body: OrderPatchBody) {
+  if (action === "status") return body.status === "served" || body.status === "completed";
+  if (action === "event") return ["kitchen_sent", "reminder", "kitchen_recall"].includes(String(body.event ?? ""));
+  return ["print", "split_bill", "merge_tables", "transfer_table", "assign_waiter"].includes(action);
+}
+
+function cashierOrderActionAllowed(action: string, body: OrderPatchBody) {
+  if (action === "status") return body.status === "completed";
+  return ["payment_started", "payment", "refund", "print", "split_bill", "merge_tables"].includes(action);
+}
+
+function kitchenOrderActionAllowed(action: string, body: OrderPatchBody) {
+  if (action === "status") return ["accepted", "preparing", "ready"].includes(String(body.status ?? ""));
+  if (action === "event") return ["kitchen_sent", "kitchen_accepted", "kitchen_ready", "reminder", "kitchen_recall"].includes(String(body.event ?? ""));
+  return body.type === "kot" && action === "print";
 }
 
 function orderError(error: unknown, trace: TraceContext, context: Record<string, unknown>) {

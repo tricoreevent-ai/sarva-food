@@ -2,17 +2,17 @@
 
 Last updated: 2026-07-20
 
-Current Sprint: RC5 enterprise waiter operational workflow
+Current Sprint: RC5 waiter serving RBAC and Kitchen History density
 
 RC5 Login and Kitchen History Enterprise UI Result: Owner Login now has a premium responsive SaaS authentication layout with remembered email, autofocus/autocomplete, Caps Lock warning, password visibility, session-timeout messaging, and accessible inline state. Kitchen Order History is now an enterprise management table with bounded server-filtered paging, sticky header/action column, sorting, column visibility, saved filters, bulk selection, CSV/Excel export, print, and expandable timeline/payment/print/audit row details.
 
-RC5 Enterprise Waiter Workflow Result: Active Orders Waiter view is now a live New/Accepted/Preparing/Ready/Serving/Completed board; tables support multiple independent active kitchen tickets; Add Items starts add-on tickets; Smart Bill Merge merges billing only, including open partial-payment tickets while rejecting locked/authorized/paid/refunded/closed/merged bills; Split Bill is payment-state driven rather than service-gated; paid orders keep Kitchen status/progress visible; Completed cards hold for 30 minutes with manual Move To History; Kitchen cards adapt to item count without fixed blank item wells; Owner Settings persists six operational sound targets; Ready Signal targets Owner/Manager/Kitchen while Waiter view uses live card/counter/sound cues; timelines tag Kitchen, Service, Payment, Print, and Audit independently. Operational smoke passes 24/24, runtime profile passed, build/analyze passed with the accepted Firebase/protobuf warning, and remaining work is hosted/provider/browser/device/printer/Lighthouse/Chrome profiling/Firebase Console/long-run heap QA only.
+RC5 Waiter Serving RBAC and Kitchen History Density Result: Waiter Ready → Served and Served → Completed authorization now succeeds without granting bill-edit/payment permission; Kitchen cannot Serve/Complete through API or Firestore rules; Cashier payment/refund scope remains isolated; Ready notifications target Waiters for acknowledgement/recovery; Waiter POS can read/create KOT tickets without Kitchen update permission. Kitchen History now has density modes, resizable persisted columns, compact filters/column chooser, memoized keyboard rows, icon-only actions, More menu, compact chips/items, lazy details, and floating bulk actions. Operational smoke passes 31/31; remaining work is hosted/provider/browser/device/printer/Lighthouse/Chrome profiling/Firebase Console/rules deploy/long-run heap QA only.
 
 Phase 5C Result: Payment now remains independent of Kitchen/service state, completion still requires service + Paid, POS New Order cancel resumes the existing draft, Kitchen cards are item-first with details in Preview/More, and Owner Orders visual payment state matches the corrected lifecycle. Superseded by RC5 enterprise waiter workflow smoke 24/24.
 
 Phase 5B Finalization Result: Active Orders optimization, Kitchen workflow, waiter notification architecture, print context, and POS print preview are repository complete. Phase 5C supersedes the earlier service-dependent payment rule.
 
-Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 enterprise waiter workflow: Ready tickets use idempotent Ready Signal for Owner/Manager/Kitchen, Waiter screens update live without push noise, POS acknowledgement remains, and escalation persists. The desktop board uses demand-weighted flexible columns; metrics use auto-fit; operational durations are shared and bounded. Operational smoke passes 24/24.
+Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 waiter-serving hardening: Ready tickets use idempotent Ready Signal for Waiter acknowledgement/recovery, Owner/Manager escalation remains deduped, POS acknowledgement remains, and live Waiter cues persist. The desktop board uses demand-weighted flexible columns; metrics use auto-fit; operational durations are shared and bounded. Operational smoke passes 31/31.
 
 Phase 4E Result: POS Active Orders actions are fully wired and regression-checked; completion now requires Served + Paid, Ready can only transition to Served, delay values are capped into human/stale labels, duplicate timeline events collapse, 100% kitchen progress is green, cards use a responsive compact grid, and the footer is a sticky four-metric bar. Operational smoke passes 12/12.
 
@@ -67,7 +67,7 @@ Last Verified Production Runtime: `/api/release-info` reports `applicationVersio
 
 Files Remaining:
 
-- Final RC5 enterprise waiter workflow hosted deploy, VAPID health, real-device Owner/Manager/Kitchen push plus Waiter active-view sound, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated multi-role Active Orders/POS/Kitchen browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, long-run heap, and printer/QR/hardware validation.
+- Final RC5 waiter-serving hosted deploy, VAPID health, real-device Waiter ready acknowledgement/recovery plus Owner/Manager escalation, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated multi-role Active Orders/POS/Kitchen browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, long-run heap, and printer/QR/hardware validation.
 
 Next Command:
 

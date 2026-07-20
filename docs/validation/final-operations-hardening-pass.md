@@ -28,6 +28,8 @@ Date: 2026-05-15
 
 ## RBAC Architecture
 
+- 2026-07-20 RC5 waiter-serving hardening: `/api/owner/orders` now performs action-specific mutation authorization after session/origin validation, fixing Waiter Ready → Served/Completed without granting `canEditBill`; Kitchen roles remain blocked from Serve/Complete, Cashier keeps payment/refund/split/merge scope, and Owner/Admin retain override.
+- Firestore rules now mirror the server workflow for direct protected writes: Waiter status-only writes are limited to Served/Completed, Kitchen status-only writes are limited to Accepted/Preparing/Ready/Cancelled, and paymentStatus is no longer accepted as a status-only direct mutation.
 - Staff roles now include owner, manager, cashier, waiter, chef, accountant, delivery staff, admin, and inventory manager.
 - `/admin/users` supports employee creation, role assignment, branch assignment, login disable/enable, password reset activity markers, and permission visibility.
 - Firestore rules were extended for manager, accountant, and inventory manager scoped restaurant access.

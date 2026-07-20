@@ -11,14 +11,28 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Login and Kitchen History Enterprise UI |
+| Current Sprint | RC5 Waiter Serving RBAC and Kitchen History Density |
 | Release Version | `v1.0.0-rc5` candidate |
 | Latest Git Commit | Pending final waiter workflow commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | RC5 enterprise waiter workflow passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 preserves the completed enterprise waiter workflow and adds owner-login UX hardening plus a true Kitchen History management table with server-filtered paging, exports, saved filters, sticky actions, expandable details, and no Firestore schema/rule/index change. |
+| Verification Status | RC5 waiter RBAC/density pass passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (31/31), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC5 preserves the completed enterprise workflow, fixes waiter Ready → Served authorization, aligns server/Firestore role boundaries, and completes the high-density Kitchen History data grid with persisted density/column preferences. |
+
+## RC5 Waiter Serving RBAC and Kitchen History Density - 2026-07-20
+
+| Area | Result |
+| --- | --- |
+| Root cause | The UI correctly allowed Waiter Serve/Complete, but `/api/owner/orders` required generic `orders:update`, which maps to `canEditBill`; Waiters intentionally do not own bill-edit/payment permission, so Ready → Served returned `403 Permission denied for orders:update`. |
+| Server authorization | Complete. `/api/owner/orders` now authenticates via read/session/origin first, then applies action-specific authorization: Waiter may Serve/Complete/service events/split/merge/floor transfer, Cashier may payment/refund/split/merge/print, Kitchen may kitchen-state events only, and Owner/Admin override remains intact. |
+| Kitchen/POS access | Complete. Waiter POS workflow can read/create KOT tickets through POS authorization without granting Kitchen update authority or exposing Kitchen Operations navigation. |
+| Notification architecture | Complete. Kitchen Ready notifications target Waiters for service acknowledgement/recovery, Owner/Manager escalation remains deduped, and Kitchen still cannot Serve. |
+| Firestore rules | Complete. Direct rule parity now allows Waiter Served/Completed status-only writes, Kitchen Accepted/Preparing/Ready status-only writes, blocks Kitchen Served/Completed, and removes direct payment-status mutation from status-only updates. |
+| Waiter UI consistency | Complete. Waiter view disables cashier payment and kitchen-owned ready-signal actions with clear explanations while adding waiter floor split/merge/transfer/reassign menu actions. |
+| Kitchen History density | Complete. Grid now supports compact/comfortable/touch densities, resizable persisted columns, compact filters with advanced drawer/column chooser, memoized keyboard rows, icon-only Preview/Print, overflow More menu, compact chips/items, lazy details, and floating bulk actions. |
+| Operational smoke | Expanded to `31/31` deterministic checks covering waiter Serve/Complete, Kitchen cannot Serve, Owner override, permission denial, Firestore authorization parity, waiter KOT fallback, and high-density grid contracts. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (31/31), `profile:runtime`, and `git diff --check`. |
 
 ## RC5 Login and Kitchen History Enterprise UI - 2026-07-20
 
@@ -26,7 +40,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Owner Login | Complete. Premium responsive SaaS layout preserves existing auth while adding remembered email, autofocus, autocomplete, Caps Lock detection, session-timeout messaging, password visibility, loading micro-state, and accessible status/error regions. |
 | Login performance | Complete. The page remains self-contained, uses no extra data listener, keeps auth requests unchanged, and stores remembered email in localStorage only. |
-| Kitchen History | Complete. The previous long accordion/card history was replaced with an enterprise table with sticky header/action column, sorting, column visibility, saved filters, bulk selection, responsive overflow, print, CSV export, and lazy Excel export. |
+| Kitchen History | Complete. The previous long accordion/card history was replaced with an enterprise data grid with sticky header/action column, sorting, persisted column widths/visibility, density modes, saved filters, floating bulk toolbar, overflow row actions, responsive overflow, print, CSV export, and lazy Excel export. |
 | Server filtering | Complete. `/api/owner/kitchen` now accepts page/pageSize/query/date/status/payment/priority/table/waiter/customer/item/print filters and returns a bounded page plus count. |
 | Row details | Complete. Expandable in-place details show timeline, items, notes, audit/payment/print metadata, delay, station, and merged-ticket references. |
 | Validation | `typecheck` and `lint` passed during implementation; full RC5 gates are refreshed in the final validation report. |
@@ -39,7 +53,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Waiter Active Orders | Complete. The Waiter view groups live orders into New, Accepted, Preparing, Ready, Serving, and Completed columns; Ready uses live card/counter/sound signals instead of Waiter push noise. |
 | Card visibility | Complete. Cards show order/table/customer, Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Serving, Completed, auto-history countdown, and lazy timeline/history details without letting Paid mask Kitchen state. |
 | Kitchen Operations Center | Complete. Item-first Kitchen cards now adapt to item count, remove fixed blank item wells, keep actions aligned/touch-friendly, and preserve memoized cards plus desktop windowing. |
-| Notifications | Complete. Owner Settings exposes six configurable operational sounds; Kitchen Ready signals target Owner/Manager/Kitchen, Waiter screens update live, in-app/toast signals remain deduped/persistent, and customer-request sounds skip bootstrap spam. |
+| Notifications | Complete. Owner Settings exposes six configurable operational sounds; Kitchen Ready signals target Waiters for service acknowledgement/recovery while Owner/Manager escalation remains deduped; Waiter screens update live and customer-request sounds skip bootstrap spam. |
 | Billing merge | Complete. Smart Bill Merge prompts on payment when the same table/session has other unpaid or partial-payment tickets; Merge All/Selected affects billing only, leaves kitchen tickets auditable, and rejects locked, authorized, paid, refunded, closed, or already merged bills. |
 | Timeline | Complete. Timeline rows label Kitchen, Service, Payment, Print, and Audit events independently with timestamps, preserving unrelated event separation. |
 | Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (24/24), `profile:runtime`, and `git diff --check` passed. |
@@ -116,7 +130,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Area | Result |
 | --- | --- |
 | Responsibility boundary | Removed all Kitchen Ready → Served UI paths. Kitchen prepares and notifies; waiter/POS remains responsible for service. |
-| Notification architecture | Superseded by RC5 enterprise waiter workflow: Ready signals no longer push to Waiter devices; Owner/Manager/Kitchen receive operational signals and Waiter view provides live card/counter/sound cues. |
+| Notification architecture | Superseded by RC5 waiter-serving hardening: Ready signals target Waiters for acknowledgement/recovery, Owner/Manager escalation remains deduped, and Waiter view provides live card/counter/sound cues. |
 | Acknowledgement | Opening a Ready order from POS acknowledges the persisted notification; Kitchen shows `✓ Waiter informed` with time. |
 | Escalation | Unacknowledged notifications become orange after two minutes and red/owner-alerted at the configured timeout. |
 | Presentation | Demand-weighted flexible Kanban columns, auto-fit metrics, compact actions, reduced-motion critical animation, and shared bounded duration formatting. |

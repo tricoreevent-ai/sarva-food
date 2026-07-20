@@ -6,7 +6,7 @@ Phase 5C closes the Hostinger reverse-proxy origin mismatch and the service-depe
 
 Phase 5B closes the repository-side POS Active Orders hang, inconsistent accordion, hidden-action, low-density, incomplete lock-release, and stale print-context defects. Phase 5C supersedes the earlier service-dependent payment behavior. Remaining QA is authenticated hosted owner/manager/waiter/cashier/Kitchen workflow observation, real printer/device checks, provider dashboard checks, React Profiler/FPS/INP capture, Lighthouse/Core Web Vitals, and long-run browser heap stability.
 
-Phase 5A closes the repository-side Kitchen Serve responsibility violation, unbounded time labels, and fixed-width Kanban. RC5 enterprise waiter workflow supersedes the old waiter notification model with Ready Signal for Owner/Manager/Kitchen and live Waiter screen cues. Real push delivery, browser permission, multi-device timing, sound policy, and printer hardware remain external QA.
+Phase 5A closes the repository-side Kitchen Serve responsibility violation, unbounded time labels, and fixed-width Kanban. RC5 waiter-serving hardening supersedes the old notification model with targeted Waiter ready acknowledgement/recovery, deduped Owner/Manager escalation, and live Waiter screen cues. Real push delivery, browser permission, multi-device timing, sound policy, Firebase rules deployment, and printer hardware remain external QA.
 
 Phase 4E closes the repository-side Active Orders broken-action, skipped-lifecycle, unbounded-delay, duplicate-timeline, progress-color, and excessive-density issues. Remaining Active Orders work is authenticated hosted multi-role/device/provider/printer observation only.
 

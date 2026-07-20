@@ -55,8 +55,8 @@ export function canUseOperationalView(role: UserRole, view: OperationalView) {
 export function canAccessOperationalFeature(user: AccessUser, feature: OwnerFeatureKey, operation: AccessOperation = "read") {
   if (user.role === "admin" || user.role === "super_admin") return true;
   const view = user.viewMode ?? defaultOperationalView(user.role);
-  if (!viewFeatures[view].includes(feature)) return false;
   const effectiveRole = user.role === "owner" ? roleForOperationalView(view) : user.role;
+  if (!viewFeatures[view].includes(feature)) return false;
   if (!roleAllowsFeature(effectiveRole, feature)) return false;
 
   const permissions = new Set([...inheritedPermissions(user.role), ...(user.permissions ?? [])]);

@@ -1,5 +1,15 @@
 # Release Notes
 
+## RC5 Waiter Serving RBAC and Kitchen History Density - 2026-07-20
+
+- Fixed the `403 Permission denied for orders:update` workflow gap: Waiter service actions now pass server authorization for Ready → Served and Served → Completed while payment/billing privileges remain cashier/owner controlled.
+- Added action-specific `/api/owner/orders` authorization so Kitchen cannot Serve/Complete through order APIs, Waiter cannot Prepare/Ready, and Owner/Admin retain override authority.
+- Aligned Firestore rules with the server workflow: Kitchen roles can update Accepted/Preparing/Ready only, Waiters can update Served/Completed only, and direct payment-status mutation is no longer accepted as a status-only write.
+- Ready notifications now include Waiter targets and allow waiter acknowledgement/recovery while preserving Kitchen-owned ready-signal creation and escalation dedupe.
+- Completed the interrupted Kitchen History enterprise data grid: compact/comfortable/touch density modes, resizable persisted columns, collapsible advanced filters/column chooser, memoized keyboard-accessible rows, icon-only Preview/Print actions, overflow More menu, compact chips/items, and floating bulk toolbar.
+- Operational smoke was expanded to `31/31` deterministic checks for waiter Serve/Complete, Kitchen cannot Serve, Owner override, permission denial, Firestore authorization parity, waiter KOT read/create fallback, and high-density Kitchen History contracts.
+- Final validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 31/31, `profile:runtime`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## RC5 Login and Kitchen History Enterprise UI - 2026-07-20
 
 - Redesigned Owner Login into a premium mobile-first SaaS authentication surface while preserving the existing owner auth and OTP reset APIs.
@@ -11,7 +21,7 @@
 ## RC5 Enterprise Waiter Operational Workflow - 2026-07-20
 
 - Enterprise dining update: tables can now keep multiple independent active kitchen tickets while bill merge remains billing-only and preserves each original kitchen ticket audit trail.
-- Kitchen Ready no longer sends push notifications to Waiters; Owner/Manager/Kitchen receive operational Ready signals, and Waiter view uses live columns, flashing/card color state, counters, and active-view sound.
+- Kitchen Ready sends targeted Waiter-ready notifications with acknowledgement/recovery; Owner/Manager escalation remains deduped and Waiter view still uses live columns, card state, counters, and active-view sound.
 - Waiter service now owns Ready → Serving → Completed; POS updates service/order state without asking Kitchen to mark Served, so Kitchen responsibility ends at Ready.
 - Completed orders stay in the Active Orders Completed lane for 30 minutes with a countdown and can be manually moved to History sooner.
 - Smart Bill Merge appears when payment starts on a table/session with other open unpaid tickets and offers Merge All, Merge Selected, Pay Separately, Move to another bill label, and Split Bill remains separate.
