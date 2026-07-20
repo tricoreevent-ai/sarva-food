@@ -1,6 +1,10 @@
 # Active Orders Performance Report
 
-Date: 2026-07-20T06:49:20.172Z
+Date: 2026-07-20T09:37:00.019Z
+
+## RC5 Waiter Workflow Addendum
+
+The Waiter view now groups existing memoized Active Order cards into six lightweight status columns. Kitchen/payment/progress indicators are derived from existing order fields, details remain lazy-mounted, search/grouping stays memoized, and no new realtime listener or heavyweight dependency was added.
 
 ## Root Cause
 
@@ -17,21 +21,21 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.32ms | 0.40ms | 1.53ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.32ms | <100ms update |
-| POS 1000-item category switch | 0.05ms | 0.10ms | 0.21ms | <50ms switch |
-| POS 1000-item search filter | 0.08ms | 0.14ms | 0.35ms | debounced |
-| Active Orders 100-order filter/group | 0.14ms | 0.21ms | 0.44ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.50ms | 1.39ms | 6.26ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.03ms | 0.06ms | 0.53ms | <100ms update |
+| POS 1000-item category switch | 0.08ms | 0.17ms | 0.34ms | <50ms switch |
+| POS 1000-item search filter | 0.12ms | 0.23ms | 0.60ms | debounced |
+| Active Orders 100-order filter/group | 0.21ms | 0.30ms | 0.74ms | <50ms interaction |
 
 ## Density And Runtime Controls
 
 | Area | Result |
 | --- | --- |
 | Desktop density | 4 columns at desktop, 5 at 2XL, and 6 at 1920px; the fixed-height cards-only viewport is designed to expose at least 20 collapsed orders without page growth. |
-| Card work | Collapsed cards build only the operational summary and action bar; details, timelines, notes, and history mount on expansion. |
+| Waiter board | Six status columns reuse the same memoized cards and group from the already-filtered active-order array. |
+| Card work | Collapsed cards build only the operational summary, Kitchen/payment/progress signals, and action bar; details, timelines, notes, and history mount on expansion. |
 | Interaction | Expansion is immediate and uses no height animation. Search is debounced 120ms and grouping is a single memoized pass. |
 | Actions | Serve, Notify Waiter, Payment, Print, Preview, and More remain visible while collapsed. |
-| Phase 5C Kitchen cards | Item-first cards keep memoized card boundaries, lazy More/Preview details, icon actions, and corrected virtual row sizing; no new listener or animation work was added. |
 | Browser gate | Chrome and React DevTools are available, but flame graphs/FPS/INP need a valid authenticated production-equivalent owner session. |
 
 ## Route Snapshot
@@ -43,9 +47,9 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 | /checkout | 26 | 589 KB | 193 KB | - | Tracked |
 | /orders | 20 | 514 KB | 193 KB | - | Tracked |
 | /profile | 23 | 553 KB | 193 KB | 250 KB | Over |
-| /owner | 27 | 584 KB | 193 KB | 350 KB | Over |
-| /owner/orders | 32 | 711 KB | 193 KB | 500 KB | Over |
-| /owner/settings | 31 | 699 KB | 193 KB | 300 KB | Over |
-| /owner/kitchen | 30 | 666 KB | 193 KB | - | Tracked |
-| /owner/pos | 28 | 589 KB | 193 KB | 650 KB | Pass |
+| /owner | 27 | 586 KB | 193 KB | 350 KB | Over |
+| /owner/orders | 32 | 712 KB | 193 KB | 500 KB | Over |
+| /owner/settings | 31 | 702 KB | 193 KB | 300 KB | Over |
+| /owner/kitchen | 30 | 669 KB | 193 KB | - | Tracked |
+| /owner/pos | 28 | 590 KB | 193 KB | 650 KB | Pass |
 | /admin | 21 | 504 KB | 193 KB | - | Tracked |

@@ -30,8 +30,9 @@ import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion
 import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { delaySortRank, formatDelayTime, formatOperationalDuration, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
-import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
+import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalNotificationSoundTarget, type OperationalSettings } from "@/lib/order-delay-settings";
 import { readableTableOrderId } from "@/lib/order-display";
+import { playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import { cn } from "@/lib/utils";
 import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
@@ -113,7 +114,9 @@ export function KitchenDisplayFlow() {
   const previousAcceptedOrders = useRef(new Set<string>());
   const autoPrintReady = useRef(false);
   const soundReady = useRef(false);
+  const requestSoundReady = useRef(false);
   const alertedOrders = useRef(new Set<string>());
+  const alertedRequests = useRef(new Set<string>());
   const lastDelayedToast = useRef(0);
   const escalatedSignals = useRef(new Set<string>());
   const { settings, save: savePrinterSettings, log: logPrint } = usePrinterSettings();
@@ -142,6 +145,11 @@ export function KitchenDisplayFlow() {
   const historyOrders = useMemo(() => orders.filter((order) => isCompleted(order.status) && !isToday(order.createdAt)), [orders]);
   const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId]);
   const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders, operationalSettings.orderDelayThresholdMinutes), [now, operationalSettings.orderDelayThresholdMinutes, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
+  const playConfiguredSound = useCallback((target: OperationalNotificationSoundTarget) => {
+    const prefs = operationalSettings.notificationSounds[target];
+    if (!soundAlerts || !prefs || prefs.muted) return;
+    void playOperationalSound({ sound: prefs.sound as OperationalSound, volume: prefs.volume / 100, repeatCount: prefs.repeatCount });
+  }, [operationalSettings.notificationSounds, soundAlerts]);
 
   useEffect(() => {
     ordersRef.current = orders;
@@ -257,8 +265,8 @@ export function KitchenDisplayFlow() {
       title: `${stats.delayed} kitchen order${stats.delayed === 1 ? "" : "s"} delayed`,
       message: "Review delayed tickets in the Kitchen Operations Center.",
     });
-    if (soundAlerts) playReadyTone();
-  }, [soundAlerts, stats.delayed]);
+    playConfiguredSound("urgentDelay");
+  }, [playConfiguredSound, stats.delayed]);
 
   const notifyWaiter = useCallback(async (order: TableOrder) => {
     if (busyOrders.current.has(order.id)) return;
@@ -268,20 +276,20 @@ export function KitchenDisplayFlow() {
       const response = await fetch("/api/owner/kitchen/notify-waiter", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kitchenOrderId: order.id, orderId: (order as TableOrder & { orderId?: string }).orderId, orderNumber: displayOrderNumber(order), tableNumber: order.tableNumber, waiterName: order.waiterName || order.assignedStaffName, branchId: order.branchId, repeat: repeatNotification, notificationMethod }),
+        body: JSON.stringify({ kitchenOrderId: order.id, orderId: (order as TableOrder & { orderId?: string }).orderId, orderNumber: displayOrderNumber(order), tableNumber: order.tableNumber, waiterName: order.waiterName || order.assignedStaffName, branchId: order.branchId, repeat: repeatNotification, notificationMethod, sound: operationalSettings.notificationSounds.readyForPickup.sound }),
       });
       await readKitchenPayload(response, "Waiter notification could not be sent.");
       setReadySignals((current) => ({ ...current, [order.id]: { kitchenOrderId: order.id, notifiedAt: new Date().toISOString() } }));
       showLazySarvaNotification({ id: `waiter-notified-${order.id}`, tone: "success", title: "Waiter notified", message: `${displayOrderNumber(order)} · ${order.tableNumber}`, meta: "Ready for pickup" });
       toast.success("Waiter notified. Order state remains Ready.");
-      if (soundAlerts) playReadyTone();
+      playConfiguredSound("readyForPickup");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Waiter notification could not be sent.");
     } finally {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, [notificationMethod, repeatNotification, soundAlerts]);
+  }, [notificationMethod, operationalSettings.notificationSounds.readyForPickup.sound, playConfiguredSound, repeatNotification]);
 
   const updateStatus = useCallback(async (order: TableOrder, status: TableOrderStatus, options: { silent?: boolean } = {}) => {
     if (busyOrders.current.has(order.id)) return;
@@ -298,8 +306,11 @@ export function KitchenDisplayFlow() {
       const payload = await readKitchenPayload<{ data?: TableOrder }>(response, "Kitchen status could not be updated.");
       if (payload.data) setOrders((current) => current.map((item) => item.id === order.id ? payload.data! : item));
       if (!options.silent) toast.success(kitchenActionToast(order, status));
+      if (!options.silent && status === "accepted") playConfiguredSound("kitchenAccepted");
+      if (!options.silent && status === "preparing") playConfiguredSound("preparing");
       if (status === "ready") {
         if (autoNotifyWaiter) void notifyWaiter(payload.data ?? { ...order, status: "ready" });
+        else playConfiguredSound("readyForPickup");
         const toastId = `waiter-ready-${order.id}`;
         showLazySarvaNotification({
           id: toastId,
@@ -326,7 +337,7 @@ export function KitchenDisplayFlow() {
       busyOrders.current.delete(order.id);
       setBusyOrderId(null);
     }
-  }, [autoNotifyWaiter, notifyWaiter]);
+  }, [autoNotifyWaiter, notifyWaiter, playConfiguredSound]);
 
   const showNewOrderNotification = useCallback((order: TableOrder) => {
     const id = `new-order-${order.id}`;
@@ -351,7 +362,8 @@ export function KitchenDisplayFlow() {
         { label: "Dismiss", onClick: () => toast.dismiss(id) },
       ],
     });
-  }, [updateStatus]);
+    playConfiguredSound("newOrder");
+  }, [playConfiguredSound, updateStatus]);
 
   useEffect(() => {
     if (connectionState === "loading") return;
@@ -366,9 +378,30 @@ export function KitchenDisplayFlow() {
       if (alertedOrders.current.has(order.id)) return;
       alertedOrders.current.add(order.id);
       showNewOrderNotification(order);
-      playReadyTone();
     });
   }, [boardOrders, connectionState, showNewOrderNotification, soundAlerts]);
+
+  useEffect(() => {
+    if (connectionState === "loading") return;
+    if (!requestSoundReady.current) {
+      activeRequests.forEach((request) => alertedRequests.current.add(`${request.table}:${request.id ?? request.at}:${request.type}`));
+      requestSoundReady.current = true;
+      return;
+    }
+    activeRequests.forEach((request) => {
+      const id = `${request.table}:${request.id ?? request.at}:${request.type}`;
+      if (alertedRequests.current.has(id)) return;
+      alertedRequests.current.add(id);
+      showLazySarvaNotification({
+        id: `customer-request-${id}`,
+        tone: "warning",
+        title: "Customer Request",
+        message: `${request.table} · ${request.message || request.type.replace(/-/g, " ")}`,
+        duration: Infinity,
+      });
+      playConfiguredSound("customerRequest");
+    });
+  }, [activeRequests, connectionState, playConfiguredSound]);
 
   const printKot = useCallback(async (order: TableOrder, options: { auto?: boolean; reprint?: boolean } = {}) => {
     const jobId = `${order.id}:${options.reprint ? "reprint" : "print"}`;
@@ -937,7 +970,7 @@ function KitchenOrderColumn({
   const ref = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(720);
-  const itemHeight = 376;
+  const itemHeight = 292;
   const overscan = 3;
   const virtual = orders.length > 18 && !expandedOrderId;
   const start = virtual ? Math.max(0, Math.floor(scrollTop / itemHeight) - overscan) : 0;
@@ -1374,7 +1407,7 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
 
   return (
     <article
-      className={cn("flex min-h-[20rem] flex-col overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/40")}
+      className={cn("flex flex-col overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/40")}
       aria-label={delayed ? `Order ${displayOrderNumber(order)} delayed by ${formatDelayTime(delay.lateMinutes).label}` : `Order ${displayOrderNumber(order)}`}
       onPointerDown={(event) => {
         startX.current = event.clientX;
@@ -1389,7 +1422,7 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
       }}
       onPointerCancel={clearLongPress}
     >
-      <div className="flex flex-1 flex-col gap-3 p-3">
+      <div className="flex flex-col gap-3 p-3">
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-2xl font-black tracking-tight text-slate-950">#{displayOrderNumber(order)}</p>
@@ -1406,14 +1439,14 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
           {delayed ? <Badge variant="destructive">Late</Badge> : null}
         </div>
 
-        <section className="flex min-h-[9rem] flex-1 flex-col rounded-xl bg-slate-50 p-3" aria-label={`Items for order ${displayOrderNumber(order)}`}>
+        <section className="grid gap-2 rounded-xl bg-slate-50 p-2" aria-label={`Items for order ${displayOrderNumber(order)}`}>
           <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase text-slate-500">
             <span>Items</span>
             <span>{order.lines.length}</span>
           </div>
-          <div className="grid flex-1 content-start gap-2">
+          <div className="grid content-start gap-1.5">
             {visibleLines.map((line, index) => (
-              <p key={`${line.itemId ?? line.name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-2 text-base font-black text-slate-950 shadow-sm">
+              <p key={`${line.itemId ?? line.name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-1.5 text-sm font-black text-slate-950 shadow-sm">
                 <span className="min-w-0 truncate">{line.name}</span>
                 <span className="shrink-0 text-orange-700">×{line.quantity}</span>
               </p>
@@ -1441,7 +1474,7 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 grid grid-cols-4 gap-2 border-t bg-white p-3">
+      <div className="mt-auto grid grid-cols-4 gap-2 border-t bg-white p-3">
         {final ? (
           <Button className="min-h-11 min-w-0" disabled title={statusLabel(order.status)}>
             <CheckCircle2 className="size-4 shrink-0" />
@@ -1556,10 +1589,10 @@ function KitchenOrderCard({ order, signal, nowBucket, orderDelayThresholdMinutes
 
   return (
     <article
-      className={cn("flex min-h-[22rem] flex-col overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/35")}
+      className={cn("flex flex-col overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/35")}
       aria-labelledby={`kitchen-order-${order.id}`}
     >
-      <div className="flex flex-1 flex-col gap-3 p-3">
+      <div className="flex flex-col gap-3 p-3">
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 id={`kitchen-order-${order.id}`} className="truncate text-2xl font-black tracking-tight text-slate-950">#{displayOrderNumber(order)}</h3>
@@ -1576,14 +1609,14 @@ function KitchenOrderCard({ order, signal, nowBucket, orderDelayThresholdMinutes
           {waiterSignal ? <span className={cn("rounded-full px-2 py-1", waiterSignal.tone === "success" ? "bg-emerald-100 text-emerald-700" : waiterSignal.tone === "danger" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700")}>{waiterSignal.label}</span> : null}
         </div>
 
-        <section className="flex min-h-[10rem] flex-1 flex-col rounded-xl bg-slate-50 p-3" aria-label={`Items for order ${displayOrderNumber(order)}`}>
+        <section className="grid gap-2 rounded-xl bg-slate-50 p-2" aria-label={`Items for order ${displayOrderNumber(order)}`}>
           <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase text-slate-500">
             <span>Items</span>
             <span>{order.lines.length}</span>
           </div>
-          <div className="grid flex-1 content-start gap-2">
+          <div className="grid content-start gap-1.5">
             {visibleLines.map((line, index) => (
-              <p key={`${line.itemId ?? line.name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-2 text-base font-black text-slate-950 shadow-sm">
+              <p key={`${line.itemId ?? line.name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-1.5 text-sm font-black text-slate-950 shadow-sm">
                 <span className="min-w-0 truncate">{line.name}</span>
                 <span className="shrink-0 text-orange-700">×{line.quantity}</span>
               </p>
@@ -2167,9 +2200,4 @@ function columnHeader(tone: string) {
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
-}
-
-function playReadyTone() {
-  const audio = new Audio("data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YRAAAAAAAP//AAD//wAA//8AAP//AAA=");
-  void audio.play().catch(() => undefined);
 }

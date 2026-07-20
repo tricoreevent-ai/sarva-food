@@ -18,7 +18,7 @@ import { useAppStore } from "@/lib/app-store";
 import { cloudinaryImageUrl } from "@/lib/cloudinary-images";
 import { useThemeMode } from "@/lib/theme-provider";
 import { getConnectivitySnapshot, offlineQueueManager, startOfflineSyncEngine, subscribeConnectivity, subscribeOfflineQueue, type ConnectivitySnapshot, type OfflineQueueEntry } from "@/lib/offline";
-import { defaultOperationalSettings, normalizeOperationalSettings, orderDelayThresholdOptions, type OperationalSettings } from "@/lib/order-delay-settings";
+import { defaultOperationalNotificationSounds, defaultOperationalSettings, normalizeOperationalNotificationSounds, normalizeOperationalSettings, orderDelayThresholdOptions, type OperationalNotificationSounds, type OperationalNotificationSoundTarget, type OperationalSettings } from "@/lib/order-delay-settings";
 import { operationalSoundOptions, playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import type { AppCuisine, OperatingHoursDay, OperatingHoursSlot, OwnerBusinessProfile, TaxSettings } from "@/lib/types";
 
@@ -51,15 +51,9 @@ const LoyaltyRulesPanel = dynamic(() => import("@/components/owner/loyalty-rules
   loading: () => <div className="rounded-xl border bg-muted/30 p-4 text-sm font-bold text-muted-foreground">Loading loyalty rules</div>,
 });
 
-type SoundTarget = "onlineOrder" | "waiterOrder" | "kitchenReady";
+type SoundTarget = OperationalNotificationSoundTarget;
 type SettingsTab = "profile" | "branding" | "appearance" | "delivery" | "payments" | "ordering" | "qr" | "pricing" | "notifications" | "communication" | "hours" | "taxes" | "social" | "loyalty" | "sync";
-type SoundPrefs = Record<SoundTarget, {
-  sound: OperationalSound;
-  volume: number;
-  repeatCount: number;
-  repeatUntilAcknowledged: boolean;
-  muted: boolean;
-}>;
+type SoundPrefs = OperationalNotificationSounds;
 type CommunicationSettings = {
   sms: boolean;
   whatsapp: boolean;
@@ -165,16 +159,16 @@ type ProfileDraft = {
 };
 
 const soundLabels: Record<SoundTarget, string> = {
-  onlineOrder: "New online order",
-  waiterOrder: "Waiter POS order",
-  kitchenReady: "Kitchen ready alert",
+  newOrder: "New Order",
+  kitchenAccepted: "Kitchen Accepted",
+  preparing: "Preparing",
+  readyForPickup: "Ready for Pickup",
+  urgentDelay: "Urgent Delay",
+  customerRequest: "Customer Request",
 };
 
-const defaultSoundPrefs: SoundPrefs = {
-  onlineOrder: { sound: "loud-alarm", volume: 85, repeatCount: 3, repeatUntilAcknowledged: true, muted: false },
-  waiterOrder: { sound: "pos-alert", volume: 70, repeatCount: 2, repeatUntilAcknowledged: false, muted: false },
-  kitchenReady: { sound: "kitchen-alert", volume: 80, repeatCount: 2, repeatUntilAcknowledged: false, muted: false },
-};
+const soundTargets = Object.keys(soundLabels) as SoundTarget[];
+const defaultSoundPrefs: SoundPrefs = defaultOperationalNotificationSounds;
 
 const defaultCommunicationSettings: CommunicationSettings = {
   sms: false,
@@ -206,6 +200,16 @@ const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
 
 const weekDays: OperatingHoursDay["day"][] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+function normalizeOwnerSoundPrefs(value: unknown): SoundPrefs {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return normalizeOperationalNotificationSounds({
+    ...raw,
+    newOrder: raw.newOrder ?? raw.onlineOrder,
+    readyForPickup: raw.readyForPickup ?? raw.kitchenReady,
+    customerRequest: raw.customerRequest ?? raw.waiterOrder,
+  });
+}
+
 function createEmptyHours(): OperatingHoursDay[] {
   return weekDays.map((day) => ({ day, open: false, slots: [] }));
 }
@@ -229,7 +233,7 @@ export function OwnerSettingsFlow() {
     if (typeof window === "undefined") return defaultSoundPrefs;
     try {
       const stored = window.localStorage.getItem(soundStorageKey);
-      return stored ? { ...defaultSoundPrefs, ...JSON.parse(stored) as Partial<SoundPrefs> } : defaultSoundPrefs;
+      return stored ? normalizeOwnerSoundPrefs(JSON.parse(stored)) : defaultSoundPrefs;
     } catch {
       return defaultSoundPrefs;
     }
@@ -259,6 +263,7 @@ export function OwnerSettingsFlow() {
   });
   const [automationLoading, setAutomationLoading] = useState(true);
   const [automationSaving, setAutomationSaving] = useState(false);
+  const [soundSaving, setSoundSaving] = useState(false);
   const [successNotice, setSuccessNotice] = useState("");
   const dismissSuccessNotice = useCallback(() => setSuccessNotice(""), []);
 
@@ -275,6 +280,7 @@ export function OwnerSettingsFlow() {
         if (payload.error) throw new Error(payload.error);
         const settings = normalizeOperationalSettings(payload.data);
         setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: settings.orderDelayThresholdMinutes }));
+        setSoundPrefs(settings.notificationSounds);
       })
       .catch(() => toast.error("Order delay settings could not be loaded."))
       .finally(() => {
@@ -332,7 +338,7 @@ export function OwnerSettingsFlow() {
       toast.error(`${soundLabels[target]} is muted.`);
       return;
     }
-    await playOperationalSound({ sound: prefs.sound, volume: prefs.volume / 100, repeatCount: prefs.repeatCount });
+    await playOperationalSound({ sound: prefs.sound as OperationalSound, volume: prefs.volume / 100, repeatCount: prefs.repeatCount });
     toast.success(`${soundLabels[target]} sound played.`);
   }
 
@@ -353,7 +359,7 @@ export function OwnerSettingsFlow() {
   async function saveAutomation() {
     setAutomationSaving(true);
     try {
-      const settings = normalizeOperationalSettings({ orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes });
+      const settings = normalizeOperationalSettings({ orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes, notificationSounds: soundPrefs });
       const response = await fetch("/api/owner/operational-settings", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -361,12 +367,36 @@ export function OwnerSettingsFlow() {
       });
       const payload = await response.json().catch(() => ({})) as { data?: OperationalSettings; error?: string };
       if (!response.ok) throw new Error(payload.error || "Order settings could not be saved.");
-      setAutomation((current) => ({ ...current, ...normalizeOperationalSettings(payload.data) }));
+      const next = normalizeOperationalSettings(payload.data);
+      setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: next.orderDelayThresholdMinutes }));
+      setSoundPrefs(next.notificationSounds);
       setSuccessNotice("Order delay threshold saved.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Order settings could not be saved.");
     } finally {
       setAutomationSaving(false);
+    }
+  }
+
+  async function saveNotificationSounds() {
+    setSoundSaving(true);
+    try {
+      const settings = normalizeOperationalSettings({ orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes, notificationSounds: soundPrefs });
+      const response = await fetch("/api/owner/operational-settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings }),
+      });
+      const payload = await response.json().catch(() => ({})) as { data?: OperationalSettings; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Notification sounds could not be saved.");
+      const next = normalizeOperationalSettings(payload.data);
+      setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: next.orderDelayThresholdMinutes }));
+      setSoundPrefs(next.notificationSounds);
+      setSuccessNotice("Operational notification sounds saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Notification sounds could not be saved.");
+    } finally {
+      setSoundSaving(false);
     }
   }
 
@@ -678,10 +708,10 @@ export function OwnerSettingsFlow() {
 
         <TabsContent value="notifications">
           <div className="space-y-5">
-            <DashboardCard title="Notification & Sound">
+            <DashboardCard title="Notification & Sound" action={<Button onClick={() => void saveNotificationSounds()} disabled={automationLoading || soundSaving}><Save className="size-4" />{soundSaving ? "Saving" : "Save sounds"}</Button>}>
               <div className="space-y-4">
               <PushPermissionPanel surface="owner" />
-              {(Object.keys(soundLabels) as SoundTarget[]).map((target) => {
+              {soundTargets.map((target) => {
                 const prefs = soundPrefs[target];
                 return (
                   <div key={target} className="rounded-2xl border border-slate-200 p-4">
@@ -703,7 +733,7 @@ export function OwnerSettingsFlow() {
                     <div className="mt-4 grid gap-3 md:grid-cols-5">
                       <label className="grid gap-1 text-xs font-black uppercase text-slate-500 md:col-span-2">
                         Sound type
-                        <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={prefs.sound} onChange={(event) => updateSound(target, { sound: event.target.value as OperationalSound })}>
+                        <select className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground" value={prefs.sound} onChange={(event) => updateSound(target, { sound: event.target.value as SoundPrefs[SoundTarget]["sound"] })}>
                           {operationalSoundOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                         </select>
                       </label>

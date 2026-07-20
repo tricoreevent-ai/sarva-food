@@ -216,12 +216,20 @@ await check("active-orders:dense-memoized-layout", () => {
   assert.ok(activeOrders.includes("formatDelayTime(delay.lateMinutes)"));
 });
 
+await check("active-orders:waiter-live-kitchen-payment-dashboard", () => {
+  for (const token of ["activeOrderKanbanStages", "Ready for Pickup", "posPreparationProgress(order.status)", "P:{paymentStatus}", "activeOrderPaymentBadgeClass(order.paymentStatus)", "activeOrderServiceFlagClass(ready, \"pickup\")"]) assert.ok(activeOrders.includes(token), token);
+  assert.ok(activeOrders.includes('order.hasKitchenTicket !== false || ["ready", "served"].includes(order.status)'));
+  assert.ok(!activeOrders.includes('if (order.paymentStatus === "paid") return "Paid";'));
+  assert.ok(!activeOrders.includes('if (payment === "paid" && !["cancelled", "completed", "billed"].includes(status)) return "Paid";'));
+});
+
 await check("active-orders:status-duration-and-timeline-consistency", () => {
   for (const token of ['key === "accepted"', 'key === "preparing"', 'key === "ready"', 'key === "served"', '"completed"']) assert.ok(statusBadge.includes(token), token);
   assert.ok(delayFormatter.includes('if (value >= 24 * 60) return "24h+"'));
   assert.ok(delayFormatter.includes('return { label: "Stale Order", severity: "stale" }'));
   assert.ok(activeOrders.includes("formatOperationalDuration(delay.elapsedMinutes)"));
   assert.ok(activeOrders.includes("timelineMillis(second) - timelineMillis(first)"));
+  assert.ok(activeOrders.includes("timelineCategory(entry)"));
   assert.ok(activeOrders.includes("const seen = new Set<string>()"));
 });
 
@@ -239,13 +247,24 @@ await check("kitchen:notify-without-serving", () => {
 });
 
 await check("kitchen:item-first-card-actions", () => {
-  for (const token of ["min-h-[10rem]", "More Actions", "Full preview", "setMoreOpen", "onExpandedChange(!expanded)", "<Play", "<CheckCircle2", "<Eye", "<Printer", "<MoreHorizontal"]) assert.ok(kitchen.includes(token), token);
+  for (const token of ["grid gap-2 rounded-xl bg-slate-50 p-2", "More Actions", "Full preview", "setMoreOpen", "onExpandedChange(!expanded)", "<Play", "<CheckCircle2", "<Eye", "<Printer", "<MoreHorizontal"]) assert.ok(kitchen.includes(token), token);
+  assert.ok(!kitchen.includes("min-h-[10rem]"));
+  assert.ok(!kitchen.includes("min-h-[9rem]"));
   assert.ok(!kitchen.includes("Table {order.tableNumber} ·"));
   assert.ok(kitchen.includes("Customer: {order.customerName || order.guestName || \"Walk-in\"}"));
 });
 
 await check("kitchen:responsive-settings-and-duration", () => {
-  for (const token of ["autoNotifyWaiter", "autoPrintOrders", "soundAlerts", "repeatNotification", "escalationTimeout", "notificationMethod", "auto-fit", "grid-template-columns:repeat(auto-fit", "formatOperationalDuration"]) assert.ok(kitchen.includes(token) || read("src/lib/kitchen-delay.ts").includes(token), token);
+  for (const token of ["autoNotifyWaiter", "autoPrintOrders", "soundAlerts", "repeatNotification", "escalationTimeout", "notificationMethod", "auto-fit", "grid-template-columns:repeat(auto-fit", "formatOperationalDuration", "itemHeight = 292"]) assert.ok(kitchen.includes(token) || read("src/lib/kitchen-delay.ts").includes(token), token);
+});
+
+await check("notifications:configurable-operational-sounds", () => {
+  const settings = read("src/lib/order-delay-settings.ts");
+  const ownerSettings = read("src/components/flows/owner-settings-flow.tsx");
+  for (const token of ["newOrder", "kitchenAccepted", "preparing", "readyForPickup", "urgentDelay", "customerRequest", "normalizeOperationalNotificationSounds"]) assert.ok(settings.includes(token), token);
+  for (const token of ["Save sounds", "saveNotificationSounds", "New Order", "Kitchen Accepted", "Ready for Pickup", "Customer Request"]) assert.ok(ownerSettings.includes(token), token);
+  for (const token of ["playConfiguredSound(\"newOrder\")", "playConfiguredSound(\"readyForPickup\")", "playConfiguredSound(\"urgentDelay\")", "playConfiguredSound(\"customerRequest\")"]) assert.ok(kitchen.includes(token), token);
+  assert.ok(kitchenNotify.includes("cleanSound(body.sound)"));
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

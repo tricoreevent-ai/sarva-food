@@ -1,16 +1,18 @@
 # Final Bug Report
 
-Date: 2026-07-20T06:49:20.172Z
+Date: 2026-07-20T09:37:00.019Z
 
 ## Final RC Bug-Hunt Result
 
 | Area | Result |
 | --- | --- |
-| Scope | Phase 5C corrects payment workflow, POS draft resume, Owner Orders payment visuals, and Kitchen card presentation without changing Firestore collection/schema/rule/index contracts. |
-| Workflow | Payment is independent of Kitchen/service state while completion remains guarded by Served + Paid. |
-| POS draft | New Order cancel resumes the existing draft/cart/customer/discount/payment draft; Clear Order remains destructive. |
-| Kitchen UI | Kitchen cards are item-first and move customer/payment/staff/source details into Preview/More. |
-| Payment configuration | Owner-scoped Razorpay remains the primary path; global keys are optional legacy fallback. |
+| Scope | RC5 waiter workflow hardens Active Orders, Kitchen Operations Center, waiter notifications, timelines, and Owner Settings sound preferences without changing order repository contracts or Firestore collection/rule/index contracts. |
+| Waiter visibility | Paid orders no longer mask Kitchen state; Active Orders Waiter view keeps Kitchen status/progress visible until completion/history. |
+| Kitchen density | Kitchen cards now adapt to item count and remove the fixed blank item area while preserving touch-friendly actions and desktop windowing. |
+| Notifications | Ready/customer/Kitchen sounds use persisted operational settings, duplicate bootstrap alerts are suppressed, and Ready notifications remain idempotent. |
+| Timeline | Timeline rows now tag Kitchen, Payment, Print, and Audit categories independently. |
+| Push retry | A transport exception could leave a notification in `dispatching`; bounded recovery now returns it to `pending` and stops after three attempts. |
+| Payment configuration | Production validation accepts owner-scoped Razorpay as the primary path; global keys are optional legacy fallback. |
 | Security | Payment test actions reuse same-origin owner permissions, redact responses, and block provider mutations in live mode. |
 | Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
@@ -19,11 +21,16 @@ Date: 2026-07-20T06:49:20.172Z
 
 | File | Fix |
 | --- | --- |
-| `src/lib/order-state-machine.ts` | Removed Kitchen/Served gating from payment start/record guards while preserving paid/refunded/cancelled protection. |
-| `src/components/flows/pos-billing-flow.tsx` | Updated Active Orders payment/split gating, served+paid completion affordance, and POS New Order cancel resume. |
-| `src/components/flows/kitchen-display-flow.tsx` | Replaced information-heavy Kitchen cards with item-first cards and icon actions. |
-| `src/components/flows/owner-order-management-flow.tsx` | Aligned pending bills and paid workflow state with independent payment. |
-| `scripts/release/operational-hardening-smoke.mjs` | Expanded smoke coverage to 20/20 for payment independence, draft resume, Owner workflow state, and Kitchen item-first cards. |
+| `src/components/flows/pos-billing-flow.tsx` | Added Waiter stage board, independent Kitchen/payment/progress card indicators, and explicit timeline categories. |
+| `src/components/flows/kitchen-display-flow.tsx` | Removed fixed blank Kitchen card item wells and wired configured operational sounds with deduped customer-request alerts. |
+| `src/components/flows/owner-settings-flow.tsx` | Persisted six operational sound targets in Owner Settings. |
+| `src/lib/order-delay-settings.ts` | Added normalized operational notification sound settings. |
+| `src/app/api/owner/kitchen/notify-waiter/route.ts` | Sanitizes and forwards the configured Ready for Pickup sound. |
+| `src/lib/server/push-notifications.ts` | Added bounded queue retry and terminal failure state. |
+| `src/components/pwa/notification-test-center.tsx` | Added owner device, foreground/background, badge, sound, action, deep-link, and history diagnostics. |
+| `src/app/api/owner/payment-settings/route.ts` | Added redacted test-mode diagnostics for keys, orders, signatures, webhooks, capture, and refund. |
+| `src/components/owner/payment-verification-center.tsx` | Added owner-operated payment verification and redacted in-memory logs. |
+| `src/services/razorpay-checkout-client.ts` | Shared the unchanged checkout loader between customer and owner test checkout. |
 
 ## Accepted Warning
 

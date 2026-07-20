@@ -1,11 +1,23 @@
 # Project Tracker
 
+## RC5 Waiter Operational Workflow - 2026-07-20
+
+- Active Orders Waiter view is now a live stage board for New, Accepted, Preparing, Ready, Serving, and Completed.
+- Paid orders no longer hide Kitchen status/progress; cards display Kitchen status, payment status, progress, priority, ETA, Ready for Pickup, Served, and Completed together.
+- Kitchen Operations Center cards now adapt to item count with no fixed blank item well while preserving touch-friendly actions and windowing.
+- Owner Settings now persists configurable operational sounds for New Order, Kitchen Accepted, Preparing, Ready for Pickup, Urgent Delay, and Customer Request.
+- Timeline rows now identify Kitchen, Payment, Print, and Audit events independently.
+- `smoke:operational` now passes 22/22 and covers waiter live Kitchen/payment dashboard visibility plus configurable operational sounds.
+- Repository readiness: 100%.
+- Production readiness: 92%.
+- Remaining QA: hosted authenticated multi-role Active Orders/POS/Kitchen, real push/device sound delivery, provider dashboards, browser/device matrix, printer hardware, Lighthouse/Core Web Vitals, Chrome/React profiling, Firebase Console, and long-run heap.
+
 ## Phase 5C Payment Workflow and Kitchen UI - 2026-07-20
 
 - Payment lifecycle correction: repository complete; payment is independent of Kitchen/service state and completion still requires Served + Paid.
 - POS New Order cancel resumes the current draft/cart/customer/discount/payment draft; Clear Order remains destructive.
 - Kitchen cards are item-first with order number, priority, ETA, status, and icon actions; operational details moved into Preview/More.
-- `smoke:operational` now passes 20/20 and covers payment independence, New Order cancel resume, Owner workflow payment state, and item-first Kitchen cards.
+- Superseded by RC5 Waiter Operational Workflow: `smoke:operational` now passes 22/22 and covers payment independence, New Order cancel resume, Owner workflow payment state, item-first Kitchen cards, Waiter Kitchen/payment visibility, timeline categories, and configurable sounds.
 - Final validation completed: typecheck, lint, build, analyze, audit:release, runtime profile, operational smoke, and diff check passed.
 - Repository readiness: 100%.
 - Production readiness: 92%.
@@ -87,6 +99,7 @@ Last updated: 2026-07-17
 | RC5 Production Observability | Implemented | 95 | Hosted Admin/Owner monitoring smoke, export check, and long-run alert verification remain manual | Codex | 2026-07-13 |
 | RC5 Image Optimization | Repository Complete | 95 | Hosted visual smoke, Cloudinary credential upload check, and real-device image quality review remain manual | Codex | 2026-07-15 |
 | POS Active Orders High-Density Board | Repository Complete | 95 | Deploy; run authenticated owner/waiter/cashier/manager/device/printer visual and workflow QA plus Chrome profiling | Codex | 2026-07-16 |
+| RC5 Waiter Operational Workflow | Repository Complete | 100 | Deploy final commit; run hosted waiter Kitchen/payment visibility, real push/sound, multi-role Active Orders/POS/Kitchen, printer, Lighthouse, Chrome profiling, Firebase Console, and long-run heap QA | Codex | 2026-07-20 |
 | Phase 5C Payment Workflow and Kitchen UI | Repository Complete | 100 | Deploy final commit; run hosted payment before/during/after cooking, multi-role Active Orders/POS/Kitchen, provider, browser/device, printer, Lighthouse, Chrome profiling, and long-run heap QA | Codex | 2026-07-20 |
 | Phase 5B Operational Hardening Finalization | Repository Complete | 100 | Deploy final commit; run hosted authenticated multi-role, provider, browser/device, printer, Lighthouse, Chrome profiling, and long-run heap QA | Codex | 2026-07-17 |
 | RC5 Phase 4C Push & Owner Payments | Repository Implemented | 95 | Deploy Phase 4C; verify hosted VAPID, real-device push, owner Razorpay sandbox/live webhook/payment, browsers, and providers | Codex | 2026-07-16 |

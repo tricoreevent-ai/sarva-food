@@ -2,14 +2,18 @@
 
 ## 2026-07-20
 
+- Completed RC5 waiter operational workflow: Active Orders Waiter view now stages New/Accepted/Preparing/Ready/Serving/Completed and keeps Kitchen status/progress visible after payment.
+- Added compact card signals for Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Served, and Completed; timeline entries now identify Kitchen/Payment/Print/Audit categories.
+- Persisted six Owner Settings operational sound targets and wired configured Ready/customer/Kitchen sounds through Kitchen/Waiter notifications without duplicate bootstrap alerts.
+- Confirmed completed gates: typecheck, lint, build, analyze, audit:release, smoke:operational 22/22, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.
 - Synchronized Phase 5C workflow correction: payment is independent of Kitchen/service state, completion still requires Served + Paid, POS New Order cancel resumes the current draft, and Kitchen cards are item-first with details in Preview/More.
-- Confirmed completed gates: typecheck, lint, build, analyze, audit:release, smoke:operational 20/20, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.
+- Superseded Phase 5C gates with the RC5 waiter workflow run: typecheck, lint, build, analyze, audit:release, smoke:operational 22/22, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.
 - Updated readiness to repository `100%` and production `92%`; production remains `NO GO` until hosted authenticated multi-role, provider, browser/device, printer, Lighthouse/Core Web Vitals, Chrome/React profiling, long-run heap, and Firebase Console gates pass.
 
 ## 2026-07-17
 
 - Finalized Phase 5B operational hardening documentation after implementation validation: Active Orders optimization, Kitchen workflow, waiter notification architecture, strict payment lifecycle, print context, and POS print preview are repository complete.
-- Superseded by Phase 5C gates: typecheck, lint, build, analyze, audit:release, smoke:operational 20/20, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.
+- Superseded by RC5 waiter workflow gates: typecheck, lint, build, analyze, audit:release, smoke:operational 22/22, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.
 - Updated readiness to repository `100%` and production `92%`; production remains `NO GO` until hosted authenticated multi-role, provider, browser/device, printer, Lighthouse/Core Web Vitals, Chrome/React profiling, long-run heap, and Firebase Console gates pass.
 
 ## 2026-07-16

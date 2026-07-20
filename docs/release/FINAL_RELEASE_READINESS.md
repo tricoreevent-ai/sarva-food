@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-20T06:49:20.172Z
+Date: 2026-07-20T09:37:00.019Z
 
 ## Local Validation
 
@@ -12,19 +12,19 @@ Date: 2026-07-20T06:49:20.172Z
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
 | `npm run verify:phase4c` | Passed notification, push lifecycle, payment security, deep-link, and ten-tenant checks. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed. |
+| `npm run smoke:operational` | Passed 22/22. |
 | `npm run profile:runtime` | Passed. |
 
 ## Certification Audit
 
 | Area | Result |
 | --- | --- |
-| Branch baseline | `release/production-nammude` at Phase 5C local validation head; final hosted SHA must be verified after push/deploy. |
-| Workflow | Payment is independent of Kitchen/service state, POS New Order cancel resumes draft state, Kitchen cards are item-first, and completion remains guarded by Served + Paid. |
-| Push | Existing public VAPID templates, lifecycle, service worker, retry, and owner test-center contracts remain unchanged. Hosted env and real-device delivery remain manual. |
-| Payments | Owner-scoped runtime, encrypted secrets, signatures, webhook controls, ten-tenant mappings, and active-order payment independence pass automated checks. Real Razorpay dashboard evidence remains manual. |
-| Firestore | No collection/schema/rule/index/repository change and no new listener. |
+| Branch baseline | `release/production-nammude` with RC5 waiter workflow changes pending final commit. |
+| Push | Public VAPID value is configured in commit-safe templates; lifecycle, service worker, retry, and owner test-center contracts pass. Hosted env and real-device delivery remain manual. |
+| Payments | Owner-scoped runtime, encrypted secrets, signatures, webhook controls, and ten-tenant mappings pass automated checks. Real Razorpay dashboard evidence remains manual. |
+| Firestore | No collection/schema/rule/index/repository change and no new listener. Operational settings now persists the existing notification sound preferences under `restaurantSettings.operationalSettings`. |
 | Security | No service-account/provider secret committed; test responses are redacted and provider mutations are blocked in live mode. |
+| Waiter workflow | Active Orders Waiter board, independent Kitchen/payment visibility, configurable operational sounds, persistent Ready notifications, and Kitchen/Payment timeline separation pass automated smoke. |
 
 ## Production Readiness
 
@@ -32,21 +32,21 @@ Date: 2026-07-20T06:49:20.172Z
 | --- | --- |
 | Repository readiness | 100% |
 | Production readiness | 92% |
-| Recommendation | NO-GO until Phase 5C is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
+| Recommendation | NO-GO until the RC5 waiter workflow commit is deployed and provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Remaining Manual Gates
 
 | Gate | Status | Reason |
 | --- | --- | --- |
 | Production Chrome Performance | Manual | Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session. |
-| Hosted Lighthouse/Core Web Vitals | Manual | Run after the Phase 5C commit is deployed with production configuration. |
+| Hosted Lighthouse/Core Web Vitals | Manual | Run after the RC5 waiter workflow commit is deployed with the production VAPID value. |
 | 30-minute heap stability | Manual | Requires authenticated browser session and continuous POS/Kitchen/customer operation. |
 | Authenticated smoke | Manual | Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace. |
 | Provider/hardware | Manual | Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access. |
-| Hosted VAPID | Manual | Verify the documented public key in Hostinger after redeploy and confirm `vapidConfigured=true`. |
+| Hosted VAPID | Manual | Set the documented public key in Hostinger, redeploy, and verify `vapidConfigured=true`. |
 | Push delivery | Manual | Register real devices and verify foreground/background/action/deep-link behavior in Chrome, Edge, Firefox, Android, and supported Safari/iPhone PWA. |
 | Razorpay | Manual | Complete owner sandbox checkout, failed/cancel/timeout, capture/refund, dashboard webhook, live key rotation, and settlement checks. |
-| Hostinger redeploy | Manual | Deploy Phase 5C, clear cache, and verify release info plus all health endpoints. |
+| Hostinger redeploy | Manual | Deploy the RC5 waiter workflow commit, clear cache, and verify release info plus all health endpoints. |
 
 ## Accepted Warning
 

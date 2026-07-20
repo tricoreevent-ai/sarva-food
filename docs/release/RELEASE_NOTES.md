@@ -1,5 +1,15 @@
 # Release Notes
 
+## RC5 Waiter Operational Workflow - 2026-07-20
+
+- Active Orders Waiter view is now a live stage board for New, Accepted, Preparing, Ready, Serving, and Completed, so cards move by Kitchen/service status instead of being masked by Paid state.
+- Active order cards now keep Kitchen status, payment status, preparation progress, priority, ETA, Ready for Pickup, Served, and Completed indicators visible together.
+- Kitchen Operations Center cards now adapt to item count, remove fixed blank item areas, keep touch-friendly actions, and preserve memoization/windowing with the updated virtual row estimate.
+- Waiter notifications now use the configured Ready for Pickup sound for push/in-app/toast flows, persist until acknowledged/served, suppress duplicates, and share Owner Settings sound targets for New Order, Kitchen Accepted, Preparing, Ready for Pickup, Urgent Delay, and Customer Request.
+- Order timelines now label Kitchen, Payment, Print, and Audit events independently with timestamps.
+- Final validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 22/22, `profile:runtime`, and `git diff --check`.
+- Repository readiness: `100%`. Production readiness: `92%`. Production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse, Chrome profiling, long-run heap, Firebase Console, and hardware QA.
+
 ## Phase 5C Payment Workflow and Kitchen Operations UI - 2026-07-20
 
 - Corrected payment lifecycle so payment can be collected before, during, or after Kitchen preparation/service for any active non-cancelled order that is not already paid/refunded.
@@ -7,7 +17,7 @@
 - Fixed POS New Order cancel so it resumes the current draft/cart/customer/discount/payment draft; Clear Order remains the destructive path.
 - Simplified Kitchen cards to item-first operation cards with order number, priority, ETA, current status, and icon actions; customer/payment/staff/source details live in Preview/More.
 - Updated Owner Orders paid state, cashier pending counts, Active Orders payment/split actions, and operational smoke coverage for the corrected lifecycle.
-- Final validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 20/20, `profile:runtime`, and `git diff --check`.
+- Validation is superseded by RC5 Waiter Operational Workflow: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 22/22, `profile:runtime`, and `git diff --check`.
 - Repository readiness: `100%`. Production readiness: `92%`. Production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse, Chrome profiling, and long-run heap QA.
 
 ## Phase 5B Operational Hardening Finalization - 2026-07-17
@@ -17,7 +27,7 @@
 - Phase 5C supersedes the earlier service-dependent payment rule; completion remains blocked before fully Paid and Served, partial payments remain editable, and payment locks release through record/unlock flows.
 - Kitchen remains responsible for Accepted → Preparing → Ready plus Notify Waiter, Reminder, Kitchen Recall, timeline, acknowledgement, and escalation.
 - Fixed active-order print context so Preview, Print, Receipt, and KOT use the selected order instead of stale POS bill state.
-- Final validation is superseded by Phase 5C: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 20/20, `profile:runtime`, and `git diff --check`.
+- Final validation is superseded by RC5 Waiter Operational Workflow: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 22/22, `profile:runtime`, and `git diff --check`.
 - Repository readiness: `100%`. Production readiness: `92%`. Production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse, Chrome profiling, and long-run heap QA.
 
 ## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
@@ -109,7 +119,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 - 2026-07-15 image optimization closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, and `cmd /c npm run smoke:operational` passed; analyzer timeout resolved and bundle evidence regenerated.
 - 2026-07-16 Active Orders closure: `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, `cmd /c npm run profile:runtime`, and `git diff --check` passed; hosted probes are RC5/production but latest SHA redeploy remains pending.
 - 2026-07-16 Phase 5B high-density board: all required gates passed on the final source; operational smoke is 14/14, `/owner/pos` remains 587 KB (+29 bytes), and the accepted Firebase/protobuf warning is unchanged.
-- 2026-07-20 Phase 5C workflow correction: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 20/20, `profile:runtime`, and `git diff --check` passed; payment independence, Kitchen item-first cards, New Order cancel resume, and readiness docs are repository complete.
+- 2026-07-20 RC5 waiter workflow: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 22/22, `profile:runtime`, and `git diff --check` passed; payment independence, Waiter Kitchen/payment visibility, Kitchen item-first cards, New Order cancel resume, configurable sounds, timeline categories, and readiness docs are repository complete.
 - 2026-07-16 POS draft P0 browser QA: former waiter/cashier `403 pos:update` paths now reach validation, three rapid adds retained quantity `3` with one toast, offline quantity `2` recovered and synced on reconnect, refresh restored the pending draft, and Clear/Hold server deletion now uses the same recoverable retry path.
 
 ## v1.0.0-rc3 - Release Candidate
