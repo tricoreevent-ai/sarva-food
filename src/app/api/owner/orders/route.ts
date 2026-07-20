@@ -219,7 +219,6 @@ function orderError(error: unknown, trace: TraceContext, context: Record<string,
   const message = error instanceof Error ? error.message : "";
   if (/Order not found|no longer active/i.test(message)) return response("This order is no longer active. Please refresh.", 404);
   if (/Kitchen ticket not found/i.test(message)) return response("Kitchen ticket not found.", 404);
-  if (/Kitchen still preparing|Serve the order before collecting payment/i.test(message)) return response("Serve the order before collecting payment.", 409);
   if (/Full payment is required before completing/i.test(message)) return response("Cannot complete order while payment is pending.", 409);
   if (/currently being modified/i.test(message)) return response("Order currently being modified. Refresh and retry.", 409);
   if (/cannot be modified after payment has started/i.test(message)) return response("Cannot modify this order after payment has started.", 409);

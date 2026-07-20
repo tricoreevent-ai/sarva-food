@@ -12,6 +12,7 @@ import {
   History,
   Maximize2,
   MoreHorizontal,
+  Play,
   Printer,
   RefreshCw,
   Search,
@@ -936,7 +937,7 @@ function KitchenOrderColumn({
   const ref = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(720);
-  const itemHeight = 96;
+  const itemHeight = 376;
   const overscan = 3;
   const virtual = orders.length > 18 && !expandedOrderId;
   const start = virtual ? Math.max(0, Math.floor(scrollTop / itemHeight) - overscan) : 0;
@@ -1348,7 +1349,7 @@ type CompactKitchenOrderCardProps = {
 
 function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes, busy, highlighted, onNext, onNotify, onPrint, onPreview, onCancel }: CompactKitchenOrderCardProps) {
   const [itemsOpen, setItemsOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const startX = useRef(0);
   const longPress = useRef<number | null>(null);
   const now = nowBucket * 60000;
@@ -1359,10 +1360,12 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
   const next = nextStatus[order.status];
   const final = isCompleted(order.status);
   const label = actionLabel[order.status] ?? readyActionLabel(order);
-  const visibleLines = itemsOpen ? order.lines : order.lines.slice(0, 2);
+  const visibleLines = itemsOpen || moreOpen ? order.lines : order.lines.slice(0, 4);
   const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
   const priorityTone = delay.priority === "critical" ? "border-l-red-600" : delay.priority === "high" ? "border-l-red-500" : delayed ? "border-l-orange-500" : "border-l-emerald-500";
   const channel = order.source || order.orderType || "POS";
+  const eta = delay.delayed ? `${formatDelayTime(delay.lateMinutes).label} late` : `ETA ${order.etaMinutes ?? 12}m`;
+  const primaryIcon = order.status === "ready" ? <BellRing className="size-5" /> : order.status === "accepted" ? <Play className="size-5" /> : <CheckCircle2 className="size-5" />;
 
   function clearLongPress() {
     if (longPress.current) window.clearTimeout(longPress.current);
@@ -1371,8 +1374,8 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
 
   return (
     <article
-      className={cn("overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/50 kitchen-delay-pulse")}
-      aria-label={delayed ? `${order.tableNumber} delayed by ${formatDelayTime(delay.lateMinutes).label}` : undefined}
+      className={cn("flex min-h-[20rem] flex-col overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/40")}
+      aria-label={delayed ? `Order ${displayOrderNumber(order)} delayed by ${formatDelayTime(delay.lateMinutes).label}` : `Order ${displayOrderNumber(order)}`}
       onPointerDown={(event) => {
         startX.current = event.clientX;
         longPress.current = window.setTimeout(onPreview, 650);
@@ -1386,86 +1389,82 @@ function CompactKitchenOrderCard({ order, nowBucket, orderDelayThresholdMinutes,
       }}
       onPointerCancel={clearLongPress}
     >
-      <div className="space-y-3 p-3">
-        <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-1 flex-col gap-3 p-3">
+        <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="truncate text-base font-black">Order {displayOrderNumber(order)}</p>
-              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-black uppercase", channelTone(channel))}>{channel}</span>
-            </div>
-            <p className="mt-1 text-sm font-bold text-slate-600">Table {order.tableNumber} · {order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
+            <p className="truncate text-2xl font-black tracking-tight text-slate-950">#{displayOrderNumber(order)}</p>
+            <p className="mt-1 text-xs font-black uppercase text-slate-500">{order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs font-black text-slate-500">{delay.elapsedLabel}</span>
-            <span className="flex flex-wrap justify-end gap-1">
-              <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} />
-              {delayed ? <Badge variant="destructive">LATE</Badge> : null}
-            </span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700">{eta}</span>
+            <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} />
           </div>
+        </header>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black uppercase">
+          <span className={cn("rounded-full px-2 py-1", delayed ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700")}>{priorityLabel(order, delay)}</span>
+          {delayed ? <Badge variant="destructive">Late</Badge> : null}
         </div>
 
-        {delayed ? <DelayWarning delay={delay} compact /> : null}
-
-        <div className="grid grid-cols-3 gap-2 text-xs font-black text-slate-700">
-          <span className="rounded-lg bg-slate-50 px-2 py-1.5">ETA {order.etaMinutes ?? 12}m</span>
-          <span className="rounded-lg bg-slate-50 px-2 py-1.5">{formatOperationalDuration(ageMinutes)}</span>
-          <span className="truncate rounded-lg bg-slate-50 px-2 py-1.5">{priorityLabel(order, delay)}</span>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 p-2">
-          {visibleLines.map((line, index) => (
-            <p key={`${line.itemId}-${index}`} className="truncate text-sm font-black text-slate-900">{line.name} x{line.quantity}</p>
-          ))}
-          {hiddenCount || order.lines.length > 2 ? (
-            <button type="button" onClick={() => setItemsOpen((value) => !value)} className="mt-1 inline-flex min-h-11 items-center text-xs font-black text-orange-600">
-              {itemsOpen ? "Hide items" : `View items +${hiddenCount} more`}
+        <section className="flex min-h-[9rem] flex-1 flex-col rounded-xl bg-slate-50 p-3" aria-label={`Items for order ${displayOrderNumber(order)}`}>
+          <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase text-slate-500">
+            <span>Items</span>
+            <span>{order.lines.length}</span>
+          </div>
+          <div className="grid flex-1 content-start gap-2">
+            {visibleLines.map((line, index) => (
+              <p key={`${line.itemId ?? line.name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-2 text-base font-black text-slate-950 shadow-sm">
+                <span className="min-w-0 truncate">{line.name}</span>
+                <span className="shrink-0 text-orange-700">×{line.quantity}</span>
+              </p>
+            ))}
+          </div>
+          {hiddenCount ? (
+            <button type="button" onClick={() => setItemsOpen((value) => !value)} className="mt-2 inline-flex min-h-11 items-center text-xs font-black text-orange-600">
+              {itemsOpen ? "Show fewer items" : `Show ${hiddenCount} more`}
             </button>
           ) : null}
-        </div>
-        <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between rounded-lg border px-3 text-xs font-black text-slate-600" aria-expanded={detailsOpen}>
-          Details
-          <ChevronDown className={cn("size-4 transition", detailsOpen && "rotate-180")} />
-        </button>
-        {detailsOpen ? (
-          <div className="grid gap-1 rounded-lg border bg-white p-2 text-xs font-bold text-slate-600">
+        </section>
+
+        {moreOpen ? (
+          <div className="grid gap-1 rounded-xl border bg-white p-3 text-xs font-bold text-slate-600">
+            <span>Table: {order.tableNumber || "No table"}</span>
             <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
+            <span>Phone: {order.customerPhone || "Not provided"}</span>
             <span>Payment: {paymentLabel(order.paymentStatus)}</span>
-            <span>Waiter: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
+            <span>Staff: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
             <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
-            <span>Kitchen: {statusLabel(order.status)}</span>
+            <span>Source: {channel}</span>
+            <span>Waiting: {formatOperationalDuration(ageMinutes)}</span>
+            {final ? null : <Button variant="outline" className="mt-2 min-h-11 border-red-200 text-red-600" disabled={busy} onClick={onCancel}><XCircle className="size-4" /> Cancel ticket</Button>}
           </div>
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 grid grid-cols-2 gap-2 border-t bg-white p-3">
+      <div className="sticky bottom-0 grid grid-cols-4 gap-2 border-t bg-white p-3">
         {final ? (
-          <Button className="col-span-2 min-h-11 min-w-0" disabled title={statusLabel(order.status)}>
+          <Button className="min-h-11 min-w-0" disabled title={statusLabel(order.status)}>
             <CheckCircle2 className="size-4 shrink-0" />
-            <span className="truncate">{statusLabel(order.status)}</span>
+            <span className="sr-only">{statusLabel(order.status)}</span>
           </Button>
-        ) : order.status === "new" || order.status === "occupied" ? (
-          <>
-            <Button variant="outline" className="min-h-11 min-w-0 border-red-300 text-red-600" disabled={busy} onClick={onCancel} title="Reject order">
-              <XCircle className="size-4 shrink-0" />
-              <span className="truncate">Reject</span>
-            </Button>
-            <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || !next} onClick={() => next && onNext(next)} title="Accept order">
-              <CheckCircle2 className="size-4 shrink-0" />
-              <span className="truncate">Accept</span>
-            </Button>
-          </>
         ) : (
-          <>
-            <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={() => onPrint(Boolean(order.printedCount))} title={order.printedCount ? "Reprint KOT" : "Print KOT"}>
-              <Printer className="size-4 shrink-0" />
-              <span className="truncate">{order.printedCount ? "Reprint" : "Print"}</span>
-            </Button>
-            <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || (!next && order.status !== "ready")} onClick={() => order.status === "ready" ? onNotify() : next && onNext(next)} title={label}>
-              {order.status === "ready" ? <BellRing className="size-4 shrink-0" /> : <UtensilsCrossed className="size-4 shrink-0" />}
-              <span className="truncate">{label}</span>
-            </Button>
-          </>
+          <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || (!next && order.status !== "ready")} onClick={() => order.status === "ready" ? onNotify() : next && onNext(next)} title={label}>
+            {primaryIcon}
+            <span className="sr-only">{label}</span>
+          </Button>
         )}
+        <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={onPreview} title="Preview">
+          <Eye className="size-5" />
+          <span className="sr-only">Preview</span>
+        </Button>
+        <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={() => onPrint(Boolean(order.printedCount))} title={order.printedCount ? "Reprint KOT" : "Print KOT"}>
+          <Printer className="size-5" />
+          <span className="sr-only">{order.printedCount ? "Reprint" : "Print"}</span>
+        </Button>
+        <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={() => setMoreOpen((value) => !value)} title="More Actions" aria-expanded={moreOpen}>
+          <MoreHorizontal className="size-5" />
+          <span className="sr-only">More Actions</span>
+        </Button>
       </div>
     </article>
   );
@@ -1547,72 +1546,104 @@ function KitchenOrderCard({ order, signal, nowBucket, orderDelayThresholdMinutes
   const final = isCompleted(order.status);
   const orderType = order.orderType ? readableKitchenOrderType(order.orderType) : "Dine in";
   const waiterSignal = kitchenWaiterSignal(signal, now);
+  const visibleLines = expanded ? order.lines : order.lines.slice(0, 5);
+  const hiddenCount = Math.max(0, order.lines.length - visibleLines.length);
+  const delayed = delay.delayed;
+  const eta = delayed ? `${formatDelayTime(delay.lateMinutes).label} late` : `ETA ${order.etaMinutes ?? 12}m`;
+  const priorityTone = delay.priority === "critical" ? "border-l-red-600" : delay.priority === "high" ? "border-l-red-500" : delayed ? "border-l-orange-500" : "border-l-emerald-500";
+  const primaryIcon = order.status === "ready" ? <BellRing className="size-5" /> : order.status === "accepted" ? <Play className="size-5" /> : <CheckCircle2 className="size-5" />;
+  const notes = expanded ? order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined, line.modifiers?.length ? `Modifiers: ${line.modifiers.join(", ")}` : undefined]).filter(isStringValue) : [];
 
   return (
-    <CompactOrderAccordion
-      id={`kitchen-order-${order.id}`}
-      orderNumber={displayOrderNumber(order)}
-      etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
-      orderTypeLabel={orderType}
-      tableLabel={order.tableNumber}
-      itemCountLabel={`${order.lines.length} item${order.lines.length === 1 ? "" : "s"}`}
-      status={{ label: statusLabel(order.status), tone: kitchenStatusTone(order.status) }}
-      priority={{ label: priorityLabel(order, delay), tone: kitchenPriorityTone(order, delay), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
-      badges={[{ label: order.source || "POS", tone: "muted" }, ...(order.status === "ready" && waiterSignal ? [{ label: waiterSignal.label, tone: waiterSignal.tone }] : [])]}
-      delay={kitchenAccordionDelay(delay)}
-      items={order.lines.map((line, index) => ({
-        id: `${line.itemId ?? order.id}-${index}`,
-        name: line.name,
-        quantity: line.quantity,
-        note: line.notes,
-        meta: line.modifiers?.join(", "),
-        warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
-      }))}
-      facts={[
-        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
-        { label: "Payment", value: paymentLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
-        { label: "Staff", value: order.assignedStaffName || order.waiterName || "Unassigned" },
-        { label: "Station", value: order.kitchenStation || stationForOrder(order) },
-        { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
-        { label: "Total", value: typeof order.total === "number" ? `₹${order.total}` : "Pending" },
-        ...(waiterSignal ? [{ label: "Waiter", value: waiterSignal.detail, tone: waiterSignal.tone === "success" ? "success" as const : waiterSignal.tone === "danger" ? "danger" as const : "default" as const }] : []),
-      ]}
-      notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
-      timeline={[
-        ...(order.statusHistory ?? []).slice(-5).reverse().map((entry) => ({
-          label: statusLabel((entry.status || entry.foodStatus || entry.event || order.status) as TableOrderStatus),
-          time: entry.at ? timeOnly(String(entry.at)) : undefined,
-        })),
-        { label: "Created", time: timeOnly(order.createdAt) },
-      ]}
-      primaryAction={order.status === "ready" && !signal?.acknowledgedAt ? {
-        id: "notify-waiter",
-        label: "Notify Waiter",
-        icon: <BellRing className="size-4" />,
-        variant: "success",
-        disabled: busy,
-        onClick: onNotify,
-      } : final || !next ? undefined : {
-        id: "advance",
-        label,
-        icon: <UtensilsCrossed className="size-4" />,
-        variant: "primary",
-        disabled: busy,
-        title: `${label} ${order.tableNumber}`,
-        onClick: () => onNext(next),
-      }}
-      secondaryActions={[
-        { id: "preview", label: "Preview", icon: <Eye className="size-4" />, title: `Preview KOT for ${order.tableNumber}`, onClick: onPreview },
-        { id: "print", label: order.printedCount ? "Reprint" : "Print", icon: <Printer className="size-4" />, title: `${order.printedCount ? "Reprint" : "Print"} KOT for ${order.tableNumber}`, onClick: () => onPrint(Boolean(order.printedCount)) },
-      ]}
-      moreActions={[
-        { id: "details", label: "Details", icon: <ChevronDown className="size-4" />, onClick: onOpen },
-        ...(final ? [] : [{ id: "cancel", label: "Cancel ticket", icon: <XCircle className="size-4" />, variant: "danger" as const, disabled: busy, onClick: onCancel }]),
-      ]}
-      isOpen={expanded}
-      highlighted={highlighted}
-      onOpenChange={onExpandedChange}
-    />
+    <article
+      className={cn("flex min-h-[22rem] flex-col overflow-hidden rounded-xl border border-l-4 bg-white shadow-sm", priorityTone, highlighted && "ring-2 ring-orange-400 ring-offset-2", delayed && "border-red-300 bg-red-50/35")}
+      aria-labelledby={`kitchen-order-${order.id}`}
+    >
+      <div className="flex flex-1 flex-col gap-3 p-3">
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 id={`kitchen-order-${order.id}`} className="truncate text-2xl font-black tracking-tight text-slate-950">#{displayOrderNumber(order)}</h3>
+            <p className="mt-1 text-xs font-black uppercase text-slate-500">{order.lines.length} item{order.lines.length === 1 ? "" : "s"}</p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700">{eta}</span>
+            <OperationalOrderStatusBadge status={order.status} label={statusLabel(order.status)} />
+          </div>
+        </header>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black uppercase">
+          <span className={cn("rounded-full px-2 py-1", delayed ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700")}>{priorityLabel(order, delay)}</span>
+          {waiterSignal ? <span className={cn("rounded-full px-2 py-1", waiterSignal.tone === "success" ? "bg-emerald-100 text-emerald-700" : waiterSignal.tone === "danger" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700")}>{waiterSignal.label}</span> : null}
+        </div>
+
+        <section className="flex min-h-[10rem] flex-1 flex-col rounded-xl bg-slate-50 p-3" aria-label={`Items for order ${displayOrderNumber(order)}`}>
+          <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase text-slate-500">
+            <span>Items</span>
+            <span>{order.lines.length}</span>
+          </div>
+          <div className="grid flex-1 content-start gap-2">
+            {visibleLines.map((line, index) => (
+              <p key={`${line.itemId ?? line.name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-2 text-base font-black text-slate-950 shadow-sm">
+                <span className="min-w-0 truncate">{line.name}</span>
+                <span className="shrink-0 text-orange-700">×{line.quantity}</span>
+              </p>
+            ))}
+          </div>
+          {hiddenCount ? <p className="mt-2 text-xs font-black text-orange-600">+{hiddenCount} more in More Actions</p> : null}
+        </section>
+
+        {expanded ? (
+          <div className="grid gap-3 rounded-xl border bg-white p-3 text-xs font-bold text-slate-600">
+            <div className="grid grid-cols-2 gap-2">
+              <span>Type: {orderType}</span>
+              <span>Table: {order.tableNumber || "No table"}</span>
+              <span>Customer: {order.customerName || order.guestName || "Walk-in"}</span>
+              <span>Payment: {paymentLabel(order.paymentStatus)}</span>
+              <span>Staff: {order.assignedStaffName || order.waiterName || "Unassigned"}</span>
+              <span>Station: {order.kitchenStation || stationForOrder(order)}</span>
+              <span>Source: {order.source || "POS"}</span>
+              {waiterSignal ? <span>Waiter: {waiterSignal.detail}</span> : null}
+            </div>
+            <div className="rounded-lg bg-slate-50 p-2">
+              <p className="font-black uppercase text-slate-500">Notes / Allergens / Modifiers</p>
+              <div className="mt-1 grid gap-1">
+                {notes.length ? notes.map((note) => <span key={note}>{note}</span>) : <span>No kitchen notes</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="min-h-11" onClick={onOpen}><Eye className="size-4" /> Full preview</Button>
+              {final ? null : <Button variant="outline" className="min-h-11 border-red-200 text-red-600" disabled={busy} onClick={onCancel}><XCircle className="size-4" /> Cancel ticket</Button>}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 border-t bg-white p-3">
+        {final ? (
+          <Button className="min-h-11 min-w-0" disabled title={statusLabel(order.status)}>
+            <CheckCircle2 className="size-5" />
+            <span className="sr-only">{statusLabel(order.status)}</span>
+          </Button>
+        ) : (
+          <Button className="min-h-11 min-w-0 bg-orange-600 hover:bg-orange-700" disabled={busy || (!next && order.status !== "ready")} onClick={() => order.status === "ready" ? onNotify() : next && onNext(next)} title={label}>
+            {primaryIcon}
+            <span className="sr-only">{label}</span>
+          </Button>
+        )}
+        <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={onPreview} title="Preview">
+          <Eye className="size-5" />
+          <span className="sr-only">Preview</span>
+        </Button>
+        <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={() => onPrint(Boolean(order.printedCount))} title={order.printedCount ? "Reprint KOT" : "Print KOT"}>
+          <Printer className="size-5" />
+          <span className="sr-only">{order.printedCount ? "Reprint" : "Print"}</span>
+        </Button>
+        <Button variant="outline" className="min-h-11 min-w-0" disabled={busy} onClick={() => onExpandedChange(!expanded)} title="More Actions" aria-expanded={expanded}>
+          <MoreHorizontal className="size-5" />
+          <span className="sr-only">More Actions</span>
+        </Button>
+      </div>
+    </article>
   );
 }
 
@@ -1621,6 +1652,7 @@ const MemoKitchenOrderCard = memo(KitchenOrderCard, (prev, next) => (
   prev.nowBucket === next.nowBucket &&
   prev.orderDelayThresholdMinutes === next.orderDelayThresholdMinutes &&
   prev.busy === next.busy &&
+  prev.signal === next.signal &&
   prev.highlighted === next.highlighted &&
   prev.expanded === next.expanded
 ));
@@ -1710,15 +1742,6 @@ function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = d
           />
         </div>
       </aside>
-    </div>
-  );
-}
-
-function DelayWarning({ delay, compact }: { delay: DelayState; compact?: boolean }) {
-  return (
-    <div className={cn("flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-black text-red-700", compact ? "text-xs" : "text-sm")} role="status" aria-live="polite">
-      <AlertTriangle className="size-4 shrink-0" />
-      <span>DELAYED · {formatDelayTime(delay.lateMinutes).label} over ETA · Immediate attention required</span>
     </div>
   );
 }
@@ -2072,16 +2095,6 @@ function readableKitchenOrderType(type: NonNullable<TableOrder["orderType"]>) {
   if (type === "dine-in") return "Dine in";
   if (type === "takeaway") return "Takeaway";
   return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-function channelTone(channel: string) {
-  const key = channel.toLowerCase();
-  if (key.includes("qr")) return "bg-emerald-50 text-emerald-700";
-  if (key.includes("waiter")) return "bg-blue-50 text-blue-700";
-  if (key.includes("delivery")) return "bg-violet-50 text-violet-700";
-  if (key.includes("parcel") || key.includes("takeaway")) return "bg-amber-50 text-amber-700";
-  if (key.includes("web") || key.includes("online")) return "bg-violet-50 text-violet-700";
-  return "bg-slate-100 text-slate-700";
 }
 
 function statusLabel(status: TableOrderStatus) {

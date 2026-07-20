@@ -30,6 +30,7 @@ const delayFormatter = read("src/lib/kitchen-delay.ts");
 const statusBadge = read("src/components/orders/OperationalOrderStatusBadge.tsx");
 const compactActions = read("src/components/orders/CompactOrderAccordionActions.tsx");
 const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
+const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 const ownerAccess = read("src/lib/server/owner-api-access.ts");
 const mutationOrigin = read("src/lib/server/mutation-origin.ts");
@@ -175,14 +176,38 @@ await check("active-orders:all-actions-wired", () => {
 
 await check("active-orders:strict-lifecycle", () => {
   assert.ok(activeOrders.includes('order.status !== "served" || order.paymentStatus !== "paid"'));
-  assert.ok(activeOrders.includes('const canCollect = served && !paid && !paymentLocked'));
+  assert.ok(activeOrders.includes("const canCollect = canCollectOrderPayment(order)"));
   assert.ok(stateMachine.includes('current === "ready" && next === "served"'));
   assert.ok(stateMachine.includes('next === "completed" && paymentStatus !== "paid"'));
-  assert.ok(stateMachine.includes('foodStatus !== "served"'));
+  assert.ok(!stateMachine.includes('foodStatus !== "served"'));
   assert.ok(orderRepository.includes("assertCanRecordPayment(order)"));
   assert.ok(orderRepository.includes("assertPaymentLockOwner(order"));
   assert.ok(kitchenRepository.includes("assertLegalOrderTransition({ status: current, paymentStatus }, next)"));
   assert.ok(!stateMachine.includes('current === "ready" && next === "completed"'));
+});
+
+await check("active-orders:payment-independent-from-kitchen", () => {
+  const startGuard = stateMachine.match(/export function assertCanStartPayment[\s\S]*?}\r?\n\r?\nexport function assertCanRecordPayment/)?.[0] ?? "";
+  const recordGuard = stateMachine.match(/export function assertCanRecordPayment[\s\S]*?}\r?\n\r?\nexport function assertCanRefund/)?.[0] ?? "";
+  const collectGuard = activeOrders.match(/function canCollectOrderPayment[\s\S]*?}\r?\n\r?\nfunction paymentUnavailableReason/)?.[0] ?? "";
+  for (const guard of [startGuard, recordGuard, collectGuard]) {
+    assert.ok(guard, "payment guard");
+    assert.ok(!/foodStatus|kitchen still preparing|serve the order before collecting payment/i.test(guard), guard);
+  }
+  for (const status of ["new", "accepted", "preparing", "ready", "served"]) assert.ok(!collectGuard.includes(`"${status}"`), status);
+  assert.ok(activeOrders.includes('data-action="payment"'));
+  assert.ok(activeOrders.includes('data-action="complete"'));
+  assert.ok(activeOrders.includes("const canComplete = served && paid"));
+  assert.ok(ownerOrders.includes('state: workflowState(paid, !paid && !blocked, blocked)'));
+  assert.ok(!ownerOrders.includes("served && !paid"));
+});
+
+await check("pos:new-order-cancel-resumes-draft", () => {
+  assert.ok(activeOrders.includes("function resumeCurrentDraft()"));
+  assert.ok(activeOrders.includes('setPanel("new")'));
+  assert.ok(activeOrders.includes("setWizardStep((current) => current >= 1 && current <= 4 ? current : billRef.current.lines.length ? 3 : 1)"));
+  assert.ok(activeOrders.includes("onCancel={resumeCurrentDraft}"));
+  assert.ok(activeOrders.includes("Current POS order cleared."));
 });
 
 await check("active-orders:dense-memoized-layout", () => {
@@ -211,6 +236,12 @@ await check("kitchen:notify-without-serving", () => {
   assert.ok(!kitchen.includes('ready: "served"'));
   assert.ok(kitchen.includes('/api/owner/kitchen/notify-waiter'));
   for (const token of ["kitchen_ready_waiter", 'audience: ["waiter"]', 'audience: ["owner"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
+});
+
+await check("kitchen:item-first-card-actions", () => {
+  for (const token of ["min-h-[10rem]", "More Actions", "Full preview", "setMoreOpen", "onExpandedChange(!expanded)", "<Play", "<CheckCircle2", "<Eye", "<Printer", "<MoreHorizontal"]) assert.ok(kitchen.includes(token), token);
+  assert.ok(!kitchen.includes("Table {order.tableNumber} ·"));
+  assert.ok(kitchen.includes("Customer: {order.customerName || order.guestName || \"Walk-in\"}"));
 });
 
 await check("kitchen:responsive-settings-and-duration", () => {

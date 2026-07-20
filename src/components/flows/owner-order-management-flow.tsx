@@ -579,7 +579,7 @@ function ActiveOrderStatusBoard({ summary }: { summary: ActiveOrderSummary }) {
     { label: "With Waiter", value: summary.withWaiter, note: "Not sent to kitchen", icon: Users, tone: "blue" },
     { label: "In Kitchen", value: summary.inKitchen, note: "Cooking in progress", icon: ChefHat, tone: "orange" },
     { label: "Ready To Serve", value: summary.ready, note: "Ready for service", icon: Utensils, tone: "green" },
-    { label: "Served", value: summary.served, note: "Awaiting payment", icon: PackageCheck, tone: "purple" },
+    { label: "Served", value: summary.served, note: "Ready for completion", icon: PackageCheck, tone: "purple" },
     { label: "Pending Bills", value: summary.pendingBills, note: "Payment pending", icon: ReceiptText, tone: "amber" },
     { label: "Delayed", value: summary.delayed, note: "Beyond ETA", icon: AlertTriangle, tone: "red" },
   ] as const;
@@ -1422,7 +1422,7 @@ function buildActiveOrderSummary(orders: ActiveOpsOrder[]): ActiveOrderSummary {
     inKitchen: orders.filter((order) => ["accepted", "preparing"].includes(order.status)).length,
     ready: orders.filter((order) => order.status === "ready").length,
     served: orders.filter((order) => order.status === "served").length,
-    pendingBills: orders.filter((order) => !order.paymentStatusLabel.toLowerCase().includes("paid") && ["ready", "served", "billed"].includes(order.status)).length,
+    pendingBills: orders.filter((order) => !order.paymentStatusLabel.toLowerCase().includes("paid") && !["cancelled", "rejected", "completed", "delivered"].includes(order.status)).length,
     delayed: orders.filter((order) => order.delay?.delayed).length,
   };
 }
@@ -1624,7 +1624,7 @@ function buildOwnerWorkflow(order: ActiveOpsOrder) {
     { id: "cooking", label: "Cooking", sublabel: timelineTime(order, ["preparing", "cooking"]), state: workflowState(cooking, sent && !cooking && !ready && !blocked, blocked), icon: <ChefHat className="size-3.5" /> },
     { id: "ready", label: "Ready", sublabel: timelineTime(order, ["ready"]), state: workflowState(ready, cooking && !ready && !blocked, blocked), icon: <Utensils className="size-3.5" /> },
     { id: "served", label: "Served", sublabel: timelineTime(order, ["served", "delivered"]), state: workflowState(served, ready && !served && !blocked, blocked), icon: <PackageCheck className="size-3.5" /> },
-    { id: "paid", label: "Paid", sublabel: paid ? order.paymentStatusLabel : undefined, state: workflowState(paid, served && !paid && !blocked, blocked), icon: <ReceiptText className="size-3.5" /> },
+    { id: "paid", label: "Paid", sublabel: paid ? order.paymentStatusLabel : undefined, state: workflowState(paid, !paid && !blocked, blocked), icon: <ReceiptText className="size-3.5" /> },
   ];
 }
 
@@ -1644,7 +1644,7 @@ function kitchenProgressHelper(order: ActiveOpsOrder) {
   if (order.delay?.delayed) return `${formatDelayTime(order.delay.lateMinutes).label} beyond ETA`;
   if (!order.kitchenOrder && order.status === "new") return "Not sent to kitchen";
   if (order.status === "ready") return "All items are ready";
-  if (order.status === "served") return "Served, bill pending";
+  if (order.status === "served") return order.paymentStatusLabel.toLowerCase().includes("paid") ? "Served, ready to complete" : "Served, bill pending";
   return order.kitchenStatus;
 }
 

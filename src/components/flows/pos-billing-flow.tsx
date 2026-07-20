@@ -1283,6 +1283,12 @@ export function PosBillingFlow() {
     startNewOrder();
   }
 
+  function resumeCurrentDraft() {
+    setClearConfirmOpen(false);
+    setPanel("new");
+    setWizardStep((current) => current >= 1 && current <= 4 ? current : billRef.current.lines.length ? 3 : 1);
+  }
+
   async function clearCurrentOrder() {
     await discardDraftAutosave();
     resetNewOrderState();
@@ -1474,8 +1480,8 @@ export function PosBillingFlow() {
       toast.error("Open and save this order before collecting payment.");
       return;
     }
-    if (order.status !== "served") {
-      toast.error(order.status === "ready" ? "Cannot collect payment. Serve the order first." : "Cannot collect payment. Kitchen service is not complete.");
+    if (!canCollectOrderPayment(active)) {
+      toast.error(paymentUnavailableReason(active));
       return;
     }
     const amount = orderBalanceDue(canonical, active) || Number(order.total ?? canonical.totals.total ?? 0);
@@ -2097,9 +2103,9 @@ export function PosBillingFlow() {
         {clearConfirmOpen ? (
           <PosConfirmDialog
             title="Clear current POS order?"
-            description="This removes the current cart, customer details, discounts, and billing draft."
+            description="Clear Order removes the draft. Cancel keeps the cart, customer details, discounts, and payment draft open for editing."
             confirmLabel="Clear order"
-            onCancel={() => setClearConfirmOpen(false)}
+            onCancel={resumeCurrentDraft}
             onConfirm={clearCurrentOrder}
           />
         ) : null}
@@ -3083,7 +3089,7 @@ function OrderDetailsDrawer({
   const total = Number(order.total ?? canonical?.totals.total ?? 0);
   const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
   const drawerRef = useRef<HTMLElement>(null);
-  const canCollect = order.status === "served" && order.paymentStatus !== "paid" && !order.paymentLock?.locked;
+  const canCollect = canCollectOrderPayment(order);
   const canModify = !order.paymentLock?.locked && !["authorized", "partial", "paid", "refunded"].includes(String(order.paymentStatus ?? "pending"));
   usePosDrawerFocus(drawerRef, onClose);
   return (
@@ -3125,7 +3131,7 @@ function OrderDetailsDrawer({
             ]}
             notes={[canonical?.statusNote, (order as OperationalOrder & { notes?: string }).notes].filter((item): item is string => Boolean(item))}
             timeline={entries.length ? entries.slice(0, 12).map((entry) => ({ label: timelineLabel(entry), time: formatTimelineTime(entryTimeValue(entry)) })) : [{ label: "Created", time: actualOrderTime(order.createdAt) }]}
-            primaryAction={{ id: "collect", label: "Collect", icon: <CircleDollarSign className="size-4" />, variant: "primary", disabled: !canCollect, title: canCollect ? "Collect Payment" : order.paymentStatus === "paid" ? "Payment has already been collected." : "Serve the order before collecting payment.", onClick: onCollectPayment }}
+            primaryAction={{ id: "collect", label: "Collect", icon: <CircleDollarSign className="size-4" />, variant: "primary", disabled: !canCollect, title: canCollect ? "Collect Payment" : paymentUnavailableReason(order), onClick: onCollectPayment }}
             secondaryActions={[
               { id: "add", label: "Add", icon: <PlusCircle className="size-4" />, disabled: !canModify, title: canModify ? "Add Items" : "Cannot add items after payment has started.", onClick: onAddItems },
               { id: "bill", label: "Bill", icon: <ReceiptText className="size-4" />, onClick: onPrintBill },
@@ -3698,6 +3704,20 @@ function newPaymentAttemptId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function canCollectOrderPayment(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock">) {
+  const status = String(order.status);
+  const paymentStatus = String(order.paymentStatus ?? "pending");
+  return !["completed", "cancelled", "rejected", "billed"].includes(status) && !["paid", "refunded"].includes(paymentStatus) && !order.paymentLock?.locked;
+}
+
+function paymentUnavailableReason(order: Pick<OperationalOrder, "status" | "paymentStatus" | "paymentLock">) {
+  if (order.paymentLock?.locked) return "Order currently being modified. Refresh and retry.";
+  if (order.paymentStatus === "paid") return "Payment has already been collected.";
+  if (order.paymentStatus === "refunded") return "Refunded orders cannot be paid again.";
+  if (["completed", "cancelled", "rejected", "billed"].includes(String(order.status))) return "Cannot collect payment for this order state.";
+  return "Payment could not be recorded. Keep the bill open and retry.";
+}
+
 function initialPosPanel(): PosPanel {
   if (typeof window === "undefined") return "new";
   const panel = new URLSearchParams(window.location.search).get("panel") as PosPanel | null;
@@ -3716,8 +3736,6 @@ function toSafePosError(reason: string | undefined, fallback: string) {
   if (/(firebase|firestore|repository|stack|admin|permission-denied|internal)/.test(text)) return fallback;
   if (text.includes("no longer active") || text.includes("pos draft not found")) return "This order is no longer active. Please refresh.";
   if (text.includes("kitchen ticket not found")) return "Kitchen ticket not found.";
-  if (text.includes("kitchen still preparing")) return "Kitchen still preparing.";
-  if (text.includes("serve the order before collecting payment")) return "Cannot collect payment. Serve the order first.";
   if (text.includes("payment is pending")) return "Cannot complete order. Full payment is still pending.";
   if (text.includes("currently being modified")) return "Order currently being modified. Refresh and retry.";
   if (text.includes("cannot modify this order after payment has started")) return "Cannot modify this order after payment has started.";
@@ -4014,7 +4032,8 @@ function ActiveOrdersPanel({
       const delay = delaysById.get(order.id);
       const operations = ["new", "occupied", "accepted", "preparing"].includes(order.status);
       const waiter = Boolean(order.waiterId || order.waiterName || order.source === "Waiter");
-      const cashier = ["ready", "served"].includes(order.status) || order.paymentStatus === "paid";
+      const paymentOpen = canCollectOrderPayment(order);
+      const cashier = paymentOpen || order.paymentStatus === "paid";
       const delayed = Boolean(delay && delay.lateMinutes > 2);
       if (operations) operationsOrders.push(order);
       if (waiter) waiterOrders.push(order);
@@ -4023,7 +4042,7 @@ function ActiveOrdersPanel({
       if (["accepted", "preparing"].includes(order.status)) inKitchen += 1;
       if (order.status === "ready") ready += 1;
       if (order.status === "served") served += 1;
-      if (["ready", "served"].includes(order.status) && order.paymentStatus !== "paid") pendingBills += 1;
+      if (paymentOpen) pendingBills += 1;
       if (delay && (posDelayLevel(delay) === "critical" || delay.lateMinutes >= 10)) critical += 1;
       if (order.priority === "rush") requests += 1;
     }
@@ -4248,8 +4267,9 @@ function PosActiveOrderCard({
   const paymentRestricted = paymentLocked || ["authorized", "partial", "paid", "refunded"].includes(String(order.paymentStatus ?? "pending"));
   const active = !["completed", "cancelled", "billed"].includes(order.status);
   const canModify = active && !paymentRestricted;
-  const canCollect = served && !paid && !paymentLocked;
-  const canSplit = served && !paid && !paymentLocked;
+  const canCollect = canCollectOrderPayment(order);
+  const canSplit = active && !paid && order.paymentStatus !== "refunded" && !paymentLocked;
+  const canComplete = served && paid;
   const canCancel = active && !paymentRestricted;
   const canContactKitchen = active && !served && order.hasKitchenTicket !== false;
   const canNotify = ready && order.hasKitchenTicket !== false;
@@ -4291,7 +4311,7 @@ function PosActiveOrderCard({
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
             { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
-            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: !served ? "Serve the order before splitting payment." : paid ? "Payment has already been collected." : undefined },
+            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
             { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
             { id: "history", label: "History", icon: <History className="size-4" /> },
             { id: "cancel", label: "Cancel Order", icon: <XCircle className="size-4" />, disabled: !canCancel || busy, reason: paymentRestricted ? "Paid or payment-started orders require a refund workflow." : undefined, danger: true },
@@ -4300,7 +4320,7 @@ function PosActiveOrderCard({
             { id: "receipt", label: "Print Receipt", icon: <Printer className="size-4" />, disabled: !paid },
             { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
             { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
-            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: !served ? "Serve the order before splitting payment." : paid ? "Payment has already been collected." : undefined },
+            { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
             { id: "merge", label: "Merge Tables", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canModify || busy, reason: !canMerge ? "No other active order is available to merge." : paymentRestricted ? "Cannot merge after payment has started." : undefined },
@@ -4356,9 +4376,13 @@ function PosActiveOrderCard({
       </div>
 
       <div className="grid h-11 grid-cols-6 border-t border-slate-100" aria-label={`${orderNumber} actions`}>
-        <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title={ready ? "Serve Order" : "Cannot Serve: kitchen has not marked Ready."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
+        {canComplete ? (
+          <button type="button" data-action="complete" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Complete Order" title="Complete Order"><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
+        ) : (
+          <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title={ready ? "Serve Order" : "Cannot Serve: kitchen has not marked Ready."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
+        )}
         <button type="button" data-action="notify" disabled={!canNotify || busy} onClick={handleAction} className={activeOrderActionClass(canNotify, "default")} aria-label="Notify Waiter" title={canNotify ? "Notify Waiter" : "Cannot Notify: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Notify</span></button>
-        <button type="button" data-action="payment" disabled={!canCollect || busy} onClick={handleAction} className={activeOrderActionClass(canCollect, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paid ? "Payment has already been collected." : "Cannot Collect Payment: serve the order first."}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
+        <button type="button" data-action="payment" disabled={!canCollect || busy} onClick={handleAction} className={activeOrderActionClass(canCollect, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
         <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
         <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
         <PosActiveActionMenu order={order} actions={menuActions} disabled={busy} onAction={onAction} />

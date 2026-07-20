@@ -53,19 +53,18 @@ export function assertLegalKitchenTransition(current: KitchenOrderStatus, next: 
 }
 
 export function assertCanStartPayment(order: OrderLike) {
-  const { foodStatus, paymentStatus, paymentStarted } = normalizeOperationalOrderState(order);
-  if (paymentStatus === "paid") throw new Error("Payment has already been collected.");
-  if (paymentStatus === "refunded") throw new Error("Refunded orders cannot be paid again.");
-  if (paymentStarted) throw new Error("Order currently being modified.");
-  if (foodStatus !== "served") throw new Error("Serve the order before collecting payment.");
-}
-
-export function assertCanRecordPayment(order: OrderLike) {
-  const { status, foodStatus, paymentStatus } = normalizeOperationalOrderState(order);
+  const { status, paymentStatus, paymentStarted } = normalizeOperationalOrderState(order);
   if (terminalOrders.has(status)) throw new Error("Cancelled orders cannot be paid.");
   if (paymentStatus === "paid") throw new Error("Payment has already been collected.");
   if (paymentStatus === "refunded") throw new Error("Refunded orders cannot be paid again.");
-  if (foodStatus !== "served") throw new Error("Serve the order before collecting payment.");
+  if (paymentStarted) throw new Error("Order currently being modified.");
+}
+
+export function assertCanRecordPayment(order: OrderLike) {
+  const { status, paymentStatus } = normalizeOperationalOrderState(order);
+  if (terminalOrders.has(status)) throw new Error("Cancelled orders cannot be paid.");
+  if (paymentStatus === "paid") throw new Error("Payment has already been collected.");
+  if (paymentStatus === "refunded") throw new Error("Refunded orders cannot be paid again.");
 }
 
 export function assertCanRefund(order: OrderLike) {
