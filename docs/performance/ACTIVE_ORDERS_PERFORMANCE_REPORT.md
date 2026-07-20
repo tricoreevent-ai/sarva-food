@@ -1,6 +1,6 @@
 # Active Orders Performance Report
 
-Date: 2026-07-17T05:53:33.987Z
+Date: 2026-07-20T06:49:20.172Z
 
 ## Root Cause
 
@@ -17,11 +17,11 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.28ms | 0.37ms | 1.39ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.03ms | 0.23ms | <100ms update |
-| POS 1000-item category switch | 0.05ms | 0.09ms | 0.21ms | <50ms switch |
-| POS 1000-item search filter | 0.07ms | 0.12ms | 0.32ms | debounced |
-| Active Orders 100-order filter/group | 0.12ms | 0.18ms | 0.42ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.32ms | 0.40ms | 1.53ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.32ms | <100ms update |
+| POS 1000-item category switch | 0.05ms | 0.10ms | 0.21ms | <50ms switch |
+| POS 1000-item search filter | 0.08ms | 0.14ms | 0.35ms | debounced |
+| Active Orders 100-order filter/group | 0.14ms | 0.21ms | 0.44ms | <50ms interaction |
 
 ## Density And Runtime Controls
 
@@ -31,6 +31,7 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 | Card work | Collapsed cards build only the operational summary and action bar; details, timelines, notes, and history mount on expansion. |
 | Interaction | Expansion is immediate and uses no height animation. Search is debounced 120ms and grouping is a single memoized pass. |
 | Actions | Serve, Notify Waiter, Payment, Print, Preview, and More remain visible while collapsed. |
+| Phase 5C Kitchen cards | Item-first cards keep memoized card boundaries, lazy More/Preview details, icon actions, and corrected virtual row sizing; no new listener or animation work was added. |
 | Browser gate | Chrome and React DevTools are available, but flame graphs/FPS/INP need a valid authenticated production-equivalent owner session. |
 
 ## Route Snapshot
@@ -45,6 +46,6 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 | /owner | 27 | 584 KB | 193 KB | 350 KB | Over |
 | /owner/orders | 32 | 711 KB | 193 KB | 500 KB | Over |
 | /owner/settings | 31 | 699 KB | 193 KB | 300 KB | Over |
-| /owner/kitchen | 30 | 663 KB | 193 KB | - | Tracked |
+| /owner/kitchen | 30 | 666 KB | 193 KB | - | Tracked |
 | /owner/pos | 28 | 589 KB | 193 KB | 650 KB | Pass |
 | /admin | 21 | 504 KB | 193 KB | - | Tracked |

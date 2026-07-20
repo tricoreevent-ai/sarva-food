@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-17
+Last updated: 2026-07-20
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,25 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | Phase 5B Operational Hardening Finalization |
+| Current Sprint | Phase 5C Payment Workflow and Kitchen Operations UI |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Pending Phase 5B finalization commit; existing RC tags must not be moved. |
+| Latest Git Commit | Phase 5C workflow/readiness synchronization commit on `release/production-nammude`; use `git rev-parse HEAD` for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Phase 5B finalization passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (17/17), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | Phase 5B finalizes Active Orders/POS/Kitchen operational hardening, strict payment lifecycle enforcement, print-context safety, refreshed runtime reports, and tracker synchronization without redesigning completed UI or changing Firestore schema/rules/indexes. |
+| Verification Status | Phase 5C workflow correction passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (20/20), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | Phase 5C aligns restaurant workflow by making payment independent from Kitchen/service state, preserving Served + Paid completion, fixing POS New Order cancel resume, simplifying Kitchen cards, refreshing runtime reports, and synchronizing trackers without Firestore schema/rule/index changes. |
+
+## Phase 5C Payment Workflow and Kitchen Operations UI - 2026-07-20
+
+| Area | Result |
+| --- | --- |
+| Payment lifecycle | Complete. Payment can start and be recorded for any existing non-cancelled/non-completed order that is not already paid or refunded; Kitchen/Served state no longer blocks payment. Partial payments remain editable, locks release on record/unlock, stale locks are rejected, and completion still requires Served + Paid. |
+| POS New Order cancel | Complete. Cancel on the clear-current-order dialog now returns to New Order with cart, customer, discounts, and payment draft preserved; Clear Order remains the only destructive path. |
+| Active/Owner Orders | Complete. Collect Payment, Split Bill, cashier pending counts, Owner workflow paid state, and served/paid completion affordances now reflect the independent payment lifecycle while illegal completion is still rejected. |
+| Kitchen UI | Complete. Kitchen cards are item-first with order number, priority, ETA, current status, and icon actions by default; customer/payment/staff/source details move into Preview/More. Virtual row sizing now matches the larger cards. |
+| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (20/20), `profile:runtime`, and `git diff --check` passed. |
+| Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, printer, Lighthouse/Chrome profiling, and long-run heap QA. |
 
 ## Phase 5B Operational Hardening Finalization - 2026-07-17
 
@@ -26,10 +37,10 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | --- | --- |
 | Active Orders optimization | Complete. POS active cards remain memoized, details/timelines are lazy-mounted, search/grouping is memoized, and shared duration/status badge utilities are used across POS, Owner Orders, and Kitchen. |
 | Kitchen workflow | Complete. Kitchen owns Accepted → Preparing → Ready, waiter notification, recall/reminder timeline entries, acknowledgement/escalation, and no Kitchen Serve path. |
-| Payment lifecycle | Complete. Payment cannot start before Served, completion requires full Paid status, partial payments stay editable through the payment flow, locks release on record/unlock, and stale/foreign lock attempts are rejected. |
+| Payment lifecycle | Superseded by Phase 5C. Completion still requires full Paid status and Served state; payment itself is now independent of Kitchen/service state. |
 | Owner/POS actions | Serve, Complete, Collect Payment, Preview, Print, Reminder, Transfer, Split, Merge, Timeline, History, Kitchen Recall, and Assign Waiter are wired through guarded handlers/API routes. |
 | Print context fix | Active-order print/KOT paths now build print context from the selected order instead of stale POS bill state, so Preview/Print/KOT target the intended order. |
-| Validation | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (17/17), `profile:runtime`, and `git diff --check` passed. |
+| Validation | Superseded by Phase 5C validation: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (20/20), `profile:runtime`, and `git diff --check` passed. |
 | Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` until authenticated hosted browser/device/provider/printer/Lighthouse/Chrome profiling gates complete. |
 
 ## Phase 5C Hostinger Origin Guard Fix - 2026-07-16
@@ -98,7 +109,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Multi-tenant security | Ten simulated owner/restaurant/key/provider-order mappings pass; existing order, payment-intent, session, tenant, same-origin, signature, and webhook replay controls remain in force. Provider-mutating tests are blocked in live mode. |
 | Configuration | Public VAPID value is present in commit-safe templates and local ignored env. Private VAPID/provider secrets remain server/provider-only. Global Razorpay env keys are optional legacy fallback; stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` is required for live owner settings. |
 | Validation | Typecheck, lint, build, analyze, Phase 4C verifier, release audit, operational smoke, and runtime profile pass. Local production env validation reports `46` pass, `17` errors, and `1` manual due production-only Hostinger/Firebase/QR/alert/encryption values and owner Razorpay dashboard verification. |
-| Readiness | Repository `99%`; production `90%`; NO-GO until Phase 4C deploy, hosted VAPID health, real-device push, Razorpay sandbox/live webhook/payment, Firebase Console, browser, Lighthouse, and hardware gates pass. |
+| Readiness | Superseded by Phase 5C readiness: repository `100%`; production `92%`; NO-GO until Phase 5C deploy, hosted VAPID health, real-device push, Razorpay sandbox/live webhook/payment, Firebase Console, browser, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Documentation Architecture
 

@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-17T05:53:29.614Z
+Generated: 2026-07-20T06:49:15.732Z
 
-Result: PASS — 17/17 checks passed.
+Result: PASS — 20/20 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -18,12 +18,13 @@ Result: PASS — 17/17 checks passed.
 | active-orders:a11y-and-operational-controls | PASS |  |
 | active-orders:all-actions-wired | PASS |  |
 | active-orders:strict-lifecycle | PASS |  |
+| active-orders:payment-independent-from-kitchen | PASS |  |
+| pos:new-order-cancel-resumes-draft | PASS |  |
 | active-orders:dense-memoized-layout | PASS |  |
 | active-orders:status-duration-and-timeline-consistency | PASS |  |
 | active-orders:search-loading-keyboard-and-touch | PASS |  |
 | kitchen:notify-without-serving | PASS |  |
+| kitchen:item-first-card-actions | PASS |  |
 | kitchen:responsive-settings-and-duration | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, Active Orders accessibility, strict lifecycle, all active-order actions, shared status/duration/timeline consistency, keyboard/touch affordances, and Kitchen notify contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
-
-Phase 5B finalization note: Active Orders optimization, Kitchen workflow, waiter notification architecture, payment lifecycle enforcement, and selected-order print context are repository-complete. Hosted authenticated owner/manager/waiter/cashier/Kitchen QA remains manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, Active Orders accessibility/actions/lifecycle, payment independence from Kitchen/service state, POS New Order cancel resume, Owner Orders payment state, Kitchen notify contracts, and item-first Kitchen card actions. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

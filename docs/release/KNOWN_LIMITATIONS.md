@@ -1,8 +1,8 @@
 # Known Limitations
 
-Phase 5C closes the Hostinger reverse-proxy origin mismatch that blocked POS draft saves and payment collection. The fix still requires Hostinger redeployment before the currently hosted runtime changes.
+Phase 5C closes the Hostinger reverse-proxy origin mismatch and the service-dependent payment mismatch. Payment is now independent of Kitchen/service state, POS New Order cancel resumes drafts, and Kitchen cards are item-first. The fixes still require Hostinger redeployment before the currently hosted runtime changes.
 
-Phase 5B closes the repository-side POS Active Orders hang, inconsistent accordion, hidden-action, low-density, strict lifecycle, payment-before-service, incomplete lock-release, and stale print-context defects. Remaining QA is authenticated hosted owner/manager/waiter/cashier/Kitchen workflow observation, real printer/device checks, provider dashboard checks, React Profiler/FPS/INP capture, Lighthouse/Core Web Vitals, and long-run browser heap stability.
+Phase 5B closes the repository-side POS Active Orders hang, inconsistent accordion, hidden-action, low-density, incomplete lock-release, and stale print-context defects. Phase 5C supersedes the earlier service-dependent payment behavior. Remaining QA is authenticated hosted owner/manager/waiter/cashier/Kitchen workflow observation, real printer/device checks, provider dashboard checks, React Profiler/FPS/INP capture, Lighthouse/Core Web Vitals, and long-run browser heap stability.
 
 Phase 5A closes the repository-side Kitchen Serve responsibility violation, unbounded time labels, fixed-width Kanban, and missing waiter notification/acknowledgement/escalation workflow. Real push delivery, browser permission, multi-device timing, sound policy, and printer hardware remain external QA.
 
@@ -19,7 +19,7 @@ Feature ID: `RC1-PRODUCTION-GO-LIVE`
 - WhatsApp/SMS/Meta provider launch remains provider-gated.
 - Production Lighthouse/Core Web Vitals and Chrome profiling remain manual.
 - Authenticated browser smoke remains manual.
-- Active Orders multi-role hosted QA remains manual.
+- Active Orders multi-role hosted QA remains manual, including payment before/during/after Kitchen preparation and Served + Paid completion.
 - Printer/device validation remains manual.
 
 ## Accepted Repository Warning

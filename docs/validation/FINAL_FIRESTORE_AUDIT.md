@@ -1,10 +1,10 @@
 # Final Firestore Audit
 
-Date: 2026-07-17T05:53:33.987Z
+Date: 2026-07-20T06:49:20.172Z
 
 ## Scope
 
-No Firestore collection, schema, rule, or index changed. Phase 5B changes are operational behavior hardening only: order lifecycle guards, payment lock/payment completion guards, waiter assignment/recall/reminder events, and selected-order print context reuse existing order, kitchen, notification, audit, payment, and print fields.
+No Firestore collection, schema, rule, index, or repository contract changed. Phase 5C updates existing order payment guards, POS/Owner/Kitchen UI behavior, and operational smoke coverage using existing repositories and documents only.
 
 ## Result
 
@@ -17,5 +17,3 @@ No Firestore collection, schema, rule, or index changed. Phase 5B changes are op
 | Listeners and indexes | No listener, rule, or index added. |
 
 Firebase Console deployment and authenticated protected read/write smoke remain manual.
-
-Phase 5B addendum: repository/API behavior was tightened, but no migration, rule/index update, or new collection is required.

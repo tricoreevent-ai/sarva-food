@@ -4,11 +4,18 @@
 
 - Completed Active Orders optimization without a redesign: memoized cards, lazy details, stable callbacks, shared duration formatting, and shared status badges.
 - Completed strict lifecycle enforcement for Order Taken -> Accepted -> Preparing -> Ready -> Served -> Paid -> Completed.
-- Completed payment guards: no payment before Served, no completion before full Paid status, partial payments remain editable, and payment locks release through record/unlock retry paths.
+- Phase 5C supersedes the earlier service-dependent payment rule: payment is independent of Kitchen/service state, completion still requires Served + full Paid status, partial payments remain editable, and payment locks release through record/unlock retry paths.
 - Completed Kitchen workflow boundary: Kitchen accepts, prepares, marks ready, notifies waiter, supports recall/reminder/timeline/escalation, and does not serve orders.
 - Fixed active-order print context so Preview, Print, Receipt, and KOT target the selected order instead of stale POS bill state.
-- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 17/17, runtime profile, and diff check.
+- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 20/20, runtime profile, and diff check.
 - Remaining production QA: hosted authenticated owner/manager/waiter/cashier/Kitchen action matrix, providers, browser/device coverage, real printer/KOT/receipt output, Lighthouse, Chrome/React profiling, and long-run heap.
+
+## Phase 5C Workflow Correction
+
+- Payment can now be taken before Accepted, during Preparing, after Ready, before Served, or after Served as long as the order is active and not already paid/refunded.
+- POS New Order cancel resumes the current draft instead of doing nothing; Clear Order remains the only destructive confirmation.
+- Kitchen cards are item-first and touch-friendly, with order number, priority, ETA, current status, and icon actions visible by default; customer/payment/staff/source details live in Preview/More.
+- Owner Orders payment visuals and cashier counts now match the independent payment lifecycle while Completed still moves orders to history only after Served + Paid.
 
 ## POS Fixes
 

@@ -14,6 +14,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 | ✅ Completed | Hosted provider probe | `docs/validation/PROVIDER_VERIFICATION_REPORT.md`: `8` pass, `3` manual. |
 | ✅ Completed | Bundle/performance reports | `docs/performance/FINAL_BUNDLE_REPORT.md`, `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md`. |
 | ✅ Completed | Phase 4C repository verification | `docs/validation/PHASE_4C_AUTOMATED_VERIFICATION.md`: `19/19` checks, 34 notification scenarios, 10 tenant mappings. |
+| ✅ Completed | Phase 5C workflow verification | `docs/validation/OPERATIONAL_HARDENING_REPORT.md`: `20/20` checks covering payment independence, POS New Order cancel resume, Owner Orders payment state, and Kitchen item-first cards. |
 | ✅ Completed | Hostinger RC5 runtime metadata | Hosted metadata reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA. |
 | 🔴 Blocking | Production env validation | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `17` errors and `1` manual check needing production Hostinger/Firebase/QR/alert/encryption values and owner Razorpay verification. |
 | 🟡 Pending Manual | Browser/device/provider/hardware/Lighthouse | Complete before go-live. |
@@ -24,7 +25,7 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 - Set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`.
 - Set final HTTPS `NEXT_PUBLIC_APP_URL`.
 - Configure Firebase Admin credentials.
-- Set the documented public Firebase VAPID key and verify `vapidConfigured=true` after Phase 4C deploy.
+- Set the documented public Firebase VAPID key and verify `vapidConfigured=true` after Phase 5C deploy.
 - Set a stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` with at least 32 random characters.
 - Configure `TABLE_QR_SECRET`.
 - Configure `DATABASE_ALERT_EMAIL`.

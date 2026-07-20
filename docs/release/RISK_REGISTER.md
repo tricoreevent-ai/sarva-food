@@ -1,7 +1,7 @@
 # Risk Register
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Date: 2026-07-17
+Date: 2026-07-20
 
 | Risk | Level | Status | Evidence | Mitigation |
 | --- | --- | --- | --- | --- |
@@ -13,6 +13,6 @@ Date: 2026-07-17
 | Authenticated browser/device flows unverified | High | 🟡 Pending Manual | Production smoke has `18` manual items. | Run checklist on target browsers/devices. |
 | Firebase rules/index production state unverified | High | 🟡 Pending Manual | Console deployment state is external. | Deploy/review rules/indexes and smoke protected flows. |
 | Printer/QR/camera hardware unverified | Medium | 🟡 Pending Manual | Requires restaurant devices. | Validate target printers, QR scanning, camera/upload. |
-| Active Orders hosted multi-role QA pending | Medium | 🟡 Pending Manual | Repository validation passes `smoke:operational` 17/17, but hosted Owner/Manager/Waiter/Cashier/Kitchen browser evidence is external. | Run the Phase 5B hosted action matrix after deployment and capture console/network/printer evidence. |
+| Active Orders hosted multi-role QA pending | Medium | 🟡 Pending Manual | Repository validation passes `smoke:operational` 20/20, including payment independence and Kitchen item-first card contracts, but hosted Owner/Manager/Waiter/Cashier/Kitchen browser evidence is external. | Run the Phase 5C hosted action matrix after deployment and capture console/network/printer evidence. |
 | Firebase/protobuf dynamic dependency warning | Low | ✅ Accepted | Build/analyze warning trace is upstream Firebase/protobuf. | Document and accept; no freeze-time aliasing. |
 | Push deep-link duplicate tab | Low | ✅ Resolved | Phase 4D service-worker VM simulation verifies exact query/hash tab reuse. | Retain `smoke:operational` in release gates and confirm on real devices. |
