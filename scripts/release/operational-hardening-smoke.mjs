@@ -33,11 +33,17 @@ const kitchen = read("src/components/flows/kitchen-display-flow.tsx");
 const ownerLogin = read("src/components/flows/owner-portal-login-flow.tsx");
 const kitchenApi = read("src/app/api/owner/kitchen/route.ts");
 const orderApi = read("src/app/api/owner/orders/route.ts");
+const posStreamApi = read("src/app/api/owner/pos/stream/route.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 const ownerAccess = read("src/lib/server/owner-api-access.ts");
 const mutationOrigin = read("src/lib/server/mutation-origin.ts");
 const firestoreRules = read("firestore.rules");
+const productCard = read("src/modules/owner/pos/components/product-card.tsx");
+const productGrid = read("src/modules/owner/pos/components/product-grid.tsx");
+const ownerSettings = read("src/components/flows/owner-settings-flow.tsx");
+const operationalSettings = read("src/lib/order-delay-settings.ts");
+const orderDisplay = read("src/lib/order-display.ts");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -227,6 +233,31 @@ await check("pos:new-order-cancel-resumes-draft", () => {
   assert.ok(activeOrders.includes("setWizardStep((current) => current >= 1 && current <= 4 ? current : billRef.current.lines.length ? 3 : 1)"));
   assert.ok(activeOrders.includes("onCancel={resumeCurrentDraft}"));
   assert.ok(activeOrders.includes("Current POS order cleared."));
+});
+
+await check("pos:display-options-and-hidden-image-performance", () => {
+  for (const token of ["DisplayOptionsMenu", "Show Product Images", "Hide Product Images", "Compact Cards", "Comfortable Cards", "Grid View", "List View", "Show Item Description", "Show Price Only", "Large Touch Mode", "Compact Desktop Mode"]) assert.ok(pos.includes(token), token);
+  for (const token of ["sarva-pos-display-options:v1", "defaultPosDisplayPrefs", "window.matchMedia(\"(max-width: 767px)\")", "readSavedDisplayPrefs", "normalizeDisplayPrefs"]) assert.ok(pos.includes(token), token);
+  for (const token of ["showImages ? (", "<SafeImage", "loading=\"lazy\"", "layout={rowMode ? \"row\" : \"grid\"}", "visibleCount", "Show {Math.min(pageSize"]) assert.ok(productCard.includes(token) || productGrid.includes(token), token);
+  assert.ok(productCard.indexOf("showImages ? (") < productCard.indexOf("<SafeImage"));
+});
+
+await check("pos:workflow-settings-review-actions", () => {
+  for (const token of ["posDisplayDefaults", "posWorkflowMode", "sequentialOrderNumbering", "payment-first", "kitchen-first", "flexible"]) assert.ok(operationalSettings.includes(token), token);
+  for (const token of ["POS workflow", "Sequential POS numbering", "POS images by default", "POS compact cards", "POS list view default"]) assert.ok(ownerSettings.includes(token), token);
+  for (const token of ["Continue to Payment", "Send to Kitchen", "workflowMode === \"payment-first\"", "workflowMode === \"kitchen-first\"", "onContinuePayment", "onSendToKitchen"]) assert.ok(pos.includes(token), token);
+});
+
+await check("pos:incremental-realtime-stream", () => {
+  for (const token of ["new EventSource", "applyRealtimePatch", "ordersUpsert", "kitchenUpsert", "orderIdsRemoved", "kitchenIdsRemoved"]) assert.ok(pos.includes(token) || posStreamApi.includes(token), token);
+  for (const token of ["snapshot.docChanges()", "orderDocToOperationalDemoOrder", "kitchenDocToTableOrder", "text/event-stream", "no-cache, no-transform"]) assert.ok(posStreamApi.includes(token), token);
+  assert.ok(!posStreamApi.includes("emitState()"));
+});
+
+await check("orders:restaurant-sequential-numbering", () => {
+  for (const token of ["restaurantCounters", "posOrderSequence", "nextOrderNumber", "withSequentialOrderNumber", "orderSequencePatch", "transaction.set(kitchenRef", "displayOrderNumber: orderNumber"]) assert.ok(orderRepository.includes(token), token);
+  assert.ok(orderDisplay.includes('return `#${text.slice(1).padStart(4, "0")}`'));
+  assert.ok(orderDisplay.includes('return trailing ? `#${trailing.padStart(4, "0")}` : "";'));
 });
 
 await check("active-orders:dense-memoized-layout", () => {

@@ -260,6 +260,9 @@ export function OwnerSettingsFlow() {
     deliveryRadiusLimit: 7,
     staffingRequired: true,
     orderDelayThresholdMinutes: defaultOperationalSettings.orderDelayThresholdMinutes,
+    posDisplayDefaults: defaultOperationalSettings.posDisplayDefaults,
+    posWorkflowMode: defaultOperationalSettings.posWorkflowMode,
+    sequentialOrderNumbering: defaultOperationalSettings.sequentialOrderNumbering,
   });
   const [automationLoading, setAutomationLoading] = useState(true);
   const [automationSaving, setAutomationSaving] = useState(false);
@@ -279,7 +282,13 @@ export function OwnerSettingsFlow() {
         if (!active) return;
         if (payload.error) throw new Error(payload.error);
         const settings = normalizeOperationalSettings(payload.data);
-        setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: settings.orderDelayThresholdMinutes }));
+        setAutomation((current) => ({
+          ...current,
+          orderDelayThresholdMinutes: settings.orderDelayThresholdMinutes,
+          posDisplayDefaults: settings.posDisplayDefaults,
+          posWorkflowMode: settings.posWorkflowMode,
+          sequentialOrderNumbering: settings.sequentialOrderNumbering,
+        }));
         setSoundPrefs(settings.notificationSounds);
       })
       .catch(() => toast.error("Order delay settings could not be loaded."))
@@ -359,7 +368,13 @@ export function OwnerSettingsFlow() {
   async function saveAutomation() {
     setAutomationSaving(true);
     try {
-      const settings = normalizeOperationalSettings({ orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes, notificationSounds: soundPrefs });
+      const settings = normalizeOperationalSettings({
+        orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes,
+        notificationSounds: soundPrefs,
+        posDisplayDefaults: automation.posDisplayDefaults,
+        posWorkflowMode: automation.posWorkflowMode,
+        sequentialOrderNumbering: automation.sequentialOrderNumbering,
+      });
       const response = await fetch("/api/owner/operational-settings", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -368,7 +383,13 @@ export function OwnerSettingsFlow() {
       const payload = await response.json().catch(() => ({})) as { data?: OperationalSettings; error?: string };
       if (!response.ok) throw new Error(payload.error || "Order settings could not be saved.");
       const next = normalizeOperationalSettings(payload.data);
-      setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: next.orderDelayThresholdMinutes }));
+      setAutomation((current) => ({
+        ...current,
+        orderDelayThresholdMinutes: next.orderDelayThresholdMinutes,
+        posDisplayDefaults: next.posDisplayDefaults,
+        posWorkflowMode: next.posWorkflowMode,
+        sequentialOrderNumbering: next.sequentialOrderNumbering,
+      }));
       setSoundPrefs(next.notificationSounds);
       setSuccessNotice("Order delay threshold saved.");
     } catch (error) {
@@ -381,7 +402,13 @@ export function OwnerSettingsFlow() {
   async function saveNotificationSounds() {
     setSoundSaving(true);
     try {
-      const settings = normalizeOperationalSettings({ orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes, notificationSounds: soundPrefs });
+      const settings = normalizeOperationalSettings({
+        orderDelayThresholdMinutes: automation.orderDelayThresholdMinutes,
+        notificationSounds: soundPrefs,
+        posDisplayDefaults: automation.posDisplayDefaults,
+        posWorkflowMode: automation.posWorkflowMode,
+        sequentialOrderNumbering: automation.sequentialOrderNumbering,
+      });
       const response = await fetch("/api/owner/operational-settings", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -390,7 +417,13 @@ export function OwnerSettingsFlow() {
       const payload = await response.json().catch(() => ({})) as { data?: OperationalSettings; error?: string };
       if (!response.ok) throw new Error(payload.error || "Notification sounds could not be saved.");
       const next = normalizeOperationalSettings(payload.data);
-      setAutomation((current) => ({ ...current, orderDelayThresholdMinutes: next.orderDelayThresholdMinutes }));
+      setAutomation((current) => ({
+        ...current,
+        orderDelayThresholdMinutes: next.orderDelayThresholdMinutes,
+        posDisplayDefaults: next.posDisplayDefaults,
+        posWorkflowMode: next.posWorkflowMode,
+        sequentialOrderNumbering: next.sequentialOrderNumbering,
+      }));
       setSoundPrefs(next.notificationSounds);
       setSuccessNotice("Operational notification sounds saved.");
     } catch (error) {
@@ -798,6 +831,24 @@ export function OwnerSettingsFlow() {
                   {orderDelayThresholdOptions.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
                 </select>
               </label>
+              <label className="grid gap-1 text-xs font-black uppercase text-muted-foreground">
+                POS workflow
+                <select
+                  className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-semibold normal-case text-foreground"
+                  value={automation.posWorkflowMode}
+                  onChange={(event) => setAutomation((current) => ({ ...current, posWorkflowMode: event.target.value as OperationalSettings["posWorkflowMode"] }))}
+                >
+                  <option value="flexible">Flexible</option>
+                  <option value="kitchen-first">Kitchen first</option>
+                  <option value="payment-first">Payment first</option>
+                </select>
+              </label>
+              <ToggleRow label="Sequential POS numbering" checked={automation.sequentialOrderNumbering} onChange={(value) => setAutomation((current) => ({ ...current, sequentialOrderNumbering: value }))} />
+              <ToggleRow label="POS images by default" checked={automation.posDisplayDefaults.showImages} onChange={(showImages) => setAutomation((current) => ({ ...current, posDisplayDefaults: { ...current.posDisplayDefaults, showImages } }))} />
+              <ToggleRow label="POS compact cards" checked={automation.posDisplayDefaults.cardDensity === "compact"} onChange={(compact) => setAutomation((current) => ({ ...current, posDisplayDefaults: { ...current.posDisplayDefaults, cardDensity: compact ? "compact" : "comfortable" } }))} />
+              <ToggleRow label="POS list view default" checked={automation.posDisplayDefaults.viewMode === "list"} onChange={(list) => setAutomation((current) => ({ ...current, posDisplayDefaults: { ...current.posDisplayDefaults, viewMode: list ? "list" : "grid" } }))} />
+              <ToggleRow label="Show POS descriptions" checked={automation.posDisplayDefaults.showDescription} onChange={(showDescription) => setAutomation((current) => ({ ...current, posDisplayDefaults: { ...current.posDisplayDefaults, showDescription } }))} />
+              <ToggleRow label="Large POS touch mode" checked={automation.posDisplayDefaults.touchMode === "large"} onChange={(large) => setAutomation((current) => ({ ...current, posDisplayDefaults: { ...current.posDisplayDefaults, touchMode: large ? "large" : "compact" } }))} />
               <p className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 md:col-span-2 xl:col-span-3">{automationSummary} automation controls enabled.</p>
             </div>
           </DashboardCard>

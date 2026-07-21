@@ -1,16 +1,16 @@
 # Final Bug Report
 
-Date: 2026-07-20T15:28:42.110Z
+Date: 2026-07-21T12:21:43.575Z
 
 ## Final RC Bug-Hunt Result
 
 | Area | Result |
 | --- | --- |
-| Scope | RC5 owner-login, waiter-serving RBAC, and Kitchen History enterprise UI hardening; authentication APIs, Firestore schema/indexes, and provider contracts remain backward compatible. Firestore rules changed only for order/kitchen role parity. |
+| Scope | RC5 owner-login and Kitchen History enterprise UI hardening; authentication APIs, Firestore schema/rules/indexes, and provider contracts remain backward compatible. |
 | Owner Login | Legacy compact owner login lacked enterprise state handling; new surface adds remembered email, autofocus/autocomplete, Caps Lock detection, session-timeout messaging, stronger loading state, and accessible feedback. |
-| Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, density modes, resizable persisted columns, compact filters, sticky actions, icon-only actions, overflow menu, floating bulk toolbar, export, print, and expandable details. |
+| Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, sticky table actions, sorting, saved filters, bulk selection, export, print, and expandable details. |
 | Security | Tenant isolation, owner permissions, auth endpoints, and provider-secret boundaries remain unchanged. |
-| Firestore audit | No collection, schema, index, or repository contract changed. Rules now mirror order/kitchen role parity; no duplicate listener was introduced. |
+| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
 ## Confirmed Fixes
@@ -18,9 +18,9 @@ Date: 2026-07-20T15:28:42.110Z
 | File | Fix |
 | --- | --- |
 | `src/components/flows/owner-portal-login-flow.tsx` | Rebuilt the owner login UX while preserving the existing owner auth and password OTP flows. |
-| `src/components/flows/kitchen-display-flow.tsx` | Replaced Kitchen History cards with a dense enterprise data grid, persisted density/column preferences, compact filters, exports, floating bulk actions, sticky actions, and expandable row details. |
+| `src/components/flows/kitchen-display-flow.tsx` | Replaced Kitchen History cards with an enterprise table, filters, exports, bulk selection, sticky actions, and expandable row details. |
 | `src/app/api/owner/kitchen/route.ts` | Added bounded page/pageSize/search/date/status/payment/priority/table/waiter/customer/item/print filters for Kitchen History. |
-| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke now verifies owner-login UX, waiter-serving RBAC, Firestore role parity, waiter KOT fallback, and Kitchen History density contracts. |
+| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke now verifies owner-login UX and Kitchen History table contracts. |
 
 ## Accepted Warning
 

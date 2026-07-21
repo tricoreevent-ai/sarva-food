@@ -78,9 +78,9 @@ function orderNumberFromValue(value?: string | number) {
   if (value === undefined || value === null) return "";
   const text = String(value).trim();
   if (!text) return "";
-  if (/^#\d{1,6}$/.test(text)) return `#${text.slice(1).padStart(4, "0").slice(-4)}`;
+  if (/^#\d{1,6}$/.test(text)) return `#${text.slice(1).padStart(4, "0")}`;
   const trailing = text.match(/(?:^|[-_#/])0*(\d{1,6})$/)?.[1];
-  return trailing ? `#${trailing.padStart(4, "0").slice(-4)}` : "";
+  return trailing ? `#${trailing.padStart(4, "0")}` : "";
 }
 
 function compactOrderDate(value?: string) {

@@ -13,9 +13,20 @@ export type OperationalNotificationSoundPrefs = {
   muted: boolean;
 };
 export type OperationalNotificationSounds = Record<OperationalNotificationSoundTarget, OperationalNotificationSoundPrefs>;
+export type PosDisplayPreferenceDefaults = {
+  showImages: boolean;
+  cardDensity: "compact" | "comfortable";
+  viewMode: "grid" | "list";
+  showDescription: boolean;
+  touchMode: "large" | "compact";
+};
+export type PosWorkflowMode = "payment-first" | "kitchen-first" | "flexible";
 export type OperationalSettings = {
   orderDelayThresholdMinutes: OrderDelayThresholdMinutes;
   notificationSounds: OperationalNotificationSounds;
+  posDisplayDefaults: PosDisplayPreferenceDefaults;
+  posWorkflowMode: PosWorkflowMode;
+  sequentialOrderNumbering: boolean;
 };
 
 export const defaultOperationalNotificationSounds: OperationalNotificationSounds = {
@@ -30,6 +41,15 @@ export const defaultOperationalNotificationSounds: OperationalNotificationSounds
 export const defaultOperationalSettings: OperationalSettings = {
   orderDelayThresholdMinutes: defaultOrderDelayThresholdMinutes,
   notificationSounds: defaultOperationalNotificationSounds,
+  posDisplayDefaults: {
+    showImages: true,
+    cardDensity: "comfortable",
+    viewMode: "grid",
+    showDescription: true,
+    touchMode: "compact",
+  },
+  posWorkflowMode: "flexible",
+  sequentialOrderNumbering: true,
 };
 
 export function normalizeOrderDelayThreshold(value: unknown): OrderDelayThresholdMinutes {
@@ -44,7 +64,25 @@ export function normalizeOperationalSettings(value: unknown): OperationalSetting
   return {
     orderDelayThresholdMinutes: normalizeOrderDelayThreshold(data.orderDelayThresholdMinutes),
     notificationSounds: normalizeOperationalNotificationSounds(data.notificationSounds),
+    posDisplayDefaults: normalizePosDisplayPreferenceDefaults(data.posDisplayDefaults),
+    posWorkflowMode: normalizePosWorkflowMode(data.posWorkflowMode),
+    sequentialOrderNumbering: data.sequentialOrderNumbering !== false,
   };
+}
+
+export function normalizePosDisplayPreferenceDefaults(value: unknown): PosDisplayPreferenceDefaults {
+  const data = value && typeof value === "object" ? value as Partial<PosDisplayPreferenceDefaults> : {};
+  return {
+    showImages: data.showImages !== false,
+    cardDensity: data.cardDensity === "compact" ? "compact" : "comfortable",
+    viewMode: data.viewMode === "list" ? "list" : "grid",
+    showDescription: data.showDescription !== false,
+    touchMode: data.touchMode === "large" ? "large" : "compact",
+  };
+}
+
+export function normalizePosWorkflowMode(value: unknown): PosWorkflowMode {
+  return value === "payment-first" || value === "kitchen-first" || value === "flexible" ? value : "flexible";
 }
 
 export function normalizeOperationalNotificationSounds(value: unknown): OperationalNotificationSounds {

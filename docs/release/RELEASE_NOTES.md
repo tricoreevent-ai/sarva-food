@@ -1,5 +1,16 @@
 # Release Notes
 
+## RC5 POS Realtime Workflow, Display Options, and Sequential Numbering - 2026-07-21
+
+- Replaced the low-value POS menu filter toggle with a persisted per-operator Display Options menu: show/hide images, compact/comfortable cards, grid/list, descriptions/price-only, and large-touch/compact-desktop modes.
+- Hidden-image mode no longer renders `SafeImage`, defaults mobile to images off, and switches the POS menu into compact rows with capped incremental rendering for faster scrolling.
+- Review Order now exposes workflow-aware primary actions: Continue to Payment and/or Send to Kitchen based on Owner Settings `payment-first`, `kitchen-first`, or `flexible` mode.
+- Owner Settings now persists POS display defaults, workflow mode, and sequential POS numbering alongside existing operational delay/sound settings.
+- Added an incremental POS realtime stream so order/kitchen status changes patch only changed cards across POS Active Orders without manual refresh or full collection reloads.
+- POS/online orders now receive atomic per-restaurant sequential numbers through the repository transaction, and placed POS orders synchronize the same number back to linked Kitchen tickets.
+- Operational smoke expanded to `35/35` deterministic checks for display options, hidden-image rendering, workflow settings, incremental realtime stream, and sequential numbering.
+- Final validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 35/35, `profile:runtime`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## RC5 Waiter Serving RBAC and Kitchen History Density - 2026-07-20
 
 - Fixed the `403 Permission denied for orders:update` workflow gap: Waiter service actions now pass server authorization for Ready → Served and Served → Completed while payment/billing privileges remain cashier/owner controlled.

@@ -6,7 +6,10 @@ import type { KitchenOrderDoc, OrderDoc } from "@/types/firebase";
 export function orderDocToDemoOrder(order: OrderDoc): DemoOrder {
   return {
     id: order.id,
+    orderNumber: orderNumberValue((order as OrderDoc & { orderNumber?: unknown }).orderNumber),
+    displayOrderNumber: orderNumberValue((order as OrderDoc & { displayOrderNumber?: unknown }).displayOrderNumber),
     invoiceNumber: order.invoiceNumber,
+    billNumber: str((order as OrderDoc & { billNumber?: unknown }).billNumber),
     restaurantSlug: order.restaurantId,
     customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
     lines: (order.lines ?? []).map((line) => ({ itemId: line.menuItemId, name: line.name, price: Number(line.price ?? 0), quantity: Number(line.quantity ?? 0) })),

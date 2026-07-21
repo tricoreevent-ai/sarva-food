@@ -1,8 +1,10 @@
 # Release Closeout
 
-Last updated: 2026-07-20
+Last updated: 2026-07-21
 
-Current Sprint: RC5 waiter serving RBAC and Kitchen History density
+Current Sprint: RC5 POS realtime workflow, adaptive display options, and sequential numbering
+
+RC5 POS Realtime/Display/Numbering Result: POS New Order now has a persisted per-operator Display Options menu for images, compact/comfortable cards, grid/list, descriptions/price-only, and large-touch/compact-desktop modes. Hidden-image mode renders no product image component, defaults mobile to images off, and uses compact rows with capped incremental rendering. Review Order and Cart Panel honor Owner Settings Payment First/Kitchen First/Flexible workflow. POS Active Orders now consumes incremental order/kitchen stream patches, and OrderRepository allocates per-restaurant sequential order numbers atomically while syncing the same number to linked Kitchen tickets. Operational smoke passes 35/35; full release validation passed.
 
 RC5 Login and Kitchen History Enterprise UI Result: Owner Login now has a premium responsive SaaS authentication layout with remembered email, autofocus/autocomplete, Caps Lock warning, password visibility, session-timeout messaging, and accessible inline state. Kitchen Order History is now an enterprise management table with bounded server-filtered paging, sticky header/action column, sorting, column visibility, saved filters, bulk selection, CSV/Excel export, print, and expandable timeline/payment/print/audit row details.
 
@@ -16,9 +18,9 @@ Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 waiter-servi
 
 Phase 4E Result: POS Active Orders actions are fully wired and regression-checked; completion now requires Served + Paid, Ready can only transition to Served, delay values are capped into human/stale labels, duplicate timeline events collapse, 100% kitchen progress is green, cards use a responsive compact grid, and the footer is a sticky four-metric bar. Operational smoke passes 12/12.
 
-Current Phase: RC5 enterprise waiter workflow repository hardening complete; deployment and external production verification pending
+Current Phase: RC5 POS realtime/display/numbering hardening complete; deployment and external production verification pending
 
-Current Task: Deploy the final RC5 enterprise waiter workflow candidate, verify hosted SHA, then complete provider/device/Firebase/hardware/browser/performance production gates.
+Current Task: Deploy the final RC5 POS realtime/display/numbering candidate, verify hosted SHA, then complete provider/device/Firebase/hardware/browser/performance production gates.
 
 Phase 4D Result: operational automation now passes 9/9 deterministic checks covering dual-storage draft recovery, restaurant/operator isolation, quota/network/permission/conflict/provider faults, reconnect/focus/visibility replay, role contracts, notification retry/dedup/token lifecycle, service-worker background actions/deep links, and Active Orders accessibility. Fixed service-worker deep-link tab reuse so a matching tab with query parameters is focused instead of duplicated.
 
@@ -50,6 +52,7 @@ Files Changed:
 - Owner Active Orders workspace files: `src/components/flows/owner-order-management-flow.tsx`, shared `src/components/orders/CompactOrderAccordion*`, and `src/components/orders/OrderAccordion.*`.
 - Tracker synchronization files: `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md`, `docs/trackers/project-tracker.md`, `docs/trackers/work-in-progress.md`, `docs/trackers/changelog.md`.
 - RC5 enterprise waiter workflow: live Waiter stage board, multiple independent table tickets, bill-only merge, Ready Signal without Waiter push, independent Kitchen/payment card visibility, compact adaptive Kitchen cards, configurable operational sounds, timeline event categories, operational smoke coverage, validation/performance reports, release trackers, manual QA/risk docs.
+- RC5 POS realtime/display/numbering: Display Options, hidden-image menu rows, workflow settings, incremental POS stream, sequential repository numbering, smoke coverage, validation/performance/release trackers.
 
 Repository readiness: 100%
 
@@ -61,23 +64,23 @@ Active Orders Code Baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
-Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (24/24), `npm.cmd run profile:runtime`, and `git diff --check` PASS on 2026-07-20; build/analyze retain the accepted Firebase/protobuf warning.
+Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (35/35), `npm.cmd run profile:runtime`, and `git diff --check` PASS on 2026-07-21; build/analyze retain the accepted Firebase/protobuf warning.
 
 Last Verified Production Runtime: `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The hosted runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA.
 
 Files Remaining:
 
-- Final RC5 waiter-serving hosted deploy, VAPID health, real-device Waiter ready acknowledgement/recovery plus Owner/Manager escalation, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated multi-role Active Orders/POS/Kitchen browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, long-run heap, and printer/QR/hardware validation.
+- Final RC5 POS realtime/display/numbering hosted deploy, VAPID health, real-device Waiter ready acknowledgement/recovery plus Owner/Manager escalation, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated multi-role Active Orders/POS/Kitchen browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, long-run heap, and printer/QR/hardware validation.
 
 Next Command:
 
 ```powershell
-Deploy final RC5 enterprise waiter workflow commit and run hosted Active Orders/POS/Kitchen multi-role QA plus Owner Notification and Payment Verification Centers with real provider credentials/devices.
+Deploy final RC5 POS realtime/display/numbering commit and run hosted Active Orders/POS/Kitchen multi-role QA plus Owner Notification and Payment Verification Centers with real provider credentials/devices.
 ```
 
 Next Exact Task:
 
-Deploy final RC5 enterprise waiter workflow, verify hosted VAPID and owner Razorpay, then complete Firebase Console, browser/device, Lighthouse, Chrome profiling, long-run heap, Active Orders multi-role, and hardware QA.
+Deploy final RC5 POS realtime/display/numbering hardening, verify hosted VAPID and owner Razorpay, then complete Firebase Console, browser/device, Lighthouse, Chrome profiling, long-run heap, Active Orders multi-role, and hardware QA.
 
 Known Risks:
 

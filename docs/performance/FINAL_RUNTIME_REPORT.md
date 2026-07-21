@@ -1,16 +1,16 @@
 # Final Runtime Report
 
-Date: 2026-07-20T15:28:42.110Z
+Date: 2026-07-21T12:21:43.575Z
 
 ## Runtime Measurements
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.30ms | 0.36ms | 1.71ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.27ms | <100ms update |
-| POS 1000-item category switch | 0.05ms | 0.09ms | 0.21ms | <50ms switch |
-| POS 1000-item search filter | 0.08ms | 0.14ms | 0.36ms | debounced |
-| Active Orders 100-order filter/group | 0.13ms | 0.19ms | 0.47ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.38ms | 0.47ms | 1.84ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.06ms | 0.33ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.11ms | 0.25ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.16ms | 0.42ms | debounced |
+| Active Orders 100-order filter/group | 0.16ms | 0.24ms | 0.57ms | <50ms interaction |
 
 ## Continuous Operation Controls
 
@@ -20,7 +20,7 @@ Date: 2026-07-20T15:28:42.110Z
 | POS | Debounced search, memoized product lists, memoized grid/cards, memoized billing templates, and stable cart handlers reduce repeat input work. |
 | Owner Orders | Debounced search and deferred hidden operations panel code reduce idle render work. |
 | Active Orders | Status/Priority/Progress/ETA/Quick View/Actions columns keep fixed desktop tracks; mobile Quick View expands inline without overlaying row controls. |
-| Delay Alerts | Owner Orders, Kitchen, and POS reuse `getKitchenDelay` with the persisted prepared-not-served threshold; no new realtime listener was added. |
+| Delay Alerts | Owner Orders, Kitchen, and POS reuse `getKitchenDelay` with the persisted prepared-not-served threshold; POS realtime now uses one incremental stream that patches changed order/kitchen cards by id. |
 | Owner Settings | Heavy tab-only dependencies are dynamically imported only for visible tabs. |
 | Profile | Preferences and toast runtime are action/surface loaded instead of static startup ownership. |
 

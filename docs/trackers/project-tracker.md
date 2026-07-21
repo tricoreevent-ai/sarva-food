@@ -1,5 +1,15 @@
 # Project Tracker
 
+## RC5 POS Realtime Workflow, Adaptive Display Options, and Sequential Numbering - 2026-07-21
+
+- POS menu Display Options now persists per operator and controls product images, compact/comfortable cards, grid/list view, item descriptions, and touch/desktop density.
+- Hidden-image mode renders no product image component, defaults mobile to images off, and uses compact rows with capped incremental rendering to reduce network, memory, and scroll work.
+- Review Order and Cart Panel now follow Owner Settings workflow mode: Payment First, Kitchen First, or Flexible.
+- Owner Settings now stores POS display defaults, workflow mode, and sequential POS numbering with the existing operational delay/sound settings.
+- POS Active Orders now receives incremental order/kitchen stream updates so Kitchen Accepted/Preparing/Ready changes move cards without manual refresh.
+- OrderRepository now allocates per-restaurant sequential numbers atomically and patches linked Kitchen tickets with the same number.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 35/35, runtime profile, and diff check.
+
 ## RC5 Waiter Serving RBAC and Kitchen History Density - 2026-07-20
 
 - Fixed Waiter Ready → Served and Served → Completed server authorization without granting bill-edit/payment privileges.

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-21
+
+- Added POS Display Options with per-operator persistence for images, density, grid/list, descriptions, and touch/desktop mode.
+- Hidden POS menu images no longer render image components; mobile defaults to images off and compact row mode uses capped incremental rendering.
+- Added Owner Settings controls for POS display defaults, Payment First/Kitchen First/Flexible workflow, and sequential POS numbering.
+- Updated Review Order and Cart Panel actions to honor the selected POS workflow.
+- Added incremental `/api/owner/pos/stream` updates so Kitchen and order status changes patch POS Active Orders without manual refresh.
+- Added repository-only atomic per-restaurant order numbering and synced linked Kitchen tickets to the same display number.
+- Expanded operational smoke to 35/35 checks for display options, hidden-image performance, workflow settings, realtime stream, and sequential numbering.
+- Passed final gates: typecheck, lint, build, analyze, audit:release, smoke:operational 35/35, runtime profile, and diff check; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## 2026-07-20
 
 - Fixed the waiter serving RBAC gap: `/api/owner/orders` now allows Waiter Ready → Served and Served → Completed through action-specific authorization without granting `canEditBill`, while Cashier payment/refund and Owner/Admin override remain isolated.

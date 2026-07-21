@@ -1,6 +1,6 @@
 # Render Analysis
 
-Date: 2026-07-20T15:28:42.110Z
+Date: 2026-07-21T12:21:43.575Z
 
 ## Source Hot Paths
 
@@ -9,11 +9,11 @@ Date: 2026-07-20T15:28:42.110Z
 | src/components/flows/customer-discovery-home.tsx | 696 | 10 | 0 | 1 | 0 | 1 | 11/6/4 |
 | src/app/profile/page.tsx | 1367 | 0 | 0 | 0 | 0 | 2 | 10/4/0 |
 | src/components/flows/owner-order-management-flow.tsx | 1767 | 11 | 5 | 1 | 0 | 4 | 27/38/2 |
-| src/components/flows/owner-settings-flow.tsx | 2142 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
+| src/components/flows/owner-settings-flow.tsx | 2193 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
 | src/components/flows/kitchen-display-flow.tsx | 2853 | 20 | 13 | 3 | 10 | 4 | 59/43/5 |
-| src/components/flows/pos-billing-flow.tsx | 5146 | 32 | 19 | 1 | 10 | 17 | 94/59/10 |
-| src/modules/owner/pos/components/product-grid.tsx | 48 | 0 | 0 | 1 | 0 | 0 | 1/0/0 |
-| src/modules/owner/pos/components/product-card.tsx | 79 | 0 | 0 | 1 | 0 | 0 | 0/0/0 |
+| src/components/flows/pos-billing-flow.tsx | 5332 | 33 | 20 | 1 | 13 | 17 | 95/60/11 |
+| src/modules/owner/pos/components/product-grid.tsx | 85 | 1 | 0 | 1 | 0 | 0 | 1/0/0 |
+| src/modules/owner/pos/components/product-card.tsx | 131 | 0 | 0 | 1 | 0 | 0 | 0/0/0 |
 
 ## Phase 3 Render Fixes
 

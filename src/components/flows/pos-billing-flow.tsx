@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import * as Popover from "@radix-ui/react-popover";
-import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, ChevronDown, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, Loader2, MapPin, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, ChevronDown, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, List, Loader2, MapPin, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from "react";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
@@ -26,7 +26,7 @@ import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem,
 import { cn, formatCurrency } from "@/lib/utils";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { formatDelayTime, formatOperationalDuration, getKitchenDelay } from "@/lib/kitchen-delay";
-import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
+import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings, type PosDisplayPreferenceDefaults } from "@/lib/order-delay-settings";
 import { playOperationalSound } from "@/lib/operational-sounds";
 import { normalizePhone } from "@/lib/phone";
 import { getRetryDelayMs } from "@/lib/offline/retry-manager";
@@ -216,6 +216,16 @@ type PosPayload = {
   };
 };
 
+type PosDisplayPreferences = PosDisplayPreferenceDefaults;
+type PosStreamPayload = {
+  orders?: DemoOrder[];
+  kitchen?: TableOrder[];
+  ordersUpsert?: DemoOrder[];
+  kitchenUpsert?: TableOrder[];
+  orderIdsRemoved?: string[];
+  kitchenIdsRemoved?: string[];
+};
+
 export function PosBillingFlow() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof posTabs)[number]>("menu");
@@ -230,8 +240,8 @@ export function PosBillingFlow() {
   const [foodFilter, setFoodFilter] = useState<"all" | "veg" | "nonveg">("all");
   const [sortMode, setSortMode] = useState<"popular" | "name" | "price-low" | "price-high">("popular");
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [compactGrid, setCompactGrid] = useState(false);
+  const [displayOptionsOpen, setDisplayOptionsOpen] = useState(false);
+  const [displayPrefs, setDisplayPrefs] = useState<PosDisplayPreferences>(() => defaultPosDisplayPrefs(defaultOperationalSettings.posDisplayDefaults));
   const [showKot, setShowKot] = useState(false);
   const [kotPrintLines, setKotPrintLines] = useState<PosBill["lines"] | null>(null);
   const [printCopies, setPrintCopies] = useState<BillCopy[]>(["Customer Copy"]);
@@ -291,6 +301,7 @@ export function PosBillingFlow() {
       active = false;
     };
   }, []);
+
   const { menuItems, menuCategories, inventoryItems, orders, tables, loyaltyCustomers, tableOrders, staffMembers } = readModel;
   const authUser = useAppStore((state) => state.authUser);
   const ownerBusinessProfile = useAppStore((state) => state.ownerBusinessProfile);
@@ -306,6 +317,7 @@ export function PosBillingFlow() {
   const draftSaveInFlightRef = useRef<Promise<unknown> | null>(null);
   const draftAbortRef = useRef<AbortController | null>(null);
   const draftNoticeKindRef = useRef<PosDraftFailureKind | null>(null);
+  const displayPrefsReadyRef = useRef(false);
   const activeDraftScopeKeyRef = useRef("");
   const flushDraftRef = useRef<(force?: boolean) => Promise<void>>(async () => undefined);
   const retryDraftRef = useRef<() => Promise<void>>(async () => undefined);
@@ -314,6 +326,7 @@ export function PosBillingFlow() {
   const setPosBill = useAppStore((state) => state.setPosBill);
   const resetPosBill = useAppStore((state) => state.resetPosBill);
   const restaurantId = authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID;
+  const displayPrefsKey = useMemo(() => `sarva-pos-display-options:v1:${restaurantId}:${authUser.id || currentRoleKey(authUser.role)}`, [authUser.id, authUser.role, restaurantId]);
   const draftScope = useMemo(() => ({ restaurantId, userId: authUser.id }), [authUser.id, restaurantId]);
   const draftScopeKey = `${draftScope.restaurantId}:${draftScope.userId}`;
   const operational = useOperationalView(true);
@@ -321,6 +334,24 @@ export function PosBillingFlow() {
   const currentRole = operational.session?.role ?? authUser.role;
   const canUnlockPayment = ["owner", "admin", "super_admin"].includes(currentRole);
   const canCorrectBills = ["owner", "manager", "admin", "super_admin"].includes(currentRole);
+  const compactGrid = displayPrefs.cardDensity === "compact";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    displayPrefsReadyRef.current = false;
+    const saved = readSavedDisplayPrefs(displayPrefsKey);
+    const frame = window.requestAnimationFrame(() => {
+      setDisplayPrefs(saved ?? defaultPosDisplayPrefs(operationalSettings.posDisplayDefaults));
+      displayPrefsReadyRef.current = true;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [displayPrefsKey, operationalSettings.posDisplayDefaults]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !displayPrefsReadyRef.current) return;
+    window.localStorage.setItem(displayPrefsKey, JSON.stringify(displayPrefs));
+  }, [displayPrefs, displayPrefsKey]);
+
   const branch = useMemo(
     () => configuredBranch ?? createFallbackBranch(ownerBusinessProfile, authUser.id, restaurantId),
     [authUser.id, configuredBranch, ownerBusinessProfile, restaurantId],
@@ -441,6 +472,33 @@ export function PosBillingFlow() {
       controller.abort();
     };
   }, [refreshPosReadModel]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const events = new EventSource(`/api/owner/pos/stream?restaurantId=${encodeURIComponent(restaurantId)}`);
+    events.addEventListener("state", (event) => {
+      try {
+        const payload = JSON.parse((event as MessageEvent).data) as PosStreamPayload;
+        setReadModel((current) => ({
+          ...current,
+          orders: applyRealtimePatch(current.orders, payload.orders, payload.ordersUpsert, payload.orderIdsRemoved),
+          tableOrders: applyRealtimePatch(current.tableOrders, payload.kitchen, payload.kitchenUpsert, payload.kitchenIdsRemoved),
+        }));
+        setSyncStatus("online");
+        setReadModelError("");
+      } catch (error) {
+        console.error("[pos] stream parse failed", { reason: error instanceof Error ? error.name : typeof error });
+      }
+    });
+    events.addEventListener("error", () => {
+      setSyncStatus("retrying");
+      void refreshPosReadModel({ applyDraft: false }).catch(() => undefined);
+    });
+    return () => {
+      events.close();
+    };
+  }, [refreshPosReadModel, restaurantId]);
+
   useEffect(() => {
     if (panel !== "new" || wizardStep <= 1 || wizardStep >= 4) return;
     window.history.pushState({ sarvaPosWizardStep: wizardStep }, "");
@@ -594,6 +652,9 @@ export function PosBillingFlow() {
       return Number(second.isPopular) - Number(first.isPopular) || first.name.localeCompare(second.name);
     });
   }, [activeTab, activeCategory, availableOnly, customProducts, debouncedQuery, foodFilter, menuProducts, sortMode]);
+  const updateDisplayPrefs = useCallback((patch: Partial<PosDisplayPreferences>) => {
+    setDisplayPrefs((current) => normalizeDisplayPrefs({ ...current, ...patch }));
+  }, []);
   const quantities = useMemo(
     () => Object.fromEntries(bill.lines.map((line) => [line.itemId, line.quantity])),
     [bill.lines],
@@ -1894,23 +1955,24 @@ export function PosBillingFlow() {
                     <button className={cn("h-11 shrink-0 rounded-xl border px-4 text-sm font-semibold", availableOnly ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600")} onClick={() => setAvailableOnly((value) => !value)} title="Show only available items">
                       Available
                     </button>
-                    <Button variant={compactGrid ? "default" : "outline"} size="icon" className="size-11" aria-label="Toggle compact product grid" title="Switch between compact and comfortable grid" onClick={() => setCompactGrid((value) => !value)}>
-                      <Grid2X2 className="size-4" />
-                    </Button>
-                    <Button variant={filtersOpen ? "default" : "outline"} size="icon" className="size-11" aria-label="More filters" title="Open advanced filters" onClick={() => setFiltersOpen((value) => !value)}>
-                      <SlidersHorizontal className="size-4" />
-                    </Button>
+                    <DisplayOptionsMenu
+                      open={displayOptionsOpen}
+                      onOpenChange={setDisplayOptionsOpen}
+                      prefs={displayPrefs}
+                      onChange={updateDisplayPrefs}
+                    />
                   </div>
-                  {filtersOpen ? (
-                    <div className="grid gap-3 border-b border-slate-100 bg-slate-50 p-4 text-sm sm:grid-cols-3">
-                      <button className="rounded-xl border bg-white px-4 py-3 font-bold text-slate-700" onClick={() => { setFoodFilter("all"); setSortMode("popular"); setAvailableOnly(true); setActiveCategory(""); }}>
-                        Reset filters
-                      </button>
-                      <div className="rounded-xl border bg-white px-4 py-3 font-semibold text-slate-600">{displayedItems.length} items visible</div>
-                      <div className="rounded-xl border bg-white px-4 py-3 font-semibold text-slate-600">Inventory products appear in Custom Items</div>
-                    </div>
-                  ) : null}
-                  <ProductGrid items={displayedItems} quantities={quantities} onAdd={handleAdd} onQuantity={handleQuantity} compact={compactGrid} />
+                  <ProductGrid
+                    items={displayedItems}
+                    quantities={quantities}
+                    onAdd={handleAdd}
+                    onQuantity={handleQuantity}
+                    compact={compactGrid}
+                    showImages={displayPrefs.showImages}
+                    viewMode={displayPrefs.viewMode}
+                    showDescription={displayPrefs.showDescription}
+                    touchMode={displayPrefs.touchMode}
+                  />
                 </div>
               </div>
             </WizardShell>
@@ -1949,7 +2011,9 @@ export function PosBillingFlow() {
               onQuantity={handleBillQuantity}
               onRemove={handleRemoveItem}
               onBack={() => setWizardStep(2)}
-              onProcess={() => void processOrder(false)}
+              workflowMode={operationalSettings.posWorkflowMode}
+              onSendToKitchen={() => void processOrder(false)}
+              onContinuePayment={() => void processOrder(true)}
             />
           ) : null}
 
@@ -2055,6 +2119,7 @@ export function PosBillingFlow() {
             onViewActiveOrders={() => setPanel("active")}
             onPrintBill={() => setBillPreviewOpen(true)}
             onPayment={handlePayment}
+            workflowMode={operationalSettings.posWorkflowMode}
             onDiscount={(amount) => {
               void commitDraft({ ...bill, discount: amount, paid: false });
               toast.success(amount > 0 ? `Discount applied: ${formatCurrency(amount)}` : "Discount removed.");
@@ -2308,6 +2373,7 @@ function toMenuProduct(item: MenuItem, category: string): PosProduct {
     name: item.name,
     price: item.price,
     image: item.image,
+    description: item.description || item.longDescription,
     category,
     isVeg: item.isVeg,
     isPopular: item.isPopular,
@@ -2322,6 +2388,7 @@ function toInventoryProduct(item: InventoryItem): PosProduct {
     id: item.id,
     name: item.name,
     price: item.price ?? 0,
+    description: item.notes,
     category: item.category,
     stockLabel: `${item.currentStock} ${item.unit} left`,
     soldOut: item.currentStock <= 0,
@@ -2517,6 +2584,64 @@ function CustomerOrderDetailsStep({
   );
 }
 
+function DisplayOptionsMenu({
+  open,
+  onOpenChange,
+  prefs,
+  onChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  prefs: PosDisplayPreferences;
+  onChange: (patch: Partial<PosDisplayPreferences>) => void;
+}) {
+  return (
+    <Popover.Root open={open} onOpenChange={onOpenChange}>
+      <Popover.Trigger asChild>
+        <Button variant={open ? "default" : "outline"} className="h-11 shrink-0 px-4" aria-label="Display Options" title="Display Options">
+          <SlidersHorizontal className="size-4" />
+          <span className="hidden sm:inline">Display Options</span>
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content align="end" sideOffset={8} collisionPadding={12} className="z-[80] w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+        <div className="mb-3">
+          <p className="text-sm font-black text-slate-950">Display Options</p>
+          <p className="text-xs font-semibold text-slate-500">Saved per operator. Hidden images are never rendered.</p>
+        </div>
+        <div className="grid gap-2">
+          <DisplayOptionButton active={prefs.showImages} label="Show Product Images" onClick={() => onChange({ showImages: true, viewMode: prefs.viewMode === "list" ? "grid" : prefs.viewMode })} />
+          <DisplayOptionButton active={!prefs.showImages} label="Hide Product Images" onClick={() => onChange({ showImages: false, viewMode: "list", cardDensity: "compact" })} />
+          <div className="my-1 h-px bg-slate-100" />
+          <DisplayOptionButton active={prefs.cardDensity === "compact"} label="Compact Cards" onClick={() => onChange({ cardDensity: "compact" })} />
+          <DisplayOptionButton active={prefs.cardDensity === "comfortable"} label="Comfortable Cards" onClick={() => onChange({ cardDensity: "comfortable" })} />
+          <div className="my-1 h-px bg-slate-100" />
+          <DisplayOptionButton active={prefs.viewMode === "grid" && prefs.showImages} label="Grid View" icon={<Grid2X2 className="size-4" />} onClick={() => onChange({ viewMode: "grid", showImages: true })} />
+          <DisplayOptionButton active={prefs.viewMode === "list" || !prefs.showImages} label="List View" icon={<List className="size-4" />} onClick={() => onChange({ viewMode: "list" })} />
+          <div className="my-1 h-px bg-slate-100" />
+          <DisplayOptionButton active={prefs.showDescription} label="Show Item Description" onClick={() => onChange({ showDescription: true })} />
+          <DisplayOptionButton active={!prefs.showDescription} label="Show Price Only" onClick={() => onChange({ showDescription: false })} />
+          <div className="my-1 h-px bg-slate-100" />
+          <DisplayOptionButton active={prefs.touchMode === "large"} label="Large Touch Mode" onClick={() => onChange({ touchMode: "large" })} />
+          <DisplayOptionButton active={prefs.touchMode === "compact"} label="Compact Desktop Mode" onClick={() => onChange({ touchMode: "compact" })} />
+        </div>
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
+function DisplayOptionButton({ active, label, icon, onClick }: { active: boolean; label: string; icon?: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={cn("flex min-h-10 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black transition", active ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-100 bg-white text-slate-600 hover:border-orange-200")}
+      onClick={onClick}
+    >
+      <span className="flex items-center gap-2">{icon}{label}</span>
+      <span className={cn("size-2 rounded-full", active ? "bg-emerald-600" : "bg-slate-200")} />
+    </button>
+  );
+}
+
 function ReviewOrderStep({
   bill,
   totals,
@@ -2526,7 +2651,9 @@ function ReviewOrderStep({
   onQuantity,
   onRemove,
   onBack,
-  onProcess,
+  workflowMode,
+  onSendToKitchen,
+  onContinuePayment,
 }: {
   bill: PosBill;
   totals: { subtotal: number; discount: number; cgst: number; sgst: number; packingCharge: number; serviceCharge: number; total: number };
@@ -2536,10 +2663,14 @@ function ReviewOrderStep({
   onQuantity: (itemId: string, quantity: number) => void;
   onRemove: (itemId: string) => void;
   onBack: () => void;
-  onProcess: () => void;
+  workflowMode: OperationalSettings["posWorkflowMode"];
+  onSendToKitchen: () => void;
+  onContinuePayment: () => void;
 }) {
+  const allowKitchenFirst = workflowMode !== "payment-first";
+  const allowPaymentFirst = workflowMode !== "kitchen-first";
   return (
-    <WizardShell step={3} onStep={(value) => value === 1 ? onBack() : null} title="Review order" subtitle="Confirm items, taxes and payment.">
+    <WizardShell step={3} onStep={(value) => value === 1 ? onBack() : null} title="Review order" subtitle="Confirm food, billing and the restaurant workflow.">
       <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="overflow-hidden rounded-xl border border-slate-200">
           <div className="flex items-center justify-between border-b border-slate-100 p-3">
@@ -2590,10 +2721,23 @@ function ReviewOrderStep({
               <span>{formatCurrency(totals.total)}</span>
             </div>
           </div>
-          <Button className="mt-3 h-12 w-full bg-emerald-700 text-white hover:bg-emerald-800" onClick={onProcess}>
-            <ChefHat className="size-4" />
-            Continue to payment
-          </Button>
+          <div className="mt-3 grid gap-2">
+            {allowPaymentFirst ? (
+              <Button className="h-12 w-full bg-emerald-700 text-white hover:bg-emerald-800" onClick={onContinuePayment}>
+                <CircleDollarSign className="size-4" />
+                Continue to Payment
+              </Button>
+            ) : null}
+            {allowKitchenFirst ? (
+              <Button variant={allowPaymentFirst ? "outline" : "default"} className={cn("h-12 w-full", !allowPaymentFirst && "bg-emerald-700 text-white hover:bg-emerald-800")} onClick={onSendToKitchen}>
+                <ChefHat className="size-4" />
+                Send to Kitchen
+              </Button>
+            ) : null}
+          </div>
+          <p className="mt-2 text-xs font-semibold text-slate-500">
+            {workflowMode === "payment-first" ? "Owner setting: collect payment before kitchen prep." : workflowMode === "kitchen-first" ? "Owner setting: kitchen starts first, payment can be collected later." : "Flexible mode: choose payment first or kitchen first per order."}
+          </p>
         </aside>
       </div>
     </WizardShell>
@@ -3580,6 +3724,48 @@ function preferredDineInTable(currentTable: string, tables: PosTable[], occupied
   const selected = findTableByName(tables, currentTable);
   if (selected && isTableSelectable(selected, occupiedTables)) return selected.table;
   return tables.find((table) => isTableSelectable(table, occupiedTables))?.table ?? "DIRECT";
+}
+
+function currentRoleKey(role?: string) {
+  return role?.replace(/[^a-zA-Z0-9_-]/g, "_") || "operator";
+}
+
+function defaultPosDisplayPrefs(defaults: PosDisplayPreferences): PosDisplayPreferences {
+  if (typeof window === "undefined") return normalizeDisplayPrefs(defaults);
+  const mobile = window.matchMedia("(max-width: 767px)").matches;
+  const tablet = window.matchMedia("(min-width: 768px) and (max-width: 1023px)").matches;
+  if (mobile) return normalizeDisplayPrefs({ ...defaults, showImages: false, cardDensity: "compact", viewMode: "list", touchMode: "large" });
+  if (tablet) return normalizeDisplayPrefs(defaults);
+  return normalizeDisplayPrefs({ ...defaults, showImages: true });
+}
+
+function readSavedDisplayPrefs(key: string) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? normalizeDisplayPrefs(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeDisplayPrefs(value: unknown): PosDisplayPreferences {
+  const data = value && typeof value === "object" ? value as Partial<PosDisplayPreferences> : {};
+  return {
+    showImages: data.showImages !== false,
+    cardDensity: data.cardDensity === "compact" ? "compact" : "comfortable",
+    viewMode: data.viewMode === "list" ? "list" : "grid",
+    showDescription: data.showDescription !== false,
+    touchMode: data.touchMode === "large" ? "large" : "compact",
+  };
+}
+
+function applyRealtimePatch<T extends { id: string }>(current: T[], full: T[] | undefined, upsert: T[] | undefined, removed: string[] | undefined) {
+  if (full) return full;
+  if (!upsert?.length && !removed?.length) return current;
+  const removedIds = new Set(removed ?? []);
+  const byId = new Map(current.filter((item) => !removedIds.has(item.id)).map((item) => [item.id, item]));
+  for (const item of upsert ?? []) byId.set(item.id, item);
+  return Array.from(byId.values()).sort((first, second) => Date.parse((second as T & { createdAt?: string }).createdAt ?? "") - Date.parse((first as T & { createdAt?: string }).createdAt ?? ""));
 }
 
 function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: TableOrder[]): OperationalOrder[] {

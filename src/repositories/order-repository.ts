@@ -171,15 +171,21 @@ export class OrderRepository {
   async create(order: OrderDoc, address?: Record<string, unknown>) {
     const normalizedOrder = withOrderConsistency(order);
     const scope = { tenantId: normalizedOrder.tenantId || resolveTenantId(normalizedOrder.restaurantId) };
+    let savedOrder = normalizedOrder;
     await this.db.runTransaction(async (transaction) => {
-      const customer = await this.customers.prepareOrderUpsert(transaction, normalizedOrder);
+      const counterRef = this.db.collection("restaurantCounters").doc(scope.tenantId);
+      const counterSnapshot = await transaction.get(counterRef);
+      const orderNumber = normalizedOrder.orderNumber ?? nextOrderNumber(counterSnapshot.data()?.posOrderSequence);
+      savedOrder = withSequentialOrderNumber(normalizedOrder, orderNumber);
+      const customer = await this.customers.prepareOrderUpsert(transaction, savedOrder);
       const now = new Date();
-      transaction.set(this.db.collection("orders").doc(normalizedOrder.id), normalizedOrder);
-      transaction.set(this.db.collection("customerOrders").doc(normalizedOrder.id), normalizedOrder);
+      transaction.set(counterRef, orderSequencePatch(scope, orderNumber, now), { merge: true });
+      transaction.set(this.db.collection("orders").doc(savedOrder.id), savedOrder);
+      transaction.set(this.db.collection("customerOrders").doc(savedOrder.id), savedOrder);
       transaction.set(customer.customerRef, customer.customer, { merge: true });
       transaction.set(customer.loyalty.loyaltyRef, customer.loyalty.loyalty, { merge: true });
       transaction.set(customer.loyalty.transactionRef, customer.loyalty.transaction, { merge: true });
-      for (const line of order.lines) {
+      for (const line of savedOrder.lines) {
         if (!line.menuItemId || line.quantity <= 0) continue;
         const patch = { orderCount: FieldValue.increment(line.quantity), updatedAt: now };
         transaction.set(this.db.collection("menus").doc(line.menuItemId), patch, { merge: true });
@@ -188,15 +194,15 @@ export class OrderRepository {
       writeNotification(transaction, scope, {
         type: "new_order",
         title: "New online order",
-        message: `${normalizedOrder.customerName || "Customer"} placed an order for ₹${money(normalizedOrder.total)}.`,
+        message: `${savedOrder.customerName || "Customer"} placed ${displayOrderNumberText(orderNumber)} for ₹${money(savedOrder.total)}.`,
         priority: "high",
-        orderId: normalizedOrder.id,
-        kitchenOrderId: normalizedOrder.kitchenOrderId,
+        orderId: savedOrder.id,
+        kitchenOrderId: savedOrder.kitchenOrderId,
       });
       if (address) transaction.set(this.db.collection("customerAddresses").doc(String(address.id)), address, { merge: true });
     });
     await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
-    return normalizedOrder;
+    return savedOrder;
   }
 
   async resolveOrderLines(restaurantId: string, fulfillmentType: "delivery" | "parcel" | "dine-in", lines: OrderLineDoc[]) {
@@ -362,22 +368,27 @@ export class OrderRepository {
     const draftRef = this.db.collection("orders").doc(posDraftId(scope));
     const kitchenRef = this.db.collection("kitchenOrders").doc(input.kitchenOrderId);
     const orderRef = this.db.collection("orders").doc();
+    const counterRef = this.db.collection("restaurantCounters").doc(scope.tenantId);
     const now = new Date();
     let placed: OrderDoc | null = null;
     await this.db.runTransaction(async (transaction) => {
-      const [snapshot, kitchenSnapshot] = await Promise.all([transaction.get(draftRef), transaction.get(kitchenRef)]);
+      const [snapshot, kitchenSnapshot, counterSnapshot] = await Promise.all([transaction.get(draftRef), transaction.get(kitchenRef), transaction.get(counterRef)]);
       if (!snapshot.exists) throw new Error("POS draft not found.");
       if (!kitchenSnapshot.exists) throw new Error("Kitchen ticket not found.");
       const kitchen = kitchenSnapshot.data() ?? {};
       if (![kitchen.tenantId, kitchen.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
       const draft = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       if (draft.status !== "draft" || ![draft.tenantId, draft.restaurantId].includes(scope.tenantId)) throw new Error("POS draft is outside the active restaurant.");
+      const orderNumber = nextOrderNumber(counterSnapshot.data()?.posOrderSequence);
       placed = {
         ...draft,
         id: orderRef.id,
         status: "new",
         kitchenOrderId: input.kitchenOrderId,
-        invoiceNumber: `INV-${orderRef.id.slice(-8).toUpperCase()}`,
+        orderNumber,
+        displayOrderNumber: orderNumber,
+        billNumber: billNumberFor(orderNumber),
+        invoiceNumber: invoiceNumberFor(orderNumber),
         statusHistory: [
           ...(draft.statusHistory ?? []),
           { status: "new", foodStatus: "new", paymentStatus: draft.paymentStatus ?? "pending", at: now, by: scope.uid },
@@ -391,13 +402,21 @@ export class OrderRepository {
         ],
         updatedAt: now,
       };
+      transaction.set(counterRef, orderSequencePatch(scope, orderNumber, now), { merge: true });
       transaction.set(orderRef, placed);
       transaction.set(this.db.collection("customerOrders").doc(orderRef.id), placed);
+      transaction.set(kitchenRef, {
+        orderNumber,
+        displayOrderNumber: orderNumber,
+        billNumber: billNumberFor(orderNumber),
+        invoiceNumber: invoiceNumberFor(orderNumber),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
       writeAudit(transaction, scope, {
         userId: scope.uid,
         action: "order_created",
         entityId: orderRef.id,
-        after: { kitchenOrderId: input.kitchenOrderId, total: draft.total },
+        after: { kitchenOrderId: input.kitchenOrderId, total: draft.total, orderNumber },
       });
       writeAudit(transaction, scope, {
         userId: scope.uid,
@@ -408,7 +427,7 @@ export class OrderRepository {
       writeNotification(transaction, scope, {
         type: "new_order",
         title: "New order",
-        message: `${draft.tableNumber || draft.orderType || "POS"} order sent to kitchen.`,
+        message: `${displayOrderNumberText(orderNumber)} sent to kitchen for ${draft.tableNumber || draft.orderType || "POS"}.`,
         priority: "high",
         orderId: orderRef.id,
         kitchenOrderId: input.kitchenOrderId,
@@ -1280,6 +1299,41 @@ function money(value?: number) {
 
 function posDraftId(scope: TenantScope) {
   return `pos-draft-${scope.tenantId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
+
+function nextOrderNumber(value: unknown) {
+  return Math.max(0, Math.floor(Number(value) || 0)) + 1;
+}
+
+function withSequentialOrderNumber(order: OrderDoc, orderNumber: number): OrderDoc {
+  return {
+    ...order,
+    orderNumber,
+    displayOrderNumber: order.displayOrderNumber ?? orderNumber,
+    billNumber: order.billNumber ?? billNumberFor(orderNumber),
+    invoiceNumber: order.invoiceNumber ?? invoiceNumberFor(orderNumber),
+  };
+}
+
+function orderSequencePatch(scope: TenantScope, orderNumber: number, at: Date) {
+  return {
+    tenantId: scope.tenantId,
+    restaurantId: scope.tenantId,
+    posOrderSequence: orderNumber,
+    updatedAt: at,
+  };
+}
+
+function invoiceNumberFor(orderNumber: number) {
+  return `INV-${String(orderNumber).padStart(6, "0")}`;
+}
+
+function billNumberFor(orderNumber: number) {
+  return `BILL-${String(orderNumber).padStart(6, "0")}`;
+}
+
+function displayOrderNumberText(orderNumber: number) {
+  return `#${String(orderNumber).padStart(4, "0")}`;
 }
 
 function paidAmount(order: OrderDoc) {

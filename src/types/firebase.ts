@@ -384,6 +384,9 @@ export type OrderDoc = TenantScopedDoc & {
   lastPrintedAt?: FirestoreDate | null;
   deliveryOtp: string;
   kitchenOrderId?: string;
+  orderNumber?: number;
+  displayOrderNumber?: number | string;
+  billNumber?: string;
   invoiceNumber?: string;
   orderType?: "dine-in" | "takeaway" | "parcel" | "delivery";
   tableNumber?: string;
@@ -440,6 +443,10 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   servedBy?: string;
   completedBy?: string;
   etaMinutes: number;
+  orderNumber?: number;
+  displayOrderNumber?: number | string;
+  billNumber?: string;
+  invoiceNumber?: string;
   receiptId?: string;
   printedCount?: number;
   lastPrintedAt?: FirestoreDate;

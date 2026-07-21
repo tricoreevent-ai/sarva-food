@@ -61,6 +61,7 @@ export function CartPanel({
   onViewActiveOrders,
   onPrintBill,
   onPayment,
+  workflowMode,
   onDiscount,
   applyGst,
   onApplyGst,
@@ -86,6 +87,7 @@ export function CartPanel({
   onViewActiveOrders: () => void;
   onPrintBill: () => void;
   onPayment: (payment: PaymentOption) => void;
+  workflowMode?: "payment-first" | "kitchen-first" | "flexible";
   onDiscount: (amount: number) => void;
   applyGst: boolean;
   onApplyGst: (value: boolean) => void;
@@ -98,6 +100,8 @@ export function CartPanel({
   const itemCount = useMemo(() => bill.lines.reduce((sum, line) => sum + line.quantity, 0), [bill.lines]);
   const processing = processingState !== "idle";
   const linkedKitchen = Boolean(bill.linkedKitchenOrderId);
+  const allowKitchenFirst = workflowMode !== "payment-first";
+  const allowPaymentFirst = workflowMode !== "kitchen-first";
 
   function applyDiscount() {
     const value = Math.max(0, Number(discountValue) || 0);
@@ -187,14 +191,18 @@ export function CartPanel({
                 <OrderSummary subtotal={totals.subtotal} discount={totals.discount} cgst={totals.cgst} sgst={totals.sgst} packing={totals.packingCharge} service={totals.serviceCharge} total={totals.total} />
               </div>
               <div className="grid gap-2">
-                <Button className="h-12 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onProcessOrder(false)} disabled={!bill.lines.length || processing} title={linkedKitchen ? "Generate a kitchen ticket only for newly added items" : "Send this order to kitchen without collecting payment"}>
-                  <Send className="size-4" />
-                  {linkedKitchen ? "Generate Incremental KOT" : "Send To Kitchen"}
-                </Button>
-                <Button variant="outline" className="h-11" onClick={() => onProcessOrder(true)} disabled={!bill.lines.length || bill.paid || processing} title={linkedKitchen ? "Open payment collection when no new kitchen ticket is needed" : "Send to kitchen and mark payment collected"}>
-                  <Banknote className="size-4" />
-                  {linkedKitchen ? "Verify Payment" : `Send + Collect ${formatCurrency(totals.total)}`}
-                </Button>
+                {allowPaymentFirst ? (
+                  <Button className="h-12 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => onProcessOrder(true)} disabled={!bill.lines.length || bill.paid || processing} title={linkedKitchen ? "Open payment collection when no new kitchen ticket is needed" : "Continue to payment and keep the kitchen ticket synced"}>
+                    <Banknote className="size-4" />
+                    {linkedKitchen ? "Verify Payment" : `Continue to Payment ${formatCurrency(totals.total)}`}
+                  </Button>
+                ) : null}
+                {allowKitchenFirst ? (
+                  <Button variant={allowPaymentFirst ? "outline" : "default"} className="h-11" onClick={() => onProcessOrder(false)} disabled={!bill.lines.length || processing} title={linkedKitchen ? "Generate a kitchen ticket only for newly added items" : "Send this order to kitchen without collecting payment"}>
+                    <Send className="size-4" />
+                    {linkedKitchen ? "Generate Incremental KOT" : "Send To Kitchen"}
+                  </Button>
+                ) : null}
               </div>
               <Button variant="ghost" className="w-full" onClick={() => onStep(2)}>Back to details</Button>
             </motion.div>

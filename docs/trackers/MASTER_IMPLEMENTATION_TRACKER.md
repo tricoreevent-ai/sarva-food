@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-20
+Last updated: 2026-07-21
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,26 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Waiter Serving RBAC and Kitchen History Density |
+| Current Sprint | RC5 POS Realtime Workflow, Adaptive Display Options, and Sequential Numbering |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Pending final waiter workflow commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
+| Latest Git Commit | Pending POS realtime/display/numbering commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | RC5 waiter RBAC/density pass passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (31/31), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 preserves the completed enterprise workflow, fixes waiter Ready → Served authorization, aligns server/Firestore role boundaries, and completes the high-density Kitchen History data grid with persisted density/column preferences. |
+| Verification Status | POS realtime/display/numbering pass passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (35/35), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC5 preserves the completed enterprise workflow while hardening POS menu display performance, workflow selection, realtime Active Orders sync, and repository-only sequential restaurant numbering. |
+
+## RC5 POS Realtime Workflow, Adaptive Display Options, and Sequential Numbering - 2026-07-21
+
+| Area | Result |
+| --- | --- |
+| Display Options | Complete. POS menu now has a persisted per-operator Display Options menu for images, card density, grid/list, descriptions, and touch/desktop mode. |
+| Image performance | Complete. Mobile defaults images off, hidden-image mode renders no `SafeImage`, and compact row mode shows more menu items with capped incremental rendering. |
+| Review workflow | Complete. Review Order and Cart Panel honor Owner Settings `payment-first`, `kitchen-first`, or `flexible` workflow with Continue to Payment and/or Send to Kitchen actions. |
+| Owner Settings | Complete. POS display defaults, workflow mode, and sequential numbering are persisted in operational settings next to delay/sound preferences. |
+| Realtime sync | Complete. `/api/owner/pos/stream` emits incremental order/kitchen document changes and POS applies O(1) card patches instead of waiting for manual refresh. |
+| Sequential numbering | Complete. OrderRepository allocates per-restaurant order numbers atomically inside Firestore transactions and syncs the same number to linked Kitchen tickets. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (35/35), `profile:runtime`, and `git diff --check`. |
 
 ## RC5 Waiter Serving RBAC and Kitchen History Density - 2026-07-20
 

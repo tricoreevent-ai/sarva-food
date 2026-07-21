@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-20T15:28:36.813Z
+Generated: 2026-07-21T12:21:38.708Z
 
-Result: PASS — 31/31 checks passed.
+Result: PASS — 35/35 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -22,6 +22,10 @@ Result: PASS — 31/31 checks passed.
 | active-orders:strict-lifecycle | PASS |  |
 | active-orders:payment-independent-from-kitchen | PASS |  |
 | pos:new-order-cancel-resumes-draft | PASS |  |
+| pos:display-options-and-hidden-image-performance | PASS |  |
+| pos:workflow-settings-review-actions | PASS |  |
+| pos:incremental-realtime-stream | PASS |  |
+| orders:restaurant-sequential-numbering | PASS |  |
 | active-orders:dense-memoized-layout | PASS |  |
 | active-orders:waiter-live-kitchen-payment-dashboard | PASS |  |
 | active-orders:status-duration-and-timeline-consistency | PASS |  |
