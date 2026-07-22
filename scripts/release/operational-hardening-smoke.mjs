@@ -36,6 +36,8 @@ const orderApi = read("src/app/api/owner/orders/route.ts");
 const posStreamApi = read("src/app/api/owner/pos/stream/route.ts");
 const reportsStreamApi = read("src/app/api/owner/reports/stream/route.ts");
 const readySignalStreamApi = read("src/app/api/owner/kitchen/notify-waiter/stream/route.ts");
+const printerApi = read("src/app/api/owner/printers/route.ts");
+const printerHook = read("src/hooks/use-printer-settings.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
 const ownerDashboard = read("src/app/owner/page.tsx");
 const liveOperationalOrders = read("src/lib/live-operational-orders.ts");
@@ -270,6 +272,16 @@ await check("kitchen:ready-signal-realtime-stream", () => {
   assert.ok(!kitchen.includes("window.setInterval(load, 15_000)"));
 });
 
+await check("kitchen:rbac-bootstrap-without-tables", () => {
+  assert.ok(!kitchen.includes("/api/owner/tables"));
+  assert.ok(!kitchen.includes("activeRequests"));
+  assert.ok(kitchen.includes("usePrinterSettings(\"kitchen\")"));
+  assert.ok(printerHook.includes("?surface=${surface}"));
+  for (const token of ["kitchenSurface", "requirePrinterAccess", "kitchenPrinterSettings", "mergeKitchenPrinterSettings"]) assert.ok(printerApi.includes(token), token);
+  assert.ok(printerApi.includes("repository.get(scope)"));
+  assert.ok(printerApi.includes("if (kitchenSurface) return NextResponse.json({ data: kitchenPrinterSettings(data), context: null })"));
+});
+
 await check("live-data:owner-dashboard-orders-kitchen-consistency", () => {
   for (const token of ["mergeLiveOperationalOrders", "serviceStatusForKitchenOrder", "linkedKitchenIds", "canonicalOrderId", "hasKitchenTicket"]) assert.ok(liveOperationalOrders.includes(token) || ownerOrders.includes(token), token);
   for (const token of ["new EventSource(\"/api/owner/pos/stream\")", "applyRealtimePatch", "dashboardRowFromLiveOrder", "activeOrdersCount: activeOrders.length", "total: activeKitchenOrders.length"]) assert.ok(ownerDashboard.includes(token), token);
@@ -394,7 +406,8 @@ await check("notifications:configurable-operational-sounds", () => {
   const ownerSettings = read("src/components/flows/owner-settings-flow.tsx");
   for (const token of ["newOrder", "kitchenAccepted", "preparing", "readyForPickup", "urgentDelay", "customerRequest", "normalizeOperationalNotificationSounds"]) assert.ok(settings.includes(token), token);
   for (const token of ["Save sounds", "saveNotificationSounds", "New Order", "Kitchen Accepted", "Ready for Pickup", "Customer Request"]) assert.ok(ownerSettings.includes(token), token);
-  for (const token of ["playConfiguredSound(\"newOrder\")", "playConfiguredSound(\"readyForPickup\")", "playConfiguredSound(\"urgentDelay\")", "playConfiguredSound(\"customerRequest\")"]) assert.ok(kitchen.includes(token), token);
+  for (const token of ["playConfiguredSound(\"newOrder\")", "playConfiguredSound(\"readyForPickup\")", "playConfiguredSound(\"urgentDelay\")"]) assert.ok(kitchen.includes(token), token);
+  assert.ok(!kitchen.includes("playConfiguredSound(\"customerRequest\")"));
   assert.ok(kitchenNotify.includes("cleanSound(body.sound)"));
 });
 

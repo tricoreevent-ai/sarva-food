@@ -1,12 +1,20 @@
 # Project Tracker
 
+## RC5 Kitchen Accept RBAC / Realtime Fix - 2026-07-22
+
+- Root cause found: Kitchen Accept completed successfully, then Kitchen bootstrap failed on a secondary `/api/owner/tables` read that Kitchen roles should not require.
+- Removed the Owner Tables bootstrap dependency from Kitchen Operations and deleted the table-backed request alert path from the Kitchen screen.
+- Added a Kitchen-scoped printer surface through `/api/owner/printers?surface=kitchen` so Kitchen print settings/logs use Kitchen/print RBAC and do not require Owner Settings context.
+- Updated RBAC and realtime documentation; operational smoke now includes `kitchen:rbac-bootstrap-without-tables` and passes 41/41.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational, runtime profile, realtime profile, long-memory profile, operational stress, and diff check.
+
 ## RC5 Final Operational Hardening - 2026-07-22
 
 - Fixed production consistency gaps without changing the completed UI/workflow: POS add-on tickets preserve parent KOT linkage, Kitchen create retries are idempotent, and Kitchen ticket stream sends incremental deltas instead of full snapshots.
 - Replaced Kitchen ready-signal polling with a scoped SSE stream and added Reports live SSE sync so Waiter notifications, Dashboard KPIs, Reports, POS/Active Orders, and Kitchen use the same operational state.
 - Added RC5 stress profiles for 128 concurrent orders, atomic sequential numbering, multi-screen realtime patching, long-running memory state, duplicate row/write prevention, and listener cleanup.
-- Operational smoke now passes 40/40, including Kitchen incremental stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, lifecycle, RBAC, billing, split/merge, and notification contracts.
-- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 40/40, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
+- Operational smoke now passes 41/41, including Kitchen no-Tables RBAC bootstrap, Kitchen incremental stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, lifecycle, RBAC, billing, split/merge, and notification contracts.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 41/41, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
 
 ## RC5 Live Data Consistency Hotfix - 2026-07-22
 

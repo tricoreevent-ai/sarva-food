@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-22T06:26:46.894Z
+Generated: 2026-07-22T08:29:00.916Z
 
-Result: PASS — 40/40 checks passed.
+Result: PASS — 41/41 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -27,6 +27,7 @@ Result: PASS — 40/40 checks passed.
 | pos:incremental-realtime-stream | PASS |  |
 | kitchen:incremental-realtime-stream | PASS |  |
 | kitchen:ready-signal-realtime-stream | PASS |  |
+| kitchen:rbac-bootstrap-without-tables | PASS |  |
 | live-data:owner-dashboard-orders-kitchen-consistency | PASS |  |
 | reports:live-operational-sync | PASS |  |
 | orders:restaurant-sequential-numbering | PASS |  |

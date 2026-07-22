@@ -11,14 +11,24 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Final Operational Hardening |
+| Current Sprint | RC5 Kitchen Accept RBAC / Realtime Fix |
 | Release Version | `v1.0.0-rc5` candidate |
 | Latest Git Commit | Pending RC5 final operational hardening commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Final operational hardening passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (40/40), `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 preserves the completed enterprise workflow while hardening POS add-on tickets, Kitchen idempotency, Kitchen/ready-signal/Reports realtime sync, Dashboard live KPIs, and long-running operational profiles. |
+| Verification Status | Final operational hardening passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (41/41), `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC5 preserves the completed enterprise workflow while hardening POS add-on tickets, Kitchen idempotency, Kitchen/ready-signal/Reports realtime sync, Dashboard live KPIs, Kitchen Accept RBAC bootstrap boundaries, and long-running operational profiles. |
+
+## RC5 Kitchen Accept RBAC / Realtime Fix - 2026-07-22
+
+| Area | Result |
+| --- | --- |
+| Root cause | Kitchen Accept succeeded through `/api/owner/kitchen`, then a secondary Kitchen bootstrap read called `/api/owner/tables` and failed for Kitchen roles without `tables:read`. |
+| Kitchen bootstrap | Complete. Kitchen Operations now loads Kitchen tickets, operational settings, Kitchen-scoped printer settings, Kitchen ticket SSE, and ready-signal SSE only. |
+| Printer RBAC | Complete. `/api/owner/printers?surface=kitchen` returns filtered KOT printer payloads and authorizes through Kitchen/print access instead of Owner Settings context. |
+| Realtime consistency | Complete. The Accept -> Preparing -> Ready path keeps the same `kitchenOrders` stream and ready-signal stream without owner-table refresh dependency. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (41/41), `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`. |
 
 ## RC5 Final Operational Hardening - 2026-07-22
 
@@ -29,7 +39,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Realtime sync | Complete. Kitchen tickets, Kitchen ready signals, POS/Owner active orders, Owner Dashboard, and Owner Reports now consume scoped SSE deltas from the same operational state with cleanup on unmount. |
 | Dashboard and reports | Complete. Owner Dashboard revenue/order KPIs derive from live patched rows; Owner Reports receives incremental order changes instead of remaining stale after the initial fetch. |
 | Performance profile | Complete. 128-order stress, realtime patch profile, long memory profile, and smoke contracts verify duplicate row/write prevention, listener cleanup, sequential numbering, and bounded patch state. |
-| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (40/40), `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (41/41), `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`. |
 
 ## RC5 Live Data Consistency Hotfix - 2026-07-22
 

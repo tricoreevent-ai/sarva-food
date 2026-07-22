@@ -13,12 +13,12 @@ The owner dashboard shell checks the completed profile state and redirects atten
 1. Customer scans a table QR or waiter creates an order from `/owner/tables`.
 2. The order is mapped to a table number and stored as a table order.
 3. The ticket appears in the kitchen display system.
-4. Kitchen moves the order through `new`, `preparing`, `ready`, `served`, and `completed`.
-5. Billing/POS can use the same table order state for final settlement.
+4. Kitchen moves the ticket through `new`, `accepted`, `preparing`, and `ready`.
+5. Waiter/POS/Owner service actions move `ready` tickets to `served` and `completed`; Cashier/Owner payment actions handle settlement.
 
 ## Kitchen Workflow
 
-The KDS at `/owner/kitchen` is optimized for tablets and TVs with large table numbers, readable items, timers, priority badges, and touch-sized status actions. It is ready to be connected to realtime order listeners and waiter/counter notifications.
+The KDS at `/owner/kitchen` is optimized for tablets and TVs with large table numbers, readable items, timers, priority badges, and touch-sized status actions. It loads only Kitchen tickets, operational settings, Kitchen-scoped print settings, Kitchen ticket SSE, and ready-signal SSE; it does not require Owner Tables master data for Accept/Preparing/Ready updates.
 
 ## Thermal Printer Workflow
 

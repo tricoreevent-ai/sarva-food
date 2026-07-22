@@ -5,7 +5,7 @@
 - Fixed remaining production consistency gaps without redesign: POS add-on KOTs now preserve parent Kitchen linkage, initial KOT creation is deterministic/idempotent, and repository create retries no longer duplicate tickets.
 - Completed realtime hardening: Kitchen ticket stream emits incremental deltas, Kitchen ready signals use SSE instead of interval polling, Owner Reports receives live order patches, and Owner Dashboard KPIs derive from patched operational rows.
 - Added operational stress evidence for 128 concurrent orders, sequential numbering, multi-screen realtime fan-out, duplicate row/write prevention, listener cleanup, and long-running memory state.
-- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 40/40, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
+- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 41/41, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
 
 ## RC5 Live Data Consistency Hotfix
 

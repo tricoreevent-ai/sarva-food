@@ -23,18 +23,18 @@ type PrinterContext = {
 
 const emptyContext: PrinterContext = { profile: null, branch: null, taxSettings: null, latestOrder: null };
 
-export function usePrinterSettings() {
+export function usePrinterSettings(surface?: "kitchen") {
   const [settings, setSettings] = useState(defaults);
   const [context, setContext] = useState<PrinterContext>(emptyContext);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/owner/printers", { cache: "no-store" });
+    const response = await fetch(`/api/owner/printers${surface ? `?surface=${surface}` : ""}`, { cache: "no-store" });
     const payload = await response.json().catch(() => ({})) as { data?: PrinterSettings; context?: PrinterContext };
     if (response.ok && payload.data) setSettings(payload.data);
     if (response.ok && payload.context) setContext(payload.context);
     setLoading(false);
-  }, []);
+  }, [surface]);
 
   useEffect(() => {
     queueMicrotask(() => void refresh());
@@ -45,16 +45,16 @@ export function usePrinterSettings() {
     const response = await fetch("/api/owner/printers", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ settings: next }),
+      body: JSON.stringify({ settings: next, surface }),
     });
     const payload = await response.json().catch(() => ({})) as { data?: PrinterSettings };
     if (response.ok && payload.data) setSettings(payload.data);
-  }, []);
+  }, [surface]);
 
   const log = useCallback(async (entry: Omit<PrintLog, "id" | "timestamp">) => {
-    await fetch("/api/owner/printers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ log: entry }) });
+    await fetch("/api/owner/printers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ log: entry, surface }) });
     await refresh();
-  }, [refresh]);
+  }, [refresh, surface]);
 
   return { settings, context, loading, save, log, refresh };
 }

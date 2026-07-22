@@ -23,7 +23,7 @@ Deployment metadata is signable for RC5 runtime. Final hardening adds repository
 | `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md` | `3` pass, `1` warning, `2` manual |
 | `docs/performance/MEMORY_STABILITY_REPORT.md` | `1` pass, `2` manual |
 | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md` | `46` pass, `0` warnings, `17` errors, `1` manual |
-| `docs/validation/OPERATIONAL_HARDENING_REPORT.md` | `40/40` pass |
+| `docs/validation/OPERATIONAL_HARDENING_REPORT.md` | `41/41` pass |
 | `docs/validation/RC5_OPERATIONAL_STRESS_PROFILE.md` | `4/4` pass |
 | `docs/performance/RC5_REALTIME_MEMORY_PROFILE.md` | `4/4` pass |
 

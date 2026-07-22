@@ -4,7 +4,9 @@ Last updated: 2026-07-22
 
 Current Sprint: RC5 final operational hardening
 
-RC5 Final Operational Hardening Result: POS add-on KOTs preserve parent Kitchen linkage, Kitchen create retries are deterministic/idempotent, Kitchen ticket streams use incremental deltas, Kitchen ready signals now sync over SSE instead of polling, Owner Dashboard KPIs derive from live patched rows, and Owner Reports receives live order deltas. Operational smoke passes 40/40; 128-order stress, realtime profile, long memory profile, runtime profile, release audit, analyze, build, lint, typecheck, and diff check passed.
+RC5 Kitchen Accept RBAC Result: Kitchen Accept now stays inside the Kitchen RBAC boundary. The post-success `/api/owner/tables` bootstrap dependency was removed, Kitchen request-alert state no longer requires Tables master data, and Kitchen printer settings/logs use `/api/owner/printers?surface=kitchen` with Kitchen/print permissions. Operational smoke includes `kitchen:rbac-bootstrap-without-tables`; full validation passed.
+
+RC5 Final Operational Hardening Result: POS add-on KOTs preserve parent Kitchen linkage, Kitchen create retries are deterministic/idempotent, Kitchen ticket streams use incremental deltas, Kitchen ready signals now sync over SSE instead of polling, Owner Dashboard KPIs derive from live patched rows, Owner Reports receives live order deltas, and Kitchen Accept avoids Owner Tables RBAC dependencies. Operational smoke passes 41/41; 128-order stress, realtime profile, long memory profile, runtime profile, release audit, analyze, build, lint, typecheck, and diff check passed.
 
 RC5 Live Data Consistency Result: Owner Dashboard and Owner Orders now consume the same incremental order/KOT stream as POS Active Orders, merge linked `orders` and `kitchenOrders` into one live operational row, preserve sequential display numbers, and route service-owned Ready → Served through `/api/owner/orders`. Operational smoke passes 36/36; full release validation passed.
 
@@ -58,6 +60,7 @@ Files Changed:
 - RC5 enterprise waiter workflow: live Waiter stage board, multiple independent table tickets, bill-only merge, Ready Signal without Waiter push, independent Kitchen/payment card visibility, compact adaptive Kitchen cards, configurable operational sounds, timeline event categories, operational smoke coverage, validation/performance reports, release trackers, manual QA/risk docs.
 - RC5 live data consistency: Owner Dashboard/Owner Orders stream consumption, shared incremental patching, linked order/KOT merge, service-route correction, smoke coverage, validation/performance/release trackers.
 - RC5 final operational hardening: POS add-on KOT parent linkage, idempotent Kitchen create retries, Kitchen/ready-signal/Reports SSE deltas, live Dashboard KPIs, 128-order stress profile, realtime profile, long memory profile, and validation evidence.
+- RC5 Kitchen Accept RBAC fix: removed Kitchen `/api/owner/tables` bootstrap, added Kitchen-scoped printer API surface, updated RBAC/realtime docs, and added smoke/stress source contracts.
 - RC5 POS realtime/display/numbering: Display Options, hidden-image menu rows, workflow settings, incremental POS stream, sequential repository numbering, smoke coverage, validation/performance/release trackers.
 
 Repository readiness: 100%
@@ -70,7 +73,7 @@ Active Orders Code Baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
-Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (40/40), `npm.cmd run profile:runtime`, `npm.cmd run stress:operational`, `npm.cmd run profile:realtime`, `npm.cmd run profile:memory:long`, and `git diff --check` PASS on 2026-07-22; build/analyze retain the accepted Firebase/protobuf warning.
+Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (41/41), `npm.cmd run profile:runtime`, `npm.cmd run stress:operational`, `npm.cmd run profile:realtime`, `npm.cmd run profile:memory:long`, and `git diff --check` PASS on 2026-07-22; build/analyze retain the accepted Firebase/protobuf warning.
 
 Last Verified Production Runtime: `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The hosted runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA.
 

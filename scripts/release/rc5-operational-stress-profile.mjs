@@ -15,6 +15,8 @@ const sources = {
   kitchenStream: source("src/app/api/owner/kitchen/stream/route.ts"),
   kitchenFlow: source("src/components/flows/kitchen-display-flow.tsx"),
   readySignalStream: source("src/app/api/owner/kitchen/notify-waiter/stream/route.ts"),
+  printerApi: source("src/app/api/owner/printers/route.ts"),
+  printerHook: source("src/hooks/use-printer-settings.ts"),
   reports: source("src/app/owner/reports/page.tsx"),
   reportsStream: source("src/app/api/owner/reports/stream/route.ts"),
   dashboard: source("src/app/owner/page.tsx"),
@@ -145,6 +147,10 @@ function sourceAudit() {
   for (const token of ["applyRealtimePatch(current, payload.data, payload.upsert, payload.removed)"]) assert.ok(sources.kitchenFlow.includes(token), token);
   for (const token of ["new EventSource(\"/api/owner/kitchen/notify-waiter/stream\")", "patchReadySignals", "events.close()"]) assert.ok(sources.kitchenFlow.includes(token), token);
   for (const token of ["collection(\"notifications\")", "type\", \"==\", \"kitchen_ready_ops", "snapshot.docChanges()", "ready-signals"]) assert.ok(sources.readySignalStream.includes(token), token);
+  assert.ok(!sources.kitchenFlow.includes("/api/owner/tables"));
+  assert.ok(sources.kitchenFlow.includes("usePrinterSettings(\"kitchen\")"));
+  assert.ok(sources.printerHook.includes("?surface=${surface}"));
+  for (const token of ["kitchenSurface", "requirePrinterAccess", "kitchenPrinterSettings"]) assert.ok(sources.printerApi.includes(token), token);
   for (const token of ["new EventSource(\"/api/owner/reports/stream\")", "summarizeReports", "applyRealtimePatch(current.orders"]) assert.ok(sources.reports.includes(token), token);
   for (const token of ["requireOwnerFeature(request, \"reports\", \"read\")", "snapshot.docChanges()", "ordersUpsert", "orderIdsRemoved"]) assert.ok(sources.reportsStream.includes(token), token);
   for (const token of ["restaurantCounters", "runTransaction", "posOrderSequence", "nextOrderNumber"]) assert.ok(sources.orderRepo.includes(token), token);
@@ -178,6 +184,7 @@ ${rows}
 - Verified atomic sequential-number allocation model has no duplicates or gaps under 128 concurrent allocations.
 - Verified realtime patch fan-out keeps one row per id, uses incremental deltas, and preserves shared order/KOT state across open operational screens.
 - Verified Kitchen ready-signal notifications use SSE with no interval polling and close listeners on unmount.
+- Verified Kitchen bootstrap no longer calls the owner Tables API and printer access uses a Kitchen-scoped print surface.
 - Verified long-running patch profile retains bounded rows and does not create unbounded client-side listener/cache growth.
 
 ## Metrics

@@ -1,5 +1,12 @@
 # Release Notes
 
+## RC5 Kitchen Accept RBAC / Realtime Fix - 2026-07-22
+
+- Root cause: Kitchen Accept succeeded through `/api/owner/kitchen`, then the Kitchen screen bootstrap executed a secondary `GET /api/owner/tables` request that requires `tables:read`; Kitchen roles do not own Tables master access, so the UI showed a post-success `Permission denied for tables:read` failure.
+- Removed the Owner Tables dependency from Kitchen bootstrap and request-alert UI state; Kitchen now loads Kitchen tickets, operational settings, Kitchen ticket SSE, ready-signal SSE, and Kitchen-scoped print settings only.
+- Added `surface=kitchen` support to `/api/owner/printers` so Kitchen printer reads/logs/toggles use Kitchen/print permissions and return only Kitchen profiles, KOT templates, and KOT print logs instead of Owner Settings context.
+- Expanded operational smoke to 41/41 with `kitchen:rbac-bootstrap-without-tables`; validation passed for typecheck, lint, build, analyze, audit:release, smoke:operational, runtime profile, realtime profile, long-memory profile, operational stress, and diff check.
+
 ## RC5 Final Operational Hardening - 2026-07-22
 
 - Root causes fixed: POS add-on tickets could lose their parent KOT link, Kitchen create retries could duplicate KOT documents, Kitchen stream updates still sent full snapshots, Kitchen ready signals used interval polling, Owner Dashboard revenue/orders could lag behind live state, and Owner Reports used one-shot data.

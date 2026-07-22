@@ -2,9 +2,11 @@
 
 ## 2026-07-22
 
+- Fixed Kitchen Accept RBAC drift: removed the secondary `/api/owner/tables` bootstrap from Kitchen Operations and added Kitchen-scoped printer access through `/api/owner/printers?surface=kitchen`.
+- Expanded operational smoke to 41/41 and passed typecheck, lint, build, analyze, audit:release, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
 - Completed RC5 final operational hardening: POS add-on KOTs keep parent linkage, Kitchen create retries are idempotent, Kitchen/ready-signal/Reports streams use incremental SSE deltas, and Dashboard KPIs derive from live patched rows.
 - Added `stress:operational`, `profile:realtime`, and `profile:memory:long` validation scripts covering 128 concurrent orders, sequential numbering, multi-screen patch propagation, listener cleanup, and duplicate row/write prevention.
-- Expanded operational smoke to 40/40 and passed typecheck, lint, build, analyze, audit:release, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
+- Expanded operational smoke to 40/40 and passed typecheck, lint, build, analyze, audit:release, runtime profile, operational stress, realtime profile, long memory profile, and diff check before the Kitchen Accept RBAC patch.
 - Fixed the live operational consistency defect where Owner Dashboard/Owner Orders could show stale or duplicate state compared with POS/Waiter and Kitchen Operations.
 - Added shared incremental realtime patching and linked order/KOT merging, then wired Owner Dashboard and Owner Orders to `/api/owner/pos/stream`.
 - Corrected Owner Orders Ready → Served routing to the order service API instead of the Kitchen update API.

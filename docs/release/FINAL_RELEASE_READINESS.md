@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-22T06:06:06.139Z
+Date: 2026-07-22T08:45:55.047Z
 
 ## Local Validation
 
@@ -11,7 +11,7 @@ Date: 2026-07-22T06:06:06.139Z
 | `npm run build` | Passed with accepted Firebase/protobuf warning. |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed 40/40, including incremental Kitchen stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |
+| `npm run smoke:operational` | Passed 41/41, including Kitchen no-Tables RBAC bootstrap, Kitchen-scoped print access, incremental Kitchen stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |
 | `npm run profile:runtime` | Passed. |
 | `git diff --check` | Passed as a final release gate. |
 
@@ -22,7 +22,7 @@ Date: 2026-07-22T06:06:06.139Z
 | Branch baseline | `release/production-nammude` RC5 enterprise waiter workflow before this production-hardening pass. |
 | Workflow | Payment remains independent of Kitchen/service state; completion still requires Served + Paid. Split Bill and Smart Bill Merge now follow payment-state guards consistently. |
 | Billing merge | Partial-payment open tickets can merge billing-only; locked, authorized, paid, refunded, closed, or already merged bills remain blocked in UI and repository. |
-| Firestore | No collection/schema/rule/index change; idempotent Kitchen create semantics and scoped Kitchen/Reports SSE read paths are covered. |
+| Firestore | No collection/schema/rule/index change; idempotent Kitchen create semantics, scoped Kitchen/Reports SSE read paths, and Kitchen Accept RBAC boundaries are covered. |
 | Security | Tenant checks, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
 
 ## Production Readiness

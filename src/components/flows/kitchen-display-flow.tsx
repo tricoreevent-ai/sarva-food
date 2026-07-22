@@ -42,7 +42,7 @@ import { readableTableOrderId } from "@/lib/order-display";
 import { playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
 import { cn } from "@/lib/utils";
-import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
+import type { PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
 type KitchenColumnId = "new" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
@@ -147,7 +147,6 @@ export function KitchenDisplayFlow() {
   const [fullscreen, setFullscreen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [orders, setOrders] = useState<TableOrder[]>([]);
-  const [tables, setTables] = useState<PosTable[]>([]);
   const [connectionState, setConnectionState] = useState<"realtime" | "fallback" | "error" | "loading">("loading");
   const [connectionError, setConnectionError] = useState("");
   const connectionStateRef = useRef(connectionState);
@@ -183,12 +182,10 @@ export function KitchenDisplayFlow() {
   const previousAcceptedOrders = useRef(new Set<string>());
   const autoPrintReady = useRef(false);
   const soundReady = useRef(false);
-  const requestSoundReady = useRef(false);
   const alertedOrders = useRef(new Set<string>());
-  const alertedRequests = useRef(new Set<string>());
   const lastDelayedToast = useRef(0);
   const escalatedSignals = useRef(new Set<string>());
-  const { settings, save: savePrinterSettings, log: logPrint } = usePrinterSettings();
+  const { settings, save: savePrinterSettings, log: logPrint } = usePrinterSettings("kitchen");
 
   const kitchenPrinters = useMemo(
     () => (settings.profiles ?? []).filter((profile) => profile.type === "kitchen"),
@@ -210,7 +207,6 @@ export function KitchenDisplayFlow() {
   const preparingOrders = useMemo(() => visibleOrders.filter((order) => order.status === "preparing"), [visibleOrders]);
   const readyOrders = useMemo(() => visibleOrders.filter((order) => order.status === "ready"), [visibleOrders]);
   const cancellableOrders = useMemo(() => visibleOrders.filter((order) => !isCompleted(order.status)), [visibleOrders]);
-  const activeRequests = useMemo(() => tables.flatMap((table) => (table.serviceRequests ?? []).filter((request) => request.status === "open").map((request) => ({ ...request, table: table.table }))).slice(-8).reverse(), [tables]);
   const historyOrders = useMemo(() => orders.filter((order) => isCompleted(order.status) && !isToday(order.createdAt)), [orders]);
   const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId]);
   const stats = useMemo(() => buildKitchenStats(visibleOrders, now, settings.connectionStatus, settings.autoPrintOrders, operationalSettings.orderDelayThresholdMinutes), [now, operationalSettings.orderDelayThresholdMinutes, settings.autoPrintOrders, settings.connectionStatus, visibleOrders]);
@@ -290,13 +286,11 @@ export function KitchenDisplayFlow() {
     const controller = new AbortController();
     void Promise.all([
       fetch("/api/owner/kitchen", { cache: "no-store", signal: controller.signal }).then((response) => readKitchenPayload<{ data?: TableOrder[] }>(response, "Kitchen orders could not be loaded.")),
-      fetch("/api/owner/tables", { cache: "no-store", signal: controller.signal }).then((response) => readKitchenPayload<{ data?: PosTable[] }>(response, "Kitchen tables could not be loaded.")),
       fetch("/api/owner/operational-settings", { cache: "no-store", signal: controller.signal }).then((response) => readKitchenPayload<{ data?: Partial<OperationalSettings> }>(response, "Kitchen settings could not be loaded.")),
     ])
-      .then(([payload, tablePayload, settingsPayload]) => {
+      .then(([payload, settingsPayload]) => {
         if (!active) return;
         setOrders((current) => reconcileKitchenOrders(current, payload.data ?? []));
-        setTables(tablePayload.data ?? []);
         setOperationalSettings(normalizeOperationalSettings(settingsPayload.data));
         setConnectionState("fallback");
         setConnectionError("");
@@ -465,28 +459,6 @@ export function KitchenDisplayFlow() {
       showNewOrderNotification(order);
     });
   }, [boardOrders, connectionState, showNewOrderNotification, soundAlerts]);
-
-  useEffect(() => {
-    if (connectionState === "loading") return;
-    if (!requestSoundReady.current) {
-      activeRequests.forEach((request) => alertedRequests.current.add(`${request.table}:${request.id ?? request.at}:${request.type}`));
-      requestSoundReady.current = true;
-      return;
-    }
-    activeRequests.forEach((request) => {
-      const id = `${request.table}:${request.id ?? request.at}:${request.type}`;
-      if (alertedRequests.current.has(id)) return;
-      alertedRequests.current.add(id);
-      showLazySarvaNotification({
-        id: `customer-request-${id}`,
-        tone: "warning",
-        title: "Customer Request",
-        message: `${request.table} · ${request.message || request.type.replace(/-/g, " ")}`,
-        duration: Infinity,
-      });
-      playConfiguredSound("customerRequest");
-    });
-  }, [activeRequests, connectionState, playConfiguredSound]);
 
   const printKot = useCallback(async (order: TableOrder, options: { auto?: boolean; reprint?: boolean } = {}) => {
     const jobId = `${order.id}:${options.reprint ? "reprint" : "print"}`;
@@ -744,20 +716,6 @@ export function KitchenDisplayFlow() {
           <Button variant="outline" className="text-red-600" onClick={requestBulkCancel} disabled={!cancellableOrders.length} title="Cancel all visible active kitchen tickets"><XCircle className="size-4" />Bulk Cancel</Button>
           <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
             {visibleOrders.length} visible / {boardOrders.length} board orders
-          </div>
-        </section>
-      ) : null}
-
-      {activeRequests.length ? (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
-          <div className="mb-2 flex items-center gap-2 text-sm font-black text-amber-950"><BellRing className="size-4" />Open waiter requests</div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {activeRequests.map((request) => (
-              <div key={`${request.table}-${request.id}-${request.at}`} className="min-w-44 rounded-lg bg-white p-3 text-xs font-bold text-slate-700 shadow-sm">
-                <p className="text-slate-950">{request.table} · {request.type.replace(/-/g, " ")}</p>
-                <p className="mt-1 text-slate-500">{request.message || request.type}</p>
-              </div>
-            ))}
           </div>
         </section>
       ) : null}

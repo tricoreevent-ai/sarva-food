@@ -2,7 +2,7 @@
 
 ## RC5 Final Operational Hardening Addendum
 
-`npm.cmd run smoke:operational` now passes 40/40 deterministic checks after the final operational hardening pass. Added checks cover incremental Kitchen stream deltas, Kitchen ready-signal SSE without interval polling, Owner Reports live sync, add-on KOT idempotency, and the existing lifecycle/RBAC/billing/notification/Active Orders/Kitchen contracts. Hosted authenticated/provider/device/hardware observations remain manual.
+`npm.cmd run smoke:operational` now passes 41/41 deterministic checks after the final operational hardening pass. Added checks cover Kitchen no-Tables RBAC bootstrap, Kitchen-scoped printer access, incremental Kitchen stream deltas, Kitchen ready-signal SSE without interval polling, Owner Reports live sync, add-on KOT idempotency, and the existing lifecycle/RBAC/billing/notification/Active Orders/Kitchen contracts. Hosted authenticated/provider/device/hardware observations remain manual.
 
 ## RC5 Enterprise Waiter Workflow Addendum
 
