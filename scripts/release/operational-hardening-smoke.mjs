@@ -34,6 +34,8 @@ const ownerLogin = read("src/components/flows/owner-portal-login-flow.tsx");
 const kitchenApi = read("src/app/api/owner/kitchen/route.ts");
 const orderApi = read("src/app/api/owner/orders/route.ts");
 const posStreamApi = read("src/app/api/owner/pos/stream/route.ts");
+const reportsStreamApi = read("src/app/api/owner/reports/stream/route.ts");
+const readySignalStreamApi = read("src/app/api/owner/kitchen/notify-waiter/stream/route.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
 const ownerDashboard = read("src/app/owner/page.tsx");
 const liveOperationalOrders = read("src/lib/live-operational-orders.ts");
@@ -257,6 +259,17 @@ await check("pos:incremental-realtime-stream", () => {
   assert.ok(!posStreamApi.includes("emitState()"));
 });
 
+await check("kitchen:incremental-realtime-stream", () => {
+  for (const token of ["snapshot.docChanges()", "upsert", "removed", "snapshot.size"]) assert.ok(read("src/app/api/owner/kitchen/stream/route.ts").includes(token), token);
+  assert.ok(kitchen.includes("applyRealtimePatch(current, payload.data, payload.upsert, payload.removed)"));
+});
+
+await check("kitchen:ready-signal-realtime-stream", () => {
+  for (const token of ["new EventSource(\"/api/owner/kitchen/notify-waiter/stream\")", "patchReadySignals", "events.close()"]) assert.ok(kitchen.includes(token), token);
+  for (const token of ["collection(\"notifications\")", "type\", \"==\", \"kitchen_ready_ops", "snapshot.docChanges()", "ready-signals"]) assert.ok(readySignalStreamApi.includes(token), token);
+  assert.ok(!kitchen.includes("window.setInterval(load, 15_000)"));
+});
+
 await check("live-data:owner-dashboard-orders-kitchen-consistency", () => {
   for (const token of ["mergeLiveOperationalOrders", "serviceStatusForKitchenOrder", "linkedKitchenIds", "canonicalOrderId", "hasKitchenTicket"]) assert.ok(liveOperationalOrders.includes(token) || ownerOrders.includes(token), token);
   for (const token of ["new EventSource(\"/api/owner/pos/stream\")", "applyRealtimePatch", "dashboardRowFromLiveOrder", "activeOrdersCount: activeOrders.length", "total: activeKitchenOrders.length"]) assert.ok(ownerDashboard.includes(token), token);
@@ -265,10 +278,22 @@ await check("live-data:owner-dashboard-orders-kitchen-consistency", () => {
   assert.ok(!ownerOrders.includes('updateKitchenOrder(order.kitchenOrder, "served")'));
 });
 
+await check("reports:live-operational-sync", () => {
+  const reports = read("src/app/owner/reports/page.tsx");
+  for (const token of ["new EventSource(\"/api/owner/reports/stream\")", "summarizeReports", "reportOrderFromLive", "applyRealtimePatch(current.orders"]) assert.ok(reports.includes(token), token);
+  for (const token of ["requireOwnerFeature(request, \"reports\", \"read\")", "snapshot.docChanges()", "ordersUpsert", "orderIdsRemoved"]) assert.ok(reportsStreamApi.includes(token), token);
+});
+
 await check("orders:restaurant-sequential-numbering", () => {
   for (const token of ["restaurantCounters", "posOrderSequence", "nextOrderNumber", "withSequentialOrderNumber", "orderSequencePatch", "transaction.set(kitchenRef", "displayOrderNumber: orderNumber"]) assert.ok(orderRepository.includes(token), token);
   assert.ok(orderDisplay.includes('return `#${text.slice(1).padStart(4, "0")}`'));
   assert.ok(orderDisplay.includes('return trailing ? `#${trailing.padStart(4, "0")}` : "";'));
+});
+
+await check("kitchen:add-on-ticket-idempotency", () => {
+  for (const token of ["addOnParentKitchenOrderId === bill.linkedKitchenOrderId", "operationId", "id: `kot-${operationKey}`", "id: `inc-${operationKey}`"]) assert.ok(pos.includes(token), token);
+  assert.ok(kitchenRepository.includes("existing = current;"));
+  assert.ok(kitchenApi.includes("cleanDocumentId(body.id) ?? `kot-${opKey}`"));
 });
 
 await check("active-orders:dense-memoized-layout", () => {

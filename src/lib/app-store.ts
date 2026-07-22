@@ -586,6 +586,7 @@ const initialPosBill: PosBill = {
   lines: [],
   payment: "cash",
   paid: false,
+  operationId: createLocalId("pos"),
   guestCount: 1,
   discount: 0,
   tenderedAmount: 0,
@@ -1604,7 +1605,7 @@ export const useAppStore = create<AppStore>()(
           },
         })),
 
-      resetPosBill: () => set({ posBill: { ...initialPosBill, invoiceNumber: createInvoiceNumber() } }),
+      resetPosBill: () => set({ posBill: { ...initialPosBill, operationId: createLocalId("pos"), invoiceNumber: createInvoiceNumber() } }),
 
       upsertLoyaltyCustomerFromBill: (bill, total) => {
         const normalizedPhone = normalizePhone(bill.customerPhone ?? "");

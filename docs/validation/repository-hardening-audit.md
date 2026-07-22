@@ -1,6 +1,6 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-22T05:05:12.278Z
+Generated: 2026-07-22T06:26:57.364Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
@@ -8,7 +8,7 @@ Generated: 2026-07-22T05:05:12.278Z
 | raw-error-message | 55 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 55 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
 | api-error-envelope | 164 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
@@ -59,13 +59,15 @@ Generated: 2026-07-22T05:05:12.278Z
 
 ### listener-lifecycle
 
+- `src/app/api/owner/kitchen/notify-waiter/stream/route.ts` (2)
 - `src/app/api/owner/kitchen/stream/route.ts` (2)
 - `src/app/api/owner/pos/stream/route.ts` (3)
+- `src/app/api/owner/reports/stream/route.ts` (2)
 - `src/hooks/use-operational-view.ts` (1)
 - `src/hooks/use-phone-verification.ts` (1)
 - `src/hooks/use-public-app-name.ts` (2)
 - `src/hooks/use-realtime-order.ts` (1)
-- `src/components/flows/kitchen-display-flow.tsx` (12)
+- `src/components/flows/kitchen-display-flow.tsx` (14)
 - `src/components/flows/owner-order-management-flow.tsx` (3)
 - `src/components/flows/owner-settings-flow.tsx` (1)
 - `src/components/flows/pos-billing-flow.tsx` (14)

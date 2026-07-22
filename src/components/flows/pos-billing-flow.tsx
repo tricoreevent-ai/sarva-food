@@ -1082,13 +1082,13 @@ export function PosBillingFlow() {
       total: totals.total,
     };
     if (bill.linkedKitchenOrderId) {
-      const lines = incrementalLines(bill.lines, activeKitchenOrder?.lines ?? []);
+      const lines = bill.addOnParentKitchenOrderId === bill.linkedKitchenOrderId ? bill.lines : incrementalLines(bill.lines, activeKitchenOrder?.lines ?? []);
       if (!lines.length) {
         toast.success("Kitchen already has the latest items.");
         return activeKitchenOrder;
       }
       setKotPrintLines(lines);
-      const operationKey = clientOperationKey(["incremental-kot", bill.linkedKitchenOrderId, lines.map((line) => [line.itemId ?? line.name, line.quantity])]);
+      const operationKey = clientOperationKey(["incremental-kot", bill.operationId, bill.linkedKitchenOrderId, lines.map((line) => [line.itemId ?? line.name, line.quantity])]);
       const response = await fetch("/api/owner/kitchen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1102,17 +1102,18 @@ export function PosBillingFlow() {
       toast.success("Add-on kitchen ticket sent with only the new items.");
       return next;
     }
+    const operationKey = clientOperationKey(["kot", bill.operationId, bill.invoiceNumber, tableNumber, bill.lines.map((line) => [line.itemId, line.quantity]), totals.total]);
     const response = await fetch("/api/owner/kitchen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...kitchenPayload, operationKey: clientOperationKey(["kot", bill.invoiceNumber, tableNumber, bill.lines.map((line) => [line.itemId, line.quantity]), totals.total]) }),
+      body: JSON.stringify({ ...kitchenPayload, id: `kot-${operationKey}`, operationKey }),
     });
     const result = await readPosPayload<{ data?: TableOrder }>(response, "Kitchen ticket could not be created.");
     if (!result.data) throw new Error("Kitchen ticket could not be created.");
     const order = result.data;
     setKotPrintLines(null);
     setReadModel((current) => ({ ...current, tableOrders: [order, ...current.tableOrders] }));
-    setPosBill({ ...bill, linkedKitchenOrderId: order.id, applyGst, waiveParcelCharge });
+    setPosBill({ ...bill, linkedKitchenOrderId: order.id, addOnParentKitchenOrderId: undefined, applyGst, waiveParcelCharge });
     setShowKot(true);
     toast.success(`Kitchen ticket sent for ${order.tableNumber}.`);
     return order;
@@ -3938,6 +3939,11 @@ function clientOperationKey(parts: unknown[]) {
   return `pos-${(hash >>> 0).toString(36)}`;
 }
 
+function createPosOperationId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return `pos-${crypto.randomUUID()}`;
+  return `pos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function newPaymentAttemptId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `payment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -4050,20 +4056,25 @@ function tableOrderToBill(order: TableOrder, current: PosBill): PosBill {
     customerName: order.customerName || order.guestName,
     customerPhone: order.customerPhone,
     linkedKitchenOrderId: operational.hasKitchenTicket === false ? undefined : order.id,
+    addOnParentKitchenOrderId: undefined,
     waiterName: order.waiterName,
   };
 }
 
 function addOnBillForOrder(order: TableOrder, current: PosBill): PosBill {
+  const operational = order as OperationalOrder;
+  const linkedKitchenOrderId = operational.hasKitchenTicket === false ? undefined : order.id;
   return {
     ...current,
     table: order.tableNumber || "DIRECT",
     orderType: order.orderType ?? "dine-in",
     lines: [],
     paid: false,
+    operationId: createPosOperationId(),
     customerName: order.customerName || order.guestName,
     customerPhone: order.customerPhone,
-    linkedKitchenOrderId: undefined,
+    linkedKitchenOrderId,
+    addOnParentKitchenOrderId: linkedKitchenOrderId,
     waiterName: order.waiterName,
     invoiceNumber: undefined,
     billDeliveryLink: undefined,

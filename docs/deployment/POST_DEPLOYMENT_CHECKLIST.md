@@ -33,8 +33,9 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 
 - Customer browse, cart, checkout, order success, tracking.
 - Owner login, dashboard, active orders, settings, logout.
-- Kitchen accept, prepare, ready, serve, print KOT.
-- POS draft, KOT, payment, receipt, history.
+- Kitchen accept, prepare, ready, ready-signal SSE, recall/reminder, print KOT.
+- POS draft, add-on KOT, Waiter serve, cashier payment, receipt, history.
+- Owner Reports/Dashboard live counters update without refresh.
 - Admin login, diagnostics, CMS, menu library.
 - QR scan, table session, order/request flow.
 

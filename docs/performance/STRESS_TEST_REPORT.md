@@ -1,16 +1,16 @@
 # Stress Test Report
 
-Date: 2026-07-22T05:05:21.506Z
+Date: 2026-07-22T06:06:06.139Z
 
 ## Synthetic Operational Load
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.28ms | 0.32ms | 1.25ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.03ms | 0.24ms | <100ms update |
-| POS 1000-item category switch | 0.05ms | 0.08ms | 0.19ms | <50ms switch |
-| POS 1000-item search filter | 0.07ms | 0.13ms | 0.34ms | debounced |
-| Active Orders 100-order filter/group | 0.12ms | 0.18ms | 0.42ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 1.54ms | 3.27ms | 16.70ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.10ms | 0.23ms | 1.31ms | <100ms update |
+| POS 1000-item category switch | 0.33ms | 0.58ms | 1.13ms | <50ms switch |
+| POS 1000-item search filter | 0.46ms | 0.77ms | 2.51ms | debounced |
+| Active Orders 100-order filter/group | 0.77ms | 1.50ms | 3.96ms | <50ms interaction |
 
 ## Scenario
 
@@ -19,7 +19,7 @@ Date: 2026-07-22T05:05:21.506Z
 | Kitchen orders | 100 |
 | POS products | 1000 |
 | Iterations per scenario | 200 |
-| Heap delta | -2312 KB |
+| Heap delta | -2401 KB |
 
 ## Result
 

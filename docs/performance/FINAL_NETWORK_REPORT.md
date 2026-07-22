@@ -1,6 +1,6 @@
 # Final Network Report
 
-Date: 2026-07-22T05:05:21.506Z
+Date: 2026-07-22T06:06:06.139Z
 
 ## Network Controls
 
@@ -10,7 +10,7 @@ Date: 2026-07-22T05:05:21.506Z
 | Public header | Saved-address listener loads only when the location picker is opened by a signed-in customer. |
 | Firebase startup | Config-only checks avoid loading SDK accessors until needed where touched. |
 | Owner Settings | Mapbox, Cloudinary, push, fullscreen, and loyalty dependencies load by tab instead of initial settings route load. |
-| POS/Kitchen | No new polling loop, realtime listener, or duplicate API family was added. |
+| POS/Kitchen/Reports | Ready-signal polling was removed; Kitchen tickets, ready signals, POS/Owner active orders, and Reports now use scoped SSE deltas without duplicate API writes. |
 
 ## Remaining Network Gates
 

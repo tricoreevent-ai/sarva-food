@@ -792,10 +792,12 @@ export type PosBill = {
   payment: PaymentOption;
   splitPayments?: PaymentBreakdown[];
   paid: boolean;
+  operationId?: string;
   customerId?: string;
   customerName?: string;
   customerPhone?: string;
   linkedKitchenOrderId?: string;
+  addOnParentKitchenOrderId?: string;
   guestCount?: number;
   waiterName?: string;
   cashierName?: string;

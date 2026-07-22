@@ -1,5 +1,7 @@
 # Known Limitations
 
+RC5 final operational hardening closes the remaining repository-side live consistency risks found in POS add-on KOTs, Kitchen create retry idempotency, Kitchen full-snapshot streaming, Kitchen ready-signal polling, stale Owner Dashboard KPIs, and one-shot Owner Reports. The final hardening commit still requires Hostinger redeployment and authenticated hosted multi-role/device/provider/hardware verification before customer go-live.
+
 RC5 enterprise waiter workflow closes the visible production POS/Kitchen service bug, unnecessary Waiter Ready push noise, single-ticket table assumption, kitchen-ticket merge side effects, and missing Completed holding behavior. Multiple active kitchen tickets per table, Ready Signal, bill-only merge, and 30-minute Completed holding are repository complete but still require Hostinger redeployment before the currently hosted runtime changes.
 
 Phase 5C closes the Hostinger reverse-proxy origin mismatch and the service-dependent payment mismatch. Payment is now independent of Kitchen/service state, POS New Order cancel resumes drafts, and Kitchen cards are item-first. The fixes still require Hostinger redeployment before the currently hosted runtime changes.
@@ -21,7 +23,7 @@ Feature ID: `RC1-PRODUCTION-GO-LIVE`
 - WhatsApp/SMS/Meta provider launch remains provider-gated.
 - Production Lighthouse/Core Web Vitals and Chrome profiling remain manual.
 - Authenticated browser smoke remains manual.
-- Active Orders multi-role hosted QA remains manual, including multiple tickets on one table, Ready Signal, Waiter Serving, bill-only merge, payment before/during/after Kitchen preparation, and service + Paid completion.
+- Active Orders multi-role hosted QA remains manual, including multiple tickets on one table, Ready Signal SSE/recovery, Waiter Serving, live Reports/Dashboard counters, add-on KOT idempotency, bill-only merge, payment before/during/after Kitchen preparation, and service + Paid completion.
 - Printer/device validation remains manual.
 
 ## Accepted Repository Warning

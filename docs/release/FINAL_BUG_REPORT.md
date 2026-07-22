@@ -1,6 +1,6 @@
 # Final Bug Report
 
-Date: 2026-07-22T05:05:21.506Z
+Date: 2026-07-22T06:06:06.139Z
 
 ## Final RC Bug-Hunt Result
 
@@ -10,7 +10,7 @@ Date: 2026-07-22T05:05:21.506Z
 | Owner Login | Legacy compact owner login lacked enterprise state handling; new surface adds remembered email, autofocus/autocomplete, Caps Lock detection, session-timeout messaging, stronger loading state, and accessible feedback. |
 | Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, sticky table actions, sorting, saved filters, bulk selection, export, print, and expandable details. |
 | Security | Tenant isolation, owner permissions, auth endpoints, and provider-secret boundaries remain unchanged. |
-| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |
+| Firestore audit | No collection, schema, rule, or index changed. Kitchen create idempotency and scoped SSE read paths now prevent duplicate KOTs, stale ready signals, and stale Reports. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
 ## Confirmed Fixes

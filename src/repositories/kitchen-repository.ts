@@ -58,10 +58,8 @@ export class KitchenRepository {
       if (snapshot.exists) {
         const current = dataWithId<KitchenOrderDoc>(snapshot.id, snapshot.data() ?? {});
         if (![current.tenantId, current.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen order is outside the active restaurant.");
-        if (operationKey && hasOperationKey(current, operationKey)) {
-          existing = current;
-          return;
-        }
+        existing = current;
+        return;
       }
       transaction.set(ref, order, { merge: true });
     });

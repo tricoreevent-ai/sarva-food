@@ -1,5 +1,13 @@
 # Project Tracker
 
+## RC5 Final Operational Hardening - 2026-07-22
+
+- Fixed production consistency gaps without changing the completed UI/workflow: POS add-on tickets preserve parent KOT linkage, Kitchen create retries are idempotent, and Kitchen ticket stream sends incremental deltas instead of full snapshots.
+- Replaced Kitchen ready-signal polling with a scoped SSE stream and added Reports live SSE sync so Waiter notifications, Dashboard KPIs, Reports, POS/Active Orders, and Kitchen use the same operational state.
+- Added RC5 stress profiles for 128 concurrent orders, atomic sequential numbering, multi-screen realtime patching, long-running memory state, duplicate row/write prevention, and listener cleanup.
+- Operational smoke now passes 40/40, including Kitchen incremental stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, lifecycle, RBAC, billing, split/merge, and notification contracts.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 40/40, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
+
 ## RC5 Live Data Consistency Hotfix - 2026-07-22
 
 - Root cause found: Owner Dashboard and Owner Orders used stale one-shot REST snapshots while POS/Waiter and Kitchen used realtime streams; Owner Orders also displayed linked canonical orders and linked KOTs as independent rows.

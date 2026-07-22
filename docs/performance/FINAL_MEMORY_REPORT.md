@@ -1,18 +1,18 @@
 # Final Memory Report
 
-Date: 2026-07-22T05:05:21.506Z
+Date: 2026-07-22T06:06:06.139Z
 
 ## Synthetic Heap
 
 | Metric | Result |
 | --- | ---: |
-| Heap delta | -2312 KB |
+| Heap delta | -2401 KB |
 
 ## Leak Controls
 
 | Area | Result |
 | --- | --- |
-| EventSource | Kitchen stream cleanup remains in place. |
+| EventSource | Kitchen ticket, Kitchen ready-signal, POS, Owner, and Reports streams close on unmount and avoid unbounded listener growth. |
 | Timers | Debounce timers, Kitchen minute/timer work, and virtual column resize work include cleanup. |
 | List rendering | Kitchen windowing reduces live DOM count for long desktop queues. |
 | Object retention | Kitchen reconciliation avoids retaining duplicate unchanged order objects across snapshots. |

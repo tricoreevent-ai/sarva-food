@@ -1,18 +1,18 @@
 # Memory Analysis
 
-Date: 2026-07-22T05:05:21.506Z
+Date: 2026-07-22T06:06:06.139Z
 
 ## Heap Stress Result
 
 | Metric | Result |
 | --- | ---: |
-| Synthetic heap delta | -2312 KB |
+| Synthetic heap delta | -2401 KB |
 
 ## Leak Audit
 
 | Area | Result |
 | --- | --- |
-| Kitchen SSE | Existing cleanup closes EventSource; Phase 3 also avoids replacing unchanged ticket objects. |
+| Kitchen SSE | Order and ready-signal EventSource cleanup closes listeners; incremental patches avoid replacing unchanged ticket objects. |
 | Kitchen timers | Single interval remains cleaned on unmount; card time updates use minute buckets. |
 | POS listeners | Existing online/offline/popstate/custom-event listeners retain cleanup. |
 | Dialog listeners | Existing Escape/pointer/scroll listeners retain cleanup paths. |

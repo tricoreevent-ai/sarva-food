@@ -7,10 +7,12 @@ import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { applyRealtimePatch } from "@/lib/realtime-patch";
 import { formatCurrency } from "@/lib/utils";
 
-type Order = { id: string; createdAt?: string; channel?: string; fulfillmentType?: string; customerName?: string; customerPhone?: string; status?: string; subtotal?: number; tax?: number; total?: number; paymentStatus?: string; lines?: unknown[] };
+type Order = { id: string; createdAt?: string; channel?: string; fulfillmentType?: string; customerName?: string; customerPhone?: string; customer?: { name?: string; phone?: string }; status?: string; subtotal?: number; tax?: number; total?: number; totals?: { subtotal?: number; tax?: number; total?: number }; paymentStatus?: string; lines?: unknown[] };
 type Analytics = { revenue: number; tax: number; orderCount: number; billableOrderCount: number; customerCount: number; loyaltyCount: number; orders: Order[] };
+type ReportStreamPayload = { orders?: Order[]; ordersUpsert?: Order[]; orderIdsRemoved?: string[] };
 type Preset = "today" | "last7" | "last30";
 
 export default function OwnerReportsPage() {
@@ -46,6 +48,22 @@ export default function OwnerReportsPage() {
     };
   }, [range]);
 
+  useEffect(() => {
+    const events = new EventSource("/api/owner/reports/stream");
+    events.addEventListener("state", (event) => {
+      try {
+        const payload = JSON.parse((event as MessageEvent).data) as ReportStreamPayload;
+        const full = payload.orders?.map(reportOrderFromLive).filter((order) => orderInRange(order, range));
+        const upsert = payload.ordersUpsert?.map(reportOrderFromLive).filter((order) => orderInRange(order, range));
+        if (!full && !upsert?.length && !payload.orderIdsRemoved?.length) return;
+        setData((current) => current ? summarizeReports(current, applyRealtimePatch(current.orders, full, upsert, payload.orderIdsRemoved)) : current);
+      } catch {
+        setError("Live report update could not be read.");
+      }
+    });
+    return () => events.close();
+  }, [range]);
+
   const rows = (data?.orders ?? []).map((order) => ({
     ...order,
     date: order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : "-",
@@ -64,4 +82,7 @@ export default function OwnerReportsPage() {
 
 function Metric({ title, value, note }: { title: string; value: string; note: string }) { return <Card><CardContent className="p-5"><p className="text-sm font-bold text-muted-foreground">{title}</p><p className="mt-2 text-3xl font-black">{value}</p><p className="mt-1 text-sm text-muted-foreground">{note}</p></CardContent></Card>; }
 function rangeFor(preset: Preset) { const to = new Date(); to.setHours(23, 59, 59, 999); const from = new Date(to); from.setHours(0, 0, 0, 0); if (preset === "last7") from.setDate(from.getDate() - 6); if (preset === "last30") from.setDate(from.getDate() - 29); return { from, to }; }
+function orderInRange(order: Order, range: { from: Date; to: Date }) { const created = Date.parse(order.createdAt ?? ""); return Number.isFinite(created) && created >= range.from.getTime() && created <= range.to.getTime(); }
+function reportOrderFromLive(order: Order): Order { return { ...order, customerName: order.customerName ?? order.customer?.name, customerPhone: order.customerPhone ?? order.customer?.phone, subtotal: Number(order.subtotal ?? order.totals?.subtotal ?? 0), tax: Number(order.tax ?? order.totals?.tax ?? 0), total: Number(order.total ?? order.totals?.total ?? 0) }; }
+function summarizeReports(current: Analytics, orders: Order[]): Analytics { const billable = orders.filter((order) => !["cancelled", "rejected"].includes(String(order.status ?? ""))); return { ...current, orders, orderCount: orders.length, billableOrderCount: billable.length, revenue: billable.reduce((sum, order) => sum + Number(order.total ?? 0), 0), tax: billable.reduce((sum, order) => sum + Number(order.tax ?? 0), 0) }; }
 function exportRows(rows: Array<Record<string, unknown>>) { const csv = [["Order", "Date", "Customer", "Status", "Tax", "Total"], ...rows.map((row) => [row.id, row.date, row.customer, row.status, row.tax, row.total])].map((row) => row.map((cell) => JSON.stringify(cell ?? "")).join(",")).join("\n"); const link = document.createElement("a"); link.href = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`; link.download = "canonical-orders.csv"; link.click(); }

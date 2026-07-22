@@ -1,5 +1,12 @@
 # Release Notes
 
+## RC5 Final Operational Hardening - 2026-07-22
+
+- Root causes fixed: POS add-on tickets could lose their parent KOT link, Kitchen create retries could duplicate KOT documents, Kitchen stream updates still sent full snapshots, Kitchen ready signals used interval polling, Owner Dashboard revenue/orders could lag behind live state, and Owner Reports used one-shot data.
+- Hardened the existing workflow without UI redesign: add-on KOTs now keep parent linkage, KOT creation is idempotent by deterministic document id, Kitchen/ready-signal/Reports streams use incremental SSE deltas, and Dashboard/Reports derive from live operational state.
+- Stress coverage added for 128 concurrent orders, atomic sequential numbering, multi-screen realtime patching, long-running memory behavior, duplicate row/write prevention, add-items-after-kitchen-start, and listener cleanup.
+- Operational smoke expanded to `40/40`; full validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`.
+
 ## RC5 Live Data Consistency Hotfix - 2026-07-22
 
 - Root cause: Owner Dashboard and Owner Orders were still using one-shot REST snapshots while POS/Waiter and Kitchen used live streams; Owner Orders also rendered linked `orders` and `kitchenOrders` as separate rows, allowing the same ticket number to appear with different states.

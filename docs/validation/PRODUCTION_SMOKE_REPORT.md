@@ -1,5 +1,9 @@
 # Production Smoke Report
 
+## RC5 Final Operational Hardening Addendum
+
+`npm.cmd run smoke:operational` now passes 40/40 deterministic checks after the final operational hardening pass. Added checks cover incremental Kitchen stream deltas, Kitchen ready-signal SSE without interval polling, Owner Reports live sync, add-on KOT idempotency, and the existing lifecycle/RBAC/billing/notification/Active Orders/Kitchen contracts. Hosted authenticated/provider/device/hardware observations remain manual.
+
 ## RC5 Enterprise Waiter Workflow Addendum
 
 `npm.cmd run smoke:operational` now passes 36/36 deterministic checks after the live data consistency hotfix. Added checks cover Owner Dashboard/Owner Orders/Kitchen live consistency, shared incremental realtime patching, linked order/KOT merge, and service-owned Ready → Served routing in addition to the POS Display Options, workflow settings, realtime stream, sequential numbering, waiter/Kitchen/Active Orders contracts.

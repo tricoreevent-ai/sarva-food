@@ -965,9 +965,9 @@ function buildDashboardMetrics({
   const yesterday = addDays(today, -1);
   const todayOrders = combined.filter((order) => isSameDay(order.createdAt, today));
   const yesterdayOrders = combined.filter((order) => isSameDay(order.createdAt, yesterday));
-  const revenueToday = analytics?.revenue ?? sum(todayOrders.map((order) => order.amount));
+  const revenueToday = sum(todayOrders.map((order) => order.amount));
   const revenueYesterday = sum(yesterdayOrders.map((order) => order.amount));
-  const ordersToday = analytics?.orderCount ?? todayOrders.length;
+  const ordersToday = todayOrders.length;
   const ordersYesterday = yesterdayOrders.length;
   const avgOrderValue = ordersToday ? revenueToday / ordersToday : 0;
   const avgYesterday = ordersYesterday ? revenueYesterday / ordersYesterday : 0;

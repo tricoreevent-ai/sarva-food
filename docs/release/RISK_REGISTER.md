@@ -1,11 +1,11 @@
 # Risk Register
 
 Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Date: 2026-07-21
+Date: 2026-07-22
 
 | Risk | Level | Status | Evidence | Mitigation |
 | --- | --- | --- | --- | --- |
-| RC5 live data consistency hosted SHA not verified | High | 🔴 Blocking | `docs/validation/DEPLOYMENT_VERIFICATION_REPORT.md` predates the latest live consistency hotfix even though hosted env/version checks pass. | Deploy RC5 live data consistency hardening, clear cache/restart, verify `/api/release-info` exact SHA, then rerun hosted smoke. |
+| RC5 final hardening hosted SHA not verified | High | 🔴 Blocking | Hosted deployment evidence predates the final operational hardening commit even though local validation passes. | Deploy RC5 final hardening, clear cache/restart, verify `/api/release-info` exact SHA, then rerun hosted smoke. |
 | Production secrets absent in local validation | High | 🔴 Blocking | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `17` errors and `1` manual check. | Configure Hostinger/Firebase/QR/alert/encryption secrets, configure Razorpay per owner, and rerun validation in a production-equivalent env. |
 | Lighthouse/Core Web Vitals unavailable | Medium | 🟡 Pending Manual | Performance report marks desktop/mobile Lighthouse manual. | Run hosted Lighthouse after env correction. |
 | `/owner/orders` route JS | Low | ✅ Resolved Locally | Current analyzer reports `692 KB`, under the `1200 KB` verification budget and preferred `1000 KB` target. | Run hosted Chrome/Lighthouse profiling after deployment. |
@@ -13,6 +13,6 @@ Date: 2026-07-21
 | Authenticated browser/device flows unverified | High | 🟡 Pending Manual | Production smoke has `18` manual items. | Run checklist on target browsers/devices. |
 | Firebase rules/index production state unverified | High | 🟡 Pending Manual | Console deployment state is external; RC5 waiter-serving pass changed Firestore rules for order/kitchen role parity. | Deploy/review rules/indexes and smoke Waiter Served/Completed plus Kitchen Ready-only protected flows. |
 | Printer/QR/camera hardware unverified | Medium | 🟡 Pending Manual | Requires restaurant devices. | Validate target printers, QR scanning, camera/upload. |
-| Active Orders hosted multi-role QA pending | Medium | 🟡 Pending Manual | Repository validation passes `smoke:operational` 36/36, including Owner Dashboard/Owner Orders/Kitchen live consistency, POS Display Options, incremental realtime stream, sequential numbering, waiter Serve/Complete RBAC, Kitchen cannot Serve, permission-denial contracts, payment independence, Ready Signal, multi-ticket dining, partial-payment bill-only merge, completed holding/history, and Kitchen History density contracts; hosted Owner/Manager/Waiter/Cashier/Kitchen browser evidence is external. | Run the RC5 hosted Owner Dashboard/POS/Active Orders/Kitchen action matrix after deployment and capture console/network/printer evidence. |
+| Active Orders hosted multi-role QA pending | Medium | 🟡 Pending Manual | Repository validation passes `smoke:operational` 40/40 plus 128-order stress, realtime, and long-memory profiles, including Owner Dashboard/Reports/Kitchen live consistency, POS Display Options, incremental realtime streams, ready-signal SSE, sequential numbering, waiter Serve/Complete RBAC, Kitchen cannot Serve, permission-denial contracts, payment independence, Ready Signal, multi-ticket dining, add-on KOT idempotency, partial-payment bill-only merge, completed holding/history, and Kitchen History density contracts; hosted Owner/Manager/Waiter/Cashier/Kitchen browser evidence is external. | Run the RC5 hosted Owner Dashboard/POS/Active Orders/Kitchen/Reports action matrix after deployment and capture console/network/printer evidence. |
 | Firebase/protobuf dynamic dependency warning | Low | ✅ Accepted | Build/analyze warning trace is upstream Firebase/protobuf. | Document and accept; no freeze-time aliasing. |
 | Push deep-link duplicate tab | Low | ✅ Resolved | Phase 4D service-worker VM simulation verifies exact query/hash tab reuse. | Retain `smoke:operational` in release gates and confirm on real devices. |

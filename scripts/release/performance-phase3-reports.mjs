@@ -13,6 +13,52 @@ function writeDoc(section, file, body) {
   writeFileSync(path.join(dir, file), body);
 }
 
+function syncDoc(section, file, replacements) {
+  const filePath = path.join(root, "docs", section, file);
+  if (!existsSync(filePath)) return;
+  let body = readFileSync(filePath, "utf8");
+  for (const [from, to] of replacements) body = body.replace(from, to);
+  writeFileSync(filePath, body);
+}
+
+function syncRc5HardeningReports() {
+  syncDoc("performance", "RENDER_ANALYSIS.md", [
+    ["| Kitchen | SSE snapshots now reconcile unchanged tickets, memoized Kitchen cards receive minute-bucket time props, and desktop columns window long queues. |", "| Kitchen | Incremental SSE deltas patch changed tickets only, memoized Kitchen cards receive minute-bucket time props, and desktop columns window long queues. |"],
+  ]);
+  syncDoc("performance", "MEMORY_ANALYSIS.md", [
+    ["| Kitchen SSE | Existing cleanup closes EventSource; Phase 3 also avoids replacing unchanged ticket objects. |", "| Kitchen SSE | Order and ready-signal EventSource cleanup closes listeners; incremental patches avoid replacing unchanged ticket objects. |"],
+  ]);
+  syncDoc("performance", "PERFORMANCE_BUDGET.md", [
+    ["| Kitchen realtime update | <100ms | Snapshot reconciliation, memoized cards, desktop queue windowing. |", "| Kitchen realtime update | <100ms | Incremental SSE patches, memoized cards, desktop queue windowing. |"],
+  ]);
+  syncDoc("performance", "PERFORMANCE_PHASE3_REPORT.md", [
+    ["| Kitchen | Stream snapshots reconcile unchanged tickets; cards are memoized by ticket reference/minute bucket; desktop columns use lightweight windowing for long queues. |", "| Kitchen | Stream deltas reconcile changed tickets; cards are memoized by ticket reference/minute bucket; desktop columns use lightweight windowing for long queues. |"],
+  ]);
+  syncDoc("performance", "FINAL_RUNTIME_REPORT.md", [
+    ["| Delay Alerts | Owner Orders, Kitchen, and POS reuse `getKitchenDelay` with the persisted prepared-not-served threshold; no new realtime listener was added. |", "| Delay Alerts | Owner Orders, Kitchen, and POS reuse `getKitchenDelay` with the persisted prepared-not-served threshold; Kitchen ready signals now use SSE with listener cleanup instead of interval polling. |"],
+  ]);
+  syncDoc("performance", "FINAL_RENDER_REPORT.md", [
+    ["| Kitchen | Snapshot reconciliation preserves stable ticket references; cards are memoized by ticket ref/minute bucket; desktop columns window long queues. |", "| Kitchen | Incremental SSE reconciliation preserves stable ticket references; cards are memoized by ticket ref/minute bucket; desktop columns window long queues. |"],
+  ]);
+  syncDoc("performance", "FINAL_NETWORK_REPORT.md", [
+    ["| POS/Kitchen | No new polling loop, realtime listener, or duplicate API family was added. |", "| POS/Kitchen/Reports | Ready-signal polling was removed; Kitchen tickets, ready signals, POS/Owner active orders, and Reports now use scoped SSE deltas without duplicate API writes. |"],
+  ]);
+  syncDoc("performance", "FINAL_MEMORY_REPORT.md", [
+    ["| EventSource | Kitchen stream cleanup remains in place. |", "| EventSource | Kitchen ticket, Kitchen ready-signal, POS, Owner, and Reports streams close on unmount and avoid unbounded listener growth. |"],
+  ]);
+  syncDoc("validation", "FINAL_FIRESTORE_AUDIT.md", [
+    ["No Firestore collection, schema, rule, or index changed. RC5 Login and Kitchen History UI hardening adds only bounded read filters to the existing Kitchen API and keeps Kitchen ticket documents unchanged.", "No Firestore collection, schema, rule, or index changed. RC5 hardening adds idempotent Kitchen create semantics and incremental SSE read paths for Kitchen tickets, Kitchen ready signals, and Reports."],
+    ["| Listeners and indexes | No listener, rule, or index added. |", "| Listeners and indexes | Kitchen ready-signal and Reports SSE listeners are page-scoped, deduplicated by one EventSource per mounted screen, and closed on unmount; no index added. |"],
+  ]);
+  syncDoc("release", "FINAL_BUG_REPORT.md", [
+    ["| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |", "| Firestore audit | No collection, schema, rule, or index changed. Kitchen create idempotency and scoped SSE read paths now prevent duplicate KOTs, stale ready signals, and stale Reports. |"],
+  ]);
+  syncDoc("release", "FINAL_RELEASE_READINESS.md", [
+    ["| `npm run smoke:operational` | Passed 26/26, including owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |", "| `npm run smoke:operational` | Passed 40/40, including incremental Kitchen stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |"],
+    ["| Firestore | No collection/schema/rule/index change and no new realtime listener. |", "| Firestore | No collection/schema/rule/index change; idempotent Kitchen create semantics and scoped Kitchen/Reports SSE read paths are covered. |"],
+  ]);
+}
+
 const routeBudgets = new Map([
   ["/", 250],
   ["/profile", 250],
@@ -445,4 +491,5 @@ ${measuredRoutes}
 }
 
 writeReports();
+syncRc5HardeningReports();
 console.log("Generated Phase 3 and final performance reports.");

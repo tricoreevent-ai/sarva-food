@@ -40,6 +40,7 @@ import { delaySortRank, formatDelayTime, formatOperationalDuration, getKitchenDe
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalNotificationSoundTarget, type OperationalSettings } from "@/lib/order-delay-settings";
 import { readableTableOrderId } from "@/lib/order-display";
 import { playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
+import { applyRealtimePatch } from "@/lib/realtime-patch";
 import { cn } from "@/lib/utils";
 import type { PosTable, PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
@@ -50,7 +51,7 @@ type ConfirmAction = { title: string; description: string; confirmLabel: string;
 type CompactTabId = "new" | "accepted" | "preparing" | "ready" | "completed";
 type CompactPane = "orders" | "kitchen" | "more";
 type CompactOrderTypeFilter = NonNullable<TableOrder["orderType"]> | "all";
-type KitchenReadySignal = { kitchenOrderId?: string; notifiedAt?: unknown; acknowledgedAt?: unknown };
+type KitchenReadySignal = { id?: string; kitchenOrderId?: string; notifiedAt?: unknown; acknowledgedAt?: unknown };
 type KitchenHistoryRange = "today" | "yesterday" | "7d" | "month" | "all";
 type KitchenHistorySortKey = "order" | "table" | "customer" | "status" | "payment" | "priority" | "eta" | "waiter" | "items" | "created" | "delay" | "amount" | "prints";
 type KitchenHistoryColumnKey = KitchenHistorySortKey | "session" | "ready" | "completed" | "actions";
@@ -69,6 +70,8 @@ type KitchenHistoryFilter = {
 };
 type SavedKitchenHistoryFilter = KitchenHistoryFilter & { id: string; name: string };
 type KitchenHistoryPayload = { data?: TableOrder[]; count?: number; page?: number; pageSize?: number };
+type KitchenStreamPayload = { data?: TableOrder[]; upsert?: TableOrder[]; removed?: string[]; count?: number };
+type KitchenReadyStreamPayload = { data?: KitchenReadySignal[]; upsert?: KitchenReadySignal[]; removed?: string[]; count?: number };
 type KitchenHistoryColumnWidths = Record<KitchenHistoryColumnKey, number>;
 const desktopColumns: Array<{ id: KitchenColumnId; title: string; tone: string; statuses: TableOrderStatus[] }> = [
   { id: "new", title: "New", tone: "red", statuses: ["new", "occupied"] },
@@ -245,16 +248,32 @@ export function KitchenDisplayFlow() {
 
   useEffect(() => {
     let active = true;
-    const load = () => fetch("/api/owner/kitchen/notify-waiter", { cache: "no-store" })
-      .then((response) => readKitchenPayload<{ data?: KitchenReadySignal[] }>(response, "Ready signals could not be loaded."))
-      .then((payload) => {
-        if (!active) return;
-        setReadySignals(Object.fromEntries((payload.data ?? []).filter((item) => item.kitchenOrderId).map((item) => [item.kitchenOrderId!, item])));
-      })
-      .catch(() => undefined);
-    void load();
-    const id = window.setInterval(load, 15_000);
-    return () => { active = false; window.clearInterval(id); };
+    let fallbackLoaded = false;
+    const loadFallback = () => {
+      if (fallbackLoaded) return;
+      fallbackLoaded = true;
+      void fetch("/api/owner/kitchen/notify-waiter", { cache: "no-store" })
+        .then((response) => readKitchenPayload<{ data?: KitchenReadySignal[] }>(response, "Ready signals could not be loaded."))
+        .then((payload) => {
+          if (active) setReadySignals(readySignalMap(payload.data ?? []));
+        })
+        .catch(() => { fallbackLoaded = false; });
+    };
+    const events = new EventSource("/api/owner/kitchen/notify-waiter/stream");
+    events.addEventListener("ready-signals", (event) => {
+      if (!active) return;
+      try {
+        const payload = JSON.parse((event as MessageEvent).data) as KitchenReadyStreamPayload;
+        setReadySignals((current) => patchReadySignals(current, payload));
+      } catch {
+        loadFallback();
+      }
+    });
+    events.addEventListener("error", loadFallback);
+    return () => {
+      active = false;
+      events.close();
+    };
   }, []);
 
   useEffect(() => {
@@ -296,8 +315,8 @@ export function KitchenDisplayFlow() {
     events.addEventListener("orders", (event) => {
       if (!active) return;
       try {
-        const payload = JSON.parse((event as MessageEvent).data) as { data?: TableOrder[] };
-        setOrders((current) => reconcileKitchenOrders(current, payload.data ?? []));
+        const payload = JSON.parse((event as MessageEvent).data) as KitchenStreamPayload;
+        setOrders((current) => reconcileKitchenOrders(current, applyRealtimePatch(current, payload.data, payload.upsert, payload.removed)));
         setConnectionState("realtime");
         setConnectionError("");
       } catch (error) {
@@ -2579,6 +2598,26 @@ function sameTimelineTail(first?: Array<Record<string, unknown>>, second?: Array
 function sameStringList(first?: string[], second?: string[]) {
   if ((first?.length ?? 0) !== (second?.length ?? 0)) return false;
   return (first ?? []).every((value, index) => value === second?.[index]);
+}
+
+function readySignalMap(signals: KitchenReadySignal[]) {
+  return Object.fromEntries(signals.map((signal) => [readySignalKey(signal), signal]).filter(([key]) => key));
+}
+
+function patchReadySignals(current: Record<string, KitchenReadySignal>, payload: KitchenReadyStreamPayload) {
+  if (payload.data) return readySignalMap(payload.data);
+  if (!payload.upsert?.length && !payload.removed?.length) return current;
+  const next = { ...current };
+  for (const id of payload.removed ?? []) delete next[id];
+  for (const signal of payload.upsert ?? []) {
+    const id = readySignalKey(signal);
+    if (id) next[id] = signal;
+  }
+  return next;
+}
+
+function readySignalKey(signal: KitchenReadySignal) {
+  return signal.kitchenOrderId ?? signal.id ?? "";
 }
 
 function filterKitchenOrders(

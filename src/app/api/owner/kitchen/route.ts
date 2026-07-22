@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     trace = extendTrace(trace, { tenantId: scope.tenantId, restaurantId: scope.tenantId, userId: access.session.uid });
     const opKey = cleanOperationKey(body.operationKey) ?? makeOperationKey([scope.tenantId, "kitchen-create", body.id, body.parentKitchenOrderId, body.tableNumber, body.source, body.lines, body.total]);
     context = { ...traceLogFields(trace), action: "create", kitchenOrderId: body.id, role: access.session.role };
-    const data = await new KitchenRepository().create(scope, { ...body, operationKey: opKey });
+    const data = await new KitchenRepository().create(scope, { ...body, id: cleanDocumentId(body.id) ?? `kot-${opKey}`, operationKey: opKey });
     logOperationalEvent("owner.kitchen.post", { ...context, outcome: "ok", durationMs: traceDurationMs(trace), kitchenOrderId: data.id, status: data.status });
     return NextResponse.json({ data: kitchenDocToTableOrder(data) });
   } catch (error) {
@@ -121,6 +121,11 @@ export async function PATCH(request: NextRequest) {
 function cleanOperationKey(value: unknown) {
   const key = String(value ?? "").replace(/[^a-zA-Z0-9:_.-]/g, "").slice(0, 120);
   return key || undefined;
+}
+
+function cleanDocumentId(value: unknown) {
+  const id = String(value ?? "").replace(/[^a-zA-Z0-9:_.-]/g, "").slice(0, 140);
+  return id || undefined;
 }
 
 function clampNumber(value: string | null, min: number, max: number, fallback: number) {
