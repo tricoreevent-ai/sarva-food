@@ -2,7 +2,7 @@
 
 ## RC5 Enterprise Waiter Workflow Addendum
 
-`npm.cmd run smoke:operational` now passes 35/35 deterministic checks after the POS realtime/display/numbering pass. Added checks cover Display Options, hidden-image rendering, workflow settings, incremental POS realtime stream, and repository-only sequential numbering in addition to the existing waiter/Kitchen/Active Orders contracts.
+`npm.cmd run smoke:operational` now passes 36/36 deterministic checks after the live data consistency hotfix. Added checks cover Owner Dashboard/Owner Orders/Kitchen live consistency, shared incremental realtime patching, linked order/KOT merge, and service-owned Ready → Served routing in addition to the POS Display Options, workflow settings, realtime stream, sequential numbering, waiter/Kitchen/Active Orders contracts.
 
 `npm.cmd run smoke:operational` now passes 31/31 deterministic checks after the waiter-serving RBAC and Kitchen History density pass. Added checks cover Waiter Serve, Waiter Complete, Kitchen cannot Serve, Owner override, permission-denial messaging, Firestore authorization parity, waiter KOT read/create fallback, waiter notification acknowledgement, and high-density Kitchen History grid contracts.
 

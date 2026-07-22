@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-21T12:21:43.575Z
+Date: 2026-07-22T05:05:21.506Z
 
 ## Local Validation
 
@@ -11,7 +11,7 @@ Date: 2026-07-21T12:21:43.575Z
 | `npm run build` | Passed with accepted Firebase/protobuf warning. |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed 35/35, including POS Display Options, hidden-image performance, workflow settings, incremental POS realtime stream, sequential numbering, owner-login UX, waiter Serve/Complete RBAC, Kitchen cannot Serve, Firestore role parity, waiter KOT fallback, Kitchen History density, payment-independent split, and partial-payment bill-only merge guards. |
+| `npm run smoke:operational` | Passed 36/36, including live Owner Dashboard/Owner Orders/Kitchen consistency, POS realtime stream, sequential numbering, waiter Serve/Complete RBAC, payment-independent split, and partial-payment bill-only merge guards. |
 | `npm run profile:runtime` | Passed. |
 | `git diff --check` | Passed as a final release gate. |
 
@@ -19,12 +19,11 @@ Date: 2026-07-21T12:21:43.575Z
 
 | Area | Result |
 | --- | --- |
-| Branch baseline | `release/production-nammude` RC5 enterprise waiter workflow plus POS realtime/display/numbering hardening. |
-| Workflow | Payment remains independent of Kitchen/service state; completion still requires Served + Paid. Review Order honors Owner Settings Payment First, Kitchen First, or Flexible workflow. |
+| Branch baseline | `release/production-nammude` RC5 enterprise waiter workflow before this production-hardening pass. |
+| Workflow | Payment remains independent of Kitchen/service state; completion still requires Served + Paid. Split Bill and Smart Bill Merge now follow payment-state guards consistently. |
 | Billing merge | Partial-payment open tickets can merge billing-only; locked, authorized, paid, refunded, closed, or already merged bills remain blocked in UI and repository. |
-| Firestore | No rule/index change in this pass. OrderRepository writes per-restaurant sequence counters transactionally; POS realtime uses a bounded incremental stream endpoint for order/kitchen changes. |
+| Firestore | No collection/schema/rule/index change. Owner Dashboard and Owner Orders now consume the existing POS operational SSE stream with page-level listeners and incremental id patches. |
 | Security | Tenant checks, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |
-| Performance | Hidden POS images do not mount image components, long menu rendering is capped incrementally, and realtime updates patch changed cards by id. |
 
 ## Production Readiness
 

@@ -35,6 +35,9 @@ const kitchenApi = read("src/app/api/owner/kitchen/route.ts");
 const orderApi = read("src/app/api/owner/orders/route.ts");
 const posStreamApi = read("src/app/api/owner/pos/stream/route.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
+const ownerDashboard = read("src/app/owner/page.tsx");
+const liveOperationalOrders = read("src/lib/live-operational-orders.ts");
+const realtimePatch = read("src/lib/realtime-patch.ts");
 const kitchenNotify = read("src/app/api/owner/kitchen/notify-waiter/route.ts");
 const ownerAccess = read("src/lib/server/owner-api-access.ts");
 const mutationOrigin = read("src/lib/server/mutation-origin.ts");
@@ -254,6 +257,14 @@ await check("pos:incremental-realtime-stream", () => {
   assert.ok(!posStreamApi.includes("emitState()"));
 });
 
+await check("live-data:owner-dashboard-orders-kitchen-consistency", () => {
+  for (const token of ["mergeLiveOperationalOrders", "serviceStatusForKitchenOrder", "linkedKitchenIds", "canonicalOrderId", "hasKitchenTicket"]) assert.ok(liveOperationalOrders.includes(token) || ownerOrders.includes(token), token);
+  for (const token of ["new EventSource(\"/api/owner/pos/stream\")", "applyRealtimePatch", "dashboardRowFromLiveOrder", "activeOrdersCount: activeOrders.length", "total: activeKitchenOrders.length"]) assert.ok(ownerDashboard.includes(token), token);
+  for (const token of ["new EventSource(\"/api/owner/pos/stream\")", "matchesLiveDateRange", "serviceStatusForKitchenOrder", "canonicalOrderId", "linkedKitchenIds", "updateOrder(order.canonicalOrderId ?? order.id, \"served\")", "Open and save this order before updating service status."]) assert.ok(ownerOrders.includes(token), token);
+  assert.ok(realtimePatch.includes("new Map(current.filter"));
+  assert.ok(!ownerOrders.includes('updateKitchenOrder(order.kitchenOrder, "served")'));
+});
+
 await check("orders:restaurant-sequential-numbering", () => {
   for (const token of ["restaurantCounters", "posOrderSequence", "nextOrderNumber", "withSequentialOrderNumber", "orderSequencePatch", "transaction.set(kitchenRef", "displayOrderNumber: orderNumber"]) assert.ok(orderRepository.includes(token), token);
   assert.ok(orderDisplay.includes('return `#${text.slice(1).padStart(4, "0")}`'));
@@ -364,6 +375,6 @@ await check("notifications:configurable-operational-sounds", () => {
 
 const failed = results.filter(({ status }) => status === "FAIL");
 const rows = results.map(({ name, status, detail = "" }) => `| ${name} | ${status} | ${detail.replaceAll("|", "\\|")} |`).join("\n");
-fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
+fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
 for (const result of results) console.log(`${result.status} ${result.name}${result.detail ? `: ${result.detail}` : ""}`);
 if (failed.length) process.exitCode = 1;

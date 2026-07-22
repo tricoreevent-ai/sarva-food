@@ -1,6 +1,19 @@
 # Full Data Consistency Audit
 
-Last updated: 2026-06-26
+Last updated: 2026-07-22
+
+## RC5 Live Data Consistency Update
+
+The 2026-07-22 audit found a production-visible drift between Owner Dashboard Live Orders, Waiter/POS Active Orders, and Kitchen Operations. Root cause was not Firestore data loss: Owner Dashboard and Owner Orders were still one-shot REST consumers while POS/Waiter and Kitchen were realtime consumers, and Owner Orders rendered linked `orders` and `kitchenOrders` as separate rows.
+
+Current fix:
+
+- Owner Dashboard and Owner Orders now subscribe to `/api/owner/pos/stream`.
+- `applyRealtimePatch` applies incremental id-based order/KOT updates without polling.
+- `mergeLiveOperationalOrders` joins linked `orders.kitchenOrderId` to `kitchenOrders.id`.
+- Owner Orders no longer double-renders linked canonical order/KOT pairs.
+- Owner Orders Ready -> Served uses `/api/owner/orders`, preserving the Kitchen-stops-at-Ready boundary.
+- `smoke:operational` now passes 36/36 with a live data consistency contract.
 
 Tenant: `cafe-al-arab-thanisandra`
 

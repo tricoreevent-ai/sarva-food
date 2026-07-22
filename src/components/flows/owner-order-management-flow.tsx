@@ -40,8 +40,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAlert } from "@/hooks/useAlert";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { formatDelayTime, getKitchenDelay, type DelayPriority } from "@/lib/kitchen-delay";
+import { serviceStatusForKitchenOrder } from "@/lib/live-operational-orders";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/lib/phone";
+import { applyRealtimePatch } from "@/lib/realtime-patch";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";
@@ -78,6 +80,7 @@ type OpsOrder = {
   delay?: { delayed: boolean; lateMinutes: number; priority: DelayPriority; elapsedLabel: string };
 };
 type ActiveOpsOrder = OpsOrder & {
+  canonicalOrderId?: string;
   createdAtMs: number;
   etaLabel: string;
   itemSummary: string;
@@ -88,6 +91,15 @@ type ActiveOpsOrder = OpsOrder & {
   priorityLabel: string;
   isOnline: boolean;
   kitchenOrder?: TableOrder;
+};
+
+type OperationalStreamPayload = {
+  orders?: DemoOrder[];
+  kitchen?: TableOrder[];
+  ordersUpsert?: DemoOrder[];
+  kitchenUpsert?: TableOrder[];
+  orderIdsRemoved?: string[];
+  kitchenIdsRemoved?: string[];
 };
 type ActiveOrderSummary = {
   withWaiter: number;
@@ -139,6 +151,8 @@ export function OwnerOrderManagementFlow() {
   const [operationalSettings, setOperationalSettings] = useState<OperationalSettings>(defaultOperationalSettings);
   const knownNewOrders = useRef<Set<string> | null>(null);
   const tableOrdersRef = useRef<TableOrder[]>([]);
+  const liveOrdersPatchedRef = useRef(false);
+  const liveKitchenPatchedRef = useRef(false);
   const cateringInquiries = useMemo<CateringQuote[]>(() => [], []);
   const debouncedSearch = useDebouncedValue(search, 120);
   const rangeLabel = useMemo(() => formatRangeLabel(dateRange), [dateRange]);
@@ -169,6 +183,8 @@ export function OwnerOrderManagementFlow() {
 
   useEffect(() => {
     writeSessionDateRange(dateRange);
+    liveOrdersPatchedRef.current = false;
+    liveKitchenPatchedRef.current = false;
     const controller = new AbortController();
     const query = dateRangeQuery(dateRange);
     queueMicrotask(() => {
@@ -183,8 +199,8 @@ export function OwnerOrderManagementFlow() {
     ])
       .then(([ordersPayload, kitchenPayload, settingsPayload]) => {
         if (controller.signal.aborted) return;
-        setOrders((ordersPayload.data ?? []).map(toDemoOrder));
-        setTableOrders(kitchenPayload.data ?? []);
+        if (!liveOrdersPatchedRef.current) setOrders((ordersPayload.data ?? []).map(toDemoOrder));
+        if (!liveKitchenPatchedRef.current) setTableOrders(kitchenPayload.data ?? []);
         setOperationalSettings(normalizeOperationalSettings(settingsPayload.data));
       })
       .catch((reason: unknown) => {
@@ -197,6 +213,31 @@ export function OwnerOrderManagementFlow() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
+  }, [dateRange]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const events = new EventSource("/api/owner/pos/stream");
+    events.addEventListener("state", (event) => {
+      try {
+        const payload = JSON.parse((event as MessageEvent).data) as OperationalStreamPayload;
+        const orders = payload.orders?.filter((order) => matchesLiveDateRange(order.createdAt, order.scheduledFor, dateRange));
+        const ordersUpsert = payload.ordersUpsert?.filter((order) => matchesLiveDateRange(order.createdAt, order.scheduledFor, dateRange));
+        const kitchen = payload.kitchen?.filter((order) => matchesLiveDateRange(order.createdAt, order.scheduledFor, dateRange));
+        const kitchenUpsert = payload.kitchenUpsert?.filter((order) => matchesLiveDateRange(order.createdAt, order.scheduledFor, dateRange));
+        if (orders || ordersUpsert?.length || payload.orderIdsRemoved?.length) {
+          liveOrdersPatchedRef.current = true;
+          setOrders((current) => applyRealtimePatch(current, orders, ordersUpsert, payload.orderIdsRemoved));
+        }
+        if (kitchen || kitchenUpsert?.length || payload.kitchenIdsRemoved?.length) {
+          liveKitchenPatchedRef.current = true;
+          setTableOrders((current) => applyRealtimePatch(current, kitchen, kitchenUpsert, payload.kitchenIdsRemoved));
+        }
+      } catch {
+        // Keep the last valid owner orders snapshot.
+      }
+    });
+    return () => events.close();
   }, [dateRange]);
 
   const updateOrder = useCallback(async (orderId: string, status: OrderStatus, note?: string) => {
@@ -215,6 +256,14 @@ export function OwnerOrderManagementFlow() {
       return false;
     }
   }, []);
+
+  const serveOrder = useCallback((order: ActiveOpsOrder) => {
+    if (order.kitchenOrder && !order.canonicalOrderId) {
+      toast.error("Open and save this order before updating service status.");
+      return;
+    }
+    void updateOrder(order.canonicalOrderId ?? order.id, "served");
+  }, [updateOrder]);
 
   const focusOrder = useCallback((order: ActiveOpsOrder) => {
     setTab("live");
@@ -442,7 +491,7 @@ export function OwnerOrderManagementFlow() {
                   const status = order.status === "accepted" ? "preparing" : "ready";
                   return order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, status) : void updateOrder(order.id, status);
                 }}
-                onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
+                onComplete={serveOrder}
                 onView={focusOrder}
               />
             ) : visibleOrders.length ? (
@@ -457,7 +506,7 @@ export function OwnerOrderManagementFlow() {
                   const status = order.status === "accepted" ? "preparing" : "ready";
                   return order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, status) : void updateOrder(order.id, status);
                 }}
-                onComplete={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "served") : void updateOrder(order.id, "served")}
+                onComplete={serveOrder}
                 onView={focusOrder}
               />
             ) : null}
@@ -1267,6 +1316,14 @@ function dateRangeQuery(range: DateRange) {
   return params.toString();
 }
 
+function matchesLiveDateRange(createdAt: string, scheduledFor: string | undefined, range: DateRange) {
+  const from = Date.parse(`${range.from}T00:00:00`);
+  const to = Date.parse(`${range.to}T23:59:59.999`);
+  const created = Date.parse(createdAt);
+  const scheduled = scheduledFor ? Date.parse(scheduledFor) : Number.NaN;
+  return (Number.isFinite(created) && created >= from && created <= to) || (Number.isFinite(scheduled) && scheduled >= from && scheduled <= to);
+}
+
 function rangeForPreset(preset: DatePreset): DateRange {
   const today = startOfDay(new Date());
   if (preset === "yesterday") {
@@ -1318,7 +1375,9 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
     const phone = normalizePhone(order.customer.phone);
     if (phone) countByPhone.set(phone, (countByPhone.get(phone) ?? 0) + 1);
   }
-  const customerOrders = orders.map((order, index) => {
+  const ordersByKitchen = new Map(orders.filter((order) => order.kitchenOrderId).map((order) => [order.kitchenOrderId, order]));
+  const linkedKitchenIds = new Set(tableOrders.map((order) => order.id));
+  const customerOrders = orders.filter((order) => !order.kitchenOrderId || !linkedKitchenIds.has(order.kitchenOrderId)).map((order, index) => {
     const delay = getKitchenDelay({ status: order.status, createdAt: order.createdAt, prepEstimateMinutes: order.prepEstimateMinutes }, now, { orderDelayThresholdMinutes });
     return {
       delay,
@@ -1361,35 +1420,47 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
     };
   });
   const kotOrders = tableOrders.map((order, index) => {
-    const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
+    const canonical = ordersByKitchen.get(order.id);
+    const status = serviceStatusForKitchenOrder(order.status, canonical?.status, (canonical as (DemoOrder & { mergedIntoOrderId?: string }) | undefined)?.mergedIntoOrderId);
+    const paymentStatus = canonical?.paymentStatus ?? order.paymentStatus;
+    const lines = canonical?.lines ?? order.lines;
+    const delay = getKitchenDelay({ ...order, status }, now, { orderDelayThresholdMinutes });
+    const displayOrder = {
+      ...order,
+      orderNumber: canonical?.orderNumber ?? order.orderNumber,
+      displayOrderNumber: canonical?.displayOrderNumber ?? order.displayOrderNumber,
+      invoiceNumber: canonical?.invoiceNumber ?? order.invoiceNumber,
+      billNumber: canonical?.billNumber ?? order.billNumber,
+    };
     return {
       delay,
       id: order.id,
-      displayId: readableTableOrderId(order, index + 1),
+      canonicalOrderId: canonical?.id,
+      displayId: readableTableOrderId(displayOrder, index + 1),
       age: relativeOrderTime(order.createdAt, now),
       actualTime: actualOrderTime(order.createdAt),
       source: order.source === "Delivery" ? "POS Delivery" : order.source === "Parcel" ? "POS Parcel" : "POS",
-      customer: order.customerName ?? order.guestName ?? order.tableNumber,
-      phone: order.customerPhone ?? "",
-      address: order.deliveryAddress,
-      previousOrderCount: 0,
-      type: order.orderType ?? "dine-in",
-      tableNumber: order.orderType === "dine-in" ? order.tableNumber : undefined,
-      status: order.status,
-      itemCount: order.lines.reduce((sum, line) => sum + line.quantity, 0),
-      total: order.total ?? order.lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
-      payment: "Pending",
-      scheduledLabel: order.scheduledFor ? `Delivery at ${new Date(order.scheduledFor).toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
+      customer: canonical?.customer.name || order.customerName || order.guestName || order.tableNumber,
+      phone: canonical?.customer.phone || order.customerPhone || "",
+      address: canonical?.customer.address || order.deliveryAddress,
+      previousOrderCount: countByPhone.get(normalizePhone(canonical?.customer.phone || order.customerPhone || "")) ?? 0,
+      type: canonical?.fulfillmentType ?? order.orderType ?? "dine-in",
+      tableNumber: order.orderType === "dine-in" ? order.tableNumber : (canonical as (DemoOrder & { tableNumber?: string }) | undefined)?.tableNumber,
+      status,
+      itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
+      total: canonical?.totals.total ?? order.total ?? lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
+      payment: canonical?.payment === "cod" ? "Cash" : canonical?.payment ? canonical.payment.toUpperCase() : "Pending",
+      scheduledLabel: (canonical?.scheduledFor ?? order.scheduledFor) ? `Delivery at ${new Date(canonical?.scheduledFor ?? order.scheduledFor ?? "").toLocaleString("en-IN", { timeStyle: "short", dateStyle: "medium" })}` : undefined,
       createdAtMs: timestampMs(order.createdAt),
-      etaLabel: `${order.etaMinutes ?? 15} min`,
-      itemSummary: compactItems(order.lines),
-      lines: order.lines,
-      timeline: compactTimeline(order.status, order.createdAt, actualOrderTime(order.createdAt), order.statusHistory),
-      kitchenStatus: kitchenStatusLabel(order.status),
-      paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
+      etaLabel: `${canonical?.prepEstimateMinutes ?? order.etaMinutes ?? 15} min`,
+      itemSummary: compactItems(lines),
+      lines,
+      timeline: compactTimeline(status, order.createdAt, actualOrderTime(order.createdAt), order.statusHistory),
+      kitchenStatus: kitchenStatusLabel(status),
+      paymentStatusLabel: paymentStatusLabel(paymentStatus),
       priorityLabel: priorityLabel(delay.priority),
       isOnline: order.source === "QR" || order.source === "Waiter",
-      kitchenOrder: order,
+      kitchenOrder: { ...displayOrder, status, paymentStatus },
     };
   });
   return [...customerOrders, ...kotOrders].sort(newestFirst);
@@ -1499,7 +1570,10 @@ function matchesCateringTab(quote: CateringQuote, tab: OrderTab) {
 function toDemoOrder(order: OrderDoc): DemoOrder {
   const demo: DemoOrder & { tableNumber?: string } = {
     id: order.id,
+    orderNumber: order.orderNumber,
+    displayOrderNumber: order.displayOrderNumber,
     invoiceNumber: order.invoiceNumber,
+    billNumber: order.billNumber,
     restaurantSlug: order.restaurantId,
     customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
     lines: order.lines.map((line) => ({ itemId: line.menuItemId, name: line.name, price: line.price, quantity: line.quantity })),

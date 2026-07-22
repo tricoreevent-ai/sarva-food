@@ -1,5 +1,14 @@
 # Release Notes
 
+## RC5 Live Data Consistency Hotfix - 2026-07-22
+
+- Root cause: Owner Dashboard and Owner Orders were still using one-shot REST snapshots while POS/Waiter and Kitchen used live streams; Owner Orders also rendered linked `orders` and `kitchenOrders` as separate rows, allowing the same ticket number to appear with different states.
+- Added a shared incremental realtime reducer and shared live operational merge utility so linked `orders` + `kitchenOrders` resolve to one operational row with Kitchen state winning until service/payment completion.
+- Owner Dashboard now subscribes to `/api/owner/pos/stream`, patches only changed order/KOT documents, and derives Live Orders/Kitchen counts from the merged live operational dataset instead of stale analytics counts.
+- Owner Orders now subscribes to the same incremental stream, preserves selected date-range boundaries, removes linked order/KOT duplication, preserves order numbers, and routes Ready → Served through `/api/owner/orders` instead of the Kitchen update API.
+- Dependency graph verified: Firestore `orders` + `kitchenOrders` → repositories → `/api/owner/pos` bootstrap + `/api/owner/pos/stream` incremental patches → POS/Waiter, Owner Dashboard, Owner Orders/Cashier/Manager views; Kitchen Operations remains on `kitchenOrders` via `/api/owner/kitchen/stream`.
+- Validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 36/36, and `profile:runtime`; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## RC5 POS Realtime Workflow, Display Options, and Sequential Numbering - 2026-07-21
 
 - Replaced the low-value POS menu filter toggle with a persisted per-operator Display Options menu: show/hide images, compact/comfortable cards, grid/list, descriptions/price-only, and large-touch/compact-desktop modes.

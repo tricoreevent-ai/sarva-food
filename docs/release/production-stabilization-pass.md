@@ -1,5 +1,13 @@
 # Production Stabilization Pass
 
+## RC5 Live Data Consistency Hotfix
+
+- Root cause found: Owner Dashboard and Owner Orders used stale one-shot reads while POS/Waiter and Kitchen were live; Owner Orders also rendered linked `orders` and `kitchenOrders` as separate rows.
+- Completed shared live operational merge: linked order/KOT documents now resolve to one row, preserve sequential numbers, and use Kitchen status until service/payment completion.
+- Completed realtime propagation: Owner Dashboard and Owner Orders now subscribe to `/api/owner/pos/stream` and apply incremental patches without polling or manual refresh.
+- Completed service boundary repair: Owner Orders Ready -> Served now uses `/api/owner/orders`, not the Kitchen update API.
+- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 36/36, runtime profile, and diff check.
+
 ## RC5 Enterprise Waiter Workflow
 
 - Completed multi-ticket dining: one table/session can hold multiple independent active kitchen tickets without mutating prior KOTs.

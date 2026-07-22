@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-21T12:21:38.708Z
+Generated: 2026-07-22T05:05:16.855Z
 
-Result: PASS — 35/35 checks passed.
+Result: PASS — 36/36 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -25,6 +25,7 @@ Result: PASS — 35/35 checks passed.
 | pos:display-options-and-hidden-image-performance | PASS |  |
 | pos:workflow-settings-review-actions | PASS |  |
 | pos:incremental-realtime-stream | PASS |  |
+| live-data:owner-dashboard-orders-kitchen-consistency | PASS |  |
 | orders:restaurant-sequential-numbering | PASS |  |
 | active-orders:dense-memoized-layout | PASS |  |
 | active-orders:waiter-live-kitchen-payment-dashboard | PASS |  |
@@ -42,4 +43,4 @@ Result: PASS — 35/35 checks passed.
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

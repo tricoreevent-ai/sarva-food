@@ -1,5 +1,14 @@
 # Project Tracker
 
+## RC5 Live Data Consistency Hotfix - 2026-07-22
+
+- Root cause found: Owner Dashboard and Owner Orders used stale one-shot REST snapshots while POS/Waiter and Kitchen used realtime streams; Owner Orders also displayed linked canonical orders and linked KOTs as independent rows.
+- Owner Dashboard now consumes `/api/owner/pos/stream`, applies incremental order/KOT patches, and derives Live Orders plus Kitchen counters from the same merged live operational data as POS Active Orders.
+- Owner Orders now consumes the same stream within the selected date range, merges linked `orders` + `kitchenOrders` into one row, preserves sequential display numbers, and uses `/api/owner/orders` for service-owned Ready → Served.
+- Shared utilities added for incremental realtime patching and live operational order merging; POS now reuses the shared patch reducer.
+- Operational smoke expanded to 36/36 with a live-data consistency contract covering Owner Dashboard, Owner Orders, Kitchen state, and service routing.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 36/36, runtime profile, and diff check.
+
 ## RC5 POS Realtime Workflow, Adaptive Display Options, and Sequential Numbering - 2026-07-21
 
 - POS menu Display Options now persists per operator and controls product images, compact/comfortable cards, grid/list view, item descriptions, and touch/desktop density.

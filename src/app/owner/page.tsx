@@ -37,6 +37,8 @@ import { Button } from "@/components/ui/button";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
+import { isLiveTerminalStatus, mergeLiveOperationalOrders, type LiveOperationalOrder } from "@/lib/live-operational-orders";
+import { applyRealtimePatch } from "@/lib/realtime-patch";
 import type { DemoOrder, MenuItem, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
 import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -47,6 +49,10 @@ type WidgetId = (typeof widgetIds)[number];
 
 type CanonicalOrder = {
   id: string;
+  orderNumber?: string | number;
+  displayOrderNumber?: string | number;
+  invoiceNumber?: string;
+  billNumber?: string;
   restaurantId: string;
   customerName: string;
   customerPhone: string;
@@ -61,8 +67,21 @@ type CanonicalOrder = {
   paymentStatus?: string;
   channel: DemoOrder["channel"];
   fulfillmentType?: DemoOrder["fulfillmentType"];
+  orderType?: DemoOrder["fulfillmentType"];
+  tableNumber?: string;
+  waiterName?: string;
   createdAt: string;
   deliveryOtp?: string;
+  kitchenOrderId?: string;
+};
+
+type OperationalStreamPayload = {
+  orders?: DemoOrder[];
+  kitchen?: TableOrder[];
+  ordersUpsert?: DemoOrder[];
+  kitchenUpsert?: TableOrder[];
+  orderIdsRemoved?: string[];
+  kitchenIdsRemoved?: string[];
 };
 
 type AnalyticsSnapshot = {
@@ -105,6 +124,8 @@ export default function OwnerDashboardPage() {
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([...widgetIds]);
   const [prefsReady, setPrefsReady] = useState(false);
   const [updatedSeconds, setUpdatedSeconds] = useState(0);
+  const liveOrdersPatchedRef = useRef(false);
+  const liveKitchenPatchedRef = useRef(false);
   const whatsappShare = useWhatsAppShare();
 
   const metrics = useMemo(
@@ -158,12 +179,12 @@ export default function OwnerDashboardPage() {
       .then((payload: { data?: Partial<AnalyticsSnapshot> & { orders?: CanonicalOrder[]; customerCount?: number; menu?: MenuItem[]; staff?: StaffMember[]; tables?: PosTable[]; kitchen?: TableOrder[] } }) => {
         if (!active) return;
         const data = payload.data;
-        setCanonicalOrders((payload.data?.orders ?? []).map(canonicalToDemoOrder));
+        if (!liveOrdersPatchedRef.current) setCanonicalOrders((payload.data?.orders ?? []).map(canonicalToDemoOrder));
         setCanonicalCustomerCount(Number(payload.data?.customerCount ?? 0));
         setCanonicalMenuItems(payload.data?.menu ?? []);
         setCanonicalStaffMembers(payload.data?.staff ?? []);
         setCanonicalTables(payload.data?.tables ?? []);
-        setCanonicalKitchenOrders(payload.data?.kitchen ?? []);
+        if (!liveKitchenPatchedRef.current) setCanonicalKitchenOrders(payload.data?.kitchen ?? []);
         setAnalyticsSnapshot({
           orderCount: Number(data?.orderCount ?? data?.orders?.length ?? 0),
           revenue: Number(data?.revenue ?? 0),
@@ -175,6 +196,27 @@ export default function OwnerDashboardPage() {
         });
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const events = new EventSource("/api/owner/pos/stream");
+    events.addEventListener("state", (event) => {
+      try {
+        const payload = JSON.parse((event as MessageEvent).data) as OperationalStreamPayload;
+        if (payload.orders || payload.ordersUpsert?.length || payload.orderIdsRemoved?.length) {
+          liveOrdersPatchedRef.current = true;
+          setCanonicalOrders((current) => applyRealtimePatch(current, payload.orders, payload.ordersUpsert, payload.orderIdsRemoved));
+        }
+        if (payload.kitchen || payload.kitchenUpsert?.length || payload.kitchenIdsRemoved?.length) {
+          liveKitchenPatchedRef.current = true;
+          setCanonicalKitchenOrders((current) => applyRealtimePatch(current, payload.kitchen, payload.kitchenUpsert, payload.kitchenIdsRemoved));
+        }
+      } catch {
+        // Keep the last valid owner dashboard snapshot.
+      }
+    });
+    return () => events.close();
   }, []);
 
   function toggleWidget(id: WidgetId) {
@@ -324,6 +366,10 @@ function displayOwnerGreetingName(ownerName?: string, hotelName?: string, restau
 function canonicalToDemoOrder(order: CanonicalOrder): DemoOrder {
   return {
     id: order.id,
+    orderNumber: order.orderNumber,
+    displayOrderNumber: order.displayOrderNumber,
+    invoiceNumber: order.invoiceNumber,
+    billNumber: order.billNumber,
     restaurantSlug: order.restaurantId,
     customer: { name: order.customerName, phone: order.customerPhone, address: order.deliveryAddress ?? "" },
     lines: order.lines.map((line) => ({ itemId: line.menuItemId, name: line.name, price: line.price, quantity: line.quantity, notes: line.notes })),
@@ -334,6 +380,7 @@ function canonicalToDemoOrder(order: CanonicalOrder): DemoOrder {
     createdAt: order.createdAt,
     deliveryOtp: order.deliveryOtp ?? "",
     fulfillmentType: order.fulfillmentType,
+    kitchenOrderId: order.kitchenOrderId,
   };
 }
 
@@ -898,6 +945,9 @@ function buildDashboardMetrics({
   offlineQueue: OfflineQueueItem[];
   printerSettings: PrinterSettings;
 }) {
+  const liveOperationalOrders = mergeLiveOperationalOrders(orders, tableOrders);
+  const liveRows = liveOperationalOrders.filter((order) => !isLiveTerminalStatus(order.status)).map(dashboardRowFromLiveOrder);
+  const kitchenOnlyRows = liveOperationalOrders.filter((order) => !order.canonicalOrderId).map(dashboardRowFromLiveOrder);
   const combined: DashboardOrder[] = [
     ...orders.map((order) => ({
       id: readableOrderId(order),
@@ -909,19 +959,8 @@ function buildDashboardMetrics({
       lines: order.lines,
       type: order.fulfillmentType ?? order.channel,
     })),
-    ...tableOrders.map((order, index) => ({
-      id: readableTableOrderId(order, index + 1),
-      createdAt: order.createdAt,
-      status: order.status,
-      amount: orderTotal(order),
-      customer: order.customerName ?? order.guestName ?? order.customerPhone ?? "Guest",
-      source: order.source,
-      table: order.tableNumber,
-      lines: order.lines,
-      type: order.orderType ?? order.source,
-    })),
+    ...kitchenOnlyRows,
   ];
-  const sorted = [...combined].sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
   const today = new Date();
   const yesterday = addDays(today, -1);
   const todayOrders = combined.filter((order) => isSameDay(order.createdAt, today));
@@ -935,8 +974,9 @@ function buildDashboardMetrics({
   const week = Array.from({ length: 7 }, (_, index) => addDays(today, index - 6));
   const weekRevenue = week.map((date) => sum(combined.filter((order) => isSameDay(order.createdAt, date)).map((order) => order.amount)));
   const weekOrders = week.map((date) => combined.filter((order) => isSameDay(order.createdAt, date)).length);
-  const activeOrders = sorted.filter((order) => !isTerminal(order.status));
+  const activeOrders = liveRows.sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
   const kitchenOrders = tableOrders;
+  const activeKitchenOrders = kitchenOrders.filter((order) => !isTerminal(order.status));
   const preparing = kitchenOrders.filter((order) => order.status === "preparing" || order.status === "occupied").length;
   const ready = kitchenOrders.filter((order) => order.status === "ready").length;
   const pending = kitchenOrders.filter((order) => order.status === "new").length;
@@ -958,7 +998,7 @@ function buildDashboardMetrics({
     revenueDelta: percentDelta(revenueToday, revenueYesterday),
     ordersToday,
     ordersDelta: percentDelta(ordersToday, ordersYesterday),
-    activeOrdersCount: analytics?.orderCount ?? activeOrders.length,
+    activeOrdersCount: activeOrders.length,
     avgOrderValue,
     avgDelta: percentDelta(avgOrderValue, avgYesterday),
     newCustomers: analytics?.customerCount ?? customerCount,
@@ -976,7 +1016,7 @@ function buildDashboardMetrics({
     typeCounts,
     typeTotal: sum(typeCounts.map((item) => item.value)),
     kitchen: {
-      total: analytics?.kitchenCount ?? kitchenOrders.length,
+      total: activeKitchenOrders.length,
       pending,
       preparing,
       ready,
@@ -1006,6 +1046,20 @@ function buildDashboardMetrics({
     menuCount: analytics?.menuCount ?? menuItems.length,
     loyaltyCount: analytics?.loyaltyCount ?? 0,
     alerts,
+  };
+}
+
+function dashboardRowFromLiveOrder(order: LiveOperationalOrder, index: number): DashboardOrder {
+  return {
+    id: readableTableOrderId(order, index + 1),
+    createdAt: order.createdAt,
+    status: order.status,
+    amount: order.total ?? orderTotal(order),
+    customer: order.customerName ?? order.guestName ?? order.customerPhone ?? "Guest",
+    source: order.source,
+    table: order.tableNumber,
+    lines: order.lines,
+    type: order.orderType ?? order.source,
   };
 }
 

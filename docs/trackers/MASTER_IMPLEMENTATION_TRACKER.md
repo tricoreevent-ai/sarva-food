@@ -1,6 +1,6 @@
 # Nammude Master Implementation Tracker
 
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,26 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 POS Realtime Workflow, Adaptive Display Options, and Sequential Numbering |
+| Current Sprint | RC5 Live Data Consistency Hotfix |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Pending POS realtime/display/numbering commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
+| Latest Git Commit | Pending live data consistency hotfix on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | POS realtime/display/numbering pass passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (35/35), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 preserves the completed enterprise workflow while hardening POS menu display performance, workflow selection, realtime Active Orders sync, and repository-only sequential restaurant numbering. |
+| Verification Status | Live data consistency hotfix passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (36/36), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC5 preserves the completed enterprise workflow while hardening Owner Dashboard, Owner Orders, POS/Waiter, and Kitchen to derive live operational rows from the same linked order/KOT data. |
+
+## RC5 Live Data Consistency Hotfix - 2026-07-22
+
+| Area | Result |
+| --- | --- |
+| Root cause | Owner Dashboard and Owner Orders consumed stale one-shot REST snapshots while POS/Waiter and Kitchen consumed realtime streams; Owner Orders also rendered linked canonical orders and linked KOTs as separate operational rows. |
+| Canonical live dataset | Complete. Shared live merge resolves `orders` + `kitchenOrders` by `kitchenOrderId`, keeps one row per linked ticket, preserves sequential display numbers, and lets Kitchen state drive cards until service/payment completion. |
+| Realtime propagation | Complete. Owner Dashboard and Owner Orders now subscribe to `/api/owner/pos/stream` and apply incremental `ordersUpsert`/`kitchenUpsert` patches with no polling or full-page refresh. |
+| Owner Dashboard counts | Complete. Live Orders and Kitchen counters now derive from merged live rows instead of stale analytics summary counts. |
+| Owner Orders actions | Complete. Ready -> Served now routes through `/api/owner/orders`, matching the service boundary that Kitchen stops at Ready. |
+| Dependency graph | Firestore `orders`/`customerOrders` remain canonical billing/history docs; `kitchenOrders` remains the Kitchen ticket source; `/api/owner/pos` bootstraps POS/owner operational data; `/api/owner/pos/stream` sends incremental order/KOT changes to POS/Waiter, Owner Dashboard, Owner Orders, Cashier, and Manager; `/api/owner/kitchen/stream` feeds Kitchen Operations from the same `kitchenOrders` collection. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (36/36), `profile:runtime`, and `git diff --check`. |
 
 ## RC5 POS Realtime Workflow, Adaptive Display Options, and Sequential Numbering - 2026-07-21
 

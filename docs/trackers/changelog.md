@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22
+
+- Fixed the live operational consistency defect where Owner Dashboard/Owner Orders could show stale or duplicate state compared with POS/Waiter and Kitchen Operations.
+- Added shared incremental realtime patching and linked order/KOT merging, then wired Owner Dashboard and Owner Orders to `/api/owner/pos/stream`.
+- Corrected Owner Orders Ready → Served routing to the order service API instead of the Kitchen update API.
+- Expanded operational smoke to 36/36 with an Owner Dashboard/Owner Orders/Kitchen consistency contract.
+
 ## 2026-07-21
 
 - Added POS Display Options with per-operator persistence for images, density, grid/list, descriptions, and touch/desktop mode.
