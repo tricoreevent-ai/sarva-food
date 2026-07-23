@@ -20,6 +20,11 @@ export type WhatsAppMenuItemInput = {
   rating?: number;
   shortUrl: string;
   customerName?: string;
+  scheduleUrl?: string;
+  deliveryAvailable?: boolean;
+  openHours?: string;
+  phone?: string;
+  mapUrl?: string;
 };
 
 export type WhatsAppMessageOptions = {
@@ -60,7 +65,15 @@ export function generateWhatsAppMenuMessage(input: WhatsAppMenuItemInput, option
     cta_text: ctaText,
   };
 
-  return cleanMessage(replaceTemplateTokens(template, replacements), footer);
+  const details = [
+    input.deliveryAvailable === false ? "Pickup / dine-in only" : input.deliveryAvailable ? "Delivery available" : "",
+    input.openHours ? `Open: ${input.openHours}` : "",
+    input.scheduleUrl ? `Schedule: ${input.scheduleUrl}` : "",
+    input.phone ? `Call: tel:${input.phone.replace(/[^\d+]/g, "")}` : "",
+    input.mapUrl ? `Map: ${input.mapUrl}` : "",
+  ].filter(Boolean).join("\n");
+
+  return cleanMessage([replaceTemplateTokens(template, replacements), details].filter(Boolean).join("\n\n"), footer);
 }
 
 export function buildWhatsAppShareHref(message: string) {

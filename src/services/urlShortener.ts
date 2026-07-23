@@ -1,18 +1,17 @@
+import { menuItemShortPath } from "@/lib/menu-item-links";
+
 export type ShortenedUrl = {
   originalUrl: string;
   shortUrl: string;
-  provider: "tinyurl" | "original";
+  provider: "internal" | "original";
   ok: boolean;
   error?: string;
 };
 
 type ShortenOptions = {
   enabled?: boolean;
-  timeoutMs?: number;
-  fetcher?: typeof fetch;
 };
 
-const tinyUrlEndpoint = "https://tinyurl.com/api-create.php";
 const shortUrlCache = new Map<string, ShortenedUrl>();
 
 export async function shortenUrl(originalUrl: string, options: ShortenOptions = {}): Promise<ShortenedUrl> {
@@ -26,37 +25,21 @@ export async function shortenUrl(originalUrl: string, options: ShortenOptions = 
   const cached = shortUrlCache.get(normalizedUrl);
   if (cached) return cached;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 4500);
-
   try {
-    const fetcher = options.fetcher ?? fetch;
-    const response = await fetcher(`${tinyUrlEndpoint}?url=${encodeURIComponent(normalizedUrl)}`, {
-      method: "GET",
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    const text = (await response.text()).trim();
-
-    if (!response.ok || !isHttpUrl(text)) {
-      throw new Error(text || `TinyURL returned ${response.status}.`);
-    }
-
+    const url = new URL(normalizedUrl);
+    const match = url.pathname.match(/^\/restaurant\/([^/]+)\/item\/([^/]+)\/?$/);
+    if (!match) return originalUrlResult(normalizedUrl);
+    const text = `${url.origin}${menuItemShortPath(match[1], match[2])}`;
     const result: ShortenedUrl = {
       originalUrl: normalizedUrl,
       shortUrl: text,
-      provider: "tinyurl",
+      provider: "internal",
       ok: true,
     };
     shortUrlCache.set(normalizedUrl, result);
     return result;
   } catch {
-    return {
-      ...originalUrlResult(normalizedUrl),
-      error: "TinyURL failed.",
-    };
-  } finally {
-    clearTimeout(timeout);
+    return originalUrlResult(normalizedUrl);
   }
 }
 

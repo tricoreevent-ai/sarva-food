@@ -286,7 +286,7 @@ function PasswordInput({
         autoComplete={autoComplete}
         className="h-12 w-full rounded-xl border border-white/10 bg-white/10 px-4 pr-11 text-sm font-semibold text-white outline-none transition placeholder:text-white/30 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
       />
-      <button type="button" className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-white/60 hover:bg-white/10" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"}>
+      <button type="button" className="absolute right-1 top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-lg text-slate-700 hover:bg-slate-900/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"}>
         {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </button>
     </div>

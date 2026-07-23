@@ -4,7 +4,6 @@ import { lazy, Suspense, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { ModuleRuntimeBoundary } from "@/components/runtime/module-runtime-boundary";
 import { IdleMount } from "@/components/runtime/idle-mount";
-import { AlertProvider } from "@/components/ui/AlertProvider";
 import { shouldMountEnhancementRuntime } from "@/plugins/registry";
 
 const LazyCustomerShellClient = lazy(() =>
@@ -34,7 +33,7 @@ export function CustomerShellRuntime({ children }: { children: ReactNode }) {
 
 export function CustomerRuntimeProviders({ children }: { children: ReactNode }) {
   return (
-    <AlertProvider>
+    <>
       <IdleMount>
         <LazyAuthSessionBridge />
         <LazyFirestoreStoreHydrator />
@@ -47,6 +46,6 @@ export function CustomerRuntimeProviders({ children }: { children: ReactNode }) 
         </Suspense>
       </IdleMount>
       {children}
-    </AlertProvider>
+    </>
   );
 }

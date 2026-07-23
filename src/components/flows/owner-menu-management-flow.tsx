@@ -1882,6 +1882,7 @@ export function OwnerMenuManagementFlow() {
             }}
             onCopy={() => void whatsappShare.copyMessage()}
             onWhatsApp={whatsappShare.openWhatsApp}
+            onChannel={whatsappShare.openChannel}
           />
 
           <Dialog open={Boolean(imagePreviewItem)} onOpenChange={(open) => !open && setImagePreviewItem(null)}>

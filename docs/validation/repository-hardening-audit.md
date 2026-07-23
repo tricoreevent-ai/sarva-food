@@ -1,14 +1,14 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-23T09:53:07.440Z
+Generated: 2026-07-23T16:03:43.574Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
-| runtime-console | 16 | Runtime console call; prefer productionLogger or operational logging. |
+| runtime-console | 17 | Runtime console call; prefer productionLogger or operational logging. |
 | raw-error-message | 61 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| listener-lifecycle | 60 | Realtime/listener site; verify cleanup and reconnect bounds. |
 | api-error-envelope | 164 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
@@ -16,7 +16,7 @@ Generated: 2026-07-23T09:53:07.440Z
 ### runtime-console
 
 - `src/hooks/use-customer-data.ts` (1)
-- `src/hooks/use-realtime-order.ts` (1)
+- `src/hooks/use-realtime-order.ts` (2)
 - `src/components/flows/customer-discovery-home.tsx` (1)
 - `src/components/flows/kitchen-display-flow.tsx` (5)
 - `src/components/flows/pos-billing-flow.tsx` (4)
@@ -66,7 +66,6 @@ Generated: 2026-07-23T09:53:07.440Z
 - `src/hooks/use-operational-view.ts` (1)
 - `src/hooks/use-phone-verification.ts` (1)
 - `src/hooks/use-public-app-name.ts` (2)
-- `src/hooks/use-realtime-order.ts` (1)
 - `src/components/flows/active-orders-panel.tsx` (1)
 - `src/components/flows/kitchen-display-flow.tsx` (14)
 - `src/components/flows/owner-order-management-flow.tsx` (3)

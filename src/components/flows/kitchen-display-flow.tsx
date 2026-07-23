@@ -3,7 +3,6 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  Archive,
   AlertTriangle,
   ArrowDownUp,
   BellRing,
@@ -1171,7 +1170,6 @@ export function KitchenOrderHistoryFlow() {
         <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-2xl" role="toolbar" aria-label="Kitchen history bulk actions">
           <span>{selectedIds.length} selected</span>
           <button type="button" className="rounded-full bg-white/10 px-3 py-1 hover:bg-white/20" onClick={() => exportRows("csv", selectedOrders)}>Export</button>
-          <button type="button" className="rounded-full bg-white/10 px-3 py-1 hover:bg-white/20" onClick={() => toast.success(`${selectedIds.length} ticket${selectedIds.length === 1 ? "" : "s"} queued for archive review.`)}>Archive review</button>
           <button type="button" className="rounded-full bg-white px-3 py-1 text-slate-950 hover:bg-orange-100" onClick={() => setSelectedIds([])}>Clear</button>
         </div>
       ) : null}
@@ -1180,8 +1178,7 @@ export function KitchenOrderHistoryFlow() {
           order={selectedOrder}
           now={now}
           onClose={() => setSelectedOrderId(null)}
-          onPrint={() => toast("Open Kitchen Operations to print or reprint KOT.")}
-          onPreview={() => toast("Open Kitchen Operations to preview KOT.")}
+          onPrint={() => window.print()}
           onNext={() => undefined}
         />
       ) : null}
@@ -1322,7 +1319,6 @@ function KitchenHistoryCell({
           <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { onExpand(); onActionMenuClose(); }} role="menuitem"><History className="size-3.5" />Timeline</button>
           <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { copyText(displayOrderNumber(order)); onActionMenuClose(); }} role="menuitem"><Copy className="size-3.5" />Copy</button>
           <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { onExport(); onActionMenuClose(); }} role="menuitem"><Download className="size-3.5" />Export</button>
-          <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { toast.success("Ticket queued for archive review."); onActionMenuClose(); }} role="menuitem"><Archive className="size-3.5" />Archive</button>
           <button type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-orange-50" onClick={() => { onExpand(); onActionMenuClose(); }} role="menuitem"><AlertTriangle className="size-3.5" />Audit</button>
         </div>
       ) : null}
@@ -2336,7 +2332,7 @@ const MemoKitchenOrderCard = memo(KitchenOrderCard, (prev, next) => (
   prev.expanded === next.expanded
 ));
 
-function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes, onClose, onPrint, onPreview, onNext, onNotify = () => undefined }: { order: TableOrder; signal?: KitchenReadySignal; now: number; orderDelayThresholdMinutes?: number; onClose: () => void; onPrint: () => void; onPreview: () => void; onNext: (status: TableOrderStatus) => void; onNotify?: () => void }) {
+function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = defaultOperationalSettings.orderDelayThresholdMinutes, onClose, onPrint, onPreview, onNext, onNotify = () => undefined }: { order: TableOrder; signal?: KitchenReadySignal; now: number; orderDelayThresholdMinutes?: number; onClose: () => void; onPrint?: () => void; onPreview?: () => void; onNext: (status: TableOrderStatus) => void; onNotify?: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const next = nextStatus[order.status];
   const delay = getKitchenDelay(order, now, { orderDelayThresholdMinutes });
@@ -2413,8 +2409,8 @@ function KitchenOrderDrawer({ order, signal, now, orderDelayThresholdMinutes = d
               onClick: () => onNext(next),
             }}
             secondaryActions={[
-              { id: "preview", label: "Preview", icon: <Eye className="size-4" />, onClick: onPreview },
-              { id: "print", label: order.printedCount ? "Reprint" : "Print", icon: <Printer className="size-4" />, onClick: onPrint },
+              ...(onPreview ? [{ id: "preview", label: "Preview", icon: <Eye className="size-4" />, onClick: onPreview }] : []),
+              ...(onPrint ? [{ id: "print", label: order.printedCount ? "Reprint" : "Print", icon: <Printer className="size-4" />, onClick: onPrint }] : []),
             ]}
             isOpen={open}
             onOpenChange={setOpen}

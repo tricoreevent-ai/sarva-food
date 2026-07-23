@@ -58,6 +58,7 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
       };
       const originalUrl = buildCustomerItemUrl(item, restaurantSlug);
       const shortener = await shortenUrl(originalUrl, { enabled: marketingSettings.tinyUrlEnabled });
+      const restaurantUrl = buildRestaurantUrl(restaurantSlug);
       const message = generateWhatsAppMenuMessage({
         restaurantName,
         restaurantSlug,
@@ -71,6 +72,11 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
         rating: item.averageRating ?? restaurant?.rating,
         shortUrl: shortener.shortUrl,
         customerName,
+        scheduleUrl: `${restaurantUrl}?intent=schedule`,
+        deliveryAvailable: restaurant?.orderingEnabled !== false && item.menuVisibility?.delivery !== false,
+        openHours: restaurant?.operatingHours,
+        phone: restaurant?.contact?.phone ?? restaurant?.ownerProfile?.businessPhone,
+        mapUrl: restaurant?.googleMapLocation,
       }, {
         template: template ?? marketingSettings.defaultTemplate,
         marketingSettings,
@@ -111,6 +117,17 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
     window.open(buildWhatsAppShareHref(preview.message), "_blank", "noopener,noreferrer");
   }, [preview]);
 
+  const openChannel = useCallback((channel: "telegram" | "sms" | "email") => {
+    if (!preview || typeof window === "undefined") return;
+    const encoded = encodeURIComponent(preview.message);
+    const href = channel === "telegram"
+      ? `https://t.me/share/url?url=${encodeURIComponent(preview.shortUrl)}&text=${encoded}`
+      : channel === "sms"
+        ? `sms:?&body=${encoded}`
+        : `mailto:?subject=${encodeURIComponent(`${preview.item.name} from ${preview.restaurantName}`)}&body=${encoded}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  }, [preview]);
+
   return {
     preview,
     isPreparing,
@@ -118,7 +135,14 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
     closeShare,
     copyMessage,
     openWhatsApp,
+    openChannel,
   };
+}
+
+function buildRestaurantUrl(restaurantSlug: string) {
+  const path = ROUTES.restaurant(encodeURIComponent(restaurantSlug));
+  if (typeof window !== "undefined" && window.location.origin) return `${window.location.origin}${path}`;
+  return `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? ""}${path}`;
 }
 
 function buildCustomerItemUrl(item: MenuItem, restaurantSlug: string) {

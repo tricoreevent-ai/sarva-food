@@ -112,6 +112,7 @@ export default function AdminCampaignsPage() {
         }}
         onCopy={() => void whatsappShare.copyMessage()}
         onWhatsApp={whatsappShare.openWhatsApp}
+        onChannel={whatsappShare.openChannel}
       />
     </div>
   );

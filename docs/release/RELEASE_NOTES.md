@@ -1,5 +1,28 @@
 # Release Notes
 
+## RC5 Release Closure Audit - 2026-07-23
+
+- Fixed a P0 direct-item crash by moving the custom alert context above customer and dashboard page components; removed the duplicate nested alert providers left after that correction.
+- Replaced customer order-tracking 10-second polling with the existing shared, deduplicated Firestore order listener while retaining the authenticated customer API as initial/fallback data.
+- Removed false-success Kitchen History archive controls and the non-persisted Admin subscription notification action. History printing now invokes the browser print path instead of showing an instruction-only toast.
+- Completed production-browser customer/login UAT with zero console errors, failed requests, dead links, or horizontal overflow. Location, restaurant/menu, item sharing, cart persistence, Owner/Admin password controls, and Owner recovery passed.
+- Final repository validation passed: typecheck, lint, build, analyze, audit, operational smoke 46/46, production smoke 7/7 automated, stress/realtime/memory 4/4 each, runtime profile, contrast, and diff checks.
+
+## RC5 Final Production Certification - 2026-07-23
+
+- Unified Admin with the Owner shell theme contract, preserving Admin navigation/RBAC/data behavior while reusing Owner typography, spacing, colors, cards, controls, responsive breakpoints, loading/error states, and dark/light presentation.
+- Corrected readiness semantics: failed Firestore/Storage probes remain blocking, while successful Application Default Credential connectivity without explicit Firebase Admin variables is reported under `configurationWarnings` instead of returning a false HTTP 503.
+- Production-build route smoke now passes 7/7, including `/health/ready`; deterministic operational certification passes 45/45.
+- Full local certification passes typecheck, lint, build, analyze, release audit, operational stress, realtime profile, long-memory profile, runtime profile, first-party short-link verification, and diff checks. Authenticated hosted browser, provider, physical device/printer, Lighthouse, and browser heap/accessibility checks remain manual.
+
+## RC5 Menu Link and Sharing Hardening - 2026-07-23
+
+- Replaced the TinyURL network dependency with the existing first-party `/r/{restaurant}/{item}` route, now implemented as a real HTTP 307 route handler with canonical encoded item IDs and no new Firestore schema or third-party rate limit.
+- Fixed specific menu item lookup for encoded and cart-customized IDs by using one shared canonical item-link utility across cards, detail resolution, owner preview, sharing, and redirects.
+- Expanded the reusable share preview to WhatsApp/WhatsApp Business, Telegram, SMS, email, and copy, with item photo preview, price, description, restaurant, order link, schedule link, delivery availability, hours, phone, and map data when configured.
+- Removed false-success catering actions: quote email remains functional without claiming an unsaved status mutation, while conversion stays explicitly disabled until a repository-backed workflow exists.
+- Validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, operational smoke `43/43`, operational stress `4/4`, realtime profile `4/4`, long-memory profile `4/4`, runtime profile, live internal short-link `307 → 200`, and diff checks. Hosted authenticated/device/provider/Lighthouse checks remain manual.
+
 ## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
 
 - Unified Owner Active Orders onto the same exported operational panel used by POS/Waiter, preserving shared live order/KOT merging, memoized cards, lazy details, and shared action routing.

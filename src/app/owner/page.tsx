@@ -352,6 +352,7 @@ export default function OwnerDashboardPage() {
         }}
         onCopy={() => void whatsappShare.copyMessage()}
         onWhatsApp={whatsappShare.openWhatsApp}
+        onChannel={whatsappShare.openChannel}
       />
     </div>
   );

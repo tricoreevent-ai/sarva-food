@@ -178,7 +178,12 @@ function footerSections(settings: CmsSettings) {
 
 function footerSocialLinks(settings: CmsSettings) {
   const configured = settings.footer.socialLinks?.length ? settings.footer.socialLinks : defaultCmsSettings.footer.socialLinks ?? [];
-  return configured.filter((link) => link.enabled !== false && Boolean(link.url?.trim()));
+  return configured.filter((link) => link.enabled !== false && !isDeadSocialHref(link.url));
+}
+
+function isDeadSocialHref(href?: string) {
+  const value = href?.trim() ?? "";
+  return !value || value === "#" || /^javascript:/i.test(value);
 }
 
 function footerLegalLinks(sections: FooterSection[]) {

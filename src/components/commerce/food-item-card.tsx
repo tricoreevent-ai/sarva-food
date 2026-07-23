@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { menuItemPath } from "@/lib/menu-item-links";
 import { motion } from "framer-motion";
 import { Minus, Plus, Timer } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -32,7 +33,7 @@ export function FoodItemCard({ item }: { item: MenuItem }) {
       </div>
 
       <div className="flex flex-1 flex-col justify-between gap-3 p-3">
-        <Link href={`/restaurant/${item.restaurantSlug}/item/${item.id}`} className="block">
+        <Link href={menuItemPath(item.restaurantSlug, item.id)} className="block">
           <h3 className="line-clamp-2 text-sm font-black leading-tight md:text-base">{item.name}</h3>
           <div className="mt-1 min-h-4 text-[0.7rem] font-bold text-muted-foreground">
             {item.prepTime ? (

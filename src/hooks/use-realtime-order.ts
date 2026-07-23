@@ -12,6 +12,7 @@ export function useRealtimeOrder(orderId?: string) {
   useEffect(() => {
     if (!orderId) return;
     let active = true;
+    let unsubscribe: (() => void) | undefined;
     const load = async () => {
       setLoading(true);
       setError("");
@@ -33,10 +34,20 @@ export function useRealtimeOrder(orderId?: string) {
       }
     };
     void load();
-    const interval = window.setInterval(() => void load(), 10_000);
+    void import("@/services/order-service").then(({ listenToOrder }) => {
+      if (!active) return;
+      unsubscribe = listenToOrder(orderId, (nextOrder) => {
+        if (!active || !nextOrder) return;
+        setOrder(nextOrder);
+        setError("");
+        setLoading(false);
+      });
+    }).catch((error) => {
+      console.error("[realtime-order] subscription failed", { reason: safeClientReason(error) });
+    });
     return () => {
       active = false;
-      window.clearInterval(interval);
+      unsubscribe?.();
     };
   }, [orderId]);
 

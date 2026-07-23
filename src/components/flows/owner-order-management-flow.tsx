@@ -578,14 +578,6 @@ export function OwnerOrderManagementFlow() {
     window.location.assign("/owner/pos?panel=active");
   }, []);
 
-  async function updateCateringInquiryStatus() {
-    toast.error("Catering requests are not part of the repository-backed order queue yet.");
-  }
-
-  async function convertCateringInquiryToOrder() {
-    toast.error("Catering conversion is not part of the repository-backed order queue yet.");
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -657,8 +649,6 @@ export function OwnerOrderManagementFlow() {
             {visibleCatering.length ? (
               <CateringInquiryList
                 inquiries={visibleCatering}
-                onStatus={updateCateringInquiryStatus}
-                onConvert={convertCateringInquiryToOrder}
               />
             ) : null}
             {activeView ? (
@@ -1363,12 +1353,8 @@ function KitchenTabOrderAccordion({
 
 function CateringInquiryList({
   inquiries,
-  onStatus,
-  onConvert,
 }: {
   inquiries: CateringQuote[];
-  onStatus: (quoteId: string, status: NonNullable<CateringQuote["status"]>) => Promise<void>;
-  onConvert: (quoteId: string) => Promise<void>;
 }) {
   const [draftTotals, setDraftTotals] = useState<Record<string, string>>({});
 
@@ -1383,7 +1369,6 @@ function CateringInquiryList({
       return;
     }
 
-    await onStatus(quote.id, "quoted");
     const subject = encodeURIComponent(`Revised catering quotation - ${quote.id}`);
     const body = encodeURIComponent([
       `Hello ${quote.name},`,
@@ -1397,12 +1382,7 @@ function CateringInquiryList({
       "Please reply to confirm or negotiate further.",
     ].join("\n"));
     window.location.assign(`mailto:${quote.email}?subject=${subject}&body=${body}`);
-    toast.success("Revised quote marked and email draft opened.");
-  }
-
-  async function convertInquiry(quote: CateringQuote) {
-    await onConvert(quote.id);
-    toast.success("Catering request converted to an order.");
+    toast.success("Quote email draft opened.");
   }
 
   return (
@@ -1443,7 +1423,7 @@ function CateringInquiryList({
                 <Send className="size-4" />
                 Send quote by email
               </Button>
-              <Button className="mt-2 w-full" variant="outline" disabled={quote.status === "converted"} onClick={() => void convertInquiry(quote)}>
+              <Button className="mt-2 w-full" variant="outline" disabled title="Catering conversion requires a repository-backed workflow before it can be enabled.">
                 Convert to order
               </Button>
             </div>

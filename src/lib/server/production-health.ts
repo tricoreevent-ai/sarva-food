@@ -28,11 +28,18 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
     shouldProbe ? probeFirestoreConnectivity() : Promise.resolve(status("not_checked")),
     shouldProbe ? probeStorageConnectivity() : Promise.resolve(status("not_checked")),
   ]);
+  const explicitAdminCredentials = Boolean(
+    config.firebaseConfiguration.adminConfigured ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    process.env.FIREBASE_CONFIG
+  );
   const issues = [
     config.firebaseConfiguration.publicConfigured ? "" : "firebase_public_config_missing",
-    config.firebaseConfiguration.adminConfigured || process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_CONFIG ? "" : "firebase_admin_config_missing",
     firestoreConnectivity.status === "connected" || kind === "live" ? "" : "firestore_unavailable",
     storageConnectivity.status === "configured" || kind === "live" ? "" : "storage_unavailable",
+  ].filter(Boolean);
+  const configurationWarnings = [
+    explicitAdminCredentials || firestoreConnectivity.status !== "connected" ? "" : "firebase_admin_explicit_config_missing_using_application_default_credentials",
   ].filter(Boolean);
 
   return {
@@ -62,6 +69,7 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
     razorpayConfiguration: config.razorpayConfiguration,
     firebaseConfiguration: config.firebaseConfiguration,
     issues,
+    configurationWarnings,
     generatedAt: new Date().toISOString(),
     durationMs: Math.round(performance.now() - started),
   };

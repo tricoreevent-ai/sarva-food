@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import { ReactNode, useEffect, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FirebaseStartupStatus } from "@/components/firebase/firebase-startup-status";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
@@ -13,7 +13,6 @@ import { useOperationalView } from "@/hooks/use-operational-view";
 import { moduleThemeKey } from "@/lib/theme-provider";
 import { normalizeTheme, resolveThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { adminTheme } from "@/themes/admin-theme";
 import {
   adminNav,
   cateringNav,
@@ -58,14 +57,6 @@ export function DashboardShellClient({
     ? filterNavigationForOperationalView(roleNavItems, operational.session)
     : roleNavItems;
   const isPosWorkspace = pathname.startsWith("/owner/pos") || pathname.startsWith("/pos");
-  const adminStyle = app === "admin"
-    ? ({
-        "--admin-console-bg": adminTheme.colors.background,
-        "--admin-console-card": adminTheme.colors.card,
-        "--admin-console-primary": adminTheme.colors.primary,
-      } as CSSProperties)
-    : undefined;
-
   useEffect(() => {
     if (!(app === "owner" || app === "pos") || operational.loading || !operational.session) return;
     const route = [...config.nav]
@@ -82,10 +73,9 @@ export function DashboardShellClient({
     <div
       className={cn(
         "min-h-screen",
-        app === "admin" && ["admin-premium", moduleTheme === "dark" ? "admin-dark" : "theme-admin-light"],
+        app === "admin" && ["owner-premium", moduleTheme === "dark" ? "theme-owner-dark" : "theme-owner-light"],
         (app === "owner" || app === "pos") && ["owner-premium", moduleTheme === "dark" ? "theme-owner-dark" : "theme-owner-light"],
       )}
-      style={adminStyle}
     >
       {app === "owner" || app === "pos" ? <MobileOfflineBanner /> : null}
       <DashboardTopbar app={app} appName={config.name} navItems={navItems} homeHref={config.homeHref} />

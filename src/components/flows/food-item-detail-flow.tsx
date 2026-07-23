@@ -39,6 +39,7 @@ import { usePublicMenu, usePublicRestaurant, usePublicReviews } from "@/hooks/us
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useCartStore } from "@/lib/cart-store";
 import { ROUTES } from "@/lib/constants";
+import { canonicalMenuItemId } from "@/lib/menu-item-links";
 import type { MenuItem, Offer, Restaurant, Review } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -74,7 +75,8 @@ export function FoodItemDetailFlow({
   const { restaurant: loadedRestaurant, status: restaurantStatus, retry: retryRestaurant } = usePublicRestaurant(restaurant?.slug ?? restaurantSlug ?? "");
   const activeRestaurant = restaurant ?? loadedRestaurant;
   const { items, offers, status: menuStatus, retry: retryMenu } = usePublicMenu(activeRestaurant?.slug ?? restaurantSlug);
-  const activeItem = item ?? items.find((entry) => entry.id === itemId);
+  const requestedItemId = canonicalMenuItemId(itemId ?? "");
+  const activeItem = item ?? items.find((entry) => canonicalMenuItemId(entry.id) === requestedItemId);
   const { reviews, summary: reviewSummary } = usePublicReviews(activeRestaurant?.slug, activeItem?.id);
   const activeOffer = offers.find((offer) => offer.code === offerCode);
   const addItem = useCartStore((state) => state.addItem);
@@ -366,6 +368,7 @@ export function FoodItemDetailFlow({
           }}
           onCopy={() => void whatsappShare.copyMessage()}
           onWhatsApp={whatsappShare.openWhatsApp}
+          onChannel={whatsappShare.openChannel}
         />
       </main>
     </CustomerShell>

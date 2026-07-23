@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-23T09:38:24.575Z
+Generated: 2026-07-23T16:07:03.508Z
 
-Result: PASS — 42/42 checks passed.
+Result: PASS — 46/46 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -20,6 +20,9 @@ Result: PASS — 42/42 checks passed.
 | active-orders:a11y-and-operational-controls | PASS |  |
 | active-orders:all-actions-wired | PASS |  |
 | active-orders:owner-waiter-unified-send-to-kitchen | PASS |  |
+| menu:item-route-and-internal-sharing | PASS |  |
+| health:runtime-failures-vs-credential-warnings | PASS |  |
+| design:admin-reuses-owner-shell-theme | PASS |  |
 | active-orders:strict-lifecycle | PASS |  |
 | active-orders:payment-independent-from-kitchen | PASS |  |
 | pos:new-order-cancel-resumes-draft | PASS |  |
@@ -48,5 +51,6 @@ Result: PASS — 42/42 checks passed.
 | kitchen:item-first-card-actions | PASS |  |
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
+| customer:realtime-order-with-single-alert-provider | PASS |  |
 
 This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, unified Owner/Waiter Active Orders send-to-kitchen contracts, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

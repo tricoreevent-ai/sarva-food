@@ -1,30 +1,6 @@
 # Production Smoke Report
 
-## RC5 Owner/Waiter Active Orders Unification Addendum
-
-`npm.cmd run smoke:operational` now passes 42/42 deterministic checks after the Owner/Waiter Active Orders unification pass. Added checks cover the exported shared Active Orders panel, shared order/KOT merge builder, owner POS handoff, waiter-safe send-to-kitchen guard, `/api/owner/orders` `send_to_kitchen`, and transactional repository KOT linkage/audit/notification contracts. Hosted authenticated/provider/device/hardware observations remain manual.
-
-## RC5 Final Operational Hardening Addendum
-
-`npm.cmd run smoke:operational` now passes 41/41 deterministic checks after the final operational hardening pass. Added checks cover Kitchen no-Tables RBAC bootstrap, Kitchen-scoped printer access, incremental Kitchen stream deltas, Kitchen ready-signal SSE without interval polling, Owner Reports live sync, add-on KOT idempotency, and the existing lifecycle/RBAC/billing/notification/Active Orders/Kitchen contracts. Hosted authenticated/provider/device/hardware observations remain manual.
-
-## RC5 Enterprise Waiter Workflow Addendum
-
-`npm.cmd run smoke:operational` now passes 36/36 deterministic checks after the live data consistency hotfix. Added checks cover Owner Dashboard/Owner Orders/Kitchen live consistency, shared incremental realtime patching, linked order/KOT merge, and service-owned Ready → Served routing in addition to the POS Display Options, workflow settings, realtime stream, sequential numbering, waiter/Kitchen/Active Orders contracts.
-
-`npm.cmd run smoke:operational` now passes 31/31 deterministic checks after the waiter-serving RBAC and Kitchen History density pass. Added checks cover Waiter Serve, Waiter Complete, Kitchen cannot Serve, Owner override, permission-denial messaging, Firestore authorization parity, waiter KOT read/create fallback, waiter notification acknowledgement, and high-density Kitchen History grid contracts.
-
-`npm.cmd run smoke:operational` passes 24/24 deterministic checks. Added checks cover payment independence from Kitchen/service state, POS New Order cancel draft resume, Owner Orders payment state, item-first Kitchen card actions, Ready Signal without Waiter push, all Active Orders action wiring, Waiter live Kitchen/payment dashboard visibility, timeline event categories, multiple active tickets per table, bill-only merge, completed holding/history, and configurable operational sounds. Hosted authenticated/provider/device/hardware observations remain manual.
-
-## Phase 4D Automation Addendum
-
-`npm run smoke:operational` passes 9/9 deterministic draft recovery, operator/restaurant isolation, fault classification, lifecycle replay, role, notification retry/dedup/token, service-worker background action/deep-link, and Active Orders accessibility checks. This closes repository-simulatable lifecycle gaps; hosted authenticated/provider/device/hardware observations remain manual.
-
-## Phase 4E Active Orders Addendum
-
-Operational smoke now passes 12/12. Added checks prove every visible/contextual Active Orders action has a callback, Ready cannot skip Served, completion requires paid service, large delays are bounded/stale, duplicate timeline events collapse, 100% progress uses success green, and the responsive 1/2/3-column card layout remains present.
-
-Generated: 2026-07-10T15:16:12.607Z
+Generated: 2026-07-23T16:05:26.243Z
 
 ## Summary
 
@@ -65,17 +41,3 @@ Generated: 2026-07-10T15:16:12.607Z
 | manual:Offline recovery | MANUAL | Requires authenticated browser/provider/hardware validation. |
 | manual:Error boundaries | MANUAL | Requires authenticated browser/provider/hardware validation. |
 | manual:Accessibility | MANUAL | Requires authenticated browser/provider/hardware validation. |
-
-## POS Draft Autosave P0 Local Browser QA
-
-| Check | Status | Evidence |
-| --- | --- | --- |
-| Authorization | PASS | Owner, waiter view, and cashier view POS GET returned `200`; invalid writes reached `400` validation instead of `403 pos:update`. |
-| Rapid item edits | PASS | Three immediate adds produced quantity `3`, one latest recovery record, and one visible failure notification. |
-| Provider failure | PASS | Simulated `503` retained cart state and classified the failure as database/provider unavailable. |
-| Offline/online | PASS | Quantity `2` remained in cart and recovery storage while offline; reconnect retried automatically and cleared recovery. |
-| Refresh recovery | PASS | Pending draft line restored from scoped recovery and New Order reopened after reload. |
-| Clear/Hold recovery | PASS | Clear and Hold now stage an empty local recovery snapshot before retrying the server draft deletion; failed deletes cannot silently leave an untracked stale draft. |
-| Notification dedupe | PASS | One stable notification with Retry and Dismiss remained visible across repeated failures. |
-| Storage targets | PASS | localStorage and IndexedDB metadata saved the latest draft; sessionStorage remains payment-only; no direct Firestore offline write bypasses repository behavior. |
-| Hosted/operator devices | MANUAL | Deploy and verify owner/waiter/cashier, restaurant switch, close/reopen, real Firestore interruption, and multi-device behavior. |

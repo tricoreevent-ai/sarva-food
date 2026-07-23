@@ -22,6 +22,8 @@ Release: `v1.0.0-rc5`
 | `FIREBASE_ADMIN_PROJECT_ID` | Firebase Admin SDK project id. | Firebase service account |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | Firebase Admin SDK client email. | Firebase service account |
 | `FIREBASE_ADMIN_PRIVATE_KEY` | Firebase Admin SDK private key with escaped `\n`. | Firebase service account |
+
+Readiness treats failed Firestore/Storage probes as blocking. When Application Default Credentials connect successfully but the three explicit Firebase Admin variables are absent, `/health/ready` returns `200` and reports `firebase_admin_explicit_config_missing_using_application_default_credentials` under `configurationWarnings`; this distinguishes a secret-source warning from an application outage.
 | `TABLE_QR_SECRET` | Production QR signing secret; at least 32 characters. | Manual secret |
 | `SMTP_HOST` | SMTP host. | SMTP provider |
 | `SMTP_PORT` | SMTP port. | SMTP provider |

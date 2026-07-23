@@ -1,8 +1,14 @@
 # Release Closeout
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
-Current Sprint: RC5 Owner/Waiter Active Orders unification
+Current Sprint: RC5 final menu link and sharing hardening
+
+RC5 Release Closure Audit Result: repository P0/P1 closure complete. Fixed direct item alert-provider crash, removed duplicate alert providers, replaced customer order polling with the shared Firestore listener, removed false-success Kitchen archive/Admin notification actions, and wired History printing. Production-browser UAT has zero console errors, failed requests, dead links, or horizontal overflow. Typecheck, lint, build, analyze, audit, operational smoke 46/46, production smoke 7/7 automated, stress/realtime/memory 4/4 each, runtime, contrast, and diff checks pass. Environment/provider/hardware QA remains external and does not block the repository commit.
+
+RC5 Final Production Certification Result: Admin now uses the Owner shell theme contract without changing Admin routing, permissions, or data flows. Readiness distinguishes blocking Firestore/Storage failures from explicit Firebase Admin credential warnings when Application Default Credentials are connected. Production-build route smoke passes 7/7; operational certification passes 45/45; stress/realtime/long-memory pass 4/4.
+
+RC5 Menu Link and Sharing Hardening Result: specific item routes now canonicalize encoded/customized item IDs through one shared link utility; first-party `/r/{restaurant}/{item}` links use a real HTTP 307 redirect and no TinyURL dependency; the reusable sharing surface supports WhatsApp/Business, Telegram, SMS, email, and copy with operational restaurant details. False-success catering mutations were removed. Operational smoke passes 43/43; stress, realtime, long-memory, typecheck, lint, build, analyze, audit, runtime profile, and live `307 → 200` route verification pass.
 
 RC5 Owner/Waiter Active Orders Unification Result: Owner Active Orders now renders the same operational component and merged live order/KOT data path as POS/Waiter. Order-only Website/QR/POS/third-party tickets can be sent to Kitchen through a transactional, idempotent `send_to_kitchen` repository/API path that links `orders`, `customerOrders`, `kitchenOrders`, audit, and notifications. Shared cards keep role-specific guards while covering Send To Kitchen, Track Kitchen, Serve, Complete, Collect Payment, Print/KOT/Receipt, Preview, Reminder, Recall, Transfer, Split, Merge, Timeline, History, Add Items, and Reassign Waiter. Operational smoke passes 42/42; typecheck, lint, build, analyze, audit:release, runtime profile, and diff check passed.
 

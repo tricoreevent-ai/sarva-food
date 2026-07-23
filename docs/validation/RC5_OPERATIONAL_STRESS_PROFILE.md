@@ -1,15 +1,15 @@
 # RC5 Operational Stress Profile
 
-Generated: 2026-07-22T08:46:21.575Z
+Generated: 2026-07-23T16:04:00.568Z
 
 Result: PASS — 4/4 profiles passed.
 
 | Profile | Status | Duration ms | Metrics |
 | --- | --- | ---: | --- |
-| sequential-numbering:128-concurrent | PASS | 2.92 | writes: 128.00; duplicates: 0.00; skipped: 0.00 |
-| realtime-sync:multi-screen-deltas | PASS | 231.22 | patches: 960.00; p95Ms: 1.81; listeners: 5.00; duplicateRows: 0.00 |
-| memory:long-running-patch-profile | PASS | 21.02 | iterations: 240.00; retainedRows: 40.00; heapDeltaMb: 1.36 |
-| source:production-hardening-contracts | PASS | 0.71 | auditedFiles: 11.00 |
+| sequential-numbering:128-concurrent | PASS | 3.71 | writes: 128.00; duplicates: 0.00; skipped: 0.00 |
+| realtime-sync:multi-screen-deltas | PASS | 2427.43 | patches: 7200.00; p95Ms: 2.14; listeners: 5.00; duplicateRows: 0.00 |
+| memory:long-running-patch-profile | PASS | 208.30 | iterations: 1800.00; retainedRows: 40.00; heapDeltaMb: 0.28 |
+| source:production-hardening-contracts | PASS | 1.42 | auditedFiles: 11.00 |
 
 ## Coverage
 
@@ -22,9 +22,9 @@ Result: PASS — 4/4 profiles passed.
 
 ## Metrics
 
-- Realtime p95 patch latency: 1.81ms.
+- Realtime p95 patch latency: 2.14ms.
 - Listener budget: 5 active page-level SSE consumers in the simulated multi-screen session.
 - Duplicate rows/writes/notifications observed in simulation: 0.
-- Long memory heap delta: 1.36MB over 240 iterations.
+- Long memory heap delta: 0.28MB over 1800 iterations.
 
 Hosted multi-device browser latency, real Firestore backend contention, production network waterfalls, physical printer output, and provider dashboards still require manual production QA.

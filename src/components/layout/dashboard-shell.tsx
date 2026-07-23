@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ModuleRuntimeBoundary, type ModuleSurface } from "@/components/runtime/module-runtime-boundary";
 import { IdleMount } from "@/components/runtime/idle-mount";
-import { AlertProvider } from "@/components/ui/AlertProvider";
 import { shouldMountEnhancementRuntime } from "@/plugins/registry";
 import type { DashboardApp } from "@/components/layout/dashboard-shell-client";
 
@@ -59,7 +58,7 @@ function surfaceForDashboardApp(app: DashboardApp): ModuleSurface {
 
 function DashboardRuntimeProviders({ children }: { children: ReactNode }) {
   return (
-    <AlertProvider>
+    <>
       <LazyAuthSessionBridge />
       <LazyFirestoreStoreHydrator />
       <LazySyncCenterScope />
@@ -73,6 +72,6 @@ function DashboardRuntimeProviders({ children }: { children: ReactNode }) {
         </Suspense>
       </IdleMount>
       {children}
-    </AlertProvider>
+    </>
   );
 }

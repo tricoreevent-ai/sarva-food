@@ -41,6 +41,15 @@ const readySignalStreamApi = read("src/app/api/owner/kitchen/notify-waiter/strea
 const printerApi = read("src/app/api/owner/printers/route.ts");
 const printerHook = read("src/hooks/use-printer-settings.ts");
 const ownerOrders = read("src/components/flows/owner-order-management-flow.tsx");
+const itemDetail = read("src/components/flows/food-item-detail-flow.tsx");
+const itemLinks = read("src/lib/menu-item-links.ts");
+const shortener = read("src/services/urlShortener.ts");
+const shortLinkRoute = read("src/app/r/[slug]/[itemId]/route.ts");
+const shareHook = read("src/hooks/useWhatsAppShare.ts");
+const shareModal = read("src/components/WhatsAppShareModal.tsx");
+const shareTemplate = read("src/services/whatsappTemplate.ts");
+const productionHealth = read("src/lib/server/production-health.ts");
+const dashboardShell = read("src/components/layout/dashboard-shell-client.tsx");
 const ownerDashboard = read("src/app/owner/page.tsx");
 const liveOperationalOrders = read("src/lib/live-operational-orders.ts");
 const realtimePatch = read("src/lib/realtime-patch.ts");
@@ -53,6 +62,10 @@ const productGrid = read("src/modules/owner/pos/components/product-grid.tsx");
 const ownerSettings = read("src/components/flows/owner-settings-flow.tsx");
 const operationalSettings = read("src/lib/order-delay-settings.ts");
 const orderDisplay = read("src/lib/order-display.ts");
+const realtimeOrder = read("src/hooks/use-realtime-order.ts");
+const rootLayout = read("src/app/layout.tsx");
+const customerShellRuntime = read("src/components/layout/customer-shell-runtime.tsx");
+const dashboardShellRuntime = read("src/components/layout/dashboard-shell.tsx");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -212,6 +225,30 @@ await check("active-orders:owner-waiter-unified-send-to-kitchen", () => {
   for (const token of ["<ActiveOrdersPanel", "buildOperationalOrders(orders, tableOrders)", "sendOwnerOrderToKitchen", "handoffToPos(order"]) assert.ok(ownerOrders.includes(token), token);
   for (const token of ['body.action === "send_to_kitchen"', '"send_to_kitchen"']) assert.ok(orderApi.includes(token), token);
   for (const token of ["async sendToKitchen", "kot-order-", "transaction.set(customerOrderRef", "writeAudit(transaction, scope", "writeNotification(transaction, scope"]) assert.ok(orderRepository.includes(token), token);
+});
+
+await check("menu:item-route-and-internal-sharing", () => {
+  for (const token of ["canonicalMenuItemId", 'split("::")[0]', "menuItemPath", "menuItemShortPath"]) assert.ok(itemLinks.includes(token), token);
+  assert.ok(itemDetail.includes("canonicalMenuItemId(entry.id) === requestedItemId"));
+  assert.ok(shortener.includes('provider: "internal"'));
+  assert.ok(!shortener.toLowerCase().includes("tinyurl.com"));
+  assert.ok(shortLinkRoute.includes("menuItemPath(slug, itemId)"));
+  for (const token of ['"telegram"', '"sms"', '"email"', "openChannel"]) assert.ok(shareHook.includes(token) || shareModal.includes(token), token);
+  for (const token of ["Delivery available", "Schedule:", "Call:", "Map:"]) assert.ok(shareTemplate.includes(token), token);
+});
+
+await check("health:runtime-failures-vs-credential-warnings", () => {
+  assert.ok(productionHealth.includes("configurationWarnings"));
+  assert.ok(productionHealth.includes("firebase_admin_explicit_config_missing_using_application_default_credentials"));
+  const blockingIssues = productionHealth.slice(productionHealth.indexOf("const issues = ["), productionHealth.indexOf("const configurationWarnings"));
+  assert.ok(blockingIssues.includes("firestore_unavailable"));
+  assert.ok(!blockingIssues.includes("firebase_admin_config_missing"));
+});
+
+await check("design:admin-reuses-owner-shell-theme", () => {
+  assert.ok(dashboardShell.includes('app === "admin" && ["owner-premium"'));
+  assert.ok(!dashboardShell.includes('app === "admin" && ["admin-premium"'));
+  assert.ok(!dashboardShell.includes('from "@/themes/admin-theme"'));
 });
 
 await check("active-orders:strict-lifecycle", () => {
@@ -420,6 +457,15 @@ await check("notifications:configurable-operational-sounds", () => {
   for (const token of ["playConfiguredSound(\"newOrder\")", "playConfiguredSound(\"readyForPickup\")", "playConfiguredSound(\"urgentDelay\")"]) assert.ok(kitchen.includes(token), token);
   assert.ok(!kitchen.includes("playConfiguredSound(\"customerRequest\")"));
   assert.ok(kitchenNotify.includes("cleanSound(body.sound)"));
+});
+
+await check("customer:realtime-order-with-single-alert-provider", () => {
+  assert.ok(realtimeOrder.includes('import("@/services/order-service")'));
+  assert.ok(realtimeOrder.includes("listenToOrder(orderId"));
+  assert.ok(!realtimeOrder.includes("setInterval"));
+  assert.ok(rootLayout.includes("<AlertProvider>{children}</AlertProvider>"));
+  assert.ok(!customerShellRuntime.includes("<AlertProvider>"));
+  assert.ok(!dashboardShellRuntime.includes("<AlertProvider>"));
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

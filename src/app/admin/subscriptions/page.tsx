@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "@/lib/client-toast";
-import { Ban, Bell, CheckCircle2, Download, PauseCircle, PlayCircle, ShieldAlert, Snowflake, WalletCards } from "lucide-react";
+import { Ban, CheckCircle2, Download, PauseCircle, PlayCircle, ShieldAlert, Snowflake, WalletCards } from "lucide-react";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
@@ -118,10 +118,6 @@ export default function AdminSubscriptionsPage() {
           <Button size="sm" variant="outline" onClick={() => void updateRestaurant(row, { frozen: !row.frozen, orderingEnabled: row.frozen ? true : false, isOpen: row.frozen ? row.isOpen : false }, row.frozen ? "Restaurant unfrozen." : "Restaurant frozen.")}>
             {row.frozen ? <PlayCircle className="size-3" /> : <Snowflake className="size-3" />}
             {row.frozen ? "Unfreeze" : "Freeze"}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => toast.success(`Notification queued for ${row.name}.`)}>
-            <Bell className="size-3" />
-            Notify
           </Button>
         </div>
       ),

@@ -1,6 +1,19 @@
 # Final Bug Report
 
-Date: 2026-07-23T09:53:21.439Z
+Date: 2026-07-23T16:03:45.662Z
+
+## RC5 Release Closure
+
+| Severity | Finding | Resolution |
+| --- | --- | --- |
+| P0 | Direct menu-item pages crashed because `useWhatsAppShare` resolved `useAlert` before the descendant customer provider existed. | Installed one root alert provider and removed duplicate customer/dashboard providers. |
+| P1 | Customer order tracking used a 10-second REST polling interval despite an existing shared Firestore listener. | Uses the shared deduplicated snapshot listener; secure customer REST remains initial/fallback data. |
+| P1 | Kitchen History exposed Archive controls that only displayed success toasts, and Admin Subscriptions exposed a Notify action without persistence/delivery. | Removed the false-success controls. |
+| P1 | Kitchen History drawer Print/Preview controls could display instruction-only messages instead of performing the named operation. | History print invokes `window.print`; redundant preview action is not rendered. |
+| P1 | Public footer accepted placeholder social URLs and direct item share/cart could not complete while the item crash existed. | Invalid social links are filtered; direct item sharing and cart persistence pass production-browser UAT. |
+| P2 | Payment Verification Center records failed/cancel/timeout checks as explicit Manual QA evidence rather than simulating real provider outcomes. | Documented as provider Manual QA; no false provider mutation is claimed. |
+
+No unresolved repository P0 or P1 issue was confirmed after retest.
 
 ## Final RC Bug-Hunt Result
 

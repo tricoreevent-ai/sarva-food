@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, ExternalLink, Loader2, MessageCircle, X } from "lucide-react";
+import { Clipboard, ExternalLink, Loader2, Mail, MessageCircle, Send, Smartphone, X } from "lucide-react";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ export function WhatsAppShareModal({
   onOpenChange,
   onCopy,
   onWhatsApp,
+  onChannel,
 }: {
   preview: WhatsAppSharePreview | null;
   open: boolean;
@@ -27,6 +28,7 @@ export function WhatsAppShareModal({
   onOpenChange: (open: boolean) => void;
   onCopy: () => void;
   onWhatsApp: () => void;
+  onChannel: (channel: "telegram" | "sms" | "email") => void;
 }) {
   const item = preview?.item;
   const price = item ? item.deliveryPrice ?? item.parcelPrice ?? item.dineInPrice ?? item.price : 0;
@@ -92,6 +94,18 @@ export function WhatsAppShareModal({
                 <Button type="button" variant="outline" onClick={onCopy}>
                   <Clipboard className="size-4" />
                   Copy
+                </Button>
+                <Button type="button" variant="outline" onClick={() => onChannel("telegram")}>
+                  <Send className="size-4" />
+                  Telegram
+                </Button>
+                <Button type="button" variant="outline" onClick={() => onChannel("sms")}>
+                  <Smartphone className="size-4" />
+                  SMS
+                </Button>
+                <Button type="button" variant="outline" onClick={() => onChannel("email")}>
+                  <Mail className="size-4" />
+                  Email
                 </Button>
                 <Button type="button" onClick={onWhatsApp}>
                   <MessageCircle className="size-4" />

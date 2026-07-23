@@ -1,6 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-23T09:53:21.439Z
+Date: 2026-07-23T16:03:45.662Z
 
 ## Local Validation
 
@@ -11,7 +11,11 @@ Date: 2026-07-23T09:53:21.439Z
 | `npm run build` | Passed with accepted Firebase/protobuf warning. |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed 40/40, including incremental Kitchen stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |
+| `npm run smoke:operational` | Passed 46/46. |
+| `npm run smoke:production` | Passed 7/7 automated routes; 18 credential/provider/hardware checks remain manual. |
+| Production-browser UAT | Passed public route, menu item, share, cart, login, responsive overflow, dead-link, console, and request checks. |
+| `npm run stress:operational`, `profile:realtime`, `profile:memory:long` | Passed 4/4 each. |
+| `npm run theme:contrast` | Passed. |
 | `npm run profile:runtime` | Passed. |
 | `git diff --check` | Passed as a final release gate. |
 
@@ -31,7 +35,7 @@ Date: 2026-07-23T09:53:21.439Z
 | --- | --- |
 | Repository readiness | 100% |
 | Production readiness | 92% |
-| Recommendation | NO-GO until final RC5 is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
+| Recommendation | READY FOR STAGING. Repository P0/P1 closure is complete; hosted authenticated multi-role, provider, Firebase Console, device, and hardware gates remain pending. |
 
 ## Remaining Manual Gates
 

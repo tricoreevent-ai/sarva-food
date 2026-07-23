@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { AlertProvider } from "@/components/ui/AlertProvider";
 import { getInitialTheme } from "@/lib/server/theme-preference";
 import { resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
@@ -233,7 +234,7 @@ export default async function RootLayout({
         ) : null}
         <ThemeProvider initialTheme={initialTheme}>
           <I18nProvider>
-            {children}
+            <AlertProvider>{children}</AlertProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>
