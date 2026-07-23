@@ -22,7 +22,9 @@ const push = read("src/lib/server/push-notifications.ts");
 const fcm = read("src/services/fcm-client.ts");
 const swSource = read("public/sw.js");
 const scenarios = JSON.parse(read("src/data/notification-scenarios.json"));
-const activeOrders = read("src/components/flows/pos-billing-flow.tsx");
+const activeOrdersPanel = read("src/components/flows/active-orders-panel.tsx");
+const activeOrdersModel = read("src/lib/active-orders-model.ts");
+const activeOrders = [activeOrdersPanel, activeOrdersModel, pos].join("\n");
 const stateMachine = read("src/lib/order-state-machine.ts");
 const orderRepository = read("src/repositories/order-repository.ts");
 const kitchenRepository = read("src/repositories/kitchen-repository.ts");
@@ -203,8 +205,17 @@ await check("active-orders:all-actions-wired", () => {
   for (const callback of ["handlers.onServe(order)", "handlers.onNotifyWaiter(order)", "handlers.onComplete(order)", "handlers.onCollectPayment(order)", "handlers.onPrintBill(order)", "handlers.onPrintReceipt(order)", "handlers.onPrintKot(order)", "handlers.onAddItems(order)", "handlers.onSplit(order)", "handlers.onTransfer(order)", "handlers.onAssignWaiter(order)", "handlers.onMerge(order)", "handlers.onTimeline(order)", "handlers.onPaymentHistory(order)", "handlers.onReminder(order)", "handlers.onRecall(order)", "handlers.onCancel(order)"]) assert.ok(activeOrders.includes(callback), callback);
 });
 
+await check("active-orders:owner-waiter-unified-send-to-kitchen", () => {
+  for (const token of ["export function ActiveOrdersPanel", "export function buildOperationalOrders", "onAdvanceKitchen", "kitchenActionAllowed"]) assert.ok(activeOrders.includes(token), token);
+  assert.ok(pos.includes("activeOrderHandoffKey"));
+  assert.ok(ownerOrders.includes("activeOrderHandoffKey"));
+  for (const token of ["<ActiveOrdersPanel", "buildOperationalOrders(orders, tableOrders)", "sendOwnerOrderToKitchen", "handoffToPos(order"]) assert.ok(ownerOrders.includes(token), token);
+  for (const token of ['body.action === "send_to_kitchen"', '"send_to_kitchen"']) assert.ok(orderApi.includes(token), token);
+  for (const token of ["async sendToKitchen", "kot-order-", "transaction.set(customerOrderRef", "writeAudit(transaction, scope", "writeNotification(transaction, scope"]) assert.ok(orderRepository.includes(token), token);
+});
+
 await check("active-orders:strict-lifecycle", () => {
-  assert.ok(activeOrders.includes('order.status !== "served" || order.paymentStatus !== "paid"'));
+  assert.ok(activeOrdersPanel.includes("const canComplete = served && paid"));
   assert.ok(activeOrders.includes("const canCollect = canCollectOrderPayment(order)"));
   assert.ok(stateMachine.includes('current === "ready" && next === "served"'));
   assert.ok(stateMachine.includes('next === "completed" && paymentStatus !== "paid"'));
@@ -220,7 +231,7 @@ await check("active-orders:strict-lifecycle", () => {
 await check("active-orders:payment-independent-from-kitchen", () => {
   const startGuard = stateMachine.match(/export function assertCanStartPayment[\s\S]*?}\r?\n\r?\nexport function assertCanRecordPayment/)?.[0] ?? "";
   const recordGuard = stateMachine.match(/export function assertCanRecordPayment[\s\S]*?}\r?\n\r?\nexport function assertCanRefund/)?.[0] ?? "";
-  const collectGuard = activeOrders.match(/function canCollectOrderPayment[\s\S]*?}\r?\n\r?\nfunction paymentUnavailableReason/)?.[0] ?? "";
+  const collectGuard = activeOrdersPanel.match(/export function canCollectOrderPayment[\s\S]*?}\r?\n\r?\nexport function paymentUnavailableReason/)?.[0] ?? "";
   for (const guard of [startGuard, recordGuard, collectGuard]) {
     assert.ok(guard, "payment guard");
     assert.ok(!/foodStatus|kitchen still preparing|serve the order before collecting payment/i.test(guard), guard);
@@ -309,7 +320,7 @@ await check("kitchen:add-on-ticket-idempotency", () => {
 });
 
 await check("active-orders:dense-memoized-layout", () => {
-  for (const token of ["useDebouncedValue(search, 120)", "MemoPosActiveOrderCard", "handlersRef", "h-[calc(100dvh-6rem)]", "md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6", "data-action=\"serve\"", "data-action=\"notify\"", "data-action=\"payment\"", "data-action=\"print\"", "data-action=\"preview\""]) assert.ok(activeOrders.includes(token), token);
+  for (const token of ["useDebouncedValue(search, 120)", "MemoActiveOrderCard", "handlersRef", "h-[calc(100dvh-6rem)]", "md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6", "data-action=\"serve\"", "data-action=\"notify\"", "data-action=\"payment\"", "data-action=\"print\"", "data-action=\"preview\""]) assert.ok(activeOrders.includes(token), token);
   assert.ok(!activeOrders.includes("function PosOrderAccordion"));
   assert.ok(activeOrders.includes("formatDelayTime(delay.lateMinutes)"));
 });
@@ -333,7 +344,7 @@ await check("active-orders:status-duration-and-timeline-consistency", () => {
 
 await check("active-orders:search-loading-keyboard-and-touch", () => {
   for (const token of ["order.customerPhone", "order.tableNumber", "raw.vehicleNumber", "raw.qrTableCode", "order.waiterName", "order.orderType"]) assert.ok(activeOrders.includes(token), token);
-  for (const token of ["allActiveKitchenOrders", "delaysById", "MemoPosActiveOrderCard", "ActiveOrdersSkeleton", "readModelError"]) assert.ok(activeOrders.includes(token), token);
+  for (const token of ["allActiveKitchenOrders", "delaysById", "MemoActiveOrderCard", "ActiveOrdersSkeleton", "readModelError"]) assert.ok(activeOrders.includes(token), token);
   for (const token of ["ArrowDown", "ArrowUp", "Home", "End", "min-h-11"]) assert.ok(compactActions.includes(token) || activeOrders.includes(token), token);
 });
 
@@ -413,6 +424,6 @@ await check("notifications:configurable-operational-sounds", () => {
 
 const failed = results.filter(({ status }) => status === "FAIL");
 const rows = results.map(({ name, status, detail = "" }) => `| ${name} | ${status} | ${detail.replaceAll("|", "\\|")} |`).join("\n");
-fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
+fs.writeFileSync(path.join(root, "docs/validation/OPERATIONAL_HARDENING_REPORT.md"), `# RC5 Operational Hardening Automation\n\nGenerated: ${new Date().toISOString()}\n\nResult: ${failed.length ? "FAIL" : "PASS"} — ${results.length - failed.length}/${results.length} checks passed.\n\n| Check | Status | Detail |\n| --- | --- | --- |\n${rows}\n\nThis suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, unified Owner/Waiter Active Orders send-to-kitchen contracts, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.\n`);
 for (const result of results) console.log(`${result.status} ${result.name}${result.detail ? `: ${result.detail}` : ""}`);
 if (failed.length) process.exitCode = 1;

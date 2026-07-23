@@ -34,6 +34,7 @@ import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion
 import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
 import { OrderFilters } from "@/components/orders/order-filters";
 import { OrderMetricCard } from "@/components/orders/metric-card";
+import { buildOperationalOrders, type OperationalOrder } from "@/lib/active-orders-model";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +46,11 @@ import { defaultOperationalSettings, normalizeOperationalSettings, type Operatio
 import { normalizePhone } from "@/lib/phone";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
+
+const ActiveOrdersPanel = dynamic(() => import("@/components/flows/active-orders-panel").then((module) => module.ActiveOrdersPanel), {
+  ssr: false,
+  loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Loading active orders...</div>,
+});
 import { cn, formatCurrency } from "@/lib/utils";
 import type { OrderDoc } from "@/types/firebase";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
@@ -112,6 +118,7 @@ type ActiveOrderSummary = {
 
 const dateRangeSessionKey = "sarva-owner-orders-date-range:v1";
 const operationsPanelStorageKey = "sarva-owner-orders-operations-panel:v1";
+const activeOrderHandoffKey = "sarva-pos-active-handoff:v1";
 
 const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   new: "accepted",
@@ -144,6 +151,7 @@ export function OwnerOrderManagementFlow() {
   const [dialogPartner, setDialogPartner] = useState("");
   const [operationsOpen, setOperationsOpen] = useState(() => readStoredBoolean(operationsPanelStorageKey, false));
   const [highlightedOrderIds, setHighlightedOrderIds] = useState<Set<string>>(() => new Set());
+  const [activeAction, setActiveAction] = useState<string | null>(null);
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [tableOrders, setTableOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,6 +170,7 @@ export function OwnerOrderManagementFlow() {
   const visibleOrders = useMemo(() => tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, debouncedSearch)), [debouncedSearch, filter, tabOrders]);
   const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, debouncedSearch)), [debouncedSearch, filter, tabCatering]);
   const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
+  const unifiedActiveOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
   const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
   const tabCounts = useMemo(() => buildTabCounts(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
   const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
@@ -397,6 +406,178 @@ export function OwnerOrderManagementFlow() {
     }
   }, []);
 
+  const retryOwnerOrders = useCallback(() => setDateRange((current) => ({ ...current })), []);
+
+  const canonicalOrderIdFor = useCallback((order: OperationalOrder) => (
+    order.canonicalOrderId ?? orders.find((item) => item.kitchenOrderId === order.id)?.id ?? order.id
+  ), [orders]);
+
+  const sendOwnerOrderToKitchen = useCallback(async (order: OperationalOrder) => {
+    const orderId = canonicalOrderIdFor(order);
+    setActiveAction(`accept:${order.id}`);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "send_to_kitchen", operationKey: clientOperationKey(["owner-send-to-kitchen", orderId, order.id]), orderId }),
+      });
+      await readOwnerPayload(response, "Order could not be sent to Kitchen.");
+      retryOwnerOrders();
+      toast.success("Order sent to Kitchen.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Order could not be sent to Kitchen.");
+    } finally {
+      setActiveAction(null);
+    }
+  }, [canonicalOrderIdFor, retryOwnerOrders]);
+
+  const advanceOwnerKitchen = useCallback(async (order: OperationalOrder, status: TableOrderStatus) => {
+    if (status === "accepted" && order.hasKitchenTicket === false) {
+      await sendOwnerOrderToKitchen(order);
+      return;
+    }
+    if (["accepted", "preparing", "ready", "cancelled"].includes(status) && order.hasKitchenTicket !== false) {
+      await updateKitchenOrder(order, status);
+      return;
+    }
+    await updateOrder(canonicalOrderIdFor(order), status as OrderStatus);
+  }, [canonicalOrderIdFor, sendOwnerOrderToKitchen, updateKitchenOrder, updateOrder]);
+
+  const notifyOwnerWaiter = useCallback(async (order: OperationalOrder) => {
+    if (order.status !== "ready" || order.hasKitchenTicket === false) return toast.error("Only a ready kitchen order can send a floor signal.");
+    setActiveAction(`notify:${order.id}`);
+    try {
+      const response = await fetch("/api/owner/kitchen/notify-waiter", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kitchenOrderId: order.id,
+          orderId: canonicalOrderIdFor(order),
+          orderNumber: readableTableOrderId(order),
+          tableNumber: order.tableNumber,
+          waiterName: order.waiterName || order.assignedStaffName,
+          branchId: order.branchId,
+          notificationMethod: "both",
+          sound: operationalSettings.notificationSounds.readyForPickup.sound,
+        }),
+      });
+      await readOwnerPayload(response, "Ready signal could not be sent.");
+      toast.success("Ready signal sent. Waiter view updates live.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Ready signal could not be sent.");
+    } finally {
+      setActiveAction(null);
+    }
+  }, [canonicalOrderIdFor, operationalSettings.notificationSounds.readyForPickup.sound]);
+
+  const collectOwnerPayment = useCallback(async (order: OperationalOrder) => {
+    const orderId = canonicalOrderIdFor(order);
+    const due = Math.max(0, Number(order.total ?? 0) - Number(order.paidAmount ?? 0));
+    const input = await alert.prompt("Enter the amount collected.", {
+      title: "Collect payment",
+      inputLabel: "Amount",
+      placeholder: String(due || order.total || 0),
+      confirmText: "Record payment",
+      tone: "success",
+    });
+    const amount = Number(input);
+    if (!Number.isFinite(amount) || amount <= 0) return toast.error("Enter a valid payment amount.");
+    let locked = false;
+    setActiveAction(`payment:${order.id}`);
+    try {
+      const started = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "payment_started", operationKey: clientOperationKey(["owner-payment-start", orderId, order.id, amount]), orderId, kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id, amount, method: "cash" }),
+      });
+      await readOwnerPayload(started, "Payment verification could not be saved.");
+      locked = true;
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["owner-payment", orderId, order.id, amount]), orderId, kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id, amount, method: "cash" }),
+      });
+      await readOwnerPayload(response, "Payment could not be recorded.");
+      retryOwnerOrders();
+      toast.success(amount + 0.01 < Number(order.total ?? 0) ? "Partial payment recorded." : "Payment recorded.");
+    } catch (error) {
+      if (locked) {
+        await fetch("/api/owner/orders", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "payment_unlock", operationKey: clientOperationKey(["owner-payment-unlock", orderId, order.id, amount]), orderId, kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id, reason: "Payment recording failed before completion." }),
+        }).catch(() => undefined);
+      }
+      toast.error(error instanceof Error ? error.message : "Payment could not be recorded.");
+    } finally {
+      setActiveAction(null);
+    }
+  }, [alert, canonicalOrderIdFor, retryOwnerOrders]);
+
+  const remindOwnerKitchen = useCallback(async (order: OperationalOrder, kind: "reminder" | "recall") => {
+    const label = kind === "recall" ? "Kitchen recall" : "Kitchen reminder";
+    if (order.hasKitchenTicket === false) return toast.error(`${label} cannot be sent because the kitchen ticket is unavailable.`);
+    setActiveAction(`${kind}:${order.id}`);
+    try {
+      const requestedAt = new Date().toISOString();
+      const kitchenResponse = await fetch("/api/owner/kitchen", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: order.id, operationKey: clientOperationKey([`owner-${kind}`, order.id, requestedAt]), priority: "rush", reminderAt: requestedAt }),
+      });
+      await readOwnerPayload(kitchenResponse, `${label} could not be sent.`);
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "event", operationKey: clientOperationKey(["owner-order-event", canonicalOrderIdFor(order), kind, requestedAt]), event: kind === "recall" ? "kitchen_recall" : "reminder", orderId: canonicalOrderIdFor(order), kitchenOrderId: order.id, note: `${label} sent` }),
+      });
+      await readOwnerPayload(response, `${label} history could not be saved.`);
+      retryOwnerOrders();
+      toast.success(`${label} sent.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `${label} could not be sent.`);
+    } finally {
+      setActiveAction(null);
+    }
+  }, [canonicalOrderIdFor, retryOwnerOrders]);
+
+  const promptOwnerTransfer = useCallback(async (order: OperationalOrder, mode: "table" | "waiter") => {
+    const value = await alert.prompt(mode === "waiter" ? "Enter waiter name." : "Enter target table.", {
+      title: mode === "waiter" ? "Assign waiter" : "Transfer table",
+      inputLabel: mode === "waiter" ? "Waiter" : "Table",
+      confirmText: mode === "waiter" ? "Assign" : "Transfer",
+    });
+    const text = value?.trim();
+    if (!text) return;
+    setActiveAction(`transfer:${order.id}`);
+    try {
+      const response = await fetch("/api/owner/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: mode === "waiter" ? "assign_waiter" : "transfer_table",
+          operationKey: clientOperationKey(["owner-transfer", canonicalOrderIdFor(order), mode, text]),
+          orderId: canonicalOrderIdFor(order),
+          kitchenOrderId: order.hasKitchenTicket === false ? undefined : order.id,
+          tableNumber: mode === "table" ? text : order.tableNumber,
+          waiterName: mode === "waiter" ? text : order.waiterName,
+        }),
+      });
+      await readOwnerPayload(response, mode === "waiter" ? "Waiter assignment could not be saved." : "Table transfer could not be saved.");
+      retryOwnerOrders();
+      toast.success(mode === "waiter" ? `${text} assigned.` : `Moved to ${text}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : mode === "waiter" ? "Waiter assignment could not be saved." : "Table transfer could not be saved.");
+    } finally {
+      setActiveAction(null);
+    }
+  }, [alert, canonicalOrderIdFor, retryOwnerOrders]);
+
+  const handoffToPos = useCallback((order: OperationalOrder, action: string) => {
+    window.sessionStorage.setItem(activeOrderHandoffKey, JSON.stringify({ orderId: order.id, action, at: Date.now() }));
+    window.location.assign("/owner/pos?panel=active");
+  }, []);
+
   async function updateCateringInquiryStatus() {
     toast.error("Catering requests are not part of the repository-backed order queue yet.");
   }
@@ -463,14 +644,14 @@ export function OwnerOrderManagementFlow() {
             </div>
           </div>
 
-          <label className="relative block">
+          {!activeView ? <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-24 text-sm font-bold text-slate-950 outline-none focus:border-orange-400" placeholder="Search orders, tables, customers, items, waiters" aria-label="Search active orders by order, table, customer, item, waiter, phone, or date" />
             <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-500 sm:inline-flex">{visibleOrders.length} match{visibleOrders.length === 1 ? "" : "es"}</span>
-          </label>
+          </label> : null}
 
-          <OrderFilters filters={filters} active={filter} onChange={setFilter} />
-          {activeView ? <ActiveOrderStatusBoard summary={activeSummary} /> : null}
+          {!activeView ? <OrderFilters filters={filters} active={filter} onChange={setFilter} /> : null}
+          {!activeView ? <ActiveOrderStatusBoard summary={activeSummary} /> : null}
 
           <div className="space-y-4">
             {visibleCatering.length ? (
@@ -481,18 +662,37 @@ export function OwnerOrderManagementFlow() {
               />
             ) : null}
             {activeView ? (
-              <ActiveOrdersGrid
-                orders={activeOrders}
+              <ActiveOrdersPanel
+                orders={orders}
+                kitchenOrders={unifiedActiveOrders}
+                tables={[]}
+                staff={[]}
                 loading={loading}
-                highlightedOrderIds={highlightedOrderIds}
-                onAccept={(order) => order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, "accepted") : void updateOrder(order.id, "accepted")}
-                onReject={(order) => void rejectKitchenOrder(order)}
-                onReady={(order) => {
-                  const status = order.status === "accepted" ? "preparing" : "ready";
-                  return order.kitchenOrder ? void updateKitchenOrder(order.kitchenOrder, status) : void updateOrder(order.id, status);
-                }}
-                onComplete={serveOrder}
-                onView={focusOrder}
+                error={loadError}
+                orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
+                readySound={operationalSettings.notificationSounds.readyForPickup}
+                onRetry={retryOwnerOrders}
+                onOpenNew={() => window.location.assign("/owner/pos?panel=new")}
+                onOpen={(order) => handoffToPos(order, "preview")}
+                onAddItems={(order) => handoffToPos(order, "add")}
+                onPrintBill={(order) => handoffToPos(order, "print-bill")}
+                onPrintReceipt={(order) => handoffToPos(order, "print-receipt")}
+                onPrintKot={(order) => handoffToPos(order, "print-kot")}
+                onCollectPayment={(order) => void collectOwnerPayment(order)}
+                onNotifyWaiter={(order) => void notifyOwnerWaiter(order)}
+                onSplit={(order) => handoffToPos(order, "split")}
+                onTransfer={(order) => void promptOwnerTransfer(order, "table")}
+                onAssignWaiter={(order) => void promptOwnerTransfer(order, "waiter")}
+                onMerge={(order) => handoffToPos(order, "merge")}
+                onTimeline={(order) => handoffToPos(order, "timeline")}
+                onPaymentHistory={(order) => handoffToPos(order, "history")}
+                onAdvanceKitchen={(order, status) => void advanceOwnerKitchen(order, status)}
+                onReminder={(order) => void remindOwnerKitchen(order, "reminder")}
+                onRecall={(order) => void remindOwnerKitchen(order, "recall")}
+                onServe={(order) => void updateOrder(canonicalOrderIdFor(order), "served")}
+                onComplete={(order) => void updateOrder(canonicalOrderIdFor(order), "completed")}
+                onCancel={(order) => void advanceOwnerKitchen(order, "cancelled")}
+                activeAction={activeAction}
               />
             ) : visibleOrders.length ? (
               <ActiveOrdersGrid
@@ -1306,6 +1506,16 @@ function readStoredBoolean(key: string, fallback: boolean) {
 
 function writeStoredBoolean(key: string, value: boolean) {
   if (typeof window !== "undefined") window.localStorage.setItem(key, String(value));
+}
+
+function clientOperationKey(parts: unknown[]) {
+  const text = JSON.stringify(parts);
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `owner-${(hash >>> 0).toString(36)}`;
 }
 
 function dateRangeQuery(range: DateRange) {

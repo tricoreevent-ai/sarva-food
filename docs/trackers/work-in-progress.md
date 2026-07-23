@@ -2,7 +2,9 @@
 
 Last updated: 2026-07-22
 
-Current Sprint: RC5 final operational hardening
+Current Sprint: RC5 Owner/Waiter Active Orders unification
+
+RC5 Owner/Waiter Active Orders Unification Result: Owner Active Orders now renders the same operational component and merged live order/KOT data path as POS/Waiter. Order-only Website/QR/POS/third-party tickets can be sent to Kitchen through a transactional, idempotent `send_to_kitchen` repository/API path that links `orders`, `customerOrders`, `kitchenOrders`, audit, and notifications. Shared cards keep role-specific guards while covering Send To Kitchen, Track Kitchen, Serve, Complete, Collect Payment, Print/KOT/Receipt, Preview, Reminder, Recall, Transfer, Split, Merge, Timeline, History, Add Items, and Reassign Waiter. Operational smoke passes 42/42; typecheck, lint, build, analyze, audit:release, runtime profile, and diff check passed.
 
 RC5 Kitchen Accept RBAC Result: Kitchen Accept now stays inside the Kitchen RBAC boundary. The post-success `/api/owner/tables` bootstrap dependency was removed, Kitchen request-alert state no longer requires Tables master data, and Kitchen printer settings/logs use `/api/owner/printers?surface=kitchen` with Kitchen/print permissions. Operational smoke includes `kitchen:rbac-bootstrap-without-tables`; full validation passed.
 
@@ -24,7 +26,7 @@ Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 waiter-servi
 
 Phase 4E Result: POS Active Orders actions are fully wired and regression-checked; completion now requires Served + Paid, Ready can only transition to Served, delay values are capped into human/stale labels, duplicate timeline events collapse, 100% kitchen progress is green, cards use a responsive compact grid, and the footer is a sticky four-metric bar. Operational smoke passes 12/12.
 
-Current Phase: RC5 final operational hardening complete; deployment and external production verification pending
+Current Phase: RC5 Owner/Waiter Active Orders unification complete; deployment and external production verification pending
 
 Current Task: Deploy the final RC5 hardening candidate, verify hosted SHA, then complete provider/device/Firebase/hardware/browser/performance production gates.
 
@@ -59,6 +61,7 @@ Files Changed:
 - Tracker synchronization files: `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md`, `docs/trackers/project-tracker.md`, `docs/trackers/work-in-progress.md`, `docs/trackers/changelog.md`.
 - RC5 enterprise waiter workflow: live Waiter stage board, multiple independent table tickets, bill-only merge, Ready Signal without Waiter push, independent Kitchen/payment card visibility, compact adaptive Kitchen cards, configurable operational sounds, timeline event categories, operational smoke coverage, validation/performance reports, release trackers, manual QA/risk docs.
 - RC5 live data consistency: Owner Dashboard/Owner Orders stream consumption, shared incremental patching, linked order/KOT merge, service-route correction, smoke coverage, validation/performance/release trackers.
+- RC5 Owner/Waiter Active Orders unification: shared operational panel, transactional `send_to_kitchen`, deterministic KOT linkage, POS selected-order handoff, shared action guards, and 42/42 operational smoke evidence.
 - RC5 final operational hardening: POS add-on KOT parent linkage, idempotent Kitchen create retries, Kitchen/ready-signal/Reports SSE deltas, live Dashboard KPIs, 128-order stress profile, realtime profile, long memory profile, and validation evidence.
 - RC5 Kitchen Accept RBAC fix: removed Kitchen `/api/owner/tables` bootstrap, added Kitchen-scoped printer API surface, updated RBAC/realtime docs, and added smoke/stress source contracts.
 - RC5 POS realtime/display/numbering: Display Options, hidden-image menu rows, workflow settings, incremental POS stream, sequential repository numbering, smoke coverage, validation/performance/release trackers.
@@ -73,7 +76,7 @@ Active Orders Code Baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
-Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (41/41), `npm.cmd run profile:runtime`, `npm.cmd run stress:operational`, `npm.cmd run profile:realtime`, `npm.cmd run profile:memory:long`, and `git diff --check` PASS on 2026-07-22; build/analyze retain the accepted Firebase/protobuf warning.
+Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (42/42), `npm.cmd run profile:runtime`, and `git diff --check` PASS on 2026-07-22; build/analyze retain the accepted Firebase/protobuf warning.
 
 Last Verified Production Runtime: `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The hosted runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA.
 

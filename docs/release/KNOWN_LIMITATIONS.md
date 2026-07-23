@@ -1,5 +1,7 @@
 # Known Limitations
 
+RC5 Owner/Waiter Active Orders unification closes the remaining repository-side duplicated active-order workflow by rendering Owner Active Orders through the same operational component and action contracts used by POS/Waiter. Order-only tickets now have transactional, retry-safe Send To Kitchen linkage. The final unification commit still requires Hostinger redeployment and authenticated hosted multi-role/device/provider/hardware verification before customer go-live.
+
 RC5 final operational hardening closes the remaining repository-side live consistency risks found in POS add-on KOTs, Kitchen create retry idempotency, Kitchen full-snapshot streaming, Kitchen ready-signal polling, stale Owner Dashboard KPIs, and one-shot Owner Reports. The final hardening commit still requires Hostinger redeployment and authenticated hosted multi-role/device/provider/hardware verification before customer go-live.
 
 RC5 enterprise waiter workflow closes the visible production POS/Kitchen service bug, unnecessary Waiter Ready push noise, single-ticket table assumption, kitchen-ticket merge side effects, and missing Completed holding behavior. Multiple active kitchen tickets per table, Ready Signal, bill-only merge, and 30-minute Completed holding are repository complete but still require Hostinger redeployment before the currently hosted runtime changes.

@@ -1,5 +1,9 @@
 # Production Smoke Report
 
+## RC5 Owner/Waiter Active Orders Unification Addendum
+
+`npm.cmd run smoke:operational` now passes 42/42 deterministic checks after the Owner/Waiter Active Orders unification pass. Added checks cover the exported shared Active Orders panel, shared order/KOT merge builder, owner POS handoff, waiter-safe send-to-kitchen guard, `/api/owner/orders` `send_to_kitchen`, and transactional repository KOT linkage/audit/notification contracts. Hosted authenticated/provider/device/hardware observations remain manual.
+
 ## RC5 Final Operational Hardening Addendum
 
 `npm.cmd run smoke:operational` now passes 41/41 deterministic checks after the final operational hardening pass. Added checks cover Kitchen no-Tables RBAC bootstrap, Kitchen-scoped printer access, incremental Kitchen stream deltas, Kitchen ready-signal SSE without interval polling, Owner Reports live sync, add-on KOT idempotency, and the existing lifecycle/RBAC/billing/notification/Active Orders/Kitchen contracts. Hosted authenticated/provider/device/hardware observations remain manual.

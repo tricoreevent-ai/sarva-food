@@ -1,5 +1,13 @@
 # Project Tracker
 
+## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
+
+- Owner Active Orders now renders the same exported operational panel and live merged order/KOT dataset used by POS/Waiter, removing the duplicated active-order workflow.
+- Added transactional order-only `send_to_kitchen` support through `/api/owner/orders` and `OrderRepository.sendToKitchen`, with deterministic KOT ids, linked `orders`/`customerOrders`, audit entries, notifications, and retry-safe existing-ticket return.
+- Shared cards now cover Owner and Waiter Send To Kitchen, Track Kitchen, Serve, Complete, Collect Payment, Print/KOT/Receipt, Preview, Reminder, Recall, Transfer, Split, Merge, Timeline, History, Add Items, and Reassign Waiter with role-specific guards only.
+- Waiter can send order-only tickets to Kitchen but cannot mutate Kitchen-owned Preparing/Ready states; Kitchen Operations remains the source for Accepted → Preparing → Ready.
+- Final validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 42/42, runtime profile, and diff check.
+
 ## RC5 Kitchen Accept RBAC / Realtime Fix - 2026-07-22
 
 - Root cause found: Kitchen Accept completed successfully, then Kitchen bootstrap failed on a secondary `/api/owner/tables` read that Kitchen roles should not require.

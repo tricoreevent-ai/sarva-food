@@ -16,7 +16,7 @@ import { hasOperationKey } from "@/lib/server/operation-idempotency";
 import { dispatchPendingTenantPushNotifications } from "@/lib/server/push-notifications";
 import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import { resolveTenantId } from "@/lib/tenant";
-import type { MenuDoc, OfferDoc, OrderDoc, OrderLineDoc, PaymentStatus, RestaurantDoc } from "@/types/firebase";
+import type { KitchenOrderDoc, MenuDoc, OfferDoc, OrderDoc, OrderLineDoc, PaymentStatus, RestaurantDoc } from "@/types/firebase";
 import { CustomerRepository } from "@/repositories/customer-repository";
 import { dataWithId, dateMs, readTenantDocs, type TenantScope } from "@/repositories/shared";
 import type { PosBill } from "@/lib/types";
@@ -436,6 +436,104 @@ export class OrderRepository {
     });
     await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
     return placed!;
+  }
+
+  async sendToKitchen(scope: TenantScope, input: ActorInput & { orderId: string }) {
+    const orderRef = this.db.collection("orders").doc(input.orderId);
+    const now = new Date();
+    let result: { order: OrderDoc; kitchenOrder: KitchenOrderDoc } | null = null;
+    await this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) throw new Error("Order not found.");
+      const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
+      assertOrderTenant(order, scope);
+      if (order.kitchenOrderId) {
+        const kitchenSnapshot = await transaction.get(this.db.collection("kitchenOrders").doc(order.kitchenOrderId));
+        if (!kitchenSnapshot.exists) throw new Error("Kitchen ticket not found.");
+        const kitchenOrder = dataWithId<KitchenOrderDoc>(kitchenSnapshot.id, kitchenSnapshot.data() ?? {});
+        if (![kitchenOrder.tenantId, kitchenOrder.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
+        result = { order, kitchenOrder };
+        return;
+      }
+      if (["cancelled", "rejected", "delivered", "completed"].includes(order.status)) throw new Error("This order is no longer active.");
+      if (!["new", "accepted"].includes(order.status) && !order.kitchenOrderId) throw new Error("Create a Kitchen ticket before advancing this order.");
+      const kitchenId = order.kitchenOrderId || `kot-order-${safeDocumentKey(scope.tenantId)}-${safeDocumentKey(order.id)}`.slice(0, 140);
+      const kitchenRef = this.db.collection("kitchenOrders").doc(kitchenId);
+      const kitchenSnapshot = await transaction.get(kitchenRef);
+      const customerOrderRef = this.db.collection("customerOrders").doc(order.id);
+      const customerOrderSnapshot = await transaction.get(customerOrderRef);
+      if (kitchenSnapshot.exists) {
+        const existingKitchenOrder = dataWithId<KitchenOrderDoc>(kitchenSnapshot.id, kitchenSnapshot.data() ?? {});
+        if (![existingKitchenOrder.tenantId, existingKitchenOrder.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
+      }
+      const nextStatus = order.status === "new" ? "accepted" : order.status;
+      const foodStatus = orderStatusToFoodStatus(nextStatus);
+      if (nextStatus !== order.status) assertLegalOrderTransition(order, nextStatus);
+      const kitchenOrder: KitchenOrderDoc = kitchenSnapshot.exists
+        ? dataWithId<KitchenOrderDoc>(kitchenSnapshot.id, kitchenSnapshot.data() ?? {})
+        : {
+            id: kitchenId,
+            tenantId: scope.tenantId,
+            restaurantId: scope.tenantId,
+            branchId: order.branchId || scope.branchIds?.[0] || "main",
+            orderType: kitchenOrderTypeForOrder(order),
+            source: kitchenSourceForOrder(order),
+            tableNumber: kitchenTableForOrder(order),
+            customerId: order.customerId,
+            customerName: order.customerName,
+            customerPhone: order.customerPhone,
+            deliveryAddress: order.deliveryAddress,
+            scheduledFor: order.scheduledFor,
+            waiterId: order.waiterId,
+            waiterName: order.waiterName,
+            status: foodStatus,
+            foodStatus,
+            priority: "normal",
+            lines: order.lines ?? [],
+            subtotal: money(order.subtotal),
+            tax: money(order.tax),
+            total: money(order.total),
+            paymentStatus: order.paymentStatus ?? "pending",
+            etaMinutes: Number(order.prepEstimateMinutes ?? 12),
+            orderNumber: order.orderNumber,
+            displayOrderNumber: order.displayOrderNumber,
+            billNumber: order.billNumber,
+            invoiceNumber: order.invoiceNumber,
+            statusHistory: [{ status: foodStatus, at: now, by: input.userId ?? scope.uid }],
+            operationKeys: input.operationKey ? [input.operationKey] : [],
+            preparedBy: "",
+            servedBy: "",
+            completedBy: "",
+            printedCount: 0,
+            createdAt: now,
+            updatedAt: now,
+          };
+      const orderPatch = cleanRecord({
+        kitchenOrderId: kitchenId,
+        status: nextStatus,
+        foodStatus,
+        statusHistory: FieldValue.arrayUnion({ status: nextStatus, foodStatus, paymentStatus: order.paymentStatus ?? "pending", event: "kitchen_sent", at: now, by: input.userId ?? scope.uid }),
+        auditTimeline: FieldValue.arrayUnion(auditEvent("kitchen_sent", scope, input, now, { status: nextStatus, kitchenOrderId: kitchenId })),
+        updatedAt: FieldValue.serverTimestamp(),
+        ...operationPatch(input.operationKey),
+      });
+      if (!kitchenSnapshot.exists) transaction.set(kitchenRef, kitchenOrder);
+      else transaction.set(kitchenRef, cleanRecord({ status: foodStatus, foodStatus, updatedAt: FieldValue.serverTimestamp(), ...operationPatch(input.operationKey) }), { merge: true });
+      transaction.set(orderRef, orderPatch, { merge: true });
+      if (customerOrderSnapshot.exists) transaction.set(customerOrderRef, orderPatch, { merge: true });
+      writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "kitchen_sent", entityId: order.id, after: { kitchenOrderId: kitchenId, status: nextStatus }, device: input.device });
+      writeNotification(transaction, scope, {
+        type: "new_order",
+        title: "Order sent to kitchen",
+        message: `${displayOrderNumberText(Number(order.orderNumber ?? 0))} sent to kitchen for ${kitchenOrder.tableNumber || kitchenOrder.orderType}.`,
+        priority: "high",
+        orderId: order.id,
+        kitchenOrderId: kitchenId,
+      });
+      result = { order: { ...order, kitchenOrderId: kitchenId, status: nextStatus, foodStatus }, kitchenOrder };
+    });
+    await dispatchPendingTenantPushNotifications(scope).catch(logPushDispatchError);
+    return result!;
   }
 
   async recordPayment(scope: TenantScope, input: PaymentInput) {
@@ -1371,6 +1469,35 @@ function paymentStatusFromPaid(total: number, paid: number): PaymentStatus {
 
 function assertOrderTenant(order: OrderDoc, scope: TenantScope) {
   if (![order.tenantId, order.restaurantId].includes(scope.tenantId)) throw new Error("This order is outside the active restaurant.");
+}
+
+function safeDocumentKey(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 56) || "order";
+}
+
+function kitchenOrderTypeForOrder(order: OrderDoc): KitchenOrderDoc["orderType"] {
+  if (order.orderType === "takeaway") return "takeaway";
+  if (order.orderType === "delivery" || order.fulfillmentType === "delivery") return "delivery";
+  if (order.orderType === "parcel" || order.fulfillmentType === "parcel") return "parcel";
+  return "dine-in";
+}
+
+function kitchenSourceForOrder(order: OrderDoc): KitchenOrderDoc["source"] {
+  if (order.channel === "qr") return "QR";
+  const type = kitchenOrderTypeForOrder(order);
+  if (type === "delivery") return "Delivery";
+  if (type === "parcel") return "Parcel";
+  if (type === "takeaway") return "Takeaway";
+  return order.channel === "pos" ? "POS" : "Waiter";
+}
+
+function kitchenTableForOrder(order: OrderDoc) {
+  if (order.tableNumber) return order.tableNumber;
+  const type = kitchenOrderTypeForOrder(order);
+  if (type === "delivery") return "Online";
+  if (type === "parcel") return "Parcel";
+  if (type === "takeaway") return "Quick Bill";
+  return "Dine-in";
 }
 
 function auditTimelineOf(order: OrderDoc | null) {

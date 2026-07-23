@@ -1,5 +1,13 @@
 # Release Notes
 
+## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
+
+- Unified Owner Active Orders onto the same exported operational panel used by POS/Waiter, preserving shared live order/KOT merging, memoized cards, lazy details, and shared action routing.
+- Added server-side `/api/owner/orders` `send_to_kitchen` backed by `OrderRepository.sendToKitchen`; it creates deterministic linked KOTs in a transaction, updates `orders` and `customerOrders`, writes audit/notification entries, and returns existing linked tickets on retry.
+- Owner Active Orders now uses the shared action set for Send To Kitchen, Track Kitchen, Serve, Complete, Collect Payment, Print/KOT/Receipt, Preview, Reminder, Recall, Transfer, Split, Merge, Timeline, History, and Reassign Waiter; POS handoff opens the selected order context for print/add/split/merge workflows.
+- Waiter view can send order-only tickets to Kitchen while Kitchen Operations remains the owner of Accepted → Preparing → Ready state changes; cashier/owner payment and completion guards remain unchanged.
+- Final validation passed: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` 42/42, `profile:runtime`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
+
 ## RC5 Kitchen Accept RBAC / Realtime Fix - 2026-07-22
 
 - Root cause: Kitchen Accept succeeded through `/api/owner/kitchen`, then the Kitchen screen bootstrap executed a secondary `GET /api/owner/tables` request that requires `tables:read`; Kitchen roles do not own Tables master access, so the UI showed a post-success `Permission denied for tables:read` failure.

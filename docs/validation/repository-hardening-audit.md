@@ -1,11 +1,11 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-22T08:45:45.737Z
+Generated: 2026-07-23T09:53:07.440Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
 | runtime-console | 16 | Runtime console call; prefer productionLogger or operational logging. |
-| raw-error-message | 55 | Raw error-message access; ensure returned/logged text is sanitized. |
+| raw-error-message | 61 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
 | listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
@@ -40,10 +40,10 @@ Generated: 2026-07-22T08:45:45.737Z
 - `src/components/flows/auth-login-flow.tsx` (1)
 - `src/components/flows/kitchen-display-flow.tsx` (3)
 - `src/components/flows/owner-menu-management-flow.tsx` (2)
-- `src/components/flows/owner-order-management-flow.tsx` (2)
+- `src/components/flows/owner-order-management-flow.tsx` (7)
 - `src/components/flows/owner-portal-login-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (9)
-- `src/components/flows/pos-billing-flow.tsx` (14)
+- `src/components/flows/pos-billing-flow.tsx` (15)
 - `src/components/flows/restaurant-detail-flow.tsx` (1)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 - `src/components/flows/schedule-order-flow.tsx` (1)
@@ -67,10 +67,11 @@ Generated: 2026-07-22T08:45:45.737Z
 - `src/hooks/use-phone-verification.ts` (1)
 - `src/hooks/use-public-app-name.ts` (2)
 - `src/hooks/use-realtime-order.ts` (1)
+- `src/components/flows/active-orders-panel.tsx` (1)
 - `src/components/flows/kitchen-display-flow.tsx` (14)
 - `src/components/flows/owner-order-management-flow.tsx` (3)
 - `src/components/flows/owner-settings-flow.tsx` (1)
-- `src/components/flows/pos-billing-flow.tsx` (14)
+- `src/components/flows/pos-billing-flow.tsx` (13)
 - `src/components/flows/restaurant-browser-flow.tsx` (1)
 - `src/components/flows/restaurant-detail-flow.tsx` (3)
 - `src/components/flows/table-qr-ordering-flow.tsx` (3)

@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-22T08:29:00.916Z
+Generated: 2026-07-23T09:38:24.575Z
 
-Result: PASS — 41/41 checks passed.
+Result: PASS — 42/42 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -19,6 +19,7 @@ Result: PASS — 41/41 checks passed.
 | notifications:service-worker-behavior | PASS |  |
 | active-orders:a11y-and-operational-controls | PASS |  |
 | active-orders:all-actions-wired | PASS |  |
+| active-orders:owner-waiter-unified-send-to-kitchen | PASS |  |
 | active-orders:strict-lifecycle | PASS |  |
 | active-orders:payment-independent-from-kitchen | PASS |  |
 | pos:new-order-cancel-resumes-draft | PASS |  |
@@ -48,4 +49,4 @@ Result: PASS — 41/41 checks passed.
 | kitchen:responsive-settings-and-duration | PASS |  |
 | notifications:configurable-operational-sounds | PASS |  |
 
-This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.
+This suite deterministically covers draft storage fallback, tenant/operator isolation, fault classification, lifecycle replay hooks, role contracts, order/kitchen RBAC parity, waiter serving authorization, unified Owner/Waiter Active Orders send-to-kitchen contracts, live Owner Dashboard/Owner Orders/Kitchen consistency, notification matrix, retry/dedup/token lifecycle, service-worker foreground/background action routing, owner login UX/accessibility contracts, Kitchen History enterprise data-grid contracts, payment-independent split flow, partial-payment bill-only merge guards, and Active Orders accessibility contracts. Real provider delivery, production credentials, physical devices, browsers, and hardware remain manual.

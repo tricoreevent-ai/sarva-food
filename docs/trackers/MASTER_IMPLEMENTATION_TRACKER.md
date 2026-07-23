@@ -11,14 +11,26 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Kitchen Accept RBAC / Realtime Fix |
+| Current Sprint | RC5 Owner/Waiter Active Orders Unification |
 | Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Pending RC5 final operational hardening commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
+| Latest Git Commit | Pending RC5 Owner/Waiter Active Orders unification commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-15 |
-| Verification Status | Final operational hardening passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (41/41), `profile:runtime`, `stress:operational`, `profile:realtime`, `profile:memory:long`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 preserves the completed enterprise workflow while hardening POS add-on tickets, Kitchen idempotency, Kitchen/ready-signal/Reports realtime sync, Dashboard live KPIs, Kitchen Accept RBAC bootstrap boundaries, and long-running operational profiles. |
+| Verification Status | Owner/Waiter Active Orders unification passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (42/42), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC5 preserves the completed enterprise workflow while unifying Owner/Waiter Active Orders on one operational component, adding transactional send-to-kitchen linkage for online/order-only tickets, and retaining POS/Kitchen/payment/realtime hardening. |
+
+## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
+
+| Area | Result |
+| --- | --- |
+| Shared component | Complete. Owner Active Orders now renders the exported POS/Waiter `ActiveOrdersPanel` and `buildOperationalOrders` merge path instead of a separate active-order UI workflow. |
+| Send To Kitchen | Complete. `/api/owner/orders` accepts `send_to_kitchen`; `OrderRepository.sendToKitchen` creates deterministic linked KOTs transactionally, synchronizes `orders` and `customerOrders`, writes audit/notification entries, and returns existing linked KOTs on retry. |
+| Role boundaries | Complete. Waiter can send order-only tickets to Kitchen and continue service actions; Kitchen still owns Accepted → Preparing → Ready, Cashier/Owner still own payment, and completion still requires Served + Paid. |
+| Owner action coverage | Complete. Shared cards route Serve, Complete, Collect Payment, Preview, Print, Reminder, Transfer, Split, Merge, Timeline, History, Kitchen Recall, KOT print, Add Items, and Reassign Waiter through guarded shared handlers or POS handoff. |
+| Performance | Complete. Shared panel keeps memoized cards, stable handler refs, lazy details/timeline/history, debounced search, cached delay formatting, and no additional realtime listener. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (42/42), `profile:runtime`, and `git diff --check`. |
+| Readiness | Repository readiness `100%`; production readiness `92%`; production remains `NO-GO` pending hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse/Chrome profiling, long-run heap, and hardware QA. |
 
 ## RC5 Kitchen Accept RBAC / Realtime Fix - 2026-07-22
 

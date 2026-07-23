@@ -2,6 +2,10 @@
 
 ## 2026-07-22
 
+- Unified Owner Active Orders with the shared POS/Waiter operational panel and merged order/KOT live dataset.
+- Added transactional `send_to_kitchen` order action with deterministic KOT linkage, `orders`/`customerOrders` synchronization, audit/notification writes, and retry-safe existing-ticket return.
+- Wired shared Owner actions for Send To Kitchen, Track Kitchen, Serve, Complete, Collect Payment, Print/KOT/Receipt, Preview, Reminder, Recall, Transfer, Split, Merge, Timeline, History, Add Items, and Reassign Waiter.
+- Expanded operational smoke to 42/42 and passed typecheck, lint, build, analyze, audit:release, runtime profile, and diff check for the Owner/Waiter unification pass.
 - Fixed Kitchen Accept RBAC drift: removed the secondary `/api/owner/tables` bootstrap from Kitchen Operations and added Kitchen-scoped printer access through `/api/owner/printers?surface=kitchen`.
 - Expanded operational smoke to 41/41 and passed typecheck, lint, build, analyze, audit:release, runtime profile, operational stress, realtime profile, long memory profile, and diff check.
 - Completed RC5 final operational hardening: POS add-on KOTs keep parent linkage, Kitchen create retries are idempotent, Kitchen/ready-signal/Reports streams use incremental SSE deltas, and Dashboard KPIs derive from live patched rows.

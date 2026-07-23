@@ -1,5 +1,12 @@
 # Production Stabilization Pass
 
+## RC5 Owner/Waiter Active Orders Unification
+
+- Completed Owner Active Orders unification without redesign: Owner now renders the same shared operational panel, card actions, status grouping, and live order/KOT merge path as POS/Waiter.
+- Completed server-side Send To Kitchen for order-only Website, QR, POS, delivery, parcel, walk-in, and third-party order sources through transactional `send_to_kitchen` linkage across `orders`, `customerOrders`, `kitchenOrders`, audit, and notifications.
+- Preserved role boundaries: Waiter can send order-only tickets to Kitchen and serve ready orders; Kitchen owns Accepted -> Preparing -> Ready; Cashier/Owner own payment; Completed still requires Served + Paid.
+- Final repository validation passed: typecheck, lint, build, analyze, audit:release, smoke:operational 42/42, runtime profile, and diff check.
+
 ## RC5 Final Operational Hardening
 
 - Fixed remaining production consistency gaps without redesign: POS add-on KOTs now preserve parent Kitchen linkage, initial KOT creation is deterministic/idempotent, and repository create retries no longer duplicate tickets.

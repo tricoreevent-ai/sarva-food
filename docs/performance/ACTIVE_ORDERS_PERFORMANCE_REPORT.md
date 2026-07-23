@@ -1,6 +1,6 @@
 # Active Orders Performance Report
 
-Date: 2026-07-22T08:45:55.047Z
+Date: 2026-07-23T09:53:21.439Z
 
 ## Root Cause
 
@@ -17,11 +17,11 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.41ms | 1.04ms | 4.46ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.08ms | 0.36ms | <100ms update |
-| POS 1000-item category switch | 0.07ms | 0.12ms | 0.27ms | <50ms switch |
-| POS 1000-item search filter | 0.13ms | 0.25ms | 0.52ms | debounced |
-| Active Orders 100-order filter/group | 0.18ms | 0.38ms | 0.74ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.47ms | 0.68ms | 2.09ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.05ms | 0.08ms | 0.73ms | <100ms update |
+| POS 1000-item category switch | 0.08ms | 0.14ms | 0.34ms | <50ms switch |
+| POS 1000-item search filter | 0.14ms | 0.22ms | 0.91ms | debounced |
+| Active Orders 100-order filter/group | 0.20ms | 0.35ms | 0.96ms | <50ms interaction |
 
 ## Density And Runtime Controls
 
@@ -44,7 +44,7 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 | /orders | 20 | 514 KB | 198 KB | - | Tracked |
 | /profile | 23 | 553 KB | 198 KB | 250 KB | Over |
 | /owner | 27 | 590 KB | 198 KB | 350 KB | Over |
-| /owner/orders | 32 | 722 KB | 198 KB | 500 KB | Over |
+| /owner/orders | 32 | 731 KB | 198 KB | 500 KB | Over |
 | /owner/settings | 31 | 710 KB | 198 KB | 300 KB | Over |
 | /owner/kitchen | 30 | 697 KB | 198 KB | - | Tracked |
 | /owner/pos | 28 | 595 KB | 198 KB | 650 KB | Pass |

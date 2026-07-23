@@ -147,6 +147,10 @@ export async function PATCH(request: NextRequest) {
       const data = await orders.recordOperationalEvent(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, event: body.event as OperationalEvent, amount: body.amount, method: body.method, note: body.note });
       return send(data);
     }
+    if (body.action === "send_to_kitchen") {
+      const data = await orders.sendToKitchen(scope, { ...actor, orderId: body.orderId });
+      return send(data);
+    }
     if (body.action === "split_bill") {
       const splits = (body.splits ?? [])
         .map((split) => ({ ...split, amount: Number(split.amount), method: String(split.method ?? "") }))
@@ -228,7 +232,7 @@ function orderMutationPermissionError(session: VerifiedSession, body: OrderPatch
 function waiterOrderActionAllowed(action: string, body: OrderPatchBody) {
   if (action === "status") return body.status === "served" || body.status === "completed";
   if (action === "event") return ["kitchen_sent", "reminder", "kitchen_recall"].includes(String(body.event ?? ""));
-  return ["print", "split_bill", "merge_tables", "transfer_table", "assign_waiter"].includes(action);
+  return ["send_to_kitchen", "print", "split_bill", "merge_tables", "transfer_table", "assign_waiter"].includes(action);
 }
 
 function cashierOrderActionAllowed(action: string, body: OrderPatchBody) {
