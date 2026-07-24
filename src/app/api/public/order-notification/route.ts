@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { productionLogger } from "@/lib/server/production-logger";
 import { createTraceContext, publicTraceMeta, traceLogFields } from "@/lib/server/request-trace";
+import { getSessionFromRequest } from "@/lib/server-auth";
+import { rateLimit } from "@/lib/rate-limit";
+import { OrderRepository } from "@/repositories/order-repository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,7 +44,26 @@ type OrderNotificationPayload = {
 
 export async function POST(request: NextRequest) {
   const trace = createTraceContext(request);
-  const payload = (await request.json().catch(() => null)) as OrderNotificationPayload | null;
+  const session = await getSessionFromRequest(request, "customer").catch(() => null);
+  if (!session || session.role !== "customer") {
+    return NextResponse.json({ error: "Customer access is required.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 401 });
+  }
+  if (!rateLimit(`order-notification:${session.uid}`, 10).ok) {
+    return NextResponse.json({ error: "Too many notification requests.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 429 });
+  }
+
+  const submitted = (await request.json().catch(() => null)) as OrderNotificationPayload | null;
+  const order = submitted?.orderId
+    ? await new OrderRepository().getForCustomer(session.uid, submitted.orderId)
+    : null;
+  if (!order) {
+    return NextResponse.json({ error: "Order not found.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 404 });
+  }
+  const orderRestaurantId = order.restaurantId || order.tenantId;
+  if (submitted?.restaurantId && submitted.restaurantId !== orderRestaurantId) {
+    return NextResponse.json({ error: "Order restaurant does not match.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 403 });
+  }
+  const payload = { ...submitted, orderId: order.id, restaurantId: orderRestaurantId, ownerEmail: undefined };
   if (!payload?.orderId || !payload.restaurantName || !payload.customer?.phone || !payload.lines?.length) {
     return NextResponse.json({ error: "Order notification details are incomplete.", requestId: trace.requestId, meta: publicTraceMeta(trace) }, { status: 400 });
   }

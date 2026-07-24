@@ -2,6 +2,18 @@
 
 Date: 2026-07-23T16:03:45.662Z
 
+## 2026-07-24 Deployment Certification
+
+| Severity | Finding | Resolution |
+| --- | --- | --- |
+| P0 | `/api/cloudinary/signature` issued signed upload parameters without authentication and accepted arbitrary caller signing fields. | Added session/RBAC, tenant-folder authorization, parameter allowlist, and rate limiting. |
+| P0 | `/api/public/order-notification` trusted caller recipient/content and could act as an SMTP relay. | Requires the owning customer/order, derives the restaurant, ignores caller recipient email, and rate limits requests. |
+| P1 | Production exposed the development test-session route as a recognizable disabled endpoint. | Production returns HTTP 404. |
+| P1 | Public callback, restaurant-lead, and monitoring ingestion lacked process-level abuse bounds. | Added rate limits, payload bounds, and text limits. |
+| P1 | Release-info fallback timestamp represented request time instead of a stable artifact time. | Uses configured deployment metadata or `.next/BUILD_ID` modification time. |
+
+Live Firestore data issues are recorded in Final Release Readiness and require controlled production-data remediation; the repository audit did not write production data.
+
 ## RC5 Release Closure
 
 | Severity | Finding | Resolution |

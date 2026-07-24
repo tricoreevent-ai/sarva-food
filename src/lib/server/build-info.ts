@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 function readGitHead() {
@@ -27,4 +27,17 @@ export function getBuildCommit() {
     readGitHead() ||
     "unknown"
   );
+}
+
+export function getBuildTimestamp() {
+  const configured =
+    process.env.NEXT_PUBLIC_BUILD_DATE ||
+    process.env.NEXT_PUBLIC_DEPLOYMENT_TIMESTAMP ||
+    process.env.BUILD_DATE;
+  if (configured) return configured;
+  try {
+    return statSync(join(process.cwd(), ".next", "BUILD_ID")).mtime.toISOString();
+  } catch {
+    return new Date(Date.now() - process.uptime() * 1000).toISOString();
+  }
 }

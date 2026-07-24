@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { adminDb } from "@/firebase/admin";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,6 +27,10 @@ const leadSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const clientId = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!rateLimit(`restaurant-lead:${clientId}`, 5, 60 * 60_000).ok) {
+    return NextResponse.json({ ok: false, error: "Too many registration requests." }, { status: 429 });
+  }
   const payload = await request.json().catch(() => ({}));
   const parsed = leadSchema.safeParse(payload);
   if (!parsed.success) {

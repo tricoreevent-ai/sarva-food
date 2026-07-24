@@ -1,6 +1,6 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-23T16:03:43.574Z
+Generated: 2026-07-24T07:55:29.295Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
@@ -9,7 +9,7 @@ Generated: 2026-07-23T16:03:43.574Z
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
 | listener-lifecycle | 60 | Realtime/listener site; verify cleanup and reconnect bounds. |
-| api-error-envelope | 164 | API error envelope; verify requestId/meta where customer-safe. |
+| api-error-envelope | 175 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
 
@@ -90,12 +90,13 @@ Generated: 2026-07-23T16:03:43.574Z
 - `src/app/api/admin/system-diagnostics/route.ts` (2)
 - `src/app/api/auth/phone-verification/route.ts` (1)
 - `src/app/api/auth/session/route.ts` (3)
-- `src/app/api/auth/test-session/route.ts` (3)
-- `src/app/api/cloudinary/signature/route.ts` (1)
+- `src/app/api/auth/test-session/route.ts` (4)
+- `src/app/api/cloudinary/signature/route.ts` (5)
 - `src/app/api/customer/account/route.ts` (6)
 - `src/app/api/customer/cart/route.ts` (2)
 - `src/app/api/customer/catering/route.ts` (2)
 - `src/app/api/customer/orders/route.ts` (3)
+- `src/app/api/monitoring/client/route.ts` (2)
 - `src/app/api/owner/accounting/route.ts` (5)
 - `src/app/api/owner/analytics/route.ts` (2)
 - `src/app/api/owner/communication/route.ts` (2)
@@ -107,8 +108,7 @@ Generated: 2026-07-23T16:03:43.574Z
 - `src/app/api/owner/master-menu-templates/route.ts` (6)
 - `src/app/api/owner/menu/route.ts` (6)
 - `src/app/api/owner/notification-test/route.ts` (2)
-- `src/app/api/owner/offers/route.ts` (7)
-- 20 more files omitted.
+- 21 more files omitted.
 
 ## Release Interpretation
 

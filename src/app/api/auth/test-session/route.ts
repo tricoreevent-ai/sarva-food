@@ -33,10 +33,13 @@ const cookieOptions = {
 };
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
   const devLoginEnabled =
-    process.env.NODE_ENV !== "production" &&
-    (process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true" ||
-      process.env.NEXT_PUBLIC_ENABLE_TEST_LOGIN === "true");
+    process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true" ||
+    process.env.NEXT_PUBLIC_ENABLE_TEST_LOGIN === "true";
 
   if (!devLoginEnabled) {
     return NextResponse.json({ error: "Development login is disabled." }, { status: 403 });

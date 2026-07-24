@@ -1,5 +1,13 @@
 # Release Notes
 
+## RC5 Deployment Certification Security Audit - 2026-07-24
+
+- Closed unauthenticated signed Cloudinary uploads: signature creation now requires an active Admin/Owner/Manager session, enforces tenant folder ownership, signs only approved transformation fields, and applies per-user rate limiting.
+- Closed the public order-notification mail relay: notification requests now require the owning customer session, verify the persisted order and restaurant, ignore caller-supplied recipient email, and apply rate limiting.
+- Production now hides the development test-session endpoint with HTTP 404. Public callback, restaurant-lead, and client-monitoring ingestion now have bounded payload/rate controls.
+- Release metadata now uses a stable built-artifact timestamp when deployment timestamp variables are absent.
+- Read-only production Firestore certification found live data remediation items; no production documents were mutated during this audit.
+
 ## RC5 Release Closure Audit - 2026-07-23
 
 - Fixed a P0 direct-item crash by moving the custom alert context above customer and dashboard page components; removed the duplicate nested alert providers left after that correction.

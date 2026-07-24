@@ -66,6 +66,9 @@ const realtimeOrder = read("src/hooks/use-realtime-order.ts");
 const rootLayout = read("src/app/layout.tsx");
 const customerShellRuntime = read("src/components/layout/customer-shell-runtime.tsx");
 const dashboardShellRuntime = read("src/components/layout/dashboard-shell.tsx");
+const cloudinarySignature = read("src/app/api/cloudinary/signature/route.ts");
+const orderNotification = read("src/app/api/public/order-notification/route.ts");
+const testSession = read("src/app/api/auth/test-session/route.ts");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -466,6 +469,14 @@ await check("customer:realtime-order-with-single-alert-provider", () => {
   assert.ok(rootLayout.includes("<AlertProvider>{children}</AlertProvider>"));
   assert.ok(!customerShellRuntime.includes("<AlertProvider>"));
   assert.ok(!dashboardShellRuntime.includes("<AlertProvider>"));
+});
+
+await check("security:upload-notification-and-test-endpoint-boundaries", () => {
+  for (const token of ["getSessionFromRequest", "Upload permission denied.", "rateLimit", "isAuthorizedFolder", "quality_analysis"]) assert.ok(cloudinarySignature.includes(token), token);
+  assert.ok(!cloudinarySignature.includes('publicId: "public_id"'));
+  for (const token of ['getSessionFromRequest(request, "customer")', "getForCustomer", "order-notification:", "ownerEmail: undefined"]) assert.ok(orderNotification.includes(token), token);
+  assert.ok(testSession.includes('process.env.NODE_ENV === "production"'));
+  assert.ok(testSession.includes('{ status: 404 }'));
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

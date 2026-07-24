@@ -1,6 +1,6 @@
 # Production Environment Matrix
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 Release: `v1.0.0-rc5`
 

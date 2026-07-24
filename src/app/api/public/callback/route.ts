@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { resolveTenantId } from "@/lib/tenant";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,6 +16,10 @@ type CallbackBody = {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientId = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!rateLimit(`callback-request:${clientId}`, 10, 15 * 60_000).ok) {
+      return NextResponse.json({ ok: false, error: "Too many callback requests." }, { status: 429 });
+    }
     const body = (await request.json().catch(() => ({}))) as CallbackBody;
     const restaurantId = body.restaurantId ? resolveTenantId(body.restaurantId) : "";
     const name = body.name?.trim() ?? "";
@@ -41,7 +46,7 @@ export async function POST(request: NextRequest) {
       name,
       phone,
       reason: body.reason ?? "callback",
-      notes: body.notes?.trim() || "",
+      notes: body.notes?.trim().slice(0, 1000) || "",
       status: "new",
       createdAt: now,
       updatedAt: now,

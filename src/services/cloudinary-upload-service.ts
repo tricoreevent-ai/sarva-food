@@ -121,7 +121,10 @@ export async function uploadRemoteImageToCloudinary(url: string, options: Upload
 export async function getCloudinarySignature(input: { folder: string; tags?: string[]; params?: Record<string, string | number | boolean | undefined> }) {
   const response = await fetch("/api/cloudinary/signature", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-sarva-surface": typeof window !== "undefined" && window.location.pathname.startsWith("/admin") ? "admin" : "owner",
+    },
     body: JSON.stringify(input),
   });
   const data = (await response.json()) as SignatureResponse;

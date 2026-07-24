@@ -2,6 +2,21 @@
 
 Date: 2026-07-23T16:03:45.662Z
 
+## 2026-07-24 Production Data Gate
+
+Read-only validation connected to project `sarva-food-app` and found:
+
+- 3 Cafe Al Arab menu items missing `tenantId` and `restaurantId`.
+- Cafe Al Arab missing dine-in, parcel, and delivery menu documents and complete active channel coverage.
+- Tamarind Table missing complete active menu channel coverage.
+- Falak restaurant owner reference not found in `users`.
+- Order consistency dry run: 6/37 `orders` and 6/36 `customerOrders` require consistency fields; 0/23 `kitchenOrders` require patches.
+- One `orders` document lacks its `customerOrders` mirror.
+- Eleven historical orders reference customer identifiers not present in the current `users`/`customers` collections; confirm whether these are intended guest/legacy identifiers before repair.
+- No duplicate per-tenant order number, orphan KOT, orphan payment, or orphan notification was detected by the supplementary read-only audit.
+
+Repository P0/P1 security fixes are complete. Production deployment remains gated on an approved backup, dry-run review, and controlled data remediation/revalidation.
+
 ## Local Validation
 
 | Check | Status |
@@ -35,7 +50,7 @@ Date: 2026-07-23T16:03:45.662Z
 | --- | --- |
 | Repository readiness | 100% |
 | Production readiness | 92% |
-| Recommendation | READY FOR STAGING. Repository P0/P1 closure is complete; hosted authenticated multi-role, provider, Firebase Console, device, and hardware gates remain pending. |
+| Recommendation | READY FOR STAGING; NOT READY FOR PRODUCTION until the documented Firestore data integrity findings are remediated and revalidated. |
 
 ## Remaining Manual Gates
 
