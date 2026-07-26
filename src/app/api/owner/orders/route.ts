@@ -236,7 +236,7 @@ function orderMutationPermissionError(session: VerifiedSession, body: OrderPatch
 }
 
 function waiterOrderActionAllowed(action: string, body: OrderPatchBody) {
-  if (action === "status") return body.status === "served" || body.status === "completed";
+  if (action === "status") return body.status === "picked-up" || body.status === "served" || body.status === "completed";
   if (action === "event") return ["kitchen_sent", "reminder", "kitchen_recall"].includes(String(body.event ?? ""));
   return ["send_to_kitchen", "payment_started", "payment", "print", "split_bill", "merge_tables", "transfer_table", "assign_waiter"].includes(action);
 }
@@ -268,7 +268,7 @@ function orderError(error: unknown, trace: TraceContext, context: Record<string,
   if (/invalid .*transition|cannot move back|cancelled orders|refunded orders|without refund/i.test(message)) return response("That order state change is no longer valid. Refresh and retry.", 409);
   if (/split bill|balance due|source order|target table|active waiter|required|completed bills|correction|unlock reason/i.test(message)) return response(safeBusinessMessage(message), 400);
   if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return response("Unable to contact server. Please retry.", 503);
-  return response("Order action could not be completed. Please try again.", 500);
+  return response("Unable to update this order because the restaurant workflow could not finish safely. Refresh Active Orders, confirm waiter assignment and Kitchen Ticket status, then retry.", 500);
 }
 
 function safeBusinessMessage(message: string) {

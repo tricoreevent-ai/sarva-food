@@ -99,7 +99,6 @@ function isNextOrderState(current: OrderStatus, next: OrderStatus) {
   const currentIndex = orderFlow.indexOf(current);
   const nextIndex = orderFlow.indexOf(next);
   if (currentIndex < 0 || nextIndex < 0) return false;
-  if (current === "ready" && next === "served") return true;
   if (current === "served" && (next === "completed" || next === "delivered")) return true;
   return nextIndex === currentIndex + 1;
 }

@@ -911,11 +911,11 @@ export type SocialPost = {
   channels: Array<"Instagram" | "Facebook">;
 };
 
-export type TableStatus = "vacant" | "new" | "occupied" | "preparing" | "ready" | "served" | "completed" | "billed";
+export type TableStatus = "vacant" | "new" | "occupied" | "preparing" | "ready" | "picked-up" | "served" | "completed" | "billed";
 
 export type KitchenLifecycleStatus = "new" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
 
-export type TableOrderStatus = KitchenLifecycleStatus | "occupied" | "billed";
+export type TableOrderStatus = KitchenLifecycleStatus | "picked-up" | "occupied" | "billed";
 
 export type TableOrder = {
   id: string;

@@ -790,7 +790,7 @@ function LiveOrderRow({ order }: { order: DashboardOrder }) {
 }
 
 function dashboardStatusTone(status: string): OrderBadgeTone {
-  if (["ready", "served", "delivered", "completed"].includes(status)) return "success";
+  if (["ready", "picked-up", "served", "delivered", "completed"].includes(status)) return "success";
   if (["new", "occupied"].includes(status)) return "warning";
   if (["cancelled", "rejected"].includes(status)) return "danger";
   return "info";

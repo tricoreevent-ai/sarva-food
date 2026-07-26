@@ -147,7 +147,7 @@ service cloud.firestore {
     function canUpdateOrderStatusForRole(status) {
       return isAdmin()
         || currentUser().role in ["owner", "manager"]
-        || (currentUser().role == "waiter" && status in ["served", "completed"])
+        || (currentUser().role == "waiter" && status in ["picked-up", "served", "completed"])
         || (currentUser().role in ["chef", "kitchen-manager"] && status in ["accepted", "preparing", "ready", "cancelled"])
         || (currentUser().role == "delivery-staff" && status in ["picked-up", "delivered"]);
     }

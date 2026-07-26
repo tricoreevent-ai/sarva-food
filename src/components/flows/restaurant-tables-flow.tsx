@@ -282,16 +282,6 @@ export function RestaurantTablesFlow() {
     win.focus();
   }
 
-  async function changeTableTicketStatus(orderId: string, nextStatus: TableOrder["status"]) {
-    const response = await fetch("/api/owner/kitchen", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: orderId, status: nextStatus === "billed" ? "completed" : nextStatus }),
-    });
-    const payload = await response.json() as { data?: TableOrder };
-    setOrders((current) => current.map((order) => order.id === orderId ? payload.data ?? { ...order, status: nextStatus } : order));
-  }
-
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
       <section className="min-w-0 space-y-5">
@@ -476,9 +466,11 @@ export function RestaurantTablesFlow() {
                     </>
                   ) : null}
                   {selectedActiveOrder ? (
-                    <Button variant="outline" onClick={() => void changeTableTicketStatus(selectedActiveOrder.id, selectedActiveOrder.status === "ready" ? "served" : "ready")}>
+                    <Button asChild variant="outline">
+                      <Link href="/owner/pos">
                       <CheckCircle2 className="size-4" />
-                      Mark {selectedActiveOrder.status === "ready" ? "served" : "ready"}
+                      Manage in Active Orders
+                      </Link>
                     </Button>
                   ) : null}
                   {deleteBlockedReason ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">{deleteBlockedReason}</p> : null}

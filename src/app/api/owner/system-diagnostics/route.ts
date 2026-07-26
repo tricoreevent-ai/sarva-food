@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       new OfferRepository().list(scope), new MenuRepository().list(scope), new TableRepository().list(scope), new StaffRepository().list(scope), new KitchenRepository().list(scope),
       adminDb().collection(COLLECTIONS.notifications).where("tenantId", "==", scope.tenantId).where("read", "==", false).count().get().then((snapshot) => snapshot.data().count).catch(() => null),
     ]);
-    const waiterLoad = orders.orders.filter((order) => ["ready", "served"].includes(order.status)).length;
+    const waiterLoad = orders.orders.filter((order) => ["ready", "picked-up", "served"].includes(order.status)).length;
     const operationalDiagnostics = getOperationalDiagnostics({
       tenantCount: 1,
       openOrders: orders.activeOrderCount,

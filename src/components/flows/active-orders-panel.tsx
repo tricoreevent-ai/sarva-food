@@ -87,6 +87,7 @@ export function timelineMillis(entry: TimelineEntry) {
 
 export function activeStatusToast(status: TableOrder["status"]) {
   if (status === "cancelled") return "Order cancelled.";
+  if (status === "picked-up") return "Order picked up for service.";
   if (status === "served") return "Order moved to Serving.";
   if (status === "ready") return "Order ready.";
   if (status === "preparing") return "Cooking started.";
@@ -192,7 +193,7 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
 }
 
 export type ActiveOrderView = "all" | "operations" | "waiter" | "cashier" | "manager";
-type ActiveOrderActionId = "accept" | "prepare" | "ready" | "serve" | "notify" | "payment" | "print" | "preview" | "receipt" | "kot" | "add" | "split" | "transfer" | "reassign" | "merge" | "reminder" | "recall" | "complete" | "archive" | "cancel" | "timeline" | "history";
+type ActiveOrderActionId = "accept" | "prepare" | "ready" | "pickup" | "serve" | "notify" | "payment" | "print" | "preview" | "receipt" | "kot" | "add" | "split" | "transfer" | "reassign" | "merge" | "reminder" | "recall" | "complete" | "archive" | "cancel" | "timeline" | "history";
 type ActiveOrderMenuAction = { id: ActiveOrderActionId; label: string; icon: ReactNode; disabled?: boolean; danger?: boolean; reason?: string };
 
 export function ActiveOrdersPanel({
@@ -213,6 +214,7 @@ export function ActiveOrdersPanel({
   onPrintKot,
   onCollectPayment,
   onNotifyWaiter,
+  onPickUp,
   onSplit,
   onTransfer,
   onAssignWaiter,
@@ -245,6 +247,7 @@ export function ActiveOrdersPanel({
   onPrintKot: (order: TableOrder) => void;
   onCollectPayment: (order: TableOrder) => void;
   onNotifyWaiter: (order: TableOrder) => void;
+  onPickUp: (order: TableOrder) => void;
   onSplit: (order: OperationalOrder) => void;
   onTransfer: (order: OperationalOrder) => void;
   onAssignWaiter: (order: OperationalOrder) => void;
@@ -277,6 +280,7 @@ export function ActiveOrdersPanel({
     onPrintKot,
     onCollectPayment,
     onNotifyWaiter,
+    onPickUp,
     onSplit,
     onTransfer,
     onAssignWaiter,
@@ -299,6 +303,7 @@ export function ActiveOrdersPanel({
       onPrintKot,
       onCollectPayment,
       onNotifyWaiter,
+      onPickUp,
       onSplit,
       onTransfer,
       onAssignWaiter,
@@ -312,7 +317,7 @@ export function ActiveOrdersPanel({
       onComplete,
       onCancel,
     };
-  }, [onAddItems, onAdvanceKitchen, onAssignWaiter, onCancel, onCollectPayment, onComplete, onMerge, onNotifyWaiter, onOpen, onPaymentHistory, onPrintBill, onPrintKot, onPrintReceipt, onRecall, onReminder, onServe, onSplit, onTimeline, onTransfer]);
+  }, [onAddItems, onAdvanceKitchen, onAssignWaiter, onCancel, onCollectPayment, onComplete, onMerge, onNotifyWaiter, onOpen, onPaymentHistory, onPickUp, onPrintBill, onPrintKot, onPrintReceipt, onRecall, onReminder, onServe, onSplit, onTimeline, onTransfer]);
 
   const allActiveKitchenOrders = useMemo(() => {
     return kitchenOrders
@@ -343,7 +348,7 @@ export function ActiveOrdersPanel({
     for (const order of activeKitchenOrders) {
       const delay = delaysById.get(order.id);
       const operations = ["new", "occupied", "accepted", "preparing"].includes(order.status);
-      const waiter = Boolean(order.waiterId || order.waiterName || order.source === "Waiter" || order.hasKitchenTicket !== false || ["ready", "served"].includes(order.status));
+      const waiter = Boolean(order.waiterId || order.waiterName || order.source === "Waiter" || order.hasKitchenTicket !== false || ["ready", "picked-up", "served"].includes(order.status));
       const paymentOpen = canCollectOrderPayment(order);
       const cashier = paymentOpen || order.paymentStatus === "paid";
       const delayed = Boolean(delay && delay.lateMinutes > 2);
@@ -441,6 +446,10 @@ export function ActiveOrdersPanel({
     if (action === "accept") handlers.onAdvanceKitchen(order, "accepted");
     else if (action === "prepare") handlers.onAdvanceKitchen(order, "preparing");
     else if (action === "ready") handlers.onAdvanceKitchen(order, "ready");
+    else if (action === "pickup") {
+      markSeen(order.id);
+      handlers.onPickUp(order);
+    }
     else if (action === "serve") {
       markSeen(order.id);
       handlers.onServe(order);
@@ -659,6 +668,7 @@ function ActiveOrderCard({
   const total = Number(order.total ?? order.lines.reduce((sum, line) => sum + line.price * line.quantity, 0));
   const paid = order.paymentStatus === "paid";
   const ready = order.status === "ready";
+  const pickedUp = order.status === "picked-up";
   const served = order.status === "served";
   const completed = ["completed", "billed"].includes(order.status);
   const completedHold = completed ? completedHoldMinutesRemaining(order) : 0;
@@ -671,7 +681,7 @@ function ActiveOrderCard({
   const canSplit = active && !paid && order.paymentStatus !== "refunded" && !paymentLocked;
   const canComplete = served && paid;
   const canCancel = active && !paymentRestricted;
-  const canContactKitchen = active && !served && order.hasKitchenTicket !== false;
+  const canContactKitchen = active && !pickedUp && !served && order.hasKitchenTicket !== false;
   const canNotify = ready && order.hasKitchenTicket !== false;
   const canSendToKitchen = active && ["new", "occupied"].includes(order.status);
   const canStartPreparing = active && order.status === "accepted";
@@ -709,6 +719,7 @@ function ActiveOrderCard({
     ["Kitchen", `${kitchenStatus} · ${preparationProgress}%`],
     ["Payment", `${paymentStatus} · ${formatCurrency(total)}`],
     ["Ready for Pickup", ready ? "Yes" : "No"],
+    ["Picked Up", pickedUp ? "Yes" : "No"],
     ["Serving", served ? "Yes" : "No"],
     ["Completed", completed ? "Yes" : "No"],
     ...(completed ? [["Auto History", `${completedHold}m`]] : []),
@@ -719,6 +730,8 @@ function ActiveOrderCard({
         { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
         { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
         { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
+        { id: "pickup", label: "Pick Up Order", icon: <Utensils className="size-4" />, disabled: !ready || busy, reason: !ready ? "Kitchen must mark this order Ready before pickup." : undefined },
+        { id: "serve", label: "Serve Order", icon: <Utensils className="size-4" />, disabled: !pickedUp || busy, reason: !pickedUp ? "Pick up the ready order before serving." : undefined },
         { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canMergeBill || busy, reason: !canMerge ? "No other active order is available to merge." : !canMergeBill ? "Cannot merge authorized, paid, refunded, locked, completed, or already merged bills." : undefined },
         { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
         { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
@@ -749,6 +762,8 @@ function ActiveOrderCard({
             { id: "kot", label: "Print KOT", icon: <ClipboardList className="size-4" /> },
             { id: "add", label: "Add Items", icon: <PlusCircle className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot add items after payment has started." : undefined },
             { id: "split", label: "Split Bill", icon: <Scissors className="size-4" />, disabled: !canSplit || busy, reason: paid ? "Payment has already been collected." : order.paymentStatus === "refunded" ? "Refunded orders cannot be paid again." : undefined },
+            { id: "pickup", label: "Pick Up Order", icon: <Utensils className="size-4" />, disabled: !ready || busy, reason: !ready ? "Kitchen must mark this order Ready before pickup." : undefined },
+            { id: "serve", label: "Serve Order", icon: <Utensils className="size-4" />, disabled: !pickedUp || busy, reason: !pickedUp ? "Pick up the ready order before serving." : undefined },
             { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
             { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
             { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canMergeBill || busy, reason: !canMerge ? "No other active order is available to merge." : !canMergeBill ? "Cannot merge authorized, paid, refunded, locked, completed, or already merged bills." : undefined },
@@ -794,7 +809,7 @@ function ActiveOrderCard({
           <span className={cn("block h-full rounded-full", activeOrderProgressClass(order.status))} style={{ width: `${preparationProgress}%` }} />
         </div>
         <div className="grid grid-cols-3 gap-1 text-[7px] font-black uppercase">
-          <span className={activeOrderServiceFlagClass(ready, "pickup")} title="Ready for Pickup">Pickup</span>
+          <span className={activeOrderServiceFlagClass(ready || pickedUp, "pickup")} title={pickedUp ? "Picked Up" : "Ready for Pickup"}>{pickedUp ? "Picked" : "Pickup"}</span>
           <span className={activeOrderServiceFlagClass(served, "served")} title="Serving">Serving</span>
           <span className={activeOrderServiceFlagClass(completed, "completed")} title="Completed">Done</span>
         </div>
@@ -820,12 +835,14 @@ function ActiveOrderCard({
           <button type="button" data-action="complete" disabled onClick={handleAction} className={activeOrderActionClass(false, "success")} aria-label="Complete Order" title={pendingPaymentMessage}><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
         ) : kitchenAction ? (
           <button type="button" data-action={kitchenAction.id} disabled={busy || !kitchenActionAllowed} onClick={handleAction} className={activeOrderActionClass(kitchenActionAllowed, "success")} aria-label={kitchenAction.label} title={kitchenActionAllowed ? kitchenAction.title : "Kitchen state changes are handled by Kitchen Operations."}>{kitchenAction.icon}<span className="sr-only">{kitchenAction.label}</span></button>
+        ) : ready ? (
+          <button type="button" data-action="pickup" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Pick Up Order" title="Pick up the ready order for service"><Utensils className="size-4" /><span className="sr-only">Pick Up</span></button>
         ) : (
-          <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title={ready ? "Serve Order" : "Cannot Serve: kitchen has not marked Ready."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
+          <button type="button" data-action="serve" disabled={!pickedUp || busy} onClick={handleAction} className={activeOrderActionClass(pickedUp, "success")} aria-label="Serve Order" title={pickedUp ? "Serve Order" : "Cannot Serve: pick up the ready order first."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
         )}
-        <button type="button" data-action="notify" disabled={!canNotifyForView || busy} onClick={handleAction} className={activeOrderActionClass(canNotifyForView, "default")} aria-label="Ready Signal" title={view === "waiter" ? "Kitchen sends ready signals; serve the ticket after pickup." : canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
+        <button type="button" data-action="notify" disabled={!canNotifyForView || busy} onClick={handleAction} className={activeOrderActionClass(canNotifyForView, "default")} aria-label="Ready Signal" title={view === "waiter" ? "Kitchen sends ready signals; pick up the ticket before serving." : canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
         <button type="button" data-action="payment" disabled={!canCollectForView || busy} onClick={handleAction} className={activeOrderActionClass(canCollectForView, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
-        <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
+        <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "picked-up", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
         <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
         <ActiveOrderActionMenu order={order} actions={menuActions} disabled={busy} onAction={onAction} />
       </div>
@@ -986,6 +1003,7 @@ function activeOrderServiceFlagClass(active: boolean, tone: "pickup" | "served" 
 
 function activeOrderProgressClass(status: TableOrder["status"]) {
   if (status === "ready") return "bg-emerald-500";
+  if (status === "picked-up") return "bg-cyan-500";
   if (status === "served") return "bg-violet-500";
   if (status === "completed" || status === "billed") return "bg-slate-500";
   if (status === "preparing") return "bg-orange-500";
@@ -997,6 +1015,7 @@ function posPreparationProgress(status: TableOrder["status"]) {
   if (status === "accepted") return 25;
   if (status === "preparing") return 60;
   if (status === "ready") return 85;
+  if (status === "picked-up") return 90;
   if (status === "served") return 95;
   if (status === "completed" || status === "billed") return 100;
   return 10;
@@ -1007,6 +1026,7 @@ function posActiveAccentBorder(order: TableOrder) {
   if (order.status === "accepted") return "border-l-4 border-l-blue-500";
   if (order.status === "preparing") return "border-l-4 border-l-orange-500";
   if (order.status === "ready") return "border-l-4 border-l-emerald-500";
+  if (order.status === "picked-up") return "border-l-4 border-l-cyan-500";
   if (order.status === "served") return "border-l-4 border-l-violet-500";
   return "border-l-4 border-l-slate-300";
 }
@@ -1017,6 +1037,7 @@ export function orderStatusTone(status?: string, payment?: string) {
   if (status === "accepted") return { chip: "bg-blue-50 text-blue-700", bar: "bg-blue-500", dot: "bg-blue-500" };
   if (status === "preparing") return { chip: "bg-orange-50 text-orange-700", bar: "bg-orange-500", dot: "bg-orange-500" };
   if (status === "ready") return { chip: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-500", dot: "bg-emerald-500" };
+  if (status === "picked-up") return { chip: "bg-cyan-50 text-cyan-700", bar: "bg-cyan-500", dot: "bg-cyan-500" };
   if (status === "served") return { chip: "bg-violet-50 text-violet-700", bar: "bg-violet-500", dot: "bg-violet-500" };
   if (status === "billing" || status === "billed") return { chip: "bg-purple-50 text-purple-700", bar: "bg-purple-500", dot: "bg-purple-500" };
   if (status === "cancelled" || status === "rejected") return { chip: "bg-red-50 text-red-700", bar: "bg-red-500", dot: "bg-red-500" };
@@ -1033,6 +1054,7 @@ function posActiveStatusLabel(order: TableOrder) {
   if (order.status === "accepted") return "Accepted";
   if (order.status === "preparing") return "Preparing";
   if (order.status === "ready") return "Ready To Serve";
+  if (order.status === "picked-up") return "Picked Up";
   if (order.status === "served") return "Serving";
   return posOrderStatusLabel(order.status, order.paymentStatus);
 }
@@ -1040,6 +1062,7 @@ function posActiveStatusLabel(order: TableOrder) {
 export function posStatusTone(status: TableOrder["status"], payment?: TableOrder["paymentStatus"]): OrderBadgeTone {
   void payment;
   if (status === "ready") return "success";
+  if (status === "picked-up") return "info";
   if (status === "served") return "violet";
   if (status === "new" || status === "occupied") return "warning";
   if (status === "cancelled") return "danger";
@@ -1110,6 +1133,7 @@ const activeOrderLegendItems = [
   ["With Waiter", "bg-blue-500"],
   ["In Kitchen", "bg-orange-500"],
   ["Ready", "bg-emerald-500"],
+  ["Picked Up", "bg-cyan-500"],
   ["Serving", "bg-violet-500"],
   ["Pending", "bg-amber-500"],
   ["Delayed", "bg-red-500"],
@@ -1120,6 +1144,7 @@ const activeOrderKanbanStages: Array<{ id: string; label: string; statuses: Tabl
   { id: "accepted", label: "Accepted", statuses: ["accepted"] },
   { id: "preparing", label: "Preparing", statuses: ["preparing"] },
   { id: "ready", label: "Ready", statuses: ["ready"] },
+  { id: "picked-up", label: "Picked Up", statuses: ["picked-up"] },
   { id: "serving", label: "Serving", statuses: ["served"] },
   { id: "completed", label: "Completed", statuses: ["completed", "billed"] },
 ];

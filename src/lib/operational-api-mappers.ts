@@ -232,7 +232,7 @@ function normalizePosOrderType(value: string) {
 }
 
 function tableStatus(value: string): TableOrder["status"] {
-  return ["new", "accepted", "occupied", "preparing", "ready", "served", "completed", "cancelled", "billed"].includes(value) ? value as TableOrder["status"] : "new";
+  return ["new", "accepted", "occupied", "preparing", "ready", "picked-up", "served", "completed", "cancelled", "billed"].includes(value) ? value as TableOrder["status"] : "new";
 }
 
 function paymentStatus(value: string): TableOrder["paymentStatus"] {
@@ -271,7 +271,7 @@ function posTableStatus(value: string): PosTable["status"] {
   if (value === "cleaning") return "Cleaning";
   if (value === "inactive") return "Inactive";
   if (value === "vacant") return "Open";
-  if (["occupied", "preparing", "ready", "served"].includes(value)) return "Dining";
+  if (["occupied", "preparing", "ready", "picked-up", "served"].includes(value)) return "Dining";
   if (value === "billed" || value === "completed") return "Bill requested";
   return "Open";
 }

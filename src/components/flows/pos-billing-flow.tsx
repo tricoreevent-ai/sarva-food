@@ -1769,12 +1769,20 @@ export function PosBillingFlow() {
       await sendActiveOrderToKitchen(order);
       return;
     }
+    if (status === "accepted" && waiterView) {
+      await sendActiveOrderToKitchen(order);
+      return;
+    }
     await updateActiveOrderStatus(order, status);
   }
 
   async function updateActiveOrderStatus(order: TableOrder, status: TableOrder["status"]) {
-    if (status === "served" && order.status !== "ready") {
-      toast.error("Only a ready order can be marked served.");
+    if (status === "picked-up" && order.status !== "ready") {
+      toast.error("Only a ready order can be picked up for service.");
+      return;
+    }
+    if (status === "served" && order.status !== "picked-up") {
+      toast.error("Pick up the ready order before marking it served.");
       return;
     }
     if (status === "completed" && (order.status !== "served" || order.paymentStatus !== "paid")) {
@@ -1782,7 +1790,7 @@ export function PosBillingFlow() {
       return;
     }
     const canonical = canonicalForKitchenOrder(order);
-    if (!canonical && ["served", "completed"].includes(status)) {
+    if (!canonical && ["picked-up", "served", "completed"].includes(status)) {
       toast.error("Open and save this order before updating service status.");
       return;
     }
@@ -1800,7 +1808,7 @@ export function PosBillingFlow() {
         const result = await readPosPayload<{ data?: TableOrder }>(response, "Order status could not be updated.");
         updatedKitchen = result.data;
       }
-      if (canonical && (!hasKitchenTicket || ["served", "completed", "cancelled"].includes(status))) {
+      if (canonical && (!hasKitchenTicket || ["picked-up", "served", "completed", "cancelled"].includes(status))) {
         const response = await fetch("/api/owner/orders", {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -2098,6 +2106,7 @@ export function PosBillingFlow() {
               onPrintKot={(order) => void recordActivePrint(order, "kot")}
               onCollectPayment={(order) => void collectActivePayment(order)}
               onNotifyWaiter={(order) => void notifyActiveOrderWaiter(order)}
+              onPickUp={(order) => void updateActiveOrderStatus(order, "picked-up")}
               onSplit={(order) => setSplitTarget(order)}
               onTransfer={(order) => setTransferTarget({ order, mode: "table" })}
               onAssignWaiter={(order) => setTransferTarget({ order, mode: "waiter" })}
@@ -3823,12 +3832,14 @@ function demoStatusForTableStatus(status: TableOrder["status"]): DemoOrder["stat
   if (status === "accepted") return "accepted";
   if (status === "preparing") return "preparing";
   if (status === "ready") return "ready";
+  if (status === "picked-up") return "picked-up";
   if (status === "served") return "served";
   return "new";
 }
 
 function activeStatusToast(status: TableOrder["status"]) {
   if (status === "cancelled") return "Order cancelled.";
+  if (status === "picked-up") return "Order picked up for service.";
   if (status === "served") return "Order moved to Serving.";
   if (status === "ready") return "Order ready.";
   if (status === "preparing") return "Cooking started.";

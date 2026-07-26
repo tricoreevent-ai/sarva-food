@@ -127,7 +127,8 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   occupied: "accepted",
   accepted: "preparing",
   preparing: "ready",
-  ready: "served",
+  ready: "picked-up",
+  "picked-up": "served",
   served: "completed",
   completed: "completed",
   cancelled: "cancelled",
@@ -681,6 +682,7 @@ export function OwnerOrderManagementFlow() {
                 onPrintKot={(order) => handoffToPos(order, "print-kot")}
                 onCollectPayment={(order) => void collectOwnerPayment(order)}
                 onNotifyWaiter={(order) => void notifyOwnerWaiter(order)}
+                onPickUp={(order) => void updateOrder(canonicalOrderIdFor(order), "picked-up")}
                 onSplit={(order) => handoffToPos(order, "split")}
                 onTransfer={(order) => void promptOwnerTransfer(order, "table")}
                 onAssignWaiter={(order) => void promptOwnerTransfer(order, "waiter")}
@@ -1081,7 +1083,7 @@ const MemoActiveOrderCard = memo(ActiveOrderCard);
 function MobileWorkflowSteps({ order }: { order: ActiveOpsOrder }) {
   const workflow = buildOwnerWorkflow(order);
   return (
-    <div className="grid grid-cols-6 gap-1 xl:hidden" aria-label={`${order.displayId ?? "Order"} workflow`}>
+    <div className="grid grid-cols-7 gap-1 xl:hidden" aria-label={`${order.displayId ?? "Order"} workflow`}>
       {workflow.map((step) => (
         <span key={step.id} className="grid min-w-0 justify-items-center gap-1">
           <span className={cn("grid size-6 place-items-center rounded-full border text-[10px] font-black", step.state === "complete" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : step.state === "active" ? "border-orange-200 bg-orange-50 text-orange-700" : step.state === "blocked" ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-slate-50 text-slate-400")}>
@@ -1763,7 +1765,7 @@ function newestFirst(first: ActiveOpsOrder, second: ActiveOpsOrder) {
 }
 
 function statusRank(status: string) {
-  const rank = ["new", "accepted", "preparing", "ready", "served", "delivered", "completed", "rejected"].indexOf(status);
+  const rank = ["new", "accepted", "preparing", "ready", "picked-up", "served", "delivered", "completed", "rejected"].indexOf(status);
   return rank === -1 ? 99 : rank;
 }
 
@@ -1820,16 +1822,19 @@ function orderProgressPercent(status: string) {
   if (status === "new" || status === "occupied") return 15;
   if (status === "accepted") return 35;
   if (status === "preparing") return 65;
-  if (status === "ready" || status === "served") return 90;
+  if (status === "ready") return 85;
+  if (status === "picked-up") return 90;
+  if (status === "served") return 95;
   if (status === "completed" || status === "delivered") return 100;
   return 25;
 }
 
 function buildOwnerWorkflow(order: ActiveOpsOrder) {
   const blocked = ["cancelled", "rejected"].includes(order.status);
-  const sent = Boolean(order.kitchenOrder) || ["accepted", "preparing", "ready", "served", "completed", "delivered"].includes(order.status);
-  const cooking = ["preparing", "ready", "served", "completed", "delivered"].includes(order.status);
-  const ready = ["ready", "served", "completed", "delivered"].includes(order.status);
+  const sent = Boolean(order.kitchenOrder) || ["accepted", "preparing", "ready", "picked-up", "served", "completed", "delivered"].includes(order.status);
+  const cooking = ["preparing", "ready", "picked-up", "served", "completed", "delivered"].includes(order.status);
+  const ready = ["ready", "picked-up", "served", "completed", "delivered"].includes(order.status);
+  const pickedUp = ["picked-up", "served", "completed", "delivered"].includes(order.status);
   const served = ["served", "completed", "delivered"].includes(order.status);
   const paid = order.paymentStatusLabel.toLowerCase().includes("paid");
   return [
@@ -1837,7 +1842,8 @@ function buildOwnerWorkflow(order: ActiveOpsOrder) {
     { id: "sent", label: "Sent To Kitchen", sublabel: timelineTime(order, ["accepted", "sent"]), state: workflowState(sent, !sent && !blocked, blocked), icon: <CheckCircle2 className="size-3.5" /> },
     { id: "cooking", label: "Cooking", sublabel: timelineTime(order, ["preparing", "cooking"]), state: workflowState(cooking, sent && !cooking && !ready && !blocked, blocked), icon: <ChefHat className="size-3.5" /> },
     { id: "ready", label: "Ready", sublabel: timelineTime(order, ["ready"]), state: workflowState(ready, cooking && !ready && !blocked, blocked), icon: <Utensils className="size-3.5" /> },
-    { id: "served", label: "Served", sublabel: timelineTime(order, ["served", "delivered"]), state: workflowState(served, ready && !served && !blocked, blocked), icon: <PackageCheck className="size-3.5" /> },
+    { id: "picked-up", label: "Picked Up", sublabel: timelineTime(order, ["picked"]), state: workflowState(pickedUp, ready && !pickedUp && !blocked, blocked), icon: <PackageCheck className="size-3.5" /> },
+    { id: "served", label: "Served", sublabel: timelineTime(order, ["served", "delivered"]), state: workflowState(served, pickedUp && !served && !blocked, blocked), icon: <PackageCheck className="size-3.5" /> },
     { id: "paid", label: "Paid", sublabel: paid ? order.paymentStatusLabel : undefined, state: workflowState(paid, !paid && !blocked, blocked), icon: <ReceiptText className="size-3.5" /> },
   ];
 }
@@ -1858,6 +1864,7 @@ function kitchenProgressHelper(order: ActiveOpsOrder) {
   if (order.delay?.delayed) return `${formatDelayTime(order.delay.lateMinutes).label} beyond ETA`;
   if (!order.kitchenOrder && order.status === "new") return "Not sent to kitchen";
   if (order.status === "ready") return "All items are ready";
+  if (order.status === "picked-up") return "Picked up by waiter, ready to serve";
   if (order.status === "served") return order.paymentStatusLabel.toLowerCase().includes("paid") ? "Served, ready to complete" : "Served, bill pending";
   return order.kitchenStatus;
 }
@@ -1873,6 +1880,7 @@ function ownerAccordionAccent(order: ActiveOpsOrder) {
   if (order.delay?.priority === "critical" || order.delay?.priority === "high") return "red";
   if (order.delay?.delayed) return "amber";
   if (order.status === "ready") return "emerald";
+  if (order.status === "picked-up") return "blue";
   if (order.status === "served") return "violet";
   if (order.status === "new" || order.status === "occupied") return "orange";
   if (["accepted", "preparing"].includes(order.status)) return "blue";
@@ -1905,7 +1913,9 @@ function ownerDelayLevel(priority?: DelayPriority, lateMinutes = 0): OrderDelayL
 }
 
 function ownerStatusTone(status: string): OrderBadgeTone {
-  if (status === "ready" || status === "served" || status === "delivered") return "success";
+  if (status === "ready" || status === "delivered") return "success";
+  if (status === "picked-up") return "info";
+  if (status === "served") return "violet";
   if (status === "new" || status === "occupied") return "warning";
   if (status === "cancelled" || status === "rejected") return "danger";
   if (status === "completed") return "muted";
@@ -1938,6 +1948,7 @@ function orderStatusToast(status: OrderStatus | TableOrderStatus) {
   if (status === "accepted") return "Order accepted.";
   if (status === "preparing") return "Cooking started.";
   if (status === "ready") return "Order ready.";
+  if (status === "picked-up") return "Order picked up for service.";
   if (status === "delivered" || status === "completed") return "Order completed.";
   if (status === "rejected" || status === "cancelled") return "Order cancelled.";
   return `Order moved to ${status}.`;

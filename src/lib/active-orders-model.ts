@@ -121,6 +121,7 @@ export function isActiveDemoOrder(order: DemoOrder) {
 export function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] {
   if (status === "accepted") return "accepted";
   if (status === "preparing") return "preparing";
+  if (status === "picked-up") return "picked-up";
   if (status === "ready") return "ready";
   if (status === "served") return "served";
   if (status === "completed" || status === "delivered") return "completed";
@@ -130,6 +131,7 @@ export function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["st
 
 export function serviceStatusForKitchenOrder(kitchenStatus: TableOrder["status"], orderStatus?: DemoOrder["status"], mergedIntoOrderId?: string): TableOrder["status"] {
   if (mergedIntoOrderId && !["completed", "cancelled", "billed"].includes(kitchenStatus)) return kitchenStatus;
+  if (orderStatus === "picked-up") return "picked-up";
   if (orderStatus === "served") return "served";
   if (orderStatus === "completed" || orderStatus === "delivered") return "completed";
   if (orderStatus === "cancelled" || orderStatus === "rejected") return "cancelled";
