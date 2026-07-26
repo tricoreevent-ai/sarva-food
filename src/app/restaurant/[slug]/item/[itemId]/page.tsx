@@ -1,4 +1,5 @@
 import { FoodItemDetailFlow } from "@/components/flows/food-item-detail-flow";
+import { CustomerShell } from "@/components/layout/customer-shell";
 import { APP_NAME } from "@/lib/constants";
 
 export async function generateMetadata({
@@ -25,11 +26,13 @@ export default async function FoodItemPage({
   const { source, offer } = await searchParams;
 
   return (
-    <FoodItemDetailFlow
-      restaurantSlug={slug}
-      itemId={itemId}
-      source={source}
-      offerCode={offer}
-    />
+    <CustomerShell>
+      <FoodItemDetailFlow
+        restaurantSlug={slug}
+        itemId={itemId}
+        source={source}
+        offerCode={offer}
+      />
+    </CustomerShell>
   );
 }

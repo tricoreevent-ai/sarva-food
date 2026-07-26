@@ -30,7 +30,6 @@ import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { CartDrawer } from "@/components/commerce/cart-drawer";
 import { OfferBadge } from "@/components/commerce/offer-badge";
 import { EmptyStateCard } from "@/components/layout/empty-state";
-import { CustomerShell } from "@/components/layout/customer-shell";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { RetryState, SkeletonGrid } from "@/components/state/page-state";
 import { Badge } from "@/components/ui/badge";
@@ -212,166 +211,156 @@ export function FoodItemDetailFlow({
 
   if (restaurantStatus === "loading" || menuStatus === "loading") {
     return (
-      <CustomerShell>
-        <main className="container-page py-6">
-          <SkeletonGrid count={4} />
-        </main>
-      </CustomerShell>
+      <main className="container-page py-6">
+        <SkeletonGrid count={4} />
+      </main>
     );
   }
 
   if (restaurantStatus === "error") {
     return (
-      <CustomerShell>
-        <main className="container-page py-6">
-          <RetryState onRetry={retryRestaurant} />
-        </main>
-      </CustomerShell>
+      <main className="container-page py-6">
+        <RetryState onRetry={retryRestaurant} />
+      </main>
     );
   }
 
   if (menuStatus === "error") {
     return (
-      <CustomerShell>
-        <main className="container-page py-6">
-          <RetryState onRetry={retryMenu} />
-        </main>
-      </CustomerShell>
+      <main className="container-page py-6">
+        <RetryState onRetry={retryMenu} />
+      </main>
     );
   }
 
   if (!activeRestaurant || !activeItem) {
     return (
-      <CustomerShell>
-        <main className="container-page py-6">
-          <EmptyStateCard
-            title="Item is not available"
-            description="This menu item was not found in the active owner menu or is not currently orderable."
-            actionLabel="Browse menu"
-            actionHref={activeRestaurant ? `/restaurant/${activeRestaurant.slug}/menu` : "/restaurants"}
-          />
-        </main>
-      </CustomerShell>
+      <main className="container-page py-6">
+        <EmptyStateCard
+          title="Item is not available"
+          description="This menu item was not found in the active owner menu or is not currently orderable."
+          actionLabel="Browse menu"
+          actionHref={activeRestaurant ? `/restaurant/${activeRestaurant.slug}/menu` : "/restaurants"}
+        />
+      </main>
     );
   }
 
   return (
-    <CustomerShell>
-      <main className="bg-[#fffaf7] pb-40 text-slate-950 md:pb-10">
-        <MobileItemBar
-          item={activeItem}
-          favorite={favorite}
-          onBack={() => router.back()}
-          onShare={shareItem}
-          onFavorite={() => setFavorite((value) => !value)}
-        />
+    <main className="bg-[#fffaf7] pb-40 text-slate-950 md:pb-10">
+      <MobileItemBar
+        item={activeItem}
+        favorite={favorite}
+        onBack={() => router.back()}
+        onShare={shareItem}
+        onFavorite={() => setFavorite((value) => !value)}
+      />
 
-        <div className="container-page hidden py-5 md:block">
-          <nav className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-            <Link href="/" className="hover:text-primary">Home</Link>
-            <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
-            <Link href={ROUTES.restaurant(activeRestaurant.slug)} className="hover:text-primary">
-              {activeRestaurant.name}
-            </Link>
-            <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
-            <Link href={ROUTES.menu(activeRestaurant.slug)} className="hover:text-primary">
-              {activeItem.category}
-            </Link>
-            <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
-            <span className="text-primary">{activeItem.name}</span>
-          </nav>
-        </div>
+      <div className="container-page hidden py-5 md:block">
+        <nav className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+          <Link href="/" className="hover:text-primary">Home</Link>
+          <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+          <Link href={ROUTES.restaurant(activeRestaurant.slug)} className="hover:text-primary">
+            {activeRestaurant.name}
+          </Link>
+          <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+          <Link href={ROUTES.menu(activeRestaurant.slug)} className="hover:text-primary">
+            {activeItem.category}
+          </Link>
+          <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+          <span className="text-primary">{activeItem.name}</span>
+        </nav>
+      </div>
 
-        <div className="container-page grid gap-5 px-0 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="space-y-5">
-            <div className="grid gap-5 bg-white md:rounded-2xl md:border md:border-orange-100 md:bg-transparent lg:grid-cols-[minmax(360px,520px)_minmax(0,1fr)]">
-              <ImageGallery
-                itemName={activeItem.name}
-                images={galleryImages}
-                selectedImage={selectedImage}
-                selectedIndex={selectedImageIndex}
-                onSelect={selectImage}
-              />
+      <div className="container-page grid gap-5 px-0 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_390px]">
+        <section className="space-y-5">
+          <div className="grid gap-5 bg-white md:rounded-2xl md:border md:border-orange-100 md:bg-transparent lg:grid-cols-[minmax(360px,520px)_minmax(0,1fr)]">
+            <ImageGallery
+              itemName={activeItem.name}
+              images={galleryImages}
+              selectedImage={selectedImage}
+              selectedIndex={selectedImageIndex}
+              onSelect={selectImage}
+            />
 
-              <DishSummary
-                restaurant={activeRestaurant}
-                item={activeItem}
-                ratingValue={ratingValue}
-                reviewCount={reviewCount}
-                source={source}
-                onShare={shareItem}
-                favorite={favorite}
-                onFavorite={() => setFavorite((value) => !value)}
-                price={basePrice}
-              />
-            </div>
+            <DishSummary
+              restaurant={activeRestaurant}
+              item={activeItem}
+              ratingValue={ratingValue}
+              reviewCount={reviewCount}
+              source={source}
+              onShare={shareItem}
+              favorite={favorite}
+              onFavorite={() => setFavorite((value) => !value)}
+              price={basePrice}
+            />
+          </div>
 
-            <div className="grid gap-5 px-4 md:px-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
-              <AboutDish item={activeItem} />
-              <CustomizeDish
-                modifierOptions={modifierOptions}
-                addOnOptions={addOnOptions}
-                selectedModifierId={selectedModifierId}
-                selectedAddOnIds={selectedAddOnIds}
-                onModifierChange={(id) => setModifierSelection({ itemId: currentItemId, id })}
-                onAddOnToggle={toggleAddOn}
-              />
-            </div>
+          <div className="grid gap-5 px-4 md:px-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+            <AboutDish item={activeItem} />
+            <CustomizeDish
+              modifierOptions={modifierOptions}
+              addOnOptions={addOnOptions}
+              selectedModifierId={selectedModifierId}
+              selectedAddOnIds={selectedAddOnIds}
+              onModifierChange={(id) => setModifierSelection({ itemId: currentItemId, id })}
+              onAddOnToggle={toggleAddOn}
+            />
+          </div>
 
-            <div className="grid gap-5 px-4 md:px-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
-              <Allergens item={activeItem} />
-              <DishInformation item={activeItem} restaurant={activeRestaurant} />
-            </div>
+          <div className="grid gap-5 px-4 md:px-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+            <Allergens item={activeItem} />
+            <DishInformation item={activeItem} restaurant={activeRestaurant} />
+          </div>
 
-            <div className="grid gap-5 px-4 md:px-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.95fr)]">
-              <CustomerReviews reviews={reviews} ratingValue={ratingValue} reviewCount={reviewCount} />
-              <RecommendedItems restaurant={activeRestaurant} items={relatedItems} />
-            </div>
-          </section>
+          <div className="grid gap-5 px-4 md:px-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.95fr)]">
+            <CustomerReviews reviews={reviews} ratingValue={ratingValue} reviewCount={reviewCount} />
+            <RecommendedItems restaurant={activeRestaurant} items={relatedItems} />
+          </div>
+        </section>
 
-          <aside className="hidden lg:block">
-            <div className="sticky top-24 space-y-4">
-              <OrderPanel
-                item={activeItem}
-                restaurant={activeRestaurant}
-                quantity={quantity}
-                itemTotal={itemTotal}
-                unitPrice={unitPrice}
-                hasCustomization={hasCustomization}
-                activeOffer={activeOffer}
-                cartQuantity={cartQuantity}
-                onQuantityChange={changeQuantity}
-                onAddToCart={addSelectionToCart}
-                onOrderNow={orderNow}
-                onScheduleOrder={scheduleOrder}
-              />
-              <TrustPanel restaurant={activeRestaurant} item={activeItem} />
-            </div>
-          </aside>
-        </div>
+        <aside className="hidden lg:block">
+          <div className="sticky top-24 space-y-4">
+            <OrderPanel
+              item={activeItem}
+              restaurant={activeRestaurant}
+              quantity={quantity}
+              itemTotal={itemTotal}
+              unitPrice={unitPrice}
+              hasCustomization={hasCustomization}
+              activeOffer={activeOffer}
+              cartQuantity={cartQuantity}
+              onQuantityChange={changeQuantity}
+              onAddToCart={addSelectionToCart}
+              onOrderNow={orderNow}
+              onScheduleOrder={scheduleOrder}
+            />
+            <TrustPanel restaurant={activeRestaurant} item={activeItem} />
+          </div>
+        </aside>
+      </div>
 
-        <MobileOrderBar
-          item={activeItem}
-          quantity={quantity}
-          itemTotal={itemTotal}
-          cartQuantity={cartQuantity}
-          onQuantityChange={changeQuantity}
-          onAddToCart={addSelectionToCart}
-          onScheduleOrder={scheduleOrder}
-        />
-        <WhatsAppShareModal
-          preview={whatsappShare.preview}
-          open={Boolean(whatsappShare.preview) || whatsappShare.isPreparing}
-          preparing={whatsappShare.isPreparing}
-          onOpenChange={(open) => {
-            if (!open) whatsappShare.closeShare();
-          }}
-          onCopy={() => void whatsappShare.copyMessage()}
-          onWhatsApp={whatsappShare.openWhatsApp}
-          onChannel={whatsappShare.openChannel}
-        />
-      </main>
-    </CustomerShell>
+      <MobileOrderBar
+        item={activeItem}
+        quantity={quantity}
+        itemTotal={itemTotal}
+        cartQuantity={cartQuantity}
+        onQuantityChange={changeQuantity}
+        onAddToCart={addSelectionToCart}
+        onScheduleOrder={scheduleOrder}
+      />
+      <WhatsAppShareModal
+        preview={whatsappShare.preview}
+        open={Boolean(whatsappShare.preview) || whatsappShare.isPreparing}
+        preparing={whatsappShare.isPreparing}
+        onOpenChange={(open) => {
+          if (!open) whatsappShare.closeShare();
+        }}
+        onCopy={() => void whatsappShare.copyMessage()}
+        onWhatsApp={whatsappShare.openWhatsApp}
+        onChannel={whatsappShare.openChannel}
+      />
+    </main>
   );
 }
 
