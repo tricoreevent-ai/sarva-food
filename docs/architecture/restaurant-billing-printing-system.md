@@ -53,7 +53,7 @@ Firestore-ready collections:
 - `paymentTransactions`
 - `kotPrintQueue`
 
-All documents are branch-aware and typed through Firebase converters. Print logs capture timestamp, cashier/user, branch, printer profile, reference ID, duplicate/reprint state, and print status.
+All documents are branch-aware and typed through Firebase converters. Print logs capture timestamp, cashier/user, branch, printer profile, source document id, duplicate/reprint state, and print status.
 
 ## Thermal Optimization Strategy
 

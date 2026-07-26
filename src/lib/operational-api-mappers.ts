@@ -243,7 +243,7 @@ function paymentStatus(value: string): TableOrder["paymentStatus"] {
 }
 
 function sourceFor(value: string): TableOrder["source"] {
-  return ["QR", "Waiter", "POS", "Takeaway", "Parcel", "Delivery"].includes(value) ? value as TableOrder["source"] : "POS";
+  return ["QR", "Waiter", "POS", "Takeaway", "Parcel", "Delivery", "Website", "Instagram", "WhatsApp", "Catering", "Swiggy", "Zomato", "Magicpin", "ONDC"].includes(value) ? value as TableOrder["source"] : "POS";
 }
 
 function labelForOrderType(value: string) {

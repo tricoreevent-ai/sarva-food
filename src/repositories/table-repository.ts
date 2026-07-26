@@ -493,7 +493,7 @@ function normalizeStatus(value?: string) {
   if (value === "Reserved") return "reserved";
   if (value === "Cleaning") return "cleaning";
   if (value === "Inactive") return "inactive";
-  if (["occupied", "preparing", "ready", "served", "completed", "billed", "reserved", "cleaning", "inactive"].includes(value ?? "")) return value;
+  if (["occupied", "preparing", "ready", "picked-up", "served", "completed", "billed", "reserved", "cleaning", "inactive"].includes(value ?? "")) return value;
   return "vacant";
 }
 

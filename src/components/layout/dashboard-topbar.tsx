@@ -1152,7 +1152,7 @@ function buildNotifications(input: {
     });
 
   input.tableOrders
-    .filter((order) => order.status === "ready" || order.status === "served")
+    .filter((order) => order.status === "ready" || order.status === "picked-up" || order.status === "served")
     .slice(0, 6)
     .forEach((order) => {
       notifications.push({
@@ -1160,7 +1160,7 @@ function buildNotifications(input: {
         group: "Kitchen",
         title: `${readableTableOrderId(order)} is ${order.status}`,
         description: `${order.tableNumber} · ${order.customerName || order.guestName || "Walk-in"} · ${formatCurrency(order.total ?? 0)}`,
-        priority: order.status === "ready" ? "critical" : "normal",
+        priority: order.status === "ready" ? "critical" : order.status === "picked-up" ? "medium" : "normal",
         href: `/owner/kitchen?search=${encodeURIComponent(readableTableOrderId(order))}`,
         createdAt: order.createdAt,
       });

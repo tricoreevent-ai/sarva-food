@@ -759,6 +759,7 @@ export class OrderRepository {
       if (refundAmount <= 0) throw new Error("A valid refund amount is required.");
       const paidTotal = Math.max(0, previousPaid - refundAmount);
       nextStatus = paidTotal <= 0 ? "refunded" : "partial";
+      const tipRefundAmount = nextStatus === "refunded" ? money(Number(order.tipAmount ?? 0)) : 0;
       const gatewayDetails = {
         provider: input.provider,
         providerPaymentId: input.providerPaymentId,
@@ -772,6 +773,11 @@ export class OrderRepository {
       const patch = {
         paymentStatus: nextStatus,
         paidAmount: paidTotal,
+        ...(tipRefundAmount > 0 ? {
+          tipAmount: 0,
+          tipRefundedAmount: money(Number((order as OrderDoc & { tipRefundedAmount?: number }).tipRefundedAmount ?? 0) + tipRefundAmount),
+          tipRefundedAt: now,
+        } : {}),
         paymentTimeline: FieldValue.arrayUnion(entry),
         auditTimeline: FieldValue.arrayUnion(audit),
         statusHistory: FieldValue.arrayUnion({ event: "refund", paymentStatus: nextStatus, at: now, by: input.cashierId ?? scope.uid }),
@@ -794,6 +800,7 @@ export class OrderRepository {
         reference: input.reference ?? "",
         cashierId: input.cashierId ?? scope.uid ?? "",
         status: "refunded",
+        tipAmount: tipRefundAmount,
         provider: input.provider,
         providerPaymentId: input.providerPaymentId,
         providerOrderId: input.providerOrderId,
@@ -814,6 +821,23 @@ export class OrderRepository {
         actorId: input.cashierId ?? scope.uid ?? "",
         notes: `Refund for ${order.invoiceNumber ?? input.orderId}`,
       });
+      if (tipRefundAmount > 0) {
+        writeAccountingEntry(transaction, scope, {
+          id: `tip-refund-${paymentRef.id}`,
+          order,
+          paymentTransactionId: paymentRef.id,
+          type: "liability",
+          category: "waiter tips payable reversal",
+          amount: -tipRefundAmount,
+          gst: 0,
+          paymentMode: (order as OrderDoc & { tipMethod?: string }).tipMethod ?? input.method,
+          actorId: input.cashierId ?? scope.uid ?? "",
+          notes: `Tip reversed for ${order.invoiceNumber ?? input.orderId}`,
+          waiterId: (order as OrderDoc & { tipWaiterId?: string }).tipWaiterId,
+          waiterName: (order as OrderDoc & { tipWaiterName?: string }).tipWaiterName,
+          excludeFromRevenue: true,
+        });
+      }
       writeAudit(transaction, scope, { userId: input.cashierId ?? scope.uid, role: input.role, action: "refund", entityId: input.orderId, after: audit, device: input.device });
       writeNotification(transaction, scope, { type: "payment", title: "Refund recorded", message: `Refund of ₹${refundAmount} recorded.`, priority: "high", orderId: input.orderId, kitchenOrderId: input.kitchenOrderId });
     });

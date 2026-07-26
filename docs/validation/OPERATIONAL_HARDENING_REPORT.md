@@ -1,8 +1,8 @@
 # RC5 Operational Hardening Automation
 
-Generated: 2026-07-26T13:14:55.965Z
+Generated: 2026-07-26T13:44:52.495Z
 
-Result: PASS — 47/47 checks passed.
+Result: PASS — 49/49 checks passed.
 
 | Check | Status | Detail |
 | --- | --- | --- |
@@ -34,6 +34,8 @@ Result: PASS — 47/47 checks passed.
 | kitchen:rbac-bootstrap-without-tables | PASS |  |
 | live-data:owner-dashboard-orders-kitchen-consistency | PASS |  |
 | reports:live-operational-sync | PASS |  |
+| owner-orders:restaurant-operational-tabs | PASS |  |
+| accounting:tip-refund-reversal | PASS |  |
 | orders:restaurant-sequential-numbering | PASS |  |
 | kitchen:add-on-ticket-idempotency | PASS |  |
 | active-orders:dense-memoized-layout | PASS |  |

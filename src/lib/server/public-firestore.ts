@@ -162,7 +162,7 @@ async function runPublicFirestoreQuery<T extends { id: string }>(
 
   const errorRow = payload.find((row) => row.error);
   if (errorRow?.error) {
-    throw new Error(`Public Firestore REST query failed for ${collectionId}: ${errorRow.error.message ?? errorRow.error.status ?? "unknown error"}`);
+    throw new Error(`Public Firestore REST query failed for ${collectionId}: ${errorRow.error.message ?? errorRow.error.status ?? "no provider detail"}`);
   }
 
   return payload

@@ -78,7 +78,7 @@ export function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
     canonicalStatus: order.status,
     hasKitchenTicket: false,
     tableNumber: extended.tableNumber || (order.fulfillmentType === "dine-in" ? "Dine-in" : order.fulfillmentType === "delivery" ? "Online" : "Parcel"),
-    source: order.channel === "QR" ? "QR" : order.fulfillmentType === "delivery" ? "Delivery" : order.fulfillmentType === "parcel" ? "Parcel" : "POS",
+    source: order.channel === "QR" ? "QR" : order.channel === "Web" ? "Website" : order.channel === "Catering" ? "Catering" : order.channel,
     orderType,
     customerName: order.customer.name,
     customerPhone: order.customer.phone,

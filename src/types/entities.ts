@@ -924,7 +924,7 @@ export type TableOrder = {
   invoiceNumber?: string;
   billNumber?: string;
   tableNumber: string;
-  source: "QR" | "Waiter" | "POS" | "Takeaway" | "Parcel" | "Delivery";
+  source: "QR" | "Waiter" | "POS" | "Takeaway" | "Parcel" | "Delivery" | "Website" | "Instagram" | "WhatsApp" | "Catering" | "Swiggy" | "Zomato" | "Magicpin" | "ONDC";
   orderType?: PosOrderType;
   guestName?: string;
   customerName?: string;

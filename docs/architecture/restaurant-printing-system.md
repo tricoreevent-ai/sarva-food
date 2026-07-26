@@ -66,4 +66,4 @@ Firestore-ready collections:
 - `receipts`
 - `kotPrintQueue`
 
-Print logs track timestamp, user, branch, printer used, reference ID, print type, status, duplicate flag, failed prints, and reprints. Receipts are ready to feed accounting reports, GST reports, sales journal, reconciliation, cashier closing, and audit logs.
+Print logs track timestamp, user, branch, printer used, source document id, print type, status, duplicate flag, failed prints, and reprints. Receipts are ready to feed accounting reports, GST reports, sales journal, reconciliation, cashier closing, and audit logs.

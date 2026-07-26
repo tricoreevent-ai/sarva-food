@@ -2649,7 +2649,7 @@ Kitchen workflow coverage:
 | Workflow | Result |
 | --- | --- |
 | Order Intake | Existing owner Kitchen API and SSE paths are reused; no new API or collection was added. |
-| Status Lifecycle | New, accepted, preparing, ready, served, completed, billed, and cancelled states render explicitly. |
+| Status Lifecycle | New, accepted, preparing, ready, picked-up, served, completed, billed, and cancelled states render explicitly. |
 | Bulk Operations | Non-destructive ready/serve actions run directly; complete/cancel require confirmation. |
 | KOT | Existing print/reprint/logging flow is preserved with safe preview and error handling. |
 | Sound | Alerts are one-time per new order after initial load and respect the mute toggle. |
@@ -3469,7 +3469,7 @@ Manual smoke results still required:
 | Area | Required Manual Result |
 | --- | --- |
 | Owner Active Orders | New online order alert, sound, highlight, accept, staged reject, reason-required reject, and active-card updates on authenticated owner session. |
-| Kitchen Lifecycle | Customer order to owner to kitchen to preparing to ready to served/completed with realtime updates and existing KOT print path. |
+| Kitchen Lifecycle | Customer order to owner to kitchen to preparing to ready to waiter pickup to served/completed with realtime updates and existing KOT print path. |
 | POS Channels | Dine-in, parcel, delivery, QR orders, and online orders through real operator workflow. |
 | Printers | Kitchen printer, owner printer, customer receipt, no duplicate prints, and no missing tickets. |
 | Notifications | New order, accepted, ready, completed, rejected; no duplicate or missing notifications. |

@@ -182,7 +182,7 @@ function timed(fn, iterations = 1) {
 }
 
 function makeKitchenOrders(total = 100) {
-  const statuses = ["new", "accepted", "preparing", "ready", "served"];
+  const statuses = ["new", "accepted", "preparing", "ready", "picked-up", "served"];
   const sources = ["POS", "Waiter", "QR", "Parcel", "Delivery"];
   return Array.from({ length: total }, (_, index) => ({
     id: `kot-${index + 1}`,
@@ -242,7 +242,7 @@ function runStress() {
       groups.all += 1;
       if (["new", "accepted", "preparing"].includes(order.status)) groups.operations += 1;
       if (order.source === "Waiter") groups.waiter += 1;
-      if (["ready", "served"].includes(order.status)) groups.cashier += 1;
+      if (["ready", "picked-up", "served"].includes(order.status)) groups.cashier += 1;
       return groups;
     }, { all: 0, operations: 0, waiter: 0, cashier: 0 });
   }, 200);

@@ -348,6 +348,16 @@ await check("reports:live-operational-sync", () => {
   for (const token of ["requireOwnerFeature(request, \"reports\", \"read\")", "snapshot.docChanges()", "ordersUpsert", "orderIdsRemoved"]) assert.ok(reportsStreamApi.includes(token), token);
 });
 
+await check("owner-orders:restaurant-operational-tabs", () => {
+  for (const token of ["Needs Acceptance", "Kitchen Queue", "Ready for Pickup", "Pending Payment", "Critical Delay", "Service Requests", "MagicPin", "ONDC", "completed", "matchesOperationalTab"]) assert.ok(ownerOrders.includes(token), token);
+  assert.ok(ownerOrders.includes('const [tab, setTab] = useState<OrderTab>("needs-acceptance")'));
+  assert.ok(ownerOrders.includes('Object.fromEntries(orderTabs.map'));
+});
+
+await check("accounting:tip-refund-reversal", () => {
+  for (const token of ["tipRefundAmount", "tipRefundedAmount", "tip-refund-${paymentRef.id}", "waiter tips payable reversal", "excludeFromRevenue: true"]) assert.ok(orderRepository.includes(token), token);
+});
+
 await check("orders:restaurant-sequential-numbering", () => {
   for (const token of ["restaurantCounters", "posOrderSequence", "nextOrderNumber", "withSequentialOrderNumber", "orderSequencePatch", "transaction.set(kitchenRef", "displayOrderNumber: orderNumber"]) assert.ok(orderRepository.includes(token), token);
   assert.ok(orderDisplay.includes('return `#${text.slice(1).padStart(4, "0")}`'));

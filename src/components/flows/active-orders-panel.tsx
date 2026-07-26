@@ -458,7 +458,7 @@ export function ActiveOrdersPanel({
       handlers.onNotifyWaiter(order);
     } else if (action === "payment") handlers.onCollectPayment(order);
     else if (action === "print") {
-      if (["ready", "served"].includes(order.status) || order.paymentStatus === "paid") handlers.onPrintBill(order);
+      if (["ready", "picked-up", "served"].includes(order.status) || order.paymentStatus === "paid") handlers.onPrintBill(order);
       else handlers.onPrintKot(order);
     } else if (action === "preview") {
       markSeen(order.id);

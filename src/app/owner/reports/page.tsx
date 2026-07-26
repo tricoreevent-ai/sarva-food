@@ -30,6 +30,8 @@ type Order = {
   tipAmount?: number;
   tipMethod?: string;
   tipWaiterName?: string;
+  payment?: string;
+  cashierName?: string;
   totals?: { subtotal?: number; discount?: number; tax?: number; total?: number };
   paymentStatus?: string;
   lines?: unknown[];
@@ -37,9 +39,9 @@ type Order = {
 type Analytics = { revenue: number; grossRevenue?: number; netRevenue?: number; tips?: number; tax: number; pendingPayments?: number; discounts?: number; refunds?: number; orderCount: number; billableOrderCount: number; customerCount: number; loyaltyCount: number; orders: Order[] };
 type ReportStreamPayload = { orders?: Order[]; ordersUpsert?: Order[]; orderIdsRemoved?: string[] };
 type Preset = "today" | "last7" | "last30";
-type Filters = { status: string; payment: string; channel: string; waiter: string; search: string };
+type Filters = { status: string; payment: string; channel: string; waiter: string; method: string; tip: string; amountMin: string; amountMax: string; search: string };
 
-const defaultFilters: Filters = { status: "all", payment: "all", channel: "all", waiter: "all", search: "" };
+const defaultFilters: Filters = { status: "all", payment: "all", channel: "all", waiter: "all", method: "all", tip: "all", amountMin: "", amountMax: "", search: "" };
 
 export default function OwnerReportsPage() {
   const [preset, setPreset] = useState<Preset>("last30");
@@ -120,11 +122,15 @@ export default function OwnerReportsPage() {
   return (
     <div className="space-y-6">
       <SectionHeader title="Restaurant Reports" description="Revenue is based on collected payments. Tips are separated from restaurant revenue." action={<div className="flex gap-2"><Button variant="outline" onClick={() => window.print()}><Printer className="size-4" />Print</Button><Button variant="outline" onClick={() => exportRows(rows)}><FileSpreadsheet className="size-4" />CSV</Button></div>} />
-      <Card><CardContent className="grid gap-3 p-4 lg:grid-cols-[auto_repeat(4,minmax(0,1fr))]">
+      <Card><CardContent className="grid gap-3 p-4 lg:grid-cols-[auto_repeat(7,minmax(0,1fr))]">
         <div className="flex flex-wrap gap-2">{(["today", "last7", "last30"] as Preset[]).map((value) => <Button key={value} size="sm" variant={preset === value ? "default" : "outline"} onClick={() => setPreset(value)}>{value === "today" ? "Today" : value === "last7" ? "Last 7 days" : "Last 30 days"}</Button>)}</div>
         <FilterSelect label="Status" value={filters.status} values={["all", "new", "accepted", "preparing", "ready", "picked-up", "served", "completed", "cancelled", "rejected"]} onChange={(status) => setFilters((current) => ({ ...current, status }))} />
         <FilterSelect label="Payment" value={filters.payment} values={["all", "pending", "partial", "paid", "refunded"]} onChange={(payment) => setFilters((current) => ({ ...current, payment }))} />
+        <FilterSelect label="Method" value={filters.method} values={["all", "cash", "upi", "card", "razorpay", "cod", "credit"]} onChange={(method) => setFilters((current) => ({ ...current, method }))} />
         <FilterSelect label="Channel" value={filters.channel} values={["all", "delivery", "parcel", "dine-in", "pos", "web", "qr", "swiggy", "zomato", "magicpin", "ondc"]} onChange={(channel) => setFilters((current) => ({ ...current, channel }))} />
+        <FilterSelect label="Tip" value={filters.tip} values={["all", "with-tip", "no-tip"]} onChange={(tip) => setFilters((current) => ({ ...current, tip }))} />
+        <input className="h-10 rounded-xl border px-3 text-sm font-semibold" inputMode="decimal" value={filters.amountMin} onChange={(event) => setFilters((current) => ({ ...current, amountMin: event.target.value }))} placeholder="Min amount" />
+        <input className="h-10 rounded-xl border px-3 text-sm font-semibold" inputMode="decimal" value={filters.amountMax} onChange={(event) => setFilters((current) => ({ ...current, amountMax: event.target.value }))} placeholder="Max amount" />
         <input className="h-10 rounded-xl border px-3 text-sm font-semibold" value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search order, customer, waiter, table" />
       </CardContent></Card>
       {error ? <Card><CardContent className="p-5 text-sm font-semibold text-destructive">{error}</CardContent></Card> : null}
@@ -172,12 +178,18 @@ function reportOrderFromLive(order: Order): Order {
 
 function filteredOrders(orders: Order[], filters: Filters) {
   const search = filters.search.trim().toLowerCase();
+  const min = Number(filters.amountMin);
+  const max = Number(filters.amountMax);
   return orders
     .filter((order) => filters.status === "all" || String(order.status ?? "") === filters.status)
     .filter((order) => filters.payment === "all" || String(order.paymentStatus ?? "pending") === filters.payment)
+    .filter((order) => filters.method === "all" || String(order.payment ?? "").toLowerCase() === filters.method || String(order.tipMethod ?? "").toLowerCase() === filters.method)
     .filter((order) => filters.channel === "all" || [order.fulfillmentType, order.orderType, order.channel].some((value) => String(value ?? "").toLowerCase() === filters.channel))
+    .filter((order) => filters.tip === "all" || (filters.tip === "with-tip" ? tipAmount(order) > 0 : tipAmount(order) <= 0))
+    .filter((order) => !Number.isFinite(min) || paidAmount(order) >= min)
+    .filter((order) => !Number.isFinite(max) || paidAmount(order) <= max)
     .filter((order) => filters.waiter === "all" || String(order.waiterName ?? order.tipWaiterName ?? "unassigned").toLowerCase().includes(filters.waiter))
-    .filter((order) => !search || [order.id, order.customerName, order.customerPhone, order.waiterName, order.tipWaiterName, order.tableNumber, order.status, order.paymentStatus].some((value) => String(value ?? "").toLowerCase().includes(search)));
+    .filter((order) => !search || [order.id, order.customerName, order.customerPhone, order.waiterName, order.tipWaiterName, order.cashierName, order.tableNumber, order.status, order.paymentStatus].some((value) => String(value ?? "").toLowerCase().includes(search)));
 }
 
 function summarizeReports(current: Analytics, orders: Order[]): Analytics {

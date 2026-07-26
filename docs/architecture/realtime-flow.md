@@ -39,7 +39,7 @@ Linked documents are joined by `orders.kitchenOrderId === kitchenOrders.id`. UI 
 ## Transition Ownership
 
 - Kitchen owns `new -> accepted -> preparing -> ready` on `kitchenOrders`.
-- Waiter/POS/Owner service actions own `ready -> served -> completed` through `/api/owner/orders`.
+- Waiter/POS/Owner service actions own `ready -> picked-up -> served -> completed` through `/api/owner/orders`.
 - Cashier/Owner payment actions update `orders` payment state and sync payment status to linked `kitchenOrders`.
 - Completion requires the order service state and payment state to satisfy the state machine; Kitchen does not complete service.
 

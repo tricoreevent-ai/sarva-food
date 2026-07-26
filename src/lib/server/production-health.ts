@@ -18,7 +18,7 @@ export const healthHeaders = {
   "Surrogate-Control": "no-store",
 };
 
-const activeKitchenStatuses = new Set(["new", "accepted", "preparing", "ready", "served"]);
+const activeKitchenStatuses = new Set(["new", "accepted", "preparing", "ready", "picked-up", "served"]);
 
 export async function buildHealthSnapshot(kind: HealthCheckKind) {
   const started = performance.now();

@@ -1,6 +1,6 @@
 # Final Performance Report
 
-Date: 2026-07-26T13:15:01.436Z
+Date: 2026-07-26T13:44:52.351Z
 
 This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, owner login UX, Kitchen History enterprise table, image delivery, observability, and push/payment readiness measurements. Firestore collections, auth flows, and provider contracts remain backward compatible.
 
@@ -25,7 +25,7 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 | /orders | 20 | 523 KB | 199 KB | - | Tracked |
 | /profile | 24 | 563 KB | 199 KB | 250 KB | Over |
 | /owner | 28 | 609 KB | 199 KB | 350 KB | Over |
-| /owner/orders | 33 | 747 KB | 199 KB | 500 KB | Over |
+| /owner/orders | 33 | 749 KB | 199 KB | 500 KB | Over |
 | /owner/settings | 32 | 735 KB | 199 KB | 300 KB | Over |
 | /owner/kitchen | 31 | 714 KB | 199 KB | - | Tracked |
 | /owner/pos | 29 | 614 KB | 199 KB | 650 KB | Pass |
@@ -38,18 +38,18 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 | / | 465 KB | 250 KB | Over |
 | /profile | 563 KB | 250 KB | Over |
 | /owner | 609 KB | 350 KB | Over |
-| /owner/orders | 747 KB | 500 KB | Over |
+| /owner/orders | 749 KB | 500 KB | Over |
 | /owner/settings | 735 KB | 300 KB | Over |
 
 ## Stress Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.47ms | 0.92ms | 1.21ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.09ms | 0.39ms | <100ms update |
-| POS 1000-item category switch | 0.08ms | 0.15ms | 0.33ms | <50ms switch |
-| POS 1000-item search filter | 0.13ms | 0.22ms | 0.66ms | debounced |
-| Active Orders 100-order filter/group | 0.19ms | 0.28ms | 0.70ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.56ms | 1.09ms | 3.77ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.03ms | 0.06ms | 0.40ms | <100ms update |
+| POS 1000-item category switch | 0.09ms | 0.16ms | 0.40ms | <50ms switch |
+| POS 1000-item search filter | 0.15ms | 0.26ms | 1.17ms | debounced |
+| Active Orders 100-order filter/group | 0.23ms | 0.41ms | 0.79ms | <50ms interaction |
 
 ## Conclusion
 

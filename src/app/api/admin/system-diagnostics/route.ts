@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
   );
   const [tenantCount, openOrders, kitchenLoad, notificationQueueCount] = await Promise.all([
     readCount(db.collection(COLLECTIONS.restaurants)),
-    readCount(db.collection(COLLECTIONS.orders).where("status", "in", ["new", "accepted", "preparing", "ready", "served", "draft"])),
-    readCount(db.collection(COLLECTIONS.kitchenOrders).where("status", "in", ["new", "accepted", "preparing", "ready", "served"])),
+    readCount(db.collection(COLLECTIONS.orders).where("status", "in", ["new", "accepted", "preparing", "ready", "picked-up", "served", "draft"])),
+    readCount(db.collection(COLLECTIONS.kitchenOrders).where("status", "in", ["new", "accepted", "preparing", "ready", "picked-up", "served"])),
     readCount(db.collection(COLLECTIONS.notifications).where("read", "==", false)),
   ]);
 

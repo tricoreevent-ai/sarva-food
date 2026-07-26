@@ -447,7 +447,7 @@ function cleanNextFailureReason(output) {
 }
 
 function cleanErrorMessage(error) {
-  if (!error) return "unknown error";
+  if (!error) return "no error detail";
   if (error instanceof Error) return error.message.replace(/\s+/g, " ").trim();
   return String(error).replace(/\s+/g, " ").trim();
 }

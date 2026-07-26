@@ -422,7 +422,7 @@ The owner module enables restaurant operators to manage menus, orders, staff, op
 
 **Table Management** (`/owner/tables`)
 - Visual table grid/map display.
-- Table status tracking: vacant, occupied, preparing, ready, served, billed.
+- Table status tracking: vacant, occupied, preparing, ready, picked-up, served, billed.
 - Table capacity and seating configuration.
 - QR code generation per table.
 - Quick table status update.

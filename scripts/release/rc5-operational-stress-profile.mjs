@@ -25,7 +25,7 @@ const sources = {
 };
 
 const orders = Array.from({ length: orderCount }, (_, index) => {
-  const status = ["new", "accepted", "preparing", "ready", "served", "completed"][index % 6];
+  const status = ["new", "accepted", "preparing", "ready", "picked-up", "served", "completed"][index % 7];
   const paymentStatus = index % 5 === 0 ? "partial" : status === "completed" ? "paid" : "pending";
   return {
     id: `order-${index + 1}`,
@@ -87,7 +87,7 @@ function mergeLive(orderRows, kitchenRows) {
       return {
         ...ticket,
         canonicalOrderId: order?.id,
-        status: order?.status === "served" || order?.status === "completed" ? order.status : ticket.status,
+        status: order?.status === "picked-up" || order?.status === "served" || order?.status === "completed" ? order.status : ticket.status,
         paymentStatus: order?.paymentStatus ?? ticket.paymentStatus,
         total: order?.totals.total ?? ticket.total,
       };
@@ -111,7 +111,7 @@ function realtimeStress() {
   const latencies = [];
   for (let tick = 0; tick < ticks; tick += 1) {
     const index = tick % orderCount;
-    const changedOrder = { ...orders[index], status: ["accepted", "preparing", "ready", "served", "completed"][tick % 5], updatedAt: new Date(now + tick).toISOString() };
+    const changedOrder = { ...orders[index], status: ["accepted", "preparing", "ready", "picked-up", "served", "completed"][tick % 6], updatedAt: new Date(now + tick).toISOString() };
     const changedTicket = { ...kitchen[index], status: ["accepted", "preparing", "ready"][tick % 3], updatedAt: changedOrder.updatedAt };
     const started = performance.now();
     owner = patch(owner, undefined, [changedOrder], undefined);
@@ -133,7 +133,7 @@ function memoryStress() {
   const before = process.memoryUsage().heapUsed;
   let state = [];
   for (let tick = 0; tick < ticks; tick += 1) {
-    const batch = orders.slice(0, 40).map((order, index) => ({ ...order, status: ["new", "accepted", "preparing", "ready", "served"][index % 5], updatedAt: `${tick}:${index}` }));
+    const batch = orders.slice(0, 40).map((order, index) => ({ ...order, status: ["new", "accepted", "preparing", "ready", "picked-up", "served"][index % 6], updatedAt: `${tick}:${index}` }));
     state = patch(state, undefined, batch, tick % 17 === 0 ? [`order-${((tick / 17) | 0) + 1}`] : undefined).slice(0, orderCount);
   }
   const after = process.memoryUsage().heapUsed;

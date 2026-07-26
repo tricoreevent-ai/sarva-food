@@ -62,7 +62,7 @@
 - KDS no longer depends on seeded static kitchen tickets.
 - POS creates `kitchenOrders` through the ops service when Firebase auth is active.
 - KDS subscribes to live Firestore `kitchenOrders` for `new`, `preparing`, `ready`, and `served`.
-- Status flow is now `new -> preparing -> ready -> served -> completed`.
+- Status flow is now `new -> accepted -> preparing -> ready -> picked-up -> served -> completed`.
 - Local queue remains available only as an offline/development fallback.
 
 ## Firebase Fixes
