@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             for (const change of snapshot.docChanges()) {
               const order = { id: change.doc.id, ...change.doc.data() } as OrderDoc;
               if (change.type === "removed" || order.status === "draft") orderIdsRemoved.push(change.doc.id);
-              else ordersUpsert.push(orderDocToDemoOrder(order));
+              else ordersUpsert.push(reportOrderFromDoc(order));
             }
             send("state", { ordersUpsert, orderIdsRemoved, count: snapshot.size });
           },
@@ -59,4 +59,18 @@ export async function GET(request: NextRequest) {
       "x-accel-buffering": "no",
     },
   });
+}
+
+function reportOrderFromDoc(order: OrderDoc) {
+  return {
+    ...orderDocToDemoOrder(order),
+    paidAmount: (order as OrderDoc & { paidAmount?: number }).paidAmount,
+    tipAmount: (order as OrderDoc & { tipAmount?: number }).tipAmount,
+    tipMethod: (order as OrderDoc & { tipMethod?: string }).tipMethod,
+    tipWaiterId: (order as OrderDoc & { tipWaiterId?: string }).tipWaiterId,
+    tipWaiterName: (order as OrderDoc & { tipWaiterName?: string }).tipWaiterName,
+    waiterName: order.waiterName,
+    tableNumber: order.tableNumber,
+    orderType: order.orderType,
+  };
 }

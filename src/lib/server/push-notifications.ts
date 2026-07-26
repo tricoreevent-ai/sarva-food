@@ -22,6 +22,7 @@ export type PushNotificationInput = {
   kitchenOrderId?: string;
   link?: string;
   audience?: string[];
+  targetUserIds?: string[];
   sound?: string;
 };
 
@@ -150,6 +151,7 @@ export async function dispatchPendingTenantPushNotifications(scope: TenantScope,
         kitchenOrderId: typeof claimed.kitchenOrderId === "string" ? claimed.kitchenOrderId : undefined,
         link: typeof claimed.link === "string" ? claimed.link : undefined,
         audience: Array.isArray(claimed.audience) ? claimed.audience.map(String) : undefined,
+        targetUserIds: Array.isArray(claimed.targetUserIds) ? claimed.targetUserIds.map(String) : undefined,
         sound: typeof claimed.sound === "string" ? claimed.sound : undefined,
       });
     } catch (error) {
@@ -170,7 +172,7 @@ async function recoverFailedNotification(ref: DocumentReference, attempt: number
 
 export async function sendTenantPushNotification(scope: TenantScope, input: PushNotificationInput) {
   const notificationRef = input.notificationId ? adminDb().collection("notifications").doc(input.notificationId) : null;
-  const targets = await pushTargetsForTenant(scope, input.audience);
+  const targets = await pushTargetsForTenant(scope, input.audience, input.targetUserIds);
   if (!targets.length) {
     await notificationRef?.set({
       pushStatus: "no_tokens",
@@ -245,8 +247,9 @@ async function claimPendingNotification(ref: DocumentReference) {
   });
 }
 
-async function pushTargetsForTenant(scope: TenantScope, audience: string[] = ["owner", "manager", "cashier", "waiter", "kitchen"]) {
+async function pushTargetsForTenant(scope: TenantScope, audience: string[] = ["owner", "manager", "cashier", "waiter", "kitchen"], targetUserIds: string[] = []) {
   const ids = tenantAliases(scope.tenantId);
+  const targetSet = new Set(targetUserIds.filter(Boolean));
   const db = adminDb();
   const snapshots = await Promise.all([
     ...ids.map((id) => db.collection("users").where("tenantIds", "array-contains", id).limit(120).get()),
@@ -258,7 +261,8 @@ async function pushTargetsForTenant(scope: TenantScope, audience: string[] = ["o
       .flatMap((snapshot) => snapshot.docs)
       .map((doc) => [doc.id, { id: doc.id, ...doc.data() } as DocumentData & { id: string }]),
   ).values())
-    .filter((user) => user.active !== false && roleMatchesAudience(String(user.role ?? ""), audience));
+    .filter((user) => user.active !== false && roleMatchesAudience(String(user.role ?? ""), audience))
+    .filter((user) => !targetSet.size || targetSet.has(user.id));
 
   if (!users.length) return [];
 

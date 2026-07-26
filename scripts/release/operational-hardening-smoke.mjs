@@ -392,7 +392,7 @@ await check("kitchen:ready-signal-without-serving", () => {
   assert.ok(kitchen.includes('label: "Signal Ready"'));
   assert.ok(!kitchen.includes('ready: "served"'));
   assert.ok(kitchen.includes('/api/owner/kitchen/notify-waiter'));
-  for (const token of ["kitchen_ready_ops", 'audience: ["owner", "manager", "waiter"]', 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
+  for (const token of ["kitchen_ready_ops", 'audience: ["waiter"]', 'monitoringAudience: ["owner", "manager"]', "targetUserIds", 'action === "acknowledge"', 'action === "escalate"']) assert.ok(kitchenNotify.includes(token), token);
 });
 
 await check("rbac:waiter-serve-complete-without-bill-edit", () => {

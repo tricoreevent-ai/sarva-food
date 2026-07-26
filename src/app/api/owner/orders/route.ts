@@ -13,10 +13,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const statuses = new Set<OrderStatus>(["new", "accepted", "rejected", "preparing", "ready", "served", "picked-up", "delivered", "completed", "cancelled"]);
-const paymentMethods = new Set(["cash", "upi", "card", "credit"]);
+const paymentMethods = new Set(["cash", "upi", "card", "credit", "razorpay", "cod"]);
 const printTypes = new Set(["bill", "kot", "receipt"]);
 const timelineEvents = new Set(["order_created", "item_added", "item_removed", "discount", "coupon", "kitchen_sent", "kitchen_accepted", "kitchen_ready", "reminder", "kitchen_recall", "payment", "completion", "split_bill", "transfer_table", "assign_waiter", "merge_tables", "payment_started", "payment_unlock", "bill_correction"]);
-type PaymentMethod = "cash" | "upi" | "card" | "credit";
+type PaymentMethod = "cash" | "upi" | "card" | "credit" | "razorpay" | "cod";
 type OrderPatchBody = {
   action?: string;
   operationKey?: string;
@@ -27,13 +27,16 @@ type OrderPatchBody = {
   amount?: number;
   method?: string;
   reference?: string;
+  tipAmount?: number;
+  tipMethod?: string;
+  waiterId?: string;
+  waiterName?: string;
   type?: "bill" | "kot" | "receipt";
   event?: string;
   note?: string;
   reason?: string;
   device?: string;
   tableNumber?: string;
-  waiterName?: string;
   sourceOrderIds?: string[];
   sourceKitchenOrderIds?: string[];
   splits?: Array<{
@@ -128,13 +131,16 @@ export async function PATCH(request: NextRequest) {
     if (body.action === "payment") {
       const method = String(body.method ?? "");
       if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return fail("Valid payment method and amount are required.");
-      const data = await orders.recordPayment(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as "cash" | "upi" | "card" | "credit", reference: body.reference, cashierId: access.session.uid });
+      const tipAmount = numberOrUndefined(body.tipAmount) ?? 0;
+      const tipMethod = paymentMethods.has(String(body.tipMethod ?? "")) ? String(body.tipMethod) as PaymentMethod : method as PaymentMethod;
+      if (tipAmount > 0 && !String(body.waiterId ?? "").trim() && !String(body.waiterName ?? "").trim()) return fail("Serving waiter is required before recording a tip.");
+      const data = await orders.recordPayment(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as PaymentMethod, reference: body.reference, cashierId: access.session.uid, tipAmount, tipMethod, waiterId: cleanNote(body.waiterId), waiterName: cleanNote(body.waiterName) });
       return send(data);
     }
     if (body.action === "refund") {
       const method = String(body.method ?? "");
       if (!paymentMethods.has(method) || !Number.isFinite(Number(body.amount)) || Number(body.amount) <= 0) return fail("Valid refund method and amount are required.");
-      const data = await orders.recordRefund(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as "cash" | "upi" | "card" | "credit", reference: body.reference, cashierId: access.session.uid });
+      const data = await orders.recordRefund(scope, { ...actor, orderId: body.orderId, kitchenOrderId: body.kitchenOrderId, amount: Number(body.amount), method: method as PaymentMethod, reference: body.reference, cashierId: access.session.uid });
       return send(data);
     }
     if (body.action === "print") {
@@ -255,14 +261,14 @@ function orderError(error: unknown, trace: TraceContext, context: Record<string,
   const message = error instanceof Error ? error.message : "";
   if (/Order not found|no longer active/i.test(message)) return response("This order is no longer active. Please refresh.", 404);
   if (/Kitchen ticket not found/i.test(message)) return response("Kitchen ticket not found.", 404);
-  if (/Full payment is required before completing/i.test(message)) return response("Cannot complete order while payment is pending.", 409);
+  if (/Full payment is required before completing/i.test(message)) return response("Payment is still pending. Please collect payment before completing this order.", 409);
   if (/currently being modified/i.test(message)) return response("Order currently being modified. Refresh and retry.", 409);
   if (/cannot be modified after payment has started/i.test(message)) return response("Cannot modify this order after payment has started.", 409);
   if (/already been collected|already paid/i.test(message)) return response("Payment has already been collected.", 409);
   if (/invalid .*transition|cannot move back|cancelled orders|refunded orders|without refund/i.test(message)) return response("That order state change is no longer valid. Refresh and retry.", 409);
   if (/split bill|balance due|source order|target table|active waiter|required|completed bills|correction|unlock reason/i.test(message)) return response(safeBusinessMessage(message), 400);
   if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return response("Unable to contact server. Please retry.", 503);
-  return response(`Unexpected error. Reference ID ${requestId}`, 500);
+  return response("Order action could not be completed. Please try again.", 500);
 }
 
 function safeBusinessMessage(message: string) {

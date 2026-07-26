@@ -52,10 +52,15 @@ export async function POST(request: NextRequest) {
 
   const orderNumber = clean(body.orderNumber, 40);
   const tableNumber = clean(body.tableNumber, 40) || "Counter";
-  const waiterName = clean(body.waiterName, 80);
+  const resolved = await resolveReadySignalTargets(scope.tenantId, {
+    kitchenOrderId,
+    waiterId: clean(body.waiterId || body.assignedStaffId, 80),
+    waiterName: clean(body.waiterName || body.assignedStaffName, 80),
+  });
+  const waiterName = resolved.assignedName || clean(body.waiterName, 80);
   const sound = cleanSound(body.sound);
   const title = "🍽 Ready for Service";
-  const message = [`Order ${orderNumber}`, `Table ${tableNumber}`, "Kitchen ticket is ready.", waiterName ? `Assigned: ${waiterName}` : "Floor team can serve."].join(" · ");
+  const message = [`Order ${orderNumber}`, `Table ${tableNumber}`, "Kitchen ticket is ready.", waiterName ? `Assigned: ${waiterName}` : "Available waiters can serve."].join(" · ");
   const existing = await ref.get();
   if (existing.exists && body.repeat !== true) return NextResponse.json({ ok: true, notificationId: ref.id, deduplicated: true });
   if (!existing.exists) {
@@ -71,9 +76,11 @@ export async function POST(request: NextRequest) {
       kitchenOrderId,
       tableNumber,
       waiterName,
-      audience: ["owner", "manager", "waiter"],
+      audience: ["waiter"],
+      targetUserIds: resolved.targetUserIds,
+      monitoringAudience: ["owner", "manager"],
       priority: "high",
-      link: "/owner/pos?panel=active",
+      link: `/owner/pos?panel=active&orderId=${encodeURIComponent(clean(body.orderId) || kitchenOrderId)}`,
       sound,
       read: false,
       pushStatus: "dispatching",
@@ -84,8 +91,30 @@ export async function POST(request: NextRequest) {
   }
 
   const push = body.notificationMethod !== "in-app";
-  const operations = push ? await sendTenantPushNotification(scope, { notificationId: ref.id, type: "kitchen_ready_ops", title, message, priority: "high", orderId: clean(body.orderId), kitchenOrderId, link: "/owner/pos?panel=active", audience: ["owner", "manager", "waiter"], sound }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
-  return NextResponse.json({ ok: true, operations, notificationId: ref.id, deduplicated: existing.exists });
+  const link = `/owner/pos?panel=active&orderId=${encodeURIComponent(clean(body.orderId) || kitchenOrderId)}`;
+  const operations = push ? await sendTenantPushNotification(scope, { notificationId: ref.id, type: "kitchen_ready_ops", title, message, priority: "high", orderId: clean(body.orderId), kitchenOrderId, link, audience: ["waiter"], targetUserIds: resolved.targetUserIds, sound }).catch(() => ({ successCount: 0, failureCount: 0 })) : { successCount: 0, failureCount: 0 };
+  const monitorRef = adminDb().collection("notifications").doc(`${scope.tenantId}:kitchen-ready-monitor:${kitchenOrderId}`);
+  await monitorRef.set({
+    tenantId: scope.tenantId,
+    restaurantId: scope.tenantId,
+    branchId: clean(body.branchId, 60) || "main",
+    type: "kitchen_ready_monitor",
+    title: "Kitchen ticket ready",
+    message,
+    orderId: clean(body.orderId),
+    orderNumber,
+    kitchenOrderId,
+    tableNumber,
+    waiterName,
+    audience: ["owner", "manager"],
+    priority: "normal",
+    link,
+    sound: "silent",
+    read: false,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return NextResponse.json({ ok: true, operations, notificationId: ref.id, monitorNotificationId: monitorRef.id, target: resolved.mode, deduplicated: existing.exists });
 }
 
 async function requireKitchenNotificationAccess(request: NextRequest, action: string) {
@@ -108,4 +137,30 @@ async function requireKitchenNotificationListAccess(request: NextRequest) {
 
 function isWaiterWorkflowSession(session: { role: string; viewMode?: string }) {
   return session.role === "waiter" || (session.role === "owner" && session.viewMode === "waiter");
+}
+
+async function resolveReadySignalTargets(tenantId: string, input: { kitchenOrderId: string; waiterId?: string; waiterName?: string }) {
+  const db = adminDb();
+  let assignedId = input.waiterId || "";
+  let assignedName = input.waiterName || "";
+  if (!assignedId || !assignedName) {
+    const kitchen = await db.collection("kitchenOrders").doc(input.kitchenOrderId).get();
+    const data = kitchen.data() ?? {};
+    assignedId ||= clean(data.waiterId || data.assignedStaffId, 80);
+    assignedName ||= clean(data.waiterName || data.assignedStaffName, 80);
+  }
+  if (assignedId) {
+    const assigned = await db.collection("users").doc(assignedId).get();
+    const data = assigned.data() ?? {};
+    if (assigned.exists && data.active !== false && data.status !== "off-duty" && data.role === "waiter" && [data.tenantId, ...(Array.isArray(data.restaurantIds) ? data.restaurantIds : [])].includes(tenantId)) {
+      return { mode: "assigned-waiter", targetUserIds: [assigned.id], assignedName: assignedName || clean(data.name || data.displayName, 80) };
+    }
+  }
+  const snapshots = await Promise.all([
+    db.collection("users").where("tenantId", "==", tenantId).where("role", "==", "waiter").limit(80).get(),
+    db.collection("users").where("restaurantIds", "array-contains", tenantId).where("role", "==", "waiter").limit(80).get(),
+  ]);
+  const waiters = Array.from(new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((doc) => [doc.id, { id: doc.id, ...doc.data() } as Record<string, unknown> & { id: string }])).values())
+    .filter((user) => user.active !== false && user.status !== "off-duty");
+  return { mode: "available-waiters", targetUserIds: waiters.map((waiter) => waiter.id), assignedName };
 }

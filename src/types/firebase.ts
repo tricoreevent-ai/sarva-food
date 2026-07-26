@@ -365,6 +365,12 @@ export type OrderDoc = TenantScopedDoc & {
   total: number;
   paymentStatus: PaymentStatus;
   paidAmount?: number;
+  tipAmount?: number;
+  tipMethod?: string;
+  tipTime?: FirestoreDate;
+  tipCollectedBy?: string;
+  tipWaiterId?: string;
+  tipWaiterName?: string;
   paymentTimeline?: Array<Record<string, unknown>>;
   auditTimeline?: Array<Record<string, unknown>>;
   corrections?: Array<Record<string, unknown>>;

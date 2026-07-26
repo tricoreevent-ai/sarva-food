@@ -32,7 +32,7 @@ type PaymentInput = {
   orderId: string;
   kitchenOrderId?: string;
   amount: number;
-  method: "cash" | "upi" | "card" | "credit";
+  method: "cash" | "upi" | "card" | "credit" | "razorpay" | "cod";
   reference?: string;
   cashierId?: string;
   role?: string;
@@ -46,6 +46,10 @@ type PaymentInput = {
   capturedAt?: Date;
   reason?: string;
   operationKey?: string;
+  tipAmount?: number;
+  tipMethod?: "cash" | "upi" | "card" | "credit" | "razorpay" | "cod";
+  waiterId?: string;
+  waiterName?: string;
 };
 
 type PaymentMethod = PaymentInput["method"];
@@ -449,11 +453,12 @@ export class OrderRepository {
       assertOrderTenant(order, scope);
       if (order.kitchenOrderId) {
         const kitchenSnapshot = await transaction.get(this.db.collection("kitchenOrders").doc(order.kitchenOrderId));
-        if (!kitchenSnapshot.exists) throw new Error("Kitchen ticket not found.");
-        const kitchenOrder = dataWithId<KitchenOrderDoc>(kitchenSnapshot.id, kitchenSnapshot.data() ?? {});
-        if (![kitchenOrder.tenantId, kitchenOrder.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
-        result = { order, kitchenOrder };
-        return;
+        if (kitchenSnapshot.exists) {
+          const kitchenOrder = dataWithId<KitchenOrderDoc>(kitchenSnapshot.id, kitchenSnapshot.data() ?? {});
+          if (![kitchenOrder.tenantId, kitchenOrder.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
+          result = { order, kitchenOrder };
+          return;
+        }
       }
       if (["cancelled", "rejected", "delivered", "completed"].includes(order.status)) throw new Error("This order is no longer active.");
       if (!["new", "accepted"].includes(order.status) && !order.kitchenOrderId) throw new Error("Create a Kitchen ticket before advancing this order.");
@@ -560,6 +565,10 @@ export class OrderRepository {
       assertPaymentLockOwner(order, input.cashierId);
       const previousPaid = paidAmount(order);
       const amount = money(input.amount);
+      const tipAmount = money(input.tipAmount);
+      const waiterId = input.waiterId || order.waiterId || "";
+      const waiterName = input.waiterName || order.waiterName || "";
+      if (tipAmount > 0 && (!waiterId || !waiterName)) throw new Error("Serving waiter is required before recording a tip.");
       if (order.paymentStatus === "paid" || previousPaid + 0.01 >= Number(order.total ?? 0)) throw new Error("Payment has already been collected.");
       const paidTotal = previousPaid + amount;
       nextStatus = paidTotal <= 0 ? "pending" : paidTotal + 0.01 < Number(order.total ?? 0) ? "partial" : "paid";
@@ -573,12 +582,20 @@ export class OrderRepository {
       };
       const timeline = [
         ...(previousPaid <= 0 ? [paymentEvent("payment_started", scope, input, now, { balanceDue: Number(order.total ?? 0) })] : []),
-        paymentEvent(nextStatus === "paid" ? "payment_completed" : "partial_payment", scope, input, now, { balanceDue, ...gatewayDetails }),
+        paymentEvent(nextStatus === "paid" ? "payment_completed" : "partial_payment", scope, input, now, cleanRecord({ balanceDue, tipAmount, tipMethod: input.tipMethod ?? input.method, waiterId, waiterName, ...gatewayDetails })),
       ];
-      const audit = timeline.map((entry) => auditEvent(String(entry.type), scope, input, now, { amount, method: input.method, balanceDue, ...gatewayDetails }));
+      const audit = timeline.map((entry) => auditEvent(String(entry.type), scope, input, now, cleanRecord({ amount, method: input.method, balanceDue, tipAmount, tipMethod: input.tipMethod ?? input.method, waiterId, waiterName, ...gatewayDetails })));
       const paymentPatch = {
         paymentStatus: nextStatus,
         paidAmount: paidTotal,
+        ...(tipAmount > 0 ? {
+          tipAmount: money(Number(order.tipAmount ?? 0) + tipAmount),
+          tipMethod: input.tipMethod ?? input.method,
+          tipTime: now,
+          tipCollectedBy: input.cashierId ?? scope.uid ?? "",
+          tipWaiterId: waiterId,
+          tipWaiterName: waiterName,
+        } : {}),
         splitPayment: nextStatus === "partial" || Boolean(order.splitPayment),
         paymentLock: cleanRecord({
           locked: false,
@@ -608,6 +625,12 @@ export class OrderRepository {
         orderId: input.orderId,
         method: input.method,
         amount,
+        tipAmount,
+        grossCollectedAmount: amount + tipAmount,
+        tipMethod: tipAmount > 0 ? input.tipMethod ?? input.method : "",
+        tipWaiterId: tipAmount > 0 ? waiterId : "",
+        tipWaiterName: tipAmount > 0 ? waiterName : "",
+        tipCollectedBy: tipAmount > 0 ? input.cashierId ?? scope.uid ?? "" : "",
         reference: input.reference ?? "",
         cashierId: input.cashierId ?? scope.uid ?? "",
         status: nextStatus === "paid" || nextStatus === "partial" ? "paid" : "authorized",
@@ -636,7 +659,7 @@ export class OrderRepository {
       writeNotification(transaction, scope, {
         type: "payment",
         title: nextStatus === "paid" ? "Payment completed" : "Partial payment",
-        message: `${input.method.toUpperCase()} payment of ₹${amount} recorded.`,
+        message: `${input.method.toUpperCase()} payment of ₹${amount} recorded${tipAmount > 0 ? ` with ₹${tipAmount} waiter tip` : ""}.`,
         priority: nextStatus === "paid" ? "normal" : "high",
         orderId: input.orderId,
         kitchenOrderId: input.kitchenOrderId,
@@ -1305,10 +1328,16 @@ export class OrderRepository {
   async summary(scope: TenantScope, options: { from?: Date; to?: Date } = {}) {
     const orders = await this.list(scope, options);
     const billable = orders.filter((order) => !["cancelled", "rejected"].includes(order.status));
-    const revenue = billable.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
-    const tax = billable.reduce((sum, order) => sum + Number(order.tax ?? 0), 0);
+    const revenue = money(billable.reduce((sum, order) => sum + paidAmount(order), 0));
+    const grossRevenue = revenue;
+    const tips = money(billable.reduce((sum, order) => sum + tipAmount(order), 0));
+    const tax = money(billable.reduce((sum, order) => sum + paidTaxAmount(order), 0));
+    const netRevenue = Math.max(0, money(revenue - tax));
+    const pendingPayments = money(billable.reduce((sum, order) => sum + Math.max(0, Number(order.total ?? 0) - paidAmount(order)), 0));
+    const discounts = money(billable.reduce((sum, order) => sum + Number(order.discount ?? 0), 0));
+    const refunds = money(billable.filter((order) => order.paymentStatus === "refunded").reduce((sum, order) => sum + Number(order.total ?? 0), 0));
     const active = orders.filter((order) => !["cancelled", "rejected", "delivered", "completed"].includes(order.status));
-    return { orders, orderCount: orders.length, billableOrderCount: billable.length, revenue, tax, activeOrderCount: active.length };
+    return { orders, orderCount: orders.length, billableOrderCount: billable.length, revenue, grossRevenue, netRevenue, tips, tax, pendingPayments, discounts, refunds, activeOrderCount: active.length };
   }
 
   async updateStatus(scope: TenantScope, orderId: string, status: OrderDoc["status"], actor: ActorInput = {}) {
@@ -1437,6 +1466,18 @@ function displayOrderNumberText(orderNumber: number) {
 function paidAmount(order: OrderDoc) {
   const value = (order as OrderDoc & { paidAmount?: number }).paidAmount;
   return Number.isFinite(value) ? Number(value) : order.paymentStatus === "paid" ? Number(order.total ?? 0) : 0;
+}
+
+function tipAmount(order: OrderDoc) {
+  const value = (order as OrderDoc & { tipAmount?: number }).tipAmount;
+  return Number.isFinite(value) ? Number(value) : 0;
+}
+
+function paidTaxAmount(order: OrderDoc) {
+  const total = Number(order.total ?? 0);
+  const tax = Number(order.tax ?? 0);
+  if (total <= 0 || tax <= 0) return 0;
+  return money(tax * Math.min(1, paidAmount(order) / total));
 }
 
 function assertCanModifyOperationalOrder(order: OrderDoc) {

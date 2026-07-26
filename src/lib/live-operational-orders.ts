@@ -10,6 +10,10 @@ export type LiveOperationalOrder = TableOrder & {
   corrections?: unknown[];
   paymentLock?: unknown;
   paidAmount?: number;
+  tipAmount?: number;
+  tipMethod?: string;
+  tipWaiterId?: string;
+  tipWaiterName?: string;
   mergedOrderIds?: string[];
   mergedIntoOrderId?: string;
 };
@@ -22,6 +26,10 @@ type ExtendedDemoOrder = DemoOrder & {
   corrections?: unknown[];
   paymentLock?: unknown;
   paidAmount?: number;
+  tipAmount?: number;
+  tipMethod?: string;
+  tipWaiterId?: string;
+  tipWaiterName?: string;
   mergedOrderIds?: string[];
   mergedIntoOrderId?: string;
   tableNumber?: string;
@@ -88,6 +96,10 @@ function mergeKitchenOrder(order: TableOrder, canonical?: DemoOrder): LiveOperat
     corrections: extended?.corrections,
     paymentLock: extended?.paymentLock,
     paidAmount: extended?.paidAmount,
+    tipAmount: extended?.tipAmount,
+    tipMethod: extended?.tipMethod,
+    tipWaiterId: extended?.tipWaiterId,
+    tipWaiterName: extended?.tipWaiterName,
     mergedOrderIds: extended?.mergedOrderIds,
     mergedIntoOrderId: extended?.mergedIntoOrderId,
   };
@@ -127,6 +139,10 @@ function orderToLiveOperationalOrder(order: DemoOrder): LiveOperationalOrder {
     corrections: extended.corrections,
     paymentLock: extended.paymentLock,
     paidAmount: extended.paidAmount,
+    tipAmount: extended.tipAmount,
+    tipMethod: extended.tipMethod,
+    tipWaiterId: extended.tipWaiterId,
+    tipWaiterName: extended.tipWaiterName,
     mergedOrderIds: extended.mergedOrderIds,
     mergedIntoOrderId: extended.mergedIntoOrderId,
   };

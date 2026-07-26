@@ -96,7 +96,7 @@ function posError(action: string, error: unknown, trace: TraceContext) {
   if (/POS draft not found|draft/i.test(message)) return response("This order is no longer active. Please refresh.", 409);
   if (/Kitchen ticket not found|Kitchen order/i.test(message)) return response("Kitchen ticket not found.", 404);
   if (/deadline|timeout|unavailable|network|fetch/i.test(message)) return response("Unable to contact server. Please retry.", 503);
-  return response(`Unexpected error. Reference ID ${requestId}`, 500);
+  return response(action === "place" ? "Unable to create Kitchen Order. Please refresh and try again." : "POS draft could not be saved. Please try again.", 500);
 }
 
 function orderDocToOperationalDemoOrder(order: OrderDoc) {
@@ -109,6 +109,10 @@ function orderDocToOperationalDemoOrder(order: OrderDoc) {
     corrections: (order as OrderDoc & { corrections?: unknown[] }).corrections ?? [],
     paymentLock: (order as OrderDoc & { paymentLock?: unknown }).paymentLock,
     paidAmount: (order as OrderDoc & { paidAmount?: number }).paidAmount,
+    tipAmount: (order as OrderDoc & { tipAmount?: number }).tipAmount,
+    tipMethod: (order as OrderDoc & { tipMethod?: string }).tipMethod,
+    tipWaiterId: (order as OrderDoc & { tipWaiterId?: string }).tipWaiterId,
+    tipWaiterName: (order as OrderDoc & { tipWaiterName?: string }).tipWaiterName,
     mergedOrderIds: (order as OrderDoc & { mergedOrderIds?: string[] }).mergedOrderIds ?? [],
     mergedIntoOrderId: (order as OrderDoc & { mergedIntoOrderId?: string }).mergedIntoOrderId,
     tableNumber: order.tableNumber,

@@ -16,6 +16,10 @@ export type OperationalOrder = TableOrder & {
   corrections?: BillCorrectionRecord[];
   paymentLock?: PaymentLockRecord;
   paidAmount?: number;
+  tipAmount?: number;
+  tipMethod?: string;
+  tipWaiterId?: string;
+  tipWaiterName?: string;
   mergedOrderIds?: string[];
   mergedIntoOrderId?: string;
 };
@@ -46,6 +50,10 @@ export function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: Table
       corrections: (canonical as ExtendedDemoOrder | undefined)?.corrections,
       paymentLock: (canonical as ExtendedDemoOrder | undefined)?.paymentLock,
       paidAmount: (canonical as ExtendedDemoOrder | undefined)?.paidAmount,
+      tipAmount: (canonical as ExtendedDemoOrder | undefined)?.tipAmount,
+      tipMethod: (canonical as ExtendedDemoOrder | undefined)?.tipMethod,
+      tipWaiterId: (canonical as ExtendedDemoOrder | undefined)?.tipWaiterId,
+      tipWaiterName: (canonical as ExtendedDemoOrder | undefined)?.tipWaiterName,
       mergedOrderIds: (canonical as ExtendedDemoOrder | undefined)?.mergedOrderIds,
       mergedIntoOrderId: (canonical as ExtendedDemoOrder | undefined)?.mergedIntoOrderId,
     } satisfies OperationalOrder;
@@ -89,6 +97,10 @@ export function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
     corrections: (order as ExtendedDemoOrder).corrections,
     paymentLock: (order as ExtendedDemoOrder).paymentLock,
     paidAmount: (order as ExtendedDemoOrder).paidAmount,
+    tipAmount: (order as ExtendedDemoOrder).tipAmount,
+    tipMethod: (order as ExtendedDemoOrder).tipMethod,
+    tipWaiterId: (order as ExtendedDemoOrder).tipWaiterId,
+    tipWaiterName: (order as ExtendedDemoOrder).tipWaiterName,
     mergedOrderIds: (order as ExtendedDemoOrder).mergedOrderIds,
     mergedIntoOrderId: (order as ExtendedDemoOrder).mergedIntoOrderId,
   };

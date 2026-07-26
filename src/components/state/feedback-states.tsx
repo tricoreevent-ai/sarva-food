@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function ErrorAlert({
-  title = "Something went wrong",
+  title = "Action could not be completed",
   message,
   onRetry,
 }: {

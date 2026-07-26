@@ -65,7 +65,7 @@ export class RateLimitError extends ApiError {
 }
 
 export class UnknownError extends ApiError {
-  constructor(message = "Unexpected error.") {
+  constructor(message = "Request could not be completed. Please try again.") {
     super(message, 500, "UNKNOWN_ERROR", false);
   }
 }
@@ -75,7 +75,7 @@ export function apiOk(data: unknown, trace: TraceContext, init?: ResponseInit & 
   return NextResponse.json({ data, meta: { ...publicTraceMeta(trace), ...(count === undefined ? {} : { count }) } }, responseInit);
 }
 
-export function apiError(error: unknown, trace: TraceContext, fallback = "Unexpected error.", status = 500) {
+export function apiError(error: unknown, trace: TraceContext, fallback = "Request could not be completed. Please try again.", status = 500) {
   const normalized = normalizeApiError(error, fallback, status);
   if (normalized.status >= 500) {
     productionLogger.error("api.error", {
@@ -87,7 +87,7 @@ export function apiError(error: unknown, trace: TraceContext, fallback = "Unexpe
   }
   return NextResponse.json(
     {
-      error: normalized.expose ? normalized.message : `${fallback} Reference ID ${trace.requestId}`,
+      error: normalized.expose ? normalized.message : fallback,
       code: normalized.code,
       requestId: trace.requestId,
       meta: publicTraceMeta(trace),
@@ -96,7 +96,7 @@ export function apiError(error: unknown, trace: TraceContext, fallback = "Unexpe
   );
 }
 
-export function normalizeApiError(error: unknown, fallback = "Unexpected error.", status = 500) {
+export function normalizeApiError(error: unknown, fallback = "Request could not be completed. Please try again.", status = 500) {
   if (error instanceof ApiError) return error;
   const message = error instanceof Error ? error.message : "";
   if (/rate.?limit|too many/i.test(message)) return new RateLimitError();

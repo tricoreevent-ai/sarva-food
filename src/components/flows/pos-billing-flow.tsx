@@ -70,7 +70,8 @@ type HeldPosOrder = {
 
 type BillCopy = "Customer Copy" | "Cashier Copy" | "Kitchen Copy" | "Duplicate Copy";
 const billCopyOptions: BillCopy[] = ["Customer Copy", "Cashier Copy", "Kitchen Copy", "Duplicate Copy"];
-type PaymentMethod = "cash" | "upi" | "card" | "credit";
+type PaymentMethod = "cash" | "upi" | "card" | "credit" | "razorpay" | "cod";
+const paymentMethodOptions: PaymentMethod[] = ["cash", "upi", "card", "razorpay", "cod", "credit"];
 type SyncStatus = "online" | "offline" | "syncing" | "pending" | "retrying";
 type PendingPosDraft = {
   revision: number;
@@ -120,6 +121,10 @@ type PaymentDraft = {
   order: OperationalOrder;
   amount: number;
   method: PaymentMethod;
+  tipAmount: number;
+  tipMethod: PaymentMethod;
+  waiterId: string;
+  waiterName: string;
   stage: "verify" | "collect";
   unlockReason: string;
   attemptId: string;
@@ -510,7 +515,7 @@ export function PosBillingFlow() {
         const saved = window.sessionStorage.getItem(paymentDraftKey);
         if (saved) {
           const draft = JSON.parse(saved) as Partial<PaymentDraft>;
-          if (draft.order && draft.stage && Number.isFinite(draft.amount)) setPaymentDraft({ ...draft, attemptId: draft.attemptId || newPaymentAttemptId(), method: draft.method ?? "cash", unlockReason: draft.unlockReason ?? "" } as PaymentDraft);
+          if (draft.order && draft.stage && Number.isFinite(draft.amount)) setPaymentDraft({ ...draft, attemptId: draft.attemptId || newPaymentAttemptId(), method: draft.method ?? "cash", tipAmount: Number(draft.tipAmount ?? 0), tipMethod: draft.tipMethod ?? draft.method ?? "cash", waiterId: draft.waiterId ?? draft.order.waiterId ?? draft.order.assignedStaffId ?? "", waiterName: draft.waiterName ?? draft.order.waiterName ?? draft.order.assignedStaffName ?? "", unlockReason: draft.unlockReason ?? "" } as PaymentDraft);
         }
       } catch {
         window.sessionStorage.removeItem(paymentDraftKey);
@@ -1129,7 +1134,7 @@ export function PosBillingFlow() {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["checkout-payment", orderId, linkedKitchenOrderId, totals.total, bill.payment]), orderId, kitchenOrderId: linkedKitchenOrderId, amount: totals.total, method: bill.payment === "cod" ? "credit" : bill.payment }),
+        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["checkout-payment", orderId, linkedKitchenOrderId, totals.total, bill.payment]), orderId, kitchenOrderId: linkedKitchenOrderId, amount: totals.total, method: bill.payment }),
       });
       await readPosPayload(response, "Payment could not be recorded.");
     } else if (linkedKitchenOrderId) {
@@ -1505,6 +1510,7 @@ export function PosBillingFlow() {
           orderId: canonicalForKitchenOrder(order)?.id,
           orderNumber: readableTableOrderId(order),
           tableNumber: order.tableNumber,
+          waiterId: order.waiterId || order.assignedStaffId,
           waiterName: order.waiterName || order.assignedStaffName,
           branchId: order.branchId,
           notificationMethod: "both",
@@ -1548,7 +1554,7 @@ export function PosBillingFlow() {
       }
     }
     const amount = orderBalanceDue(canonical, active) || Number(order.total ?? canonical.totals.total ?? 0);
-    setPaymentDraft({ order: active, amount: moneyRound(amount), method: "cash", stage: "verify", unlockReason: "", attemptId: newPaymentAttemptId() });
+    setPaymentDraft({ order: active, amount: moneyRound(amount), method: "cash", tipAmount: 0, tipMethod: "cash", waiterId: active.waiterId || active.assignedStaffId || "", waiterName: active.waiterName || active.assignedStaffName || "", stage: "verify", unlockReason: "", attemptId: newPaymentAttemptId() });
   }
 
   async function startPaymentCollection(draft: PaymentDraft) {
@@ -1608,13 +1614,18 @@ export function PosBillingFlow() {
       toast.error("Enter a valid payment amount.");
       return;
     }
+    const tipAmount = moneyRound(Number(draft.tipAmount ?? 0));
+    if (tipAmount > 0 && (!draft.waiterId || !draft.waiterName)) {
+      toast.error("Select the serving waiter before recording a tip.");
+      return;
+    }
     const kitchenOrderId = draft.order.hasKitchenTicket === false ? undefined : draft.order.id;
     setActiveAction(`payment:${draft.order.id}`);
     try {
       const response = await fetch("/api/owner/orders", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["payment", draft.attemptId, canonical.id, draft.order.id, amount, draft.method]), orderId: canonical.id, kitchenOrderId, amount, method: draft.method }),
+        body: JSON.stringify({ action: "payment", operationKey: clientOperationKey(["payment", draft.attemptId, canonical.id, draft.order.id, amount, draft.method, tipAmount, draft.waiterId]), orderId: canonical.id, kitchenOrderId, amount, method: draft.method, tipAmount, tipMethod: draft.tipMethod, waiterId: draft.waiterId, waiterName: draft.waiterName }),
       });
       const result = await readPosPayload<{ data?: { paymentStatus?: "pending" | "partial" | "paid" }; paymentStatus?: "pending" | "partial" | "paid" }>(response, "Payment could not be recorded.");
       const paymentStatus = result.data?.paymentStatus ?? result.paymentStatus ?? (amount + 0.01 < Number(draft.order.total ?? 0) ? "partial" : "paid");
@@ -1625,7 +1636,7 @@ export function PosBillingFlow() {
         orders: current.orders.map((item) => item.id === canonical.id ? { ...item, splitPayment: paymentStatus === "partial" || item.splitPayment } : item),
       }));
       setPaymentDraft(null);
-      toast.success(paymentStatus === "partial" ? "Partial payment recorded." : "Payment recorded.");
+      toast.success(paymentStatus === "partial" ? "Partial payment recorded." : tipAmount > 0 ? "Payment and waiter tip recorded separately." : "Payment recorded.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Payment could not be recorded.");
     } finally {
@@ -2308,6 +2319,7 @@ export function PosBillingFlow() {
         {paymentDraft ? (
           <PaymentSafetyDialog
             draft={paymentDraft}
+            staffMembers={staffMembers}
             busy={Boolean(activeAction?.startsWith("payment"))}
             canUnlock={canUnlockPayment}
             onChange={setPaymentDraft}
@@ -3053,7 +3065,7 @@ function SplitBillDialog({ order, canonical, busy, onClose, onSubmit }: { order:
               <input className="h-11 rounded-lg border px-3 text-sm font-semibold" value={row.customerName} onChange={(event) => updateRow(row.key, { customerName: event.target.value })} aria-label={`Split customer ${index + 1}`} />
               <input className="h-11 rounded-lg border px-3 text-sm font-semibold" type="number" min="0" step="1" value={row.amount} onChange={(event) => updateRow(row.key, { amount: Number(event.target.value) })} aria-label={`Split amount ${index + 1}`} />
               <select className="h-11 rounded-lg border px-3 text-sm font-semibold" value={row.method} onChange={(event) => updateRow(row.key, { method: event.target.value as PaymentMethod })} aria-label={`Payment method ${index + 1}`}>
-                {(["cash", "upi", "card", "credit"] as PaymentMethod[]).map((method) => <option key={method} value={method}>{method.toUpperCase()}</option>)}
+                {paymentMethodOptions.map((method) => <option key={method} value={method}>{paymentMethodLabel(method)}</option>)}
               </select>
               <select className="h-11 rounded-lg border px-3 text-sm font-semibold" value={row.basis} onChange={(event) => updateRow(row.key, { basis: event.target.value as SplitBillDraft["basis"] })} aria-label={`Split basis ${index + 1}`}>
                 <option value="custom">Custom</option>
@@ -3342,6 +3354,7 @@ function OrderDetailsDrawer({
 
 function PaymentSafetyDialog({
   draft,
+  staffMembers,
   busy,
   canUnlock,
   onChange,
@@ -3351,6 +3364,7 @@ function PaymentSafetyDialog({
   onRecord,
 }: {
   draft: PaymentDraft;
+  staffMembers: StaffMember[];
   busy: boolean;
   canUnlock: boolean;
   onChange: (draft: PaymentDraft) => void;
@@ -3361,6 +3375,13 @@ function PaymentSafetyDialog({
 }) {
   const itemCount = draft.order.lines.reduce((sum, line) => sum + line.quantity, 0);
   const completesPayment = Number(draft.amount) + Number(draft.order.paidAmount ?? 0) + 0.01 >= Number(draft.order.total ?? 0);
+  const waiters = staffMembers.filter((member) => member.role === "waiter" && member.status === "active");
+  const tipAmount = Number(draft.tipAmount ?? 0);
+  const tipNeedsWaiter = tipAmount > 0 && (!draft.waiterId || !draft.waiterName);
+  const selectWaiter = (id: string) => {
+    const waiter = waiters.find((member) => member.id === id);
+    onChange({ ...draft, waiterId: id, waiterName: waiter?.name ?? draft.waiterName });
+  };
   return (
     <PosDialogFrame title={draft.stage === "verify" ? "Verify Before Collecting Payment" : "Collect Payment"} subtitle={`${readableTableOrderId(draft.order)} · ${draft.order.tableNumber || readablePosOrderType(draft.order.orderType ?? "dine-in")}`} onClose={onClose}>
       <div className="grid gap-4 p-4">
@@ -3380,12 +3401,30 @@ function PaymentSafetyDialog({
           <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
             Payment Method
             <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-900" value={draft.method} disabled={draft.stage === "collect"} onChange={(event) => onChange({ ...draft, method: event.target.value as PaymentMethod })}>
-              <option value="cash">Cash</option>
-              <option value="upi">UPI</option>
-              <option value="card">Card</option>
-              <option value="credit">Credit</option>
+              {paymentMethodOptions.map((method) => <option key={method} value={method}>{paymentMethodLabel(method)}</option>)}
             </select>
           </label>
+        </div>
+        <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 sm:grid-cols-3">
+          <label className="grid gap-1 text-xs font-black uppercase text-emerald-700">
+            Tip
+            <input className="h-11 rounded-xl border border-emerald-200 px-3 text-sm font-black text-slate-900" type="number" min="0" step="1" value={draft.tipAmount} disabled={draft.stage === "verify"} onChange={(event) => onChange({ ...draft, tipAmount: Math.max(0, Number(event.target.value) || 0) })} />
+          </label>
+          <label className="grid gap-1 text-xs font-black uppercase text-emerald-700">
+            Tip Method
+            <select className="h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-black text-slate-900" value={draft.tipMethod} disabled={draft.stage === "verify" || tipAmount <= 0} onChange={(event) => onChange({ ...draft, tipMethod: event.target.value as PaymentMethod })}>
+              {paymentMethodOptions.map((method) => <option key={method} value={method}>{paymentMethodLabel(method)}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-black uppercase text-emerald-700">
+            Serving Waiter
+            <select className={cn("h-11 rounded-xl border bg-white px-3 text-sm font-black text-slate-900", tipNeedsWaiter ? "border-red-300" : "border-emerald-200")} value={draft.waiterId} disabled={draft.stage === "verify"} onChange={(event) => selectWaiter(event.target.value)}>
+              <option value="">{tipAmount > 0 ? "Select waiter" : "No tip"}</option>
+              {waiters.map((waiter) => <option key={waiter.id} value={waiter.id}>{waiter.name}</option>)}
+            </select>
+          </label>
+          <p className="sm:col-span-3 text-xs font-semibold text-emerald-800">{tipAmount > 0 ? "Tips are recorded for the waiter and excluded from restaurant revenue." : "No tip selected. Restaurant revenue is based only on collected payment."}</p>
+          {tipNeedsWaiter ? <p className="sm:col-span-3 text-xs font-black text-red-700">Serving waiter is mandatory when a tip is collected.</p> : null}
         </div>
         {draft.stage === "collect" && canUnlock ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -3400,7 +3439,7 @@ function PaymentSafetyDialog({
       <div className="grid gap-3 border-t border-slate-100 p-4 sm:grid-cols-[1fr_auto_auto]">
         <p className="text-xs font-semibold text-slate-500">{draft.stage === "verify" ? "Confirm order, table, items, total, and method before opening payment." : "Payment lock is active. Kitchen will not reopen."}</p>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy} onClick={draft.stage === "verify" ? onContinue : onRecord}>{busy ? <Loader2 className="size-4 animate-spin" /> : <CircleDollarSign className="size-4" />}{draft.stage === "verify" ? "Continue" : completesPayment ? "Mark Paid" : "Record Partial Payment"}</Button>
+        <Button disabled={busy || (draft.stage === "collect" && tipNeedsWaiter)} onClick={draft.stage === "verify" ? onContinue : onRecord}>{busy ? <Loader2 className="size-4 animate-spin" /> : <CircleDollarSign className="size-4" />}{draft.stage === "verify" ? "Continue" : completesPayment ? "Mark Paid" : "Record Partial Payment"}</Button>
       </div>
     </PosDialogFrame>
   );
@@ -3808,6 +3847,13 @@ function paymentLabel(value?: TableOrder["paymentStatus"]) {
   if (value === "partial") return "Partially paid";
   if (value === "refunded") return "Refunded";
   return "Unpaid";
+}
+
+function paymentMethodLabel(method: PaymentMethod) {
+  if (method === "upi") return "UPI";
+  if (method === "cod") return "COD";
+  if (method === "razorpay") return "Razorpay";
+  return method.charAt(0).toUpperCase() + method.slice(1);
 }
 
 function withBillCopy(context: BillContext, copy: BillCopy): BillContext {

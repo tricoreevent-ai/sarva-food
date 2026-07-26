@@ -686,6 +686,7 @@ function ActiveOrderCard({
         : null;
   const canCollectForView = view !== "waiter" && canCollect;
   const canNotifyForView = view !== "waiter" && canNotify;
+  const pendingPaymentMessage = "Payment is still pending. Please collect payment before completing this order.";
   const orderNumber = readableTableOrderId(order);
   const kitchenStatus = posActiveStatusLabel(order);
   const paymentStatus = paymentLabel(order.paymentStatus);
@@ -721,6 +722,7 @@ function ActiveOrderCard({
         { id: "merge", label: "Merge Bills", icon: <GitMerge className="size-4" />, disabled: !canMerge || !canMergeBill || busy, reason: !canMerge ? "No other active order is available to merge." : !canMergeBill ? "Cannot merge authorized, paid, refunded, locked, completed, or already merged bills." : undefined },
         { id: "transfer", label: "Transfer Table", icon: <ArrowRightLeft className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot transfer after payment has started." : undefined },
         { id: "reassign", label: "Assign Waiter", icon: <UserRound className="size-4" />, disabled: !canModify || busy, reason: paymentRestricted ? "Cannot assign waiter after payment has started." : undefined },
+        { id: "complete", label: "Complete Order", icon: <CheckCircle2 className="size-4" />, disabled: !canComplete || busy, reason: !served ? "Cannot complete before service." : !paid ? pendingPaymentMessage : undefined },
         { id: "archive", label: "Move To History", icon: <History className="size-4" />, disabled: !completed },
         { id: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
         { id: "history", label: "History", icon: <History className="size-4" /> },
@@ -814,6 +816,8 @@ function ActiveOrderCard({
           <button type="button" data-action="archive" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Move To History" title="Move To History"><History className="size-4" /><span className="sr-only">History</span></button>
         ) : canComplete ? (
           <button type="button" data-action="complete" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Complete Order" title="Complete Order"><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
+        ) : served && !paid ? (
+          <button type="button" data-action="complete" disabled onClick={handleAction} className={activeOrderActionClass(false, "success")} aria-label="Complete Order" title={pendingPaymentMessage}><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
         ) : kitchenAction ? (
           <button type="button" data-action={kitchenAction.id} disabled={busy || !kitchenActionAllowed} onClick={handleAction} className={activeOrderActionClass(kitchenActionAllowed, "success")} aria-label={kitchenAction.label} title={kitchenActionAllowed ? kitchenAction.title : "Kitchen state changes are handled by Kitchen Operations."}>{kitchenAction.icon}<span className="sr-only">{kitchenAction.label}</span></button>
         ) : (
