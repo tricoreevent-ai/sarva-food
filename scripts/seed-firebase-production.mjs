@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) {
@@ -18,6 +19,19 @@ const serviceAccountPath = "service-account-key.json";
 const serviceAccount = existsSync(serviceAccountPath)
   ? JSON.parse(readFileSync(serviceAccountPath, "utf8"))
   : null;
+const includeSampleMenuItems = process.env.SEED_SAMPLE_MENU_ITEMS === "true";
+const includeSampleOrders = includeSampleMenuItems && process.env.SEED_SAMPLE_ORDERS !== "false";
+
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: "seed-firebase-production",
+  projectId: serviceAccount?.project_id ?? projectId,
+  reads: 0,
+  writes: includeSampleOrders ? 1_000 : 500,
+  details: [
+    "writes baseline production seed data",
+    "sample menu/order volume depends on SEED_SAMPLE_MENU_ITEMS and SEED_SAMPLE_ORDERS",
+  ],
+}));
 
 const app = getApps()[0] || initializeApp({
   credential: clientEmail && privateKey
@@ -49,8 +63,6 @@ const auth = getAuth(app);
 const now = FieldValue.serverTimestamp();
 const restaurantId = "cafe-al-arab-thanisandra";
 const branchId = "br-cafe-al-arab-thanisandra";
-const includeSampleMenuItems = process.env.SEED_SAMPLE_MENU_ITEMS === "true";
-const includeSampleOrders = includeSampleMenuItems && process.env.SEED_SAMPLE_ORDERS !== "false";
 const rolePermissions = {
   owner: ["pos", "kds", "billing", "reports", "accounting", "inventory", "loyalty", "settings", "employees", "diagnostics"],
   admin: ["pos", "kds", "billing", "reports", "accounting", "inventory", "loyalty", "settings", "employees", "diagnostics", "platform"],

@@ -3,6 +3,7 @@ import { adminDb } from "@/firebase/admin";
 import { parseFirestoreDateMillis } from "@/lib/firestore-date";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { logPublicDataError } from "@/lib/server/public-firestore";
+import { getCachedPublicApiData, PUBLIC_REVIEW_CACHE_HEADERS, publicDataFailurePayload } from "@/lib/server/public-api-cache";
 import { notifyPublicDatabaseFailure } from "@/lib/server/public-outage-alert";
 import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import { resolveTenantId } from "@/lib/tenant";
@@ -10,10 +11,6 @@ import type { OrderDoc, ReviewDoc } from "@/types/firebase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=30, s-maxage=30, stale-while-revalidate=120",
-};
 
 type ReviewRequestBody = {
   restaurantId?: string;
@@ -45,7 +42,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: [], summary: { averageRating: 0, ratingCount: 0 }, error: "Forbidden" }, { status: 403 });
     }
     if (!restaurantId && !canManage) {
-      return NextResponse.json({ data: [], summary: { averageRating: 0, ratingCount: 0 } }, { headers: CACHE_HEADERS });
+      return NextResponse.json({ data: [], summary: { averageRating: 0, ratingCount: 0 } }, { headers: PUBLIC_REVIEW_CACHE_HEADERS });
     }
 
     const tenantId = restaurantId ? resolveTenantId(restaurantId) : undefined;
@@ -53,34 +50,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: [], summary: { averageRating: 0, ratingCount: 0 }, error: "Forbidden" }, { status: 403 });
     }
 
-    let reviewsQuery = tenantId
-      ? adminDb().collection("customerReviews").where("restaurantId", "==", tenantId).limit(100)
-      : adminDb().collection("customerReviews").limit(100);
+    const loadReviews = async () => {
+      let reviewsQuery = tenantId
+        ? adminDb().collection("customerReviews").where("restaurantId", "==", tenantId).limit(100)
+        : adminDb().collection("customerReviews").limit(100);
 
-    if (!canManage) {
-      reviewsQuery = reviewsQuery.where("status", "==", "published");
-    }
+      if (!canManage) {
+        reviewsQuery = reviewsQuery.where("status", "==", "published");
+      }
 
-    if (menuItemId) {
-      reviewsQuery = reviewsQuery.where("menuItemId", "==", menuItemId);
-    }
+      if (menuItemId) {
+        reviewsQuery = reviewsQuery.where("menuItemId", "==", menuItemId);
+      }
 
-    const snapshot = await withTimeout(reviewsQuery.get(), 4_500, "reviews");
-    const reviews = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as ReviewDoc)
-      .filter((review) => !review.isDeleted && review.verifiedOrder && (canManage || review.status === "published"))
-      .sort((first, second) => dateMillis(second.createdAt) - dateMillis(first.createdAt));
-    const ratingCount = reviews.length;
-    const averageRating = ratingCount
-      ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount) * 10) / 10
-      : 0;
-    const statsSnapshot = tenantId && !menuItemId
-      ? await adminDb().collection("restaurant_stats").doc(tenantId).get().catch(() => null)
-      : null;
-    const stats = statsSnapshot?.exists ? statsSnapshot.data() : null;
-
-    return NextResponse.json(
-      {
+      const snapshot = await withTimeout(reviewsQuery.get(), 4_500, "reviews");
+      const reviews = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }) as ReviewDoc)
+        .filter((review) => !review.isDeleted && review.verifiedOrder && (canManage || review.status === "published"))
+        .sort((first, second) => dateMillis(second.createdAt) - dateMillis(first.createdAt));
+      const ratingCount = reviews.length;
+      const averageRating = ratingCount
+        ? Math.round((reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount) * 10) / 10
+        : 0;
+      const statsSnapshot = tenantId && !menuItemId
+        ? await adminDb().collection("restaurant_stats").doc(tenantId).get().catch(() => null)
+        : null;
+      const stats = statsSnapshot?.exists ? statsSnapshot.data() : null;
+      return {
         data: reviews.map(toPublicReview),
         summary: stats
           ? {
@@ -88,13 +84,25 @@ export async function GET(request: NextRequest) {
               ratingCount: Number(stats.totalReviews ?? ratingCount),
             }
           : { averageRating, ratingCount },
+      };
+    };
+
+    const result = canManage
+      ? { data: await loadReviews(), status: "bypass" }
+      : await getCachedPublicApiData(`public:reviews:${tenantId ?? "all"}:${menuItemId ?? "restaurant"}`, loadReviews, 2 * 60 * 1000);
+
+    return NextResponse.json(
+      {
+        ...result.data,
+        meta: { cacheStatus: result.status },
       },
-      { headers: CACHE_HEADERS },
+      { headers: canManage ? { "Cache-Control": "no-store" } : PUBLIC_REVIEW_CACHE_HEADERS },
     );
   } catch (error) {
     logPublicDataError("reviews", error);
     void notifyPublicDatabaseFailure("reviews", error);
-    return NextResponse.json({ data: [], summary: { averageRating: 0, ratingCount: 0 }, error: "Unable to load reviews." }, { status: 500 });
+    const failure = publicDataFailurePayload(error);
+    return NextResponse.json({ ...failure.body, summary: { averageRating: 0, ratingCount: 0 } }, { status: failure.status });
   }
 }
 

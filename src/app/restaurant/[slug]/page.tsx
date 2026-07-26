@@ -2,6 +2,7 @@ import nextDynamic from "next/dynamic";
 import type { Metadata } from "next";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { CustomerRouteSkeleton } from "@/components/state/route-skeletons";
+import { getCachedPublicApiData } from "@/lib/server/public-api-cache";
 import { getPublicRestaurantDocs } from "@/lib/server/public-firestore";
 import { APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS, ROUTES } from "@/lib/constants";
 
@@ -90,7 +91,8 @@ export default async function RestaurantDetailPage({
 
 async function getRestaurantForMetadata(slug: string) {
   try {
-    const [restaurant] = await getPublicRestaurantDocs(slug);
+    const { data } = await getCachedPublicApiData(`metadata:restaurant:${slug}`, () => getPublicRestaurantDocs(slug));
+    const [restaurant] = data;
     return restaurant;
   } catch {
     return null;

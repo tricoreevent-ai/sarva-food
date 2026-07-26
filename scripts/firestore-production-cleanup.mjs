@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -16,6 +17,17 @@ const privateKey = normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
 if (!projectId) {
   throw new Error("Missing FIREBASE_ADMIN_PROJECT_ID or NEXT_PUBLIC_FIREBASE_PROJECT_ID.");
 }
+
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: `firestore-production-cleanup:${apply ? "apply" : "dry-run"}`,
+  projectId,
+  reads: 40_000,
+  writes: apply ? 40_000 : 0,
+  details: [
+    "40 tenant collections with limit(1000), plus restaurant duplicate scan",
+    "apply mode may soft-delete or patch matching documents",
+  ],
+}));
 
 const app = getApps()[0] || initializeApp({
   credential: clientEmail && privateKey

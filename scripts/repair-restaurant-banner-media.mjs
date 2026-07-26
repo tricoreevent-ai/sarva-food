@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -15,6 +16,16 @@ const serviceAccount = existsSync(serviceAccountPath)
   ? JSON.parse(readFileSync(serviceAccountPath, "utf8"))
   : null;
 
+const restaurantId = process.argv[2] || "cafe-al-arab-thanisandra";
+
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: "repair-restaurant-banner-media",
+  projectId: serviceAccount?.project_id ?? projectId,
+  reads: 1,
+  writes: 1,
+  details: [`repairs restaurants/${restaurantId} banner fields`],
+}));
+
 const app = getApps()[0] || initializeApp({
   credential: clientEmail && privateKey
     ? cert({ projectId, clientEmail, privateKey })
@@ -24,7 +35,6 @@ const app = getApps()[0] || initializeApp({
   projectId: serviceAccount?.project_id ?? projectId,
 });
 
-const restaurantId = process.argv[2] || "cafe-al-arab-thanisandra";
 const db = getFirestore(app);
 const restaurantRef = db.collection("restaurants").doc(restaurantId);
 const snapshot = await restaurantRef.get();

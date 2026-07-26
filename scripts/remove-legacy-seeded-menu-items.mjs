@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -28,6 +29,14 @@ const legacyIds = [
 
 const collections = ["menus", "menuItems", "dineInMenus", "parcelMenus", "deliveryMenus"];
 const apply = process.argv.includes("--apply");
+
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: `remove-legacy-seeded-menu-items:${apply ? "apply" : "dry-run"}`,
+  projectId: serviceAccount?.project_id ?? projectId,
+  reads: collections.length * legacyIds.length,
+  deletes: apply ? collections.length * legacyIds.length : 0,
+  details: ["checks exact legacy menu document IDs before optional delete"],
+}));
 
 const app = getApps()[0] || initializeApp({
   credential: clientEmail && privateKey

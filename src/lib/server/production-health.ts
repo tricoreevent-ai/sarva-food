@@ -7,6 +7,7 @@ import { APP_NAME } from "@/lib/constants";
 import { RELEASE_BRANCH, RELEASE_MARKER, RELEASE_VERSION } from "@/lib/release";
 import { getBuildCommit } from "@/lib/server/build-info";
 import { getCloudinaryCredentials } from "@/lib/server/cloudinary";
+import { classifyFirestoreError } from "@/lib/server/firestore-error-classifier";
 import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 import { getServerEnvironmentConfig } from "@/modules/shared/config/environment/env.server";
 
@@ -35,7 +36,7 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
   );
   const issues = [
     config.firebaseConfiguration.publicConfigured ? "" : "firebase_public_config_missing",
-    firestoreConnectivity.status === "connected" || kind === "live" ? "" : "firestore_unavailable",
+    firestoreConnectivity.status === "connected" || kind === "live" ? "" : ("issue" in firestoreConnectivity ? firestoreConnectivity.issue : "firestore_unavailable"),
     storageConnectivity.status === "configured" || kind === "live" ? "" : "storage_unavailable",
   ].filter(Boolean);
   const configurationWarnings = [
@@ -168,10 +169,16 @@ function getConfigurationSnapshot() {
 async function probeFirestoreConnectivity() {
   const started = performance.now();
   try {
-    await adminDb().collection(COLLECTIONS.restaurants).limit(1).get();
+    await withTimeout(adminDb().collection(COLLECTIONS.restaurants).limit(1).get(), 12_000, "Firestore readiness probe timed out");
     return status("connected", started);
-  } catch {
-    return status("unavailable", started);
+  } catch (error) {
+    const failure = classifyFirestoreError(error);
+    return {
+      ...status("unavailable", started),
+      issue: failure.issue,
+      failureKind: failure.kind,
+      retryable: failure.retryable,
+    };
   }
 }
 
@@ -190,6 +197,14 @@ function status(value: string, started?: number) {
     status: value,
     ...(started === undefined ? {} : { latencyMs: Math.round(performance.now() - started) }),
   };
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
 function getMemoryUsage() {

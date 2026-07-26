@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -16,6 +17,20 @@ const serviceAccount = existsSync(serviceAccountPath)
   ? JSON.parse(readFileSync(serviceAccountPath, "utf8"))
   : null;
 
+const apply = process.argv.includes("--apply");
+
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: `repair-cafe-owner-menu:${apply ? "apply" : "dry-run"}`,
+  projectId: serviceAccount?.project_id ?? projectId,
+  reads: 2_500,
+  writes: apply ? 500 : 0,
+  deletes: apply ? 500 : 0,
+  details: [
+    "scans users, ownerProfiles, menus, and alias-matched menu documents",
+    "apply mode repairs Cafe owner/menu records",
+  ],
+}));
+
 const app = getApps()[0] || initializeApp({
   credential: clientEmail && privateKey
     ? cert({ projectId, clientEmail, privateKey })
@@ -27,7 +42,6 @@ const app = getApps()[0] || initializeApp({
 
 const db = getFirestore(app);
 const auth = getAuth(app);
-const apply = process.argv.includes("--apply");
 const restaurantId = process.env.REPAIR_RESTAURANT_ID || "cafe-al-arab-thanisandra";
 const ownerEmail = (process.env.REPAIR_OWNER_EMAIL || "divakdi@gmail.com").trim().toLowerCase();
 const ownerName = process.env.REPAIR_OWNER_NAME || "Le Babu";

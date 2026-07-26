@@ -61,6 +61,8 @@ async function fetchPublicDocs<T>(
   params?: Record<string, string | undefined>,
 ): Promise<T[]> {
   const url = publicApiUrl(path, params);
+  const cached = readMemoryCache<T[]>(url);
+  if (Array.isArray(cached)) return cached;
   const existing = inflightPublicRequests.get(url) as Promise<T[]> | undefined;
   if (existing) return existing;
 
@@ -120,6 +122,8 @@ async function fetchPublicCuisines() {
 
 async function fetchPublicCms() {
   const url = publicApiUrl("/api/public/cms");
+  const cached = readMemoryCache<CmsSettings>(url);
+  if (cached) return cached;
   const existing = inflightPublicRequests.get(url) as Promise<CmsSettings> | undefined;
   if (existing) return existing;
 
@@ -162,6 +166,8 @@ async function fetchPublicOffers(restaurantId?: string) {
 
 async function fetchPublicReviews(restaurantId: string, menuItemId?: string): Promise<PublicReviewsPayload> {
   const url = publicApiUrl("/api/public/reviews", { restaurantId, menuItemId });
+  const cached = readMemoryCache<PublicReviewsPayload>(url);
+  if (cached) return cached;
   const existing = inflightPublicRequests.get(url) as Promise<PublicReviewsPayload> | undefined;
   if (existing) return existing;
 
@@ -198,7 +204,7 @@ async function fetchJsonWithRetry<T>(url: string): Promise<T> {
   for (let attempt = 0; attempt <= PUBLIC_FETCH_RETRIES; attempt += 1) {
     try {
       const response = await fetch(url, {
-        cache: "no-store",
+        cache: "default",
         headers: { Accept: "application/json" },
       });
       const payload = (await response.json().catch(() => ({}))) as T & { error?: string };

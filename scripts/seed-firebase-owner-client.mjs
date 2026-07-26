@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -28,6 +29,13 @@ const restaurantId = "cafe-al-arab-thanisandra";
 const branchId = "br-cafe-al-arab-thanisandra";
 const includeSampleMenuItems = process.env.SEED_SAMPLE_MENU_ITEMS === "true";
 const includeSampleOrders = includeSampleMenuItems && process.env.SEED_SAMPLE_ORDERS !== "false";
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: "seed-firebase-owner-client",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  reads: 0,
+  writes: includeSampleOrders ? 300 : 150,
+  details: ["client SDK owner bootstrap seed; creates/updates Auth user and Firestore docs"],
+}));
 const app = initializeApp({
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,

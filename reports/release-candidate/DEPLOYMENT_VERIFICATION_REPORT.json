@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-07-15T11:57:26.284Z",
+  "generatedAt": "2026-07-26T13:58:12.791Z",
   "summary": {
     "counts": {
-      "PASS": 14,
-      "WARNING": 1,
-      "ERROR": 2,
+      "PASS": 10,
+      "WARNING": 0,
+      "ERROR": 3,
       "FAIL": 0,
       "MANUAL": 0
     },
@@ -18,13 +18,13 @@
     },
     {
       "name": "release:version",
-      "status": "ERROR",
-      "detail": "expected v1.0.0-rc5, saw v1.0.0-rc4"
+      "status": "PASS",
+      "detail": "expected v1.0.0-rc5, saw v1.0.0-rc5"
     },
     {
       "name": "release:sha",
-      "status": "WARNING",
-      "detail": "hosted currently serves dcff59e050de1dace19460198cb2909372bce7d5; final certification commit is pending and must be redeployed"
+      "status": "PASS",
+      "detail": "expected c5fd64c84f8bb247a509ded693089c4878e9f6a4, saw c5fd64c84f8bb247a509ded693089c4878e9f6a4"
     },
     {
       "name": "release:branch",
@@ -33,8 +33,8 @@
     },
     {
       "name": "release:environment",
-      "status": "ERROR",
-      "detail": "saw development"
+      "status": "PASS",
+      "detail": "saw production"
     },
     {
       "name": "release:timestamp",
@@ -63,38 +63,18 @@
     },
     {
       "name": "http:health-ready",
-      "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com/health/ready -> HTTP 200"
-    },
-    {
-      "name": "health:ready-http",
-      "status": "PASS",
-      "detail": "HTTP 200"
-    },
-    {
-      "name": "firebase:firestore",
-      "status": "PASS",
-      "detail": "connected"
-    },
-    {
-      "name": "firebase:admin",
-      "status": "PASS",
-      "detail": "Firebase Admin configured"
-    },
-    {
-      "name": "env:consistency",
-      "status": "PASS",
-      "detail": "release-info and health environment match"
+      "status": "ERROR",
+      "detail": "This operation was aborted"
     },
     {
       "name": "http:health-startup",
-      "status": "PASS",
-      "detail": "https://violet-squid-380447.hostingersite.com/health/startup -> HTTP 200"
+      "status": "ERROR",
+      "detail": "https://violet-squid-380447.hostingersite.com/health/startup -> HTTP 503"
     },
     {
       "name": "health:startup",
-      "status": "PASS",
-      "detail": "HTTP 200"
+      "status": "ERROR",
+      "detail": "HTTP 503"
     }
   ],
   "sections": []

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 for (const envFile of [".env", ".env.local"]) {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -19,6 +20,16 @@ const serviceAccount = !clientEmail && !privateKey && existsSync(serviceAccountP
 if (!projectId) {
   throw new Error("Missing FIREBASE_ADMIN_PROJECT_ID or NEXT_PUBLIC_FIREBASE_PROJECT_ID.");
 }
+
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: "validate-production-data",
+  projectId,
+  reads: 32_000,
+  details: [
+    "16 collection reads with limit(2000)",
+    "safe read-only validation, but repeated runs can exhaust the 50k/day Firestore free-tier read quota",
+  ],
+}));
 
 const app = getApps()[0] || initializeApp({
   credential: clientEmail && privateKey

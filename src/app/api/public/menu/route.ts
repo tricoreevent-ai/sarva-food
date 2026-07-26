@@ -1,15 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getPublicMenuDocs, logPublicDataError, logPublicDataInfo } from "@/lib/server/public-firestore";
 import { notifyPublicDatabaseFailure } from "@/lib/server/public-outage-alert";
+import { getCachedPublicApiData, PUBLIC_CATALOG_CACHE_HEADERS, publicDataFailurePayload } from "@/lib/server/public-api-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const CACHE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, max-age=0",
-  "CDN-Cache-Control": "no-store",
-  "Surrogate-Control": "no-store",
-};
 
 export async function GET(request: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -17,15 +12,17 @@ export async function GET(request: NextRequest) {
   try {
     const restaurantId = request.nextUrl.searchParams.get("restaurantId");
     if (!restaurantId) {
-      return NextResponse.json({ data: [], meta: { requestId, count: 0 } }, { headers: CACHE_HEADERS });
+      return NextResponse.json({ data: [], meta: { requestId, count: 0 } }, { headers: PUBLIC_CATALOG_CACHE_HEADERS });
     }
 
-    const data = await getPublicMenuDocs(restaurantId);
+    const result = await getCachedPublicApiData(`public:menu:${restaurantId}`, () => getPublicMenuDocs(restaurantId));
+    const data = result.data;
     logPublicDataInfo("menu", "Public menu request completed.", {
       requestId,
       restaurantId,
       count: data.length,
       durationMs: Date.now() - startedAt,
+      cacheStatus: result.status,
     });
     return NextResponse.json(
       {
@@ -33,14 +30,16 @@ export async function GET(request: NextRequest) {
         meta: {
           requestId,
           count: data.length,
+          cacheStatus: result.status,
           ...(data.length === 0 ? { emptyReason: "no-customer-visible-menu-items" } : {}),
         },
       },
-      { headers: CACHE_HEADERS },
+      { headers: PUBLIC_CATALOG_CACHE_HEADERS },
     );
   } catch (error) {
     logPublicDataError(`menu:${requestId}`, error);
     void notifyPublicDatabaseFailure("menu", error);
-    return NextResponse.json({ data: [], error: "Unable to load public menu.", meta: { requestId, count: 0 } }, { status: 500 });
+    const failure = publicDataFailurePayload(error);
+    return NextResponse.json({ ...failure.body, meta: { ...failure.body.meta, requestId, count: 0 } }, { status: failure.status });
   }
 }

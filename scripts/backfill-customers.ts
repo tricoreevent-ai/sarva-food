@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 import type { DocumentReference } from "firebase-admin/firestore";
 
 const apply = process.argv.includes("--apply");
@@ -13,6 +14,16 @@ const { getFirestore } = await import("firebase-admin/firestore");
 const accountPath = join(process.cwd(), "service-account-key.json");
 if (!existsSync(accountPath)) throw new Error("service-account-key.json is required for the customer backfill.");
 const account = JSON.parse(readFileSync(accountPath, "utf8"));
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: `backfill-customers:${apply ? "apply" : "dry-run"}`,
+  projectId: account.project_id,
+  reads: 50_000,
+  writes: apply ? 50_000 : 0,
+  details: [
+    "paginates all orders in batches of 400 and reads loyaltyRules per tenant",
+    "apply mode writes customers, loyaltyCustomers, and customerTransactions",
+  ],
+}));
 const app = getApps()[0] ?? initializeApp({ credential: cert({ projectId: account.project_id, clientEmail: account.client_email, privateKey: account.private_key }), projectId: account.project_id });
 const db = getFirestore(app);
 const orders = (await allOrders()).filter((order) => Array.isArray(order.lines));

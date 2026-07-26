@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { assertProductionFirestoreAllowed, productionFirestorePlan } from "./lib/production-firestore-guard.mjs";
 
 const apply = process.argv.includes("--apply");
 const { cert, getApps, initializeApp } = await import("firebase-admin/app");
@@ -8,6 +9,16 @@ const { FieldValue, getFirestore } = await import("firebase-admin/firestore");
 const accountPath = join(process.cwd(), "service-account-key.json");
 if (!existsSync(accountPath)) throw new Error("service-account-key.json is required for order consistency backfill.");
 const account = JSON.parse(readFileSync(accountPath, "utf8"));
+assertProductionFirestoreAllowed(productionFirestorePlan({
+  name: `backfill-order-consistency:${apply ? "apply" : "dry-run"}`,
+  projectId: account.project_id,
+  reads: 50_000,
+  writes: apply ? 50_000 : 0,
+  details: [
+    "paginates orders, customerOrders, and kitchenOrders in batches of 400",
+    "apply mode patches lifecycle consistency fields",
+  ],
+}));
 const app = getApps()[0] ?? initializeApp({ credential: cert({ projectId: account.project_id, clientEmail: account.client_email, privateKey: account.private_key }), projectId: account.project_id });
 const db = getFirestore(app);
 const collections = ["orders", "customerOrders", "kitchenOrders"];
