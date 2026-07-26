@@ -238,7 +238,7 @@ function orderMutationPermissionError(session: VerifiedSession, body: OrderPatch
 function waiterOrderActionAllowed(action: string, body: OrderPatchBody) {
   if (action === "status") return body.status === "served" || body.status === "completed";
   if (action === "event") return ["kitchen_sent", "reminder", "kitchen_recall"].includes(String(body.event ?? ""));
-  return ["send_to_kitchen", "print", "split_bill", "merge_tables", "transfer_table", "assign_waiter"].includes(action);
+  return ["send_to_kitchen", "payment_started", "payment", "print", "split_bill", "merge_tables", "transfer_table", "assign_waiter"].includes(action);
 }
 
 function cashierOrderActionAllowed(action: string, body: OrderPatchBody) {

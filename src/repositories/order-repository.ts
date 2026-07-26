@@ -641,6 +641,35 @@ export class OrderRepository {
         capturedAt: input.capturedAt,
         createdAt: FieldValue.serverTimestamp(),
       }));
+      writeAccountingEntry(transaction, scope, {
+        id: `acc-${paymentRef.id}`,
+        order,
+        paymentTransactionId: paymentRef.id,
+        type: "income",
+        category: "sales income",
+        amount,
+        gst: paidTaxForAmount(order, amount),
+        paymentMode: input.method,
+        actorId: input.cashierId ?? scope.uid ?? "",
+        notes: `Payment for ${order.invoiceNumber ?? input.orderId}`,
+      });
+      if (tipAmount > 0) {
+        writeAccountingEntry(transaction, scope, {
+          id: `tip-${paymentRef.id}`,
+          order,
+          paymentTransactionId: paymentRef.id,
+          type: "liability",
+          category: "waiter tips payable",
+          amount: tipAmount,
+          gst: 0,
+          paymentMode: input.tipMethod ?? input.method,
+          actorId: input.cashierId ?? scope.uid ?? "",
+          notes: `Tip payable to ${waiterName}`,
+          waiterId,
+          waiterName,
+          excludeFromRevenue: true,
+        });
+      }
       if (nextStatus === "paid") {
         const printRef = this.db.collection("printLogs").doc();
         transaction.set(printRef, cleanRecord({
@@ -734,6 +763,18 @@ export class OrderRepository {
         reason: input.reason,
         createdAt: FieldValue.serverTimestamp(),
       }));
+      writeAccountingEntry(transaction, scope, {
+        id: `refund-${paymentRef.id}`,
+        order,
+        paymentTransactionId: paymentRef.id,
+        type: "refund",
+        category: "sales refund",
+        amount: -refundAmount,
+        gst: -paidTaxForAmount(order, refundAmount),
+        paymentMode: input.method,
+        actorId: input.cashierId ?? scope.uid ?? "",
+        notes: `Refund for ${order.invoiceNumber ?? input.orderId}`,
+      });
       writeAudit(transaction, scope, { userId: input.cashierId ?? scope.uid, role: input.role, action: "refund", entityId: input.orderId, after: audit, device: input.device });
       writeNotification(transaction, scope, { type: "payment", title: "Refund recorded", message: `Refund of ₹${refundAmount} recorded.`, priority: "high", orderId: input.orderId, kitchenOrderId: input.kitchenOrderId });
     });
@@ -1139,6 +1180,19 @@ export class OrderRepository {
           status: "paid",
           createdAt: FieldValue.serverTimestamp(),
         }));
+        writeAccountingEntry(transaction, scope, {
+          id: `acc-${paymentRef.id}`,
+          order,
+          paymentTransactionId: paymentRef.id,
+          splitBillId: split.id,
+          type: "income",
+          category: "sales income",
+          amount: split.amount,
+          gst: paidTaxForAmount(order, split.amount),
+          paymentMode: split.method,
+          actorId: input.userId ?? scope.uid ?? "",
+          notes: `Split payment ${split.customerName} for ${order.invoiceNumber ?? input.orderId}`,
+        });
         if (split.receipt) {
           const printRef = this.db.collection("printLogs").doc();
           transaction.set(printRef, cleanRecord({
@@ -1478,6 +1532,56 @@ function paidTaxAmount(order: OrderDoc) {
   const tax = Number(order.tax ?? 0);
   if (total <= 0 || tax <= 0) return 0;
   return money(tax * Math.min(1, paidAmount(order) / total));
+}
+
+function paidTaxForAmount(order: OrderDoc, amount: number) {
+  const total = Number(order.total ?? 0);
+  const tax = Number(order.tax ?? 0);
+  if (total <= 0 || tax <= 0 || amount <= 0) return 0;
+  return money(tax * Math.min(1, amount / total));
+}
+
+function writeAccountingEntry(transaction: Transaction, scope: TenantScope, input: {
+  id: string;
+  order: OrderDoc;
+  paymentTransactionId: string;
+  splitBillId?: string;
+  type: string;
+  category: string;
+  amount: number;
+  gst: number;
+  paymentMode: string;
+  actorId: string;
+  notes: string;
+  waiterId?: string;
+  waiterName?: string;
+  excludeFromRevenue?: boolean;
+}) {
+  transaction.set(adminDb().collection("accountingEntries").doc(input.id), cleanRecord({
+    id: input.id,
+    tenantId: scope.tenantId,
+    restaurantId: scope.tenantId,
+    branchId: input.order.branchId ?? scope.branchIds?.[0] ?? "main",
+    type: input.type,
+    category: input.category,
+    amount: money(input.amount),
+    gst: money(input.gst),
+    paymentMode: input.paymentMode,
+    orderId: input.order.id,
+    paymentTransactionId: input.paymentTransactionId,
+    splitBillId: input.splitBillId,
+    invoiceNumber: input.order.invoiceNumber,
+    waiterId: input.waiterId,
+    waiterName: input.waiterName,
+    excludeFromRevenue: input.excludeFromRevenue,
+    approvalStatus: "approved",
+    isDeleted: false,
+    notes: input.notes,
+    createdBy: input.actorId,
+    updatedBy: input.actorId,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }), { merge: true });
 }
 
 function assertCanModifyOperationalOrder(order: OrderDoc) {

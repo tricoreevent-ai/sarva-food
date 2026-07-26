@@ -396,8 +396,8 @@ await check("kitchen:ready-signal-without-serving", () => {
 });
 
 await check("rbac:waiter-serve-complete-without-bill-edit", () => {
-  for (const token of ['requireOwnerFeature(request, "orders", "read")', "orderMutationPermissionError", "waiterOrderActionAllowed", 'body.status === "served" || body.status === "completed"', "Waiter can serve, complete"]) assert.ok(orderApi.includes(token), token);
-  for (const token of ['view === "waiter" ? "Cashier handles payment collection."', 'view === "waiter" ? "Kitchen sends ready signals; serve the ticket after pickup."']) assert.ok(activeOrders.includes(token), token);
+  for (const token of ['requireOwnerFeature(request, "orders", "read")', "orderMutationPermissionError", "waiterOrderActionAllowed", 'body.status === "served" || body.status === "completed"', '"payment_started"', '"payment"', "Waiter can serve, complete"]) assert.ok(orderApi.includes(token), token);
+  for (const token of ['const canCollectForView = canCollect;', 'view === "waiter" ? "Kitchen sends ready signals; serve the ticket after pickup."']) assert.ok(activeOrders.includes(token), token);
 });
 
 await check("rbac:kitchen-cannot-serve", () => {

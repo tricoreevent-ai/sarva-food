@@ -684,7 +684,7 @@ function ActiveOrderCard({
       : canMarkReady
         ? { id: "ready" as const, label: "Mark Ready", icon: <CheckCircle2 className="size-4" />, title: "Mark order Ready for service" }
         : null;
-  const canCollectForView = view !== "waiter" && canCollect;
+  const canCollectForView = canCollect;
   const canNotifyForView = view !== "waiter" && canNotify;
   const pendingPaymentMessage = "Payment is still pending. Please collect payment before completing this order.";
   const orderNumber = readableTableOrderId(order);
@@ -824,7 +824,7 @@ function ActiveOrderCard({
           <button type="button" data-action="serve" disabled={!ready || busy} onClick={handleAction} className={activeOrderActionClass(ready, "success")} aria-label="Serve Order" title={ready ? "Serve Order" : "Cannot Serve: kitchen has not marked Ready."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
         )}
         <button type="button" data-action="notify" disabled={!canNotifyForView || busy} onClick={handleAction} className={activeOrderActionClass(canNotifyForView, "default")} aria-label="Ready Signal" title={view === "waiter" ? "Kitchen sends ready signals; serve the ticket after pickup." : canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
-        <button type="button" data-action="payment" disabled={!canCollectForView || busy} onClick={handleAction} className={activeOrderActionClass(canCollectForView, "payment")} aria-label="Collect Payment" title={view === "waiter" ? "Cashier handles payment collection." : canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
+        <button type="button" data-action="payment" disabled={!canCollectForView || busy} onClick={handleAction} className={activeOrderActionClass(canCollectForView, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
         <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
         <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
         <ActiveOrderActionMenu order={order} actions={menuActions} disabled={busy} onAction={onAction} />
