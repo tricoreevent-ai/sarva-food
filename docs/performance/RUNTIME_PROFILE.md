@@ -1,6 +1,6 @@
 # Runtime Profile
 
-Date: 2026-07-23T16:03:45.662Z
+Date: 2026-07-26T10:09:15.417Z
 
 ## Measurement Inputs
 
@@ -20,21 +20,21 @@ Date: 2026-07-23T16:03:45.662Z
 | /orders | 20 | 523 KB | 198 KB | - | Tracked |
 | /profile | 24 | 563 KB | 198 KB | 250 KB | Over |
 | /owner | 28 | 609 KB | 198 KB | 350 KB | Over |
-| /owner/orders | 33 | 749 KB | 198 KB | 500 KB | Over |
+| /owner/orders | 33 | 746 KB | 198 KB | 500 KB | Over |
 | /owner/settings | 32 | 735 KB | 198 KB | 300 KB | Over |
 | /owner/kitchen | 31 | 714 KB | 198 KB | - | Tracked |
-| /owner/pos | 29 | 613 KB | 198 KB | 650 KB | Pass |
+| /owner/pos | 29 | 614 KB | 198 KB | 650 KB | Pass |
 | /admin | 21 | 513 KB | 198 KB | - | Tracked |
 
 ## Stress Timing Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.52ms | 0.92ms | 2.34ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.06ms | 0.43ms | <100ms update |
-| POS 1000-item category switch | 0.16ms | 0.23ms | 0.41ms | <50ms switch |
-| POS 1000-item search filter | 0.20ms | 0.36ms | 1.51ms | debounced |
-| Active Orders 100-order filter/group | 0.23ms | 0.61ms | 1.25ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.79ms | 1.18ms | 3.93ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.07ms | 0.16ms | 1.07ms | <100ms update |
+| POS 1000-item category switch | 0.13ms | 0.25ms | 4.18ms | <50ms switch |
+| POS 1000-item search filter | 0.25ms | 0.55ms | 1.17ms | debounced |
+| Active Orders 100-order filter/group | 0.34ms | 0.89ms | 1.80ms | <50ms interaction |
 
 ## Notes
 

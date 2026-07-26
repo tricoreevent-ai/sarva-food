@@ -1,31 +1,6 @@
 # Final Bug Report
 
-Date: 2026-07-23T16:03:45.662Z
-
-## 2026-07-24 Deployment Certification
-
-| Severity | Finding | Resolution |
-| --- | --- | --- |
-| P0 | `/api/cloudinary/signature` issued signed upload parameters without authentication and accepted arbitrary caller signing fields. | Added session/RBAC, tenant-folder authorization, parameter allowlist, and rate limiting. |
-| P0 | `/api/public/order-notification` trusted caller recipient/content and could act as an SMTP relay. | Requires the owning customer/order, derives the restaurant, ignores caller recipient email, and rate limits requests. |
-| P1 | Production exposed the development test-session route as a recognizable disabled endpoint. | Production returns HTTP 404. |
-| P1 | Public callback, restaurant-lead, and monitoring ingestion lacked process-level abuse bounds. | Added rate limits, payload bounds, and text limits. |
-| P1 | Release-info fallback timestamp represented request time instead of a stable artifact time. | Uses configured deployment metadata or `.next/BUILD_ID` modification time. |
-
-Live Firestore data issues are recorded in Final Release Readiness and require controlled production-data remediation; the repository audit did not write production data.
-
-## RC5 Release Closure
-
-| Severity | Finding | Resolution |
-| --- | --- | --- |
-| P0 | Direct menu-item pages crashed because `useWhatsAppShare` resolved `useAlert` before the descendant customer provider existed. | Installed one root alert provider and removed duplicate customer/dashboard providers. |
-| P1 | Customer order tracking used a 10-second REST polling interval despite an existing shared Firestore listener. | Uses the shared deduplicated snapshot listener; secure customer REST remains initial/fallback data. |
-| P1 | Kitchen History exposed Archive controls that only displayed success toasts, and Admin Subscriptions exposed a Notify action without persistence/delivery. | Removed the false-success controls. |
-| P1 | Kitchen History drawer Print/Preview controls could display instruction-only messages instead of performing the named operation. | History print invokes `window.print`; redundant preview action is not rendered. |
-| P1 | Public footer accepted placeholder social URLs and direct item share/cart could not complete while the item crash existed. | Invalid social links are filtered; direct item sharing and cart persistence pass production-browser UAT. |
-| P2 | Payment Verification Center records failed/cancel/timeout checks as explicit Manual QA evidence rather than simulating real provider outcomes. | Documented as provider Manual QA; no false provider mutation is claimed. |
-
-No unresolved repository P0 or P1 issue was confirmed after retest.
+Date: 2026-07-26T10:09:15.417Z
 
 ## Final RC Bug-Hunt Result
 

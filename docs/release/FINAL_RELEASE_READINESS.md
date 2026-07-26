@@ -1,21 +1,6 @@
 # Final Release Readiness
 
-Date: 2026-07-23T16:03:45.662Z
-
-## 2026-07-24 Production Data Gate
-
-Read-only validation connected to project `sarva-food-app` and found:
-
-- 3 Cafe Al Arab menu items missing `tenantId` and `restaurantId`.
-- Cafe Al Arab missing dine-in, parcel, and delivery menu documents and complete active channel coverage.
-- Tamarind Table missing complete active menu channel coverage.
-- Falak restaurant owner reference not found in `users`.
-- Order consistency dry run: 6/37 `orders` and 6/36 `customerOrders` require consistency fields; 0/23 `kitchenOrders` require patches.
-- One `orders` document lacks its `customerOrders` mirror.
-- Eleven historical orders reference customer identifiers not present in the current `users`/`customers` collections; confirm whether these are intended guest/legacy identifiers before repair.
-- No duplicate per-tenant order number, orphan KOT, orphan payment, or orphan notification was detected by the supplementary read-only audit.
-
-Repository P0/P1 security fixes are complete. Production deployment remains gated on an approved backup, dry-run review, and controlled data remediation/revalidation.
+Date: 2026-07-26T10:09:15.417Z
 
 ## Local Validation
 
@@ -26,11 +11,7 @@ Repository P0/P1 security fixes are complete. Production deployment remains gate
 | `npm run build` | Passed with accepted Firebase/protobuf warning. |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning. |
 | `npm run audit:release` | Passed. |
-| `npm run smoke:operational` | Passed 46/46. |
-| `npm run smoke:production` | Passed 7/7 automated routes; 18 credential/provider/hardware checks remain manual. |
-| Production-browser UAT | Passed public route, menu item, share, cart, login, responsive overflow, dead-link, console, and request checks. |
-| `npm run stress:operational`, `profile:realtime`, `profile:memory:long` | Passed 4/4 each. |
-| `npm run theme:contrast` | Passed. |
+| `npm run smoke:operational` | Passed 40/40, including incremental Kitchen stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |
 | `npm run profile:runtime` | Passed. |
 | `git diff --check` | Passed as a final release gate. |
 
@@ -50,7 +31,7 @@ Repository P0/P1 security fixes are complete. Production deployment remains gate
 | --- | --- |
 | Repository readiness | 100% |
 | Production readiness | 92% |
-| Recommendation | READY FOR STAGING; NOT READY FOR PRODUCTION until the documented Firestore data integrity findings are remediated and revalidated. |
+| Recommendation | NO-GO until final RC5 is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Remaining Manual Gates
 

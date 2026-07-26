@@ -66,6 +66,7 @@ export function buildOperationalOrders(orders: DemoOrder[], kitchenOrders: Table
 }
 
 export function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
+  const extended = order as ExtendedDemoOrder;
   const orderType = order.fulfillmentType === "delivery" ? "delivery" : order.fulfillmentType === "dine-in" ? "dine-in" : "parcel";
   return {
     id: order.id,
@@ -76,12 +77,13 @@ export function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
     canonicalOrderId: order.id,
     canonicalStatus: order.status,
     hasKitchenTicket: false,
-    tableNumber: order.fulfillmentType === "dine-in" ? "Dine-in" : order.fulfillmentType === "delivery" ? "Online" : "Parcel",
+    tableNumber: extended.tableNumber || (order.fulfillmentType === "dine-in" ? "Dine-in" : order.fulfillmentType === "delivery" ? "Online" : "Parcel"),
     source: order.channel === "QR" ? "QR" : order.fulfillmentType === "delivery" ? "Delivery" : order.fulfillmentType === "parcel" ? "Parcel" : "POS",
     orderType,
     customerName: order.customer.name,
     customerPhone: order.customer.phone,
     deliveryAddress: order.customer.address,
+    waiterName: extended.waiterName,
     scheduledFor: order.scheduledFor,
     lines: order.lines,
     status: tableStatusForOrder(order.status),
@@ -108,11 +110,15 @@ export function orderToOperationalOrder(order: DemoOrder): OperationalOrder {
 
 export type ExtendedDemoOrder = DemoOrder & OperationalOrder;
 
-function isActiveDemoOrder(order: DemoOrder) {
-  return !["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+export function isOperationalTerminalStatus(status: string) {
+  return ["delivered", "completed", "cancelled", "rejected", "billed"].includes(status);
 }
 
-function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] {
+export function isActiveDemoOrder(order: DemoOrder) {
+  return !isOperationalTerminalStatus(order.status);
+}
+
+export function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] {
   if (status === "accepted") return "accepted";
   if (status === "preparing") return "preparing";
   if (status === "ready") return "ready";
@@ -122,7 +128,7 @@ function tableStatusForOrder(status: DemoOrder["status"]): TableOrder["status"] 
   return "new";
 }
 
-function serviceStatusForKitchenOrder(kitchenStatus: TableOrder["status"], orderStatus?: DemoOrder["status"], mergedIntoOrderId?: string): TableOrder["status"] {
+export function serviceStatusForKitchenOrder(kitchenStatus: TableOrder["status"], orderStatus?: DemoOrder["status"], mergedIntoOrderId?: string): TableOrder["status"] {
   if (mergedIntoOrderId && !["completed", "cancelled", "billed"].includes(kitchenStatus)) return kitchenStatus;
   if (orderStatus === "served") return "served";
   if (orderStatus === "completed" || orderStatus === "delivered") return "completed";
@@ -132,6 +138,6 @@ function serviceStatusForKitchenOrder(kitchenStatus: TableOrder["status"], order
 
 function paymentStateForOrder(order?: DemoOrder): TableOrder["paymentStatus"] | undefined {
   if (!order?.paymentStatus) return undefined;
-  if (order.paymentStatus === "paid" || order.paymentStatus === "partial" || order.paymentStatus === "refunded") return order.paymentStatus;
-  return "unpaid";
+  if (["paid", "partial", "refunded", "pending", "authorized", "failed"].includes(order.paymentStatus)) return order.paymentStatus;
+  return undefined;
 }

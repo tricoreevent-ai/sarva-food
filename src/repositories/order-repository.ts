@@ -452,11 +452,50 @@ export class OrderRepository {
       const order = dataWithId<OrderDoc>(snapshot.id, snapshot.data() ?? {});
       assertOrderTenant(order, scope);
       if (order.kitchenOrderId) {
-        const kitchenSnapshot = await transaction.get(this.db.collection("kitchenOrders").doc(order.kitchenOrderId));
+        const kitchenRef = this.db.collection("kitchenOrders").doc(order.kitchenOrderId);
+        const customerOrderRef = this.db.collection("customerOrders").doc(order.id);
+        const [kitchenSnapshot, customerOrderSnapshot] = await Promise.all([transaction.get(kitchenRef), transaction.get(customerOrderRef)]);
         if (kitchenSnapshot.exists) {
           const kitchenOrder = dataWithId<KitchenOrderDoc>(kitchenSnapshot.id, kitchenSnapshot.data() ?? {});
           if (![kitchenOrder.tenantId, kitchenOrder.restaurantId].includes(scope.tenantId)) throw new Error("Kitchen ticket not found.");
-          result = { order, kitchenOrder };
+          if (["cancelled", "rejected", "delivered", "completed"].includes(order.status)) throw new Error("This order is no longer active.");
+          const nextStatus = order.status === "new" ? "accepted" : order.status;
+          const foodStatus = orderStatusToFoodStatus(nextStatus);
+          if (nextStatus !== order.status) assertLegalOrderTransition(order, nextStatus);
+          const orderPatch = cleanRecord({
+            kitchenOrderId: kitchenOrder.id,
+            status: nextStatus,
+            foodStatus,
+            statusHistory: nextStatus !== order.status ? FieldValue.arrayUnion({ status: nextStatus, foodStatus, paymentStatus: order.paymentStatus ?? "pending", event: "kitchen_sent", at: now, by: input.userId ?? scope.uid }) : undefined,
+            auditTimeline: nextStatus !== order.status ? FieldValue.arrayUnion(auditEvent("kitchen_sent", scope, input, now, { status: nextStatus, kitchenOrderId: kitchenOrder.id, repairedLink: true })) : undefined,
+            updatedAt: FieldValue.serverTimestamp(),
+            ...operationPatch(input.operationKey),
+          });
+          transaction.set(orderRef, orderPatch, { merge: true });
+          if (customerOrderSnapshot.exists) transaction.set(customerOrderRef, orderPatch, { merge: true });
+          if (kitchenOrder.status === "new" && foodStatus === "accepted") {
+            transaction.set(kitchenRef, cleanRecord({
+              status: "accepted",
+              foodStatus: "accepted",
+              statusHistory: FieldValue.arrayUnion({ status: "accepted", at: now, by: input.userId ?? scope.uid, event: "kitchen_sent" }),
+              updatedAt: FieldValue.serverTimestamp(),
+              ...operationPatch(input.operationKey),
+            }), { merge: true });
+          } else {
+            transaction.set(kitchenRef, cleanRecord({ updatedAt: FieldValue.serverTimestamp(), ...operationPatch(input.operationKey) }), { merge: true });
+          }
+          if (nextStatus !== order.status) {
+            writeAudit(transaction, scope, { userId: input.userId ?? scope.uid, role: input.role, action: "kitchen_sent", entityId: order.id, after: { kitchenOrderId: kitchenOrder.id, status: nextStatus, repairedLink: true }, device: input.device });
+            writeNotification(transaction, scope, {
+              type: "new_order",
+              title: "Order sent to kitchen",
+              message: `${displayOrderNumberText(Number(order.orderNumber ?? 0))} sent to kitchen for ${kitchenOrder.tableNumber || kitchenOrder.orderType}.`,
+              priority: "high",
+              orderId: order.id,
+              kitchenOrderId: kitchenOrder.id,
+            });
+          }
+          result = { order: { ...order, kitchenOrderId: kitchenOrder.id, status: nextStatus, foodStatus }, kitchenOrder: { ...kitchenOrder, status: foodStatus === "accepted" && kitchenOrder.status === "new" ? "accepted" : kitchenOrder.status, foodStatus } };
           return;
         }
       }

@@ -20,6 +20,7 @@ import {
   PackageCheck,
   Phone,
   ReceiptText,
+  QrCode,
   Search,
   Send,
   Settings,
@@ -28,6 +29,7 @@ import {
   Truck,
   Utensils,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
@@ -58,7 +60,7 @@ import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/com
 const IntegrationDialog = dynamic(() => import("@/components/orders/integration-dialog").then((module) => module.IntegrationDialog), { loading: () => null });
 const PartnerCard = dynamic(() => import("@/components/orders/partner-card").then((module) => module.PartnerCard), { loading: () => null });
 
-type OrderTab = "live" | "scheduled" | "kot" | "completed" | "all";
+type OrderTab = "all" | "dine-in" | "parcel" | "delivery" | "online" | "qr" | "scheduled" | "catering" | "cancelled";
 type SourceFilter = "all" | "website" | "pos" | "zomato" | "swiggy" | "dine-in" | "parcel" | "catering";
 type DatePreset = "today" | "yesterday" | "last7" | "week" | "last30" | "month" | "custom";
 type DateRange = { preset: DatePreset; from: string; to: string };
@@ -131,17 +133,21 @@ const nextKitchenStatus: Record<TableOrderStatus, TableOrderStatus> = {
   cancelled: "cancelled",
   billed: "completed",
 };
-const orderTabs: Array<{ key: OrderTab; label: string }> = [
-  { key: "live", label: "Active Orders" },
-  { key: "scheduled", label: "Scheduled" },
-  { key: "kot", label: "Kitchen" },
-  { key: "completed", label: "Completed" },
-  { key: "all", label: "All Orders" },
+const orderTabs: Array<{ key: OrderTab; label: string; icon: LucideIcon }> = [
+  { key: "all", label: "All", icon: ClipboardList },
+  { key: "dine-in", label: "Dine In", icon: Utensils },
+  { key: "parcel", label: "Parcel", icon: PackageCheck },
+  { key: "delivery", label: "Delivery", icon: Truck },
+  { key: "online", label: "Online", icon: Globe2 },
+  { key: "qr", label: "QR", icon: QrCode },
+  { key: "scheduled", label: "Scheduled", icon: CalendarClock },
+  { key: "catering", label: "Catering", icon: Users },
+  { key: "cancelled", label: "Cancelled", icon: AlertTriangle },
 ];
 
 export function OwnerOrderManagementFlow() {
   const alert = useAlert();
-  const [tab, setTab] = useState<OrderTab>("live");
+  const [tab, setTab] = useState<OrderTab>("all");
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>(() => readSessionDateRange());
@@ -171,11 +177,12 @@ export function OwnerOrderManagementFlow() {
   const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, debouncedSearch)), [debouncedSearch, filter, tabCatering]);
   const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
   const unifiedActiveOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
+  const visibleUnifiedActiveOrders = useMemo(() => unifiedActiveOrders.filter((order) => matchesOperationalTab(order, tab)), [tab, unifiedActiveOrders]);
   const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
-  const tabCounts = useMemo(() => buildTabCounts(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
+  const tabCounts = useMemo(() => buildTabCounts(mappedOrders, cateringInquiries), [cateringInquiries, mappedOrders]);
   const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
   const activeSummary = useMemo(() => buildActiveOrderSummary(activeOrders), [activeOrders]);
-  const activeView = tab === "live";
+  const activeView = !["catering", "cancelled"].includes(tab);
 
   useEffect(() => {
     tableOrdersRef.current = tableOrders;
@@ -275,7 +282,7 @@ export function OwnerOrderManagementFlow() {
   }, [updateOrder]);
 
   const focusOrder = useCallback((order: ActiveOpsOrder) => {
-    setTab("live");
+    setTab("all");
     setFilter("all");
     setSearch(order.displayId ?? order.id);
     setHighlightedOrderIds((current) => new Set(current).add(order.id));
@@ -604,12 +611,16 @@ export function OwnerOrderManagementFlow() {
           <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
             <Tabs value={tab} onValueChange={(value) => setTab(value as OrderTab)}>
               <TabsList className="customer-scroll h-auto justify-start overflow-x-auto rounded-none bg-transparent p-0">
-                {orderTabs.map((item) => (
-                  <TabsTrigger key={item.key} value={item.key} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent data-[state=active]:text-orange-600 data-[state=active]:shadow-none">
-                    {item.label}
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-600">{tabCounts[item.key]}</span>
-                  </TabsTrigger>
-                ))}
+                {orderTabs.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <TabsTrigger key={item.key} value={item.key} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent data-[state=active]:text-orange-600 data-[state=active]:shadow-none">
+                      <Icon className="size-4" />
+                      {item.label}
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-600">{tabCounts[item.key]}</span>
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
             </Tabs>
             <div className="flex items-center gap-3 pb-3">
@@ -654,7 +665,7 @@ export function OwnerOrderManagementFlow() {
             {activeView ? (
               <ActiveOrdersPanel
                 orders={orders}
-                kitchenOrders={unifiedActiveOrders}
+                kitchenOrders={visibleUnifiedActiveOrders}
                 tables={[]}
                 staff={[]}
                 loading={loading}
@@ -700,8 +711,7 @@ export function OwnerOrderManagementFlow() {
                 onView={focusOrder}
               />
             ) : null}
-            {tab === "kot" ? <KitchenCards orders={tableOrders} onNext={(order) => void updateKitchenOrder(order)} /> : null}
-            {!loading && !visibleOrders.length && !visibleCatering.length && tab !== "kot" && !activeView ? <EmptyOrders /> : null}
+            {!loading && !visibleOrders.length && !visibleCatering.length && !activeView ? <EmptyOrders /> : null}
             {!loading && activeView && !activeOrders.length && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
           </div>
         </main>
@@ -1272,85 +1282,6 @@ function OrderCell({ label, value, subvalue, strong, tone = "default", blink, ch
   );
 }
 
-function KitchenCards({ orders, onNext }: { orders: TableOrder[]; onNext: (order: TableOrder) => void }) {
-  const active = orders.filter((order) => !["completed", "billed"].includes(order.status));
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  if (!active.length) return <EmptyOrders title="No active kitchen tickets" />;
-  return (
-    <div className="grid gap-3">
-      {active.map((order, index) => (
-        <KitchenTabOrderAccordion
-          key={order.id}
-          index={index}
-          order={order}
-          expanded={expandedOrderId === order.id}
-          onExpandedChange={(open) => setExpandedOrderId(open ? order.id : null)}
-          onNext={() => onNext(order)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function KitchenTabOrderAccordion({
-  order,
-  index,
-  expanded,
-  onExpandedChange,
-  onNext,
-}: {
-  order: TableOrder;
-  index: number;
-  expanded: boolean;
-  onExpandedChange: (open: boolean) => void;
-  onNext: () => void;
-}) {
-  const delay = getKitchenDelay(order);
-  const next = nextKitchenStatus[order.status];
-  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
-  return (
-    <CompactOrderAccordion
-      id={`owner-kot-${order.id}`}
-      orderNumber={readableTableOrderId(order, index + 1)}
-      etaLabel={`ETA ${order.etaMinutes ?? 12}m`}
-      orderTypeLabel={order.orderType ?? order.source}
-      tableLabel={order.tableNumber}
-      itemCountLabel={`${itemCount} item${itemCount === 1 ? "" : "s"}`}
-      status={{ label: kitchenStatusLabel(order.status), tone: ownerStatusTone(order.status) }}
-      priority={{ label: priorityLabel(delay.priority), tone: ownerPriorityTone(delay.priority), icon: delay.delayed ? <AlertTriangle className="size-3.5" /> : <Timer className="size-3.5" /> }}
-      badges={[{ label: order.source, tone: "muted" }, { label: paymentStatusLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" }]}
-      delay={ownerTableAccordionDelay(delay)}
-      items={order.lines.map((line, lineIndex) => ({
-        id: `${line.itemId ?? order.id}-${lineIndex}`,
-        name: line.name,
-        quantity: line.quantity,
-        note: line.notes,
-        meta: line.modifiers?.join(", "),
-        warning: line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined,
-      }))}
-      facts={[
-        { label: "Customer", value: order.customerName || order.guestName || "Walk-in" },
-        { label: "Source", value: order.source },
-        { label: "Payment", value: paymentStatusLabel(order.paymentStatus), tone: order.paymentStatus === "paid" ? "success" : "default" },
-        { label: "Waiting", value: delay.elapsedLabel, tone: delay.delayed ? "danger" : "default" },
-        { label: "Created", value: actualOrderTime(order.createdAt) },
-        { label: "Total", value: formatCurrency(Number(order.total ?? 0)) },
-      ]}
-      notes={order.lines.flatMap((line) => [line.notes, line.allergyNote ? `Allergy: ${line.allergyNote}` : undefined]).filter(isStringValue)}
-      timeline={compactTimeline(order.status, order.createdAt, actualOrderTime(order.createdAt), order.statusHistory).map((entry) => ({ label: entry.label, time: entry.at }))}
-      primaryAction={next && next !== order.status ? {
-        id: "advance",
-        label: `Mark ${kitchenStatusLabel(next)}`,
-        icon: <CheckCircle2 className="size-4" />,
-        variant: "primary",
-        onClick: onNext,
-      } : undefined}
-      isOpen={expanded}
-      onOpenChange={onExpandedChange}
-    />
-  );
-}
-
 function CateringInquiryList({
   inquiries,
 }: {
@@ -1667,13 +1598,17 @@ function buildOrderMetrics(orders: OpsOrder[], tableOrders: TableOrder[], cateri
   };
 }
 
-function buildTabCounts(orders: ActiveOpsOrder[], tableOrders: TableOrder[], cateringInquiries: CateringQuote[]): Record<OrderTab, number> {
+function buildTabCounts(orders: ActiveOpsOrder[], cateringInquiries: CateringQuote[]): Record<OrderTab, number> {
   return {
-    live: orders.filter((order) => matchesTab(order, "live")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "live")).length,
+    all: orders.filter((order) => matchesTab(order, "all")).length,
+    "dine-in": orders.filter((order) => matchesTab(order, "dine-in")).length,
+    parcel: orders.filter((order) => matchesTab(order, "parcel")).length,
+    delivery: orders.filter((order) => matchesTab(order, "delivery")).length,
+    online: orders.filter((order) => matchesTab(order, "online")).length,
+    qr: orders.filter((order) => matchesTab(order, "qr")).length,
     scheduled: orders.filter((order) => matchesTab(order, "scheduled")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "scheduled")).length,
-    kot: tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length,
-    completed: orders.filter((order) => matchesTab(order, "completed")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "completed")).length,
-    all: orders.length + cateringInquiries.length,
+    catering: cateringInquiries.filter((quote) => matchesCateringTab(quote, "catering")).length,
+    cancelled: orders.filter((order) => matchesTab(order, "cancelled")).length + cateringInquiries.filter((quote) => matchesCateringTab(quote, "cancelled")).length,
   };
 }
 
@@ -1703,11 +1638,28 @@ function buildFilters(orders: OpsOrder[], cateringInquiries: CateringQuote[]) {
 }
 
 function matchesTab(order: OpsOrder, tab: OrderTab) {
-  if (tab === "all") return true;
+  if (tab === "all") return !["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+  if (tab === "dine-in") return order.type === "dine-in";
+  if (tab === "parcel") return order.type === "parcel" || order.source === "Parcel";
+  if (tab === "delivery") return order.type === "delivery" || order.source === "Delivery";
+  if (tab === "online") return ["Website", "Zomato", "Swiggy", "Magicpin", "ONDC", "Delivery"].includes(order.source);
+  if (tab === "qr") return order.source === "QR";
   if (tab === "scheduled") return Boolean(order.scheduledLabel) || order.source === "Catering";
-  if (tab === "completed") return ["delivered", "completed", "cancelled", "rejected"].includes(order.status);
-  if (tab === "kot") return false;
+  if (tab === "catering") return order.source === "Catering";
+  if (tab === "cancelled") return ["cancelled", "rejected"].includes(order.status);
   return !["delivered", "completed", "cancelled", "rejected"].includes(order.status);
+}
+
+function matchesOperationalTab(order: OperationalOrder, tab: OrderTab) {
+  if (tab === "all") return !["completed", "cancelled", "billed"].includes(order.status);
+  if (tab === "dine-in") return order.orderType === "dine-in";
+  if (tab === "parcel") return order.orderType === "parcel" || ["Parcel", "Takeaway"].includes(order.source);
+  if (tab === "delivery") return order.orderType === "delivery" || order.source === "Delivery";
+  if (tab === "online") return ["Delivery", "QR"].includes(order.source) || (order.hasKitchenTicket === false && order.orderType === "delivery");
+  if (tab === "qr") return order.source === "QR";
+  if (tab === "scheduled") return Boolean(order.scheduledFor);
+  if (tab === "cancelled") return ["cancelled", "billed"].includes(order.status);
+  return false;
 }
 
 function matchesFilter(order: OpsOrder, filter: SourceFilter) {
@@ -1750,11 +1702,9 @@ function matchesCateringSearch(quote: CateringQuote, query: string) {
 
 function matchesCateringTab(quote: CateringQuote, tab: OrderTab) {
   const status = quote.status ?? "new";
-  if (tab === "all") return true;
-  if (tab === "kot") return false;
-  if (tab === "scheduled") return true;
-  if (tab === "completed") return ["confirmed", "converted", "cancelled"].includes(status);
-  return ["new", "contacted", "quoted"].includes(status);
+  if (tab === "catering") return true;
+  if (tab === "cancelled") return status === "cancelled";
+  return false;
 }
 
 function toDemoOrder(order: OrderDoc): DemoOrder {
@@ -1943,16 +1893,6 @@ function ownerAccordionDelay(order: ActiveOpsOrder): OrderAccordionDelay {
     label: order.delay?.priority === "critical" ? "Critical delay" : "Delayed",
     lateMinutes: order.delay?.lateMinutes,
     waitingLabel: order.delay?.elapsedLabel ?? order.age,
-  };
-}
-
-function ownerTableAccordionDelay(delay: ReturnType<typeof getKitchenDelay>): OrderAccordionDelay {
-  return {
-    delayed: delay.delayed,
-    level: ownerDelayLevel(delay.priority, delay.lateMinutes),
-    label: delay.priority === "critical" ? "Critical delay" : "Delayed",
-    lateMinutes: delay.lateMinutes,
-    waitingLabel: delay.elapsedLabel,
   };
 }
 

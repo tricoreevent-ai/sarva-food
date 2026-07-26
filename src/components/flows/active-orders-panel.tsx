@@ -676,7 +676,7 @@ function ActiveOrderCard({
   const canSendToKitchen = active && ["new", "occupied"].includes(order.status);
   const canStartPreparing = active && order.status === "accepted";
   const canMarkReady = active && order.status === "preparing";
-  const kitchenActionAllowed = view !== "waiter" || (canSendToKitchen && order.hasKitchenTicket === false);
+  const kitchenActionAllowed = view !== "waiter" || canSendToKitchen;
   const kitchenAction = canSendToKitchen
     ? { id: "accept" as const, label: order.hasKitchenTicket === false ? "Send To Kitchen" : "Accept Order", icon: <ChefHat className="size-4" />, title: order.hasKitchenTicket === false ? "Create Kitchen ticket and accept order" : "Accept Kitchen ticket" }
     : canStartPreparing
