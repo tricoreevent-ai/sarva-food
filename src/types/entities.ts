@@ -532,6 +532,7 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  group?: string;
   featureKey?: string;
   minimumPlan?: Restaurant["subscriptionPlan"];
   roles?: Array<StaffRole | "admin">;

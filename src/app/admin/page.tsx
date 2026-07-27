@@ -19,19 +19,22 @@ export default function AdminDashboardPage() {
   const subscriptionAlerts = restaurants.filter((restaurant) => restaurant.subscriptionStatus === "expired" || restaurant.subscriptionStatus === "suspended" || restaurant.adminStatus === "Expired" || restaurant.adminStatus === "Suspended").length;
   const pendingApprovals = businessApplications.filter((application) => application.status === "pending").length + pendingRestaurants + socialPosts.filter((post) => post.status === "pending").length;
   const revenue = orders.reduce((sum, order) => sum + order.totals.total, 0);
-  const adminStats = [
-    { label: "Restaurants", value: String(restaurants.length), delta: "Firestore", tone: "info" as const },
-    { label: "Users", value: String(staff.length), delta: "RBAC", tone: "success" as const },
-    { label: "Orders", value: String(orders.length), delta: "Live", tone: "accent" as const },
-    { label: "Revenue", value: formatCurrency(revenue), delta: "Orders", tone: "success" as const },
+  const supportAlerts = cateringInquiries.filter((quote) => quote.status === "new").length;
+  const primaryCards = [
+    { title: "Platform Health", value: "Live", copy: "Runtime, navigation, and Admin shell are reachable.", href: "/admin/system/monitoring", icon: Activity, tone: "success" as const },
+    { title: "Production Health", value: "Verify", copy: "Release SHA, Firestore, public APIs, and startup checks.", href: "/admin/system/diagnostics", icon: DatabaseZap, tone: "warning" as const },
   ];
-  const topCards = [
-    { title: "System Health", value: "Live", copy: "Runtime and core UI are reachable.", href: "/admin/system/monitoring", icon: Activity, tone: "success" as const },
-    { title: "Platform Status", value: `${restaurants.length} restaurants`, copy: "Restaurant SaaS control is loaded.", href: "/admin/restaurants", icon: ShieldCheck, tone: "accent" as const },
-    { title: "Production Health", value: "Check", copy: "Open diagnostics before release approval.", href: "/admin/system/diagnostics", icon: DatabaseZap, tone: "warning" as const },
+  const actionCards = [
+    { title: "Restaurant Growth", value: `${restaurants.length} live`, copy: "Approved restaurants, onboarding quality, and market coverage.", href: "/admin/restaurants", icon: TrendingUp, tone: "accent" as const },
     { title: "Pending Approvals", value: String(pendingApprovals), copy: "Applications, restaurant reviews, and social posts.", href: "/admin/reviews", icon: Bell, tone: pendingApprovals ? "warning" as const : "success" as const },
-    { title: "Subscriptions", value: String(subscriptionAlerts), copy: "Expired or suspended restaurants.", href: "/admin/subscriptions", icon: AlertTriangle, tone: subscriptionAlerts ? "warning" as const : "success" as const },
-    { title: "Platform Alerts", value: String(cateringInquiries.filter((quote) => quote.status === "new").length), copy: "Support and catering follow-up queue.", href: "/admin/support", icon: TrendingUp, tone: "accent" as const },
+    { title: "Platform Alerts", value: String(supportAlerts), copy: "Support and catering follow-up queue.", href: "/admin/support", icon: AlertTriangle, tone: supportAlerts ? "warning" as const : "success" as const },
+    { title: "Subscriptions", value: String(subscriptionAlerts), copy: "Expired or suspended restaurants.", href: "/admin/subscriptions", icon: ShieldCheck, tone: subscriptionAlerts ? "warning" as const : "success" as const },
+  ];
+  const operations = [
+    { label: "Restaurants", value: String(restaurants.length), delta: "Restaurant List", tone: "info" as const },
+    { label: "Orders", value: String(orders.length), delta: "Operations", tone: "accent" as const },
+    { label: "Users", value: String(staff.length), delta: "RBAC", tone: "success" as const },
+    { label: "Revenue", value: formatCurrency(revenue), delta: "Analytics", tone: "success" as const },
   ];
 
   return (
@@ -48,8 +51,30 @@ export default function AdminDashboardPage() {
           </Button>
         }
       />
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {topCards.map(({ title, value, copy, href, icon: Icon, tone }) => (
+      <section className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+        {primaryCards.map(({ title, value, copy, href, icon: Icon, tone }) => (
+          <Card key={title} className="border-slate-200 shadow-sm">
+            <CardContent className="grid min-h-48 content-between gap-4 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <span className="grid size-11 place-items-center rounded-xl bg-muted text-muted-foreground">
+                  <Icon className="size-5" />
+                </span>
+                <Badge variant={tone}>{value}</Badge>
+              </div>
+              <div>
+                <h2 className="text-xl font-black">{title}</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{copy}</p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="justify-self-start">
+                <Link href={href}>Open</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {actionCards.map(({ title, value, copy, href, icon: Icon, tone }) => (
           <Card key={title} className="shadow-sm">
             <CardContent className="grid gap-3 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -63,7 +88,7 @@ export default function AdminDashboardPage() {
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{copy}</p>
               </div>
               <Button asChild variant="outline" size="sm" className="justify-self-start">
-                <Link href={href}>Open</Link>
+                <Link href={href}>Review</Link>
               </Button>
             </CardContent>
           </Card>
@@ -71,7 +96,7 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="dashboard-grid">
-        {adminStats.map((stat) => (
+        {operations.map((stat) => (
           <StatsCard key={stat.label} stat={stat} />
         ))}
       </section>

@@ -850,7 +850,7 @@ function buildAdminAlerts(input: {
     { id: "subscriptions", label: "Subscriptions", value: input.subscriptionAlerts, href: "/admin/subscriptions", icon: WalletCards, tone: input.subscriptionAlerts ? "red" : "green", description: "Suspended, expired, or billing-risk restaurant subscriptions." },
     { id: "firebase", label: "Firebase", value: input.firebaseAlerts, href: "/admin/system/firebase-diagnostics", icon: DatabaseZap, tone: input.firebaseAlerts ? "red" : "green", description: "System, connectivity, and sync failure alerts." },
     { id: "moderation", label: "Moderation", value: input.moderationQueue, href: "/admin/social-queue", icon: MessageSquareWarning, tone: input.moderationQueue ? "blue" : "green", description: "Owner posts and marketing assets waiting for moderation." },
-    { id: "support", label: "Support", value: input.supportRequests, href: "/catering/requests", icon: Headphones, tone: input.supportRequests ? "blue" : "green", description: "Customer support and catering follow-up requests." },
+    { id: "support", label: "Support", value: input.supportRequests, href: "/admin/support", icon: Headphones, tone: input.supportRequests ? "blue" : "green", description: "Customer support and catering follow-up requests." },
   ];
 }
 
