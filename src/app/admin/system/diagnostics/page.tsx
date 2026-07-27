@@ -71,7 +71,7 @@ export default function AdminSystemDiagnosticsPage() {
         </Card>
       ) : null}
 
-      {loading ? <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-sm font-semibold text-white/70">Checking environment...</div> : null}
+      {loading ? <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm font-semibold text-muted-foreground shadow-sm">Checking environment...</div> : null}
 
       {data ? (
         <>
@@ -85,13 +85,13 @@ export default function AdminSystemDiagnosticsPage() {
           <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
             <Card>
               <CardContent className="space-y-4 p-5">
-                <h2 className="flex items-center gap-2 text-xl font-black"><Database className="size-5 text-emerald-300" />Collection checks</h2>
+                <h2 className="flex items-center gap-2 text-xl font-black"><Database className="size-5 text-emerald-700" />Collection checks</h2>
                 <div className="grid gap-2">
                   {data.collectionChecks.map((check) => (
-                    <div key={check.collectionName} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div key={check.collectionName} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <div>
                         <p className="font-black">{check.collectionName}</p>
-                        <p className="text-xs font-semibold text-white/55">{check.error || `${check.latencyMs} ms`}</p>
+                        <p className="text-xs font-semibold text-slate-500">{check.error || `${check.latencyMs} ms`}</p>
                       </div>
                       <Badge variant={check.exists ? "success" : "warning"}>{check.exists ? "Found" : "Missing or empty"}</Badge>
                     </div>
@@ -102,19 +102,19 @@ export default function AdminSystemDiagnosticsPage() {
 
             <Card>
               <CardContent className="space-y-4 p-5">
-                <h2 className="flex items-center gap-2 text-xl font-black"><ShieldCheck className="size-5 text-violet-300" />Configuration</h2>
+                <h2 className="flex items-center gap-2 text-xl font-black"><ShieldCheck className="size-5 text-violet-700" />Configuration</h2>
                 <StatusLine label="Firebase Admin" ok={data.firebaseAdminConfigured} />
                 <StatusLine label="Cloudinary" ok={data.cloudinaryConfigured} />
                 <StatusLine label="SMTP" ok={data.smtpConfigured} />
                 <StatusLine label="Google OAuth" ok={data.googleOAuthConfigured} />
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
                   <p className="font-black">Last CMS sync</p>
-                  <p className="mt-1 break-all text-white/65">{data.lastSync}</p>
+                  <p className="mt-1 break-all text-slate-600">{data.lastSync}</p>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
                   <p className="font-black">Build</p>
-                  <p className="mt-1 break-all text-white/65">{data.buildVersion}</p>
-                  <p className="mt-1 break-all text-white/65">{data.deploymentTimestamp}</p>
+                  <p className="mt-1 break-all text-slate-600">{data.buildVersion}</p>
+                  <p className="mt-1 break-all text-slate-600">{data.deploymentTimestamp}</p>
                 </div>
               </CardContent>
             </Card>
@@ -123,9 +123,9 @@ export default function AdminSystemDiagnosticsPage() {
           {data.missingFields.length || data.missingCollections.length ? (
             <Card>
               <CardContent className="space-y-3 p-5">
-                <h2 className="text-xl font-black text-orange-200">Action needed</h2>
-                {data.missingFields.length ? <p className="text-sm font-semibold text-white/70">Missing CMS fields: {data.missingFields.join(", ")}</p> : null}
-                {data.missingCollections.length ? <p className="text-sm font-semibold text-white/70">Missing or empty collections: {data.missingCollections.join(", ")}</p> : null}
+                <h2 className="text-xl font-black text-orange-700">Action needed</h2>
+                {data.missingFields.length ? <p className="text-sm font-semibold text-slate-600">Missing CMS fields: {data.missingFields.join(", ")}</p> : null}
+                {data.missingCollections.length ? <p className="text-sm font-semibold text-slate-600">Missing or empty collections: {data.missingCollections.join(", ")}</p> : null}
               </CardContent>
             </Card>
           ) : null}
@@ -140,10 +140,10 @@ function Metric({ title, value, ok }: { title: string; value: string; ok: boolea
     <Card>
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-white/55">{title}</p>
-          <p className="mt-2 truncate text-xl font-black text-white">{value}</p>
+          <p className="text-sm font-bold text-muted-foreground">{title}</p>
+          <p className="mt-2 truncate text-xl font-black">{value}</p>
         </div>
-        {ok ? <CheckCircle2 className="size-5 shrink-0 text-emerald-300" /> : <AlertTriangle className="size-5 shrink-0 text-orange-300" />}
+        {ok ? <CheckCircle2 className="size-5 shrink-0 text-emerald-700" /> : <AlertTriangle className="size-5 shrink-0 text-orange-600" />}
       </CardContent>
     </Card>
   );
@@ -151,7 +151,7 @@ function Metric({ title, value, ok }: { title: string; value: string; ok: boolea
 
 function StatusLine({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
       <span className="font-semibold">{label}</span>
       <Badge variant={ok ? "success" : "warning"}>{ok ? "Ready" : "Missing"}</Badge>
     </div>

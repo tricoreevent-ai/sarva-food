@@ -679,17 +679,17 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080b1a]/95 text-white shadow-2xl shadow-black/30 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/94 shadow-sm backdrop-blur-xl">
       <div className="flex min-h-16 w-full items-center gap-3 px-3 py-2 sm:px-5 2xl:px-8">
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 lg:hidden" aria-label="Open admin navigation">
+            <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open admin navigation">
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="rounded-r-3xl bg-[#0d1024] text-white">
+          <SheetContent side="left" className="rounded-r-3xl">
             <SheetHeader>
-              <SheetTitle className="text-white">
+              <SheetTitle>
                 <BrandLogo className="h-10 w-36" priority sizes="144px" />
               </SheetTitle>
             </SheetHeader>
@@ -699,34 +699,34 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
           </SheetContent>
         </Sheet>
 
-        <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300" aria-label="Go to admin overview">
+        <Link href={homeHref} className="flex shrink-0 items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200" aria-label="Go to admin overview">
           <BrandLogo className="h-10 w-36 sm:h-12 sm:w-44" priority sizes="176px" />
         </Link>
 
         <div className="relative hidden min-w-72 flex-1 max-w-xl lg:block">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-indigo-200" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <SearchInput
             value={query}
             onChange={setQuery}
-            className="h-10 w-full rounded-xl border border-white/10 bg-white/8 pl-11 pr-4 text-sm font-semibold text-white outline-none transition placeholder:text-indigo-200/70 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-semibold text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
             placeholder="Search restaurants, owners, approvals..."
             ariaLabel="Admin search"
             scope="admin-global"
           />
           {debouncedQuery.length >= 2 ? (
-            <div className="absolute left-0 right-0 top-14 z-50 overflow-hidden rounded-2xl border border-white/10 bg-[#11162e] shadow-2xl">
+            <div className="absolute left-0 right-0 top-14 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
               {adminResults.length ? adminResults.map((result) => {
                 const Icon = result.icon;
                 return (
-                  <Link key={`${result.id}-${result.title}`} href={result.href} onClick={() => setQuery("")} className="flex items-center gap-3 px-4 py-3 hover:bg-white/8">
-                    <span className="grid size-9 place-items-center rounded-xl bg-white/10 text-indigo-200"><Icon className="size-4" /></span>
+                  <Link key={`${result.id}-${result.title}`} href={result.href} onClick={() => setQuery("")} className="flex items-center gap-3 px-4 py-3 hover:bg-orange-50">
+                    <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-600"><Icon className="size-4" /></span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-black text-white">{result.title}</span>
-                      <span className="block truncate text-xs font-semibold text-indigo-200">{result.subtitle}</span>
+                      <span className="block truncate text-sm font-black text-slate-950">{result.title}</span>
+                      <span className="block truncate text-xs font-semibold text-slate-500">{result.subtitle}</span>
                     </span>
                   </Link>
                 );
-              }) : <p className="p-5 text-center text-sm font-semibold text-indigo-200">No matching admin records.</p>}
+              }) : <p className="p-5 text-center text-sm font-semibold text-slate-500">No matching admin records.</p>}
             </div>
           ) : null}
         </div>
@@ -737,47 +737,47 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
               key={alert.id}
               type="button"
               onClick={() => openAlert(alert)}
-              className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/8 px-3 text-left shadow-sm transition hover:bg-white/12"
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-left shadow-sm transition hover:bg-slate-50"
               title={alert.description}
             >
               <span className={cn("grid size-7 place-items-center rounded-full", toneClass[alert.tone].bg, toneClass[alert.tone].text)}>
                 <alert.icon className="size-4" />
               </span>
               <span>
-                <span className="block text-[10px] font-bold leading-3 text-indigo-200">{alert.label}</span>
-                <span className="block text-xs font-black text-white">{alert.value}</span>
+                <span className="block text-[10px] font-bold leading-3 text-slate-500">{alert.label}</span>
+                <span className="block text-xs font-black text-slate-950">{alert.value}</span>
               </span>
             </button>
           ))}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 lg:hidden" onClick={() => setMobileSearchOpen(true)} aria-label="Open admin search">
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileSearchOpen(true)} aria-label="Open admin search">
             <Search className="size-4" />
           </Button>
           <div className="relative">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setNotificationsOpen((value) => !value)} aria-label="Open admin alerts">
+            <Button variant="ghost" size="icon" onClick={() => setNotificationsOpen((value) => !value)} aria-label="Open admin alerts">
               <Bell className="size-4" />
             </Button>
             {unreadCount ? <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-orange-500 text-[10px] font-black text-white">{unreadCount}</span> : null}
             {notificationsOpen ? (
-              <div className="absolute right-0 top-14 z-50 w-[min(92vw,430px)] overflow-hidden rounded-2xl border border-white/10 bg-[#11162e] text-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-white/10 p-4">
+              <div className="absolute right-0 top-14 z-50 w-[min(92vw,430px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-100 p-4">
                   <div>
-                    <p className="font-black">Admin alerts</p>
-                    <p className="text-xs font-semibold text-indigo-200">Onboarding, subscriptions, Firebase, moderation, and support</p>
+                    <p className="font-black text-slate-950">Admin alerts</p>
+                    <p className="text-xs font-semibold text-slate-500">Onboarding, subscriptions, Firebase, moderation, and support</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setNotificationsOpen(false)} aria-label="Close alerts">
+                  <Button variant="ghost" size="icon" onClick={() => setNotificationsOpen(false)} aria-label="Close alerts">
                     <X className="size-4" />
                   </Button>
                 </div>
                 <div className="max-h-[70vh] overflow-y-auto p-3">
                   {alerts.map((alert) => (
-                    <button key={alert.id} type="button" onClick={() => openAlert(alert)} className="mb-2 grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-white/10 p-3 text-left hover:bg-white/8">
+                    <button key={alert.id} type="button" onClick={() => openAlert(alert)} className="mb-2 grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50">
                       <span className={cn("grid size-9 place-items-center rounded-xl", toneClass[alert.tone].bg, toneClass[alert.tone].text)}><alert.icon className="size-4" /></span>
                       <span className="min-w-0">
-                        <span className="block font-black text-white">{alert.label}</span>
-                        <span className="block text-sm leading-5 text-indigo-200">{alert.description}</span>
+                        <span className="block font-black text-slate-950">{alert.label}</span>
+                        <span className="block text-sm leading-5 text-slate-500">{alert.description}</span>
                       </span>
                       <Badge variant={alert.value ? "warning" : "success"}>{alert.value}</Badge>
                     </button>
@@ -790,20 +790,20 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
             <button
               type="button"
               onClick={() => setProfileOpen((value) => !value)}
-              className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/8 px-2 shadow-sm transition hover:bg-white/12 sm:px-3"
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 shadow-sm transition hover:bg-slate-50 sm:px-3"
               aria-label="Open admin profile menu"
             >
-              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-orange-500 to-indigo-500 text-xs font-black text-white">{getInitials(ownerName)}</span>
+              <span className="food-gradient grid size-8 place-items-center rounded-full text-xs font-black text-white">{getInitials(ownerName)}</span>
               <span className="hidden text-left md:block">
-                <span className="block max-w-32 truncate text-sm font-black text-white">{ownerName}</span>
-                <span className="text-xs font-semibold text-indigo-200">Super Admin</span>
+                <span className="block max-w-32 truncate text-sm font-black text-slate-950">{ownerName}</span>
+                <span className="text-xs font-semibold text-slate-500">Super Admin</span>
               </span>
             </button>
             {profileOpen ? (
-              <div className="absolute right-0 top-14 w-72 overflow-hidden rounded-2xl border border-white/10 bg-[#11162e] text-white shadow-2xl">
+              <div className="absolute right-0 top-14 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
                 <ProfileLink href="/admin/users" icon={UserRound} label="Admin users" onClick={() => setProfileOpen(false)} />
                 <ProfileLink href="/admin/cms" icon={Settings2} label="System settings" onClick={() => setProfileOpen(false)} />
-                <button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 border-t border-white/10 px-4 py-4 text-left text-sm font-black text-red-300 hover:bg-red-500/10">
+                <button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-4 text-left text-sm font-black text-red-600 hover:bg-red-50">
                   <LogOut className="size-4" />
                   Logout
                 </button>
@@ -814,19 +814,19 @@ function AdminConsoleTopbar({ navItems, homeHref }: DashboardTopbarProps) {
       </div>
 
       {mobileSearchOpen ? (
-        <div className="fixed inset-0 z-50 bg-[#080b1a] p-4 text-white lg:hidden">
+        <div className="fixed inset-0 z-50 bg-white p-4 lg:hidden">
           <div className="flex items-center gap-2">
-            <Search className="size-5 text-indigo-200" />
+            <Search className="size-5 text-slate-400" />
             <SearchInput
               autoFocus
               value={query}
               onChange={setQuery}
-              className="h-12 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/8 px-4 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/20"
+              className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
               placeholder="Search admin records..."
               ariaLabel="Admin mobile search"
               scope="admin-mobile"
             />
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setMobileSearchOpen(false)} aria-label="Close search">
+            <Button variant="ghost" size="icon" onClick={() => setMobileSearchOpen(false)} aria-label="Close search">
               <X className="size-5" />
             </Button>
           </div>

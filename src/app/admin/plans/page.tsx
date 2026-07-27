@@ -67,17 +67,17 @@ export default function AdminPlansPage() {
   }
 
   return (
-    <main className="min-h-screen rounded-[1.5rem] border border-white/10 bg-[#060a16] p-4 text-white shadow-2xl">
-      <section className="flex flex-col gap-4 rounded-[1.25rem] border border-white/10 bg-gradient-to-br from-[#111936] to-[#07111f] p-4 lg:flex-row lg:items-center lg:justify-between">
+    <main className="min-h-screen rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="flex flex-col gap-4 rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 text-xs font-black text-violet-300">
+          <p className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">
             <WalletCards className="size-3.5" />
             Plan Management
           </p>
           <h1 className="mt-3 text-3xl font-black tracking-normal">Plans & Pricing</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-400">Configure plan pricing, modules, limits, trials, restrictions, and restaurant assignments.</p>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">Configure plan pricing, modules, limits, trials, restrictions, and restaurant assignments.</p>
         </div>
-        <Button className="bg-violet-500 text-white hover:bg-violet-400" onClick={() => setSelectedPlan("Enterprise")}>
+        <Button onClick={() => setSelectedPlan("Enterprise")}>
           <Plus className="size-4" />
           Edit enterprise plan
         </Button>
@@ -88,15 +88,15 @@ export default function AdminPlansPage() {
           const assigned = assignedCounts.find((item) => item.key === plan.key)?.count ?? 0;
           const active = activePlan.key === plan.key;
           return (
-            <button key={plan.key} type="button" onClick={() => setSelectedPlan(plan.key)} className={cn("rounded-2xl border p-4 text-left shadow-xl transition", active ? "border-violet-400 bg-violet-400/10" : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]")}>
+            <button key={plan.key} type="button" onClick={() => setSelectedPlan(plan.key)} className={cn("rounded-2xl border p-4 text-left shadow-sm transition", active ? "border-violet-200 bg-violet-50" : "border-slate-200 bg-white hover:bg-slate-50")}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xl font-black">{plan.label}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-400">{plan.priceLabel}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">{plan.priceLabel}</p>
                 </div>
                 <Badge variant={plan.enabled ? "success" : "muted"}>{plan.enabled ? "Active" : "Off"}</Badge>
               </div>
-              <p className="mt-3 text-xs leading-5 text-slate-400">{plan.description}</p>
+              <p className="mt-3 text-xs leading-5 text-slate-500">{plan.description}</p>
               <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
                 <PlanFact icon={Store} value={limitLabel(plan.maxBranches)} label="Branches" />
                 <PlanFact icon={Users} value={limitLabel(plan.maxEmployees)} label="Staff" />
@@ -108,13 +108,13 @@ export default function AdminPlansPage() {
       </section>
 
       <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="rounded-2xl border border-white/10 bg-[#090e1d] p-4 shadow-xl">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-2xl font-black">{activePlan.label} configuration</h2>
-              <p className="text-sm font-semibold text-slate-400">Changes persist to the platform plan repository.</p>
+              <p className="text-sm font-semibold text-slate-500">Changes persist to the platform plan repository.</p>
             </div>
-            <Button className="bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={() => void saveActivePlan()}>
+            <Button onClick={() => void saveActivePlan()}>
               <Save className="size-4" />
               Save plan
             </Button>
@@ -128,8 +128,8 @@ export default function AdminPlansPage() {
             <PlanInput label="Branch limit" value={String(activePlan.maxBranches)} onChange={(value) => updatePlan({ maxBranches: value === "unlimited" ? "unlimited" : Number(value) || 0 })} />
             <PlanInput label="Employee limit" value={String(activePlan.maxEmployees)} onChange={(value) => updatePlan({ maxEmployees: value === "unlimited" ? "unlimited" : Number(value) || 0 })} />
             <label className="grid gap-2 md:col-span-2">
-              <span className="text-sm font-black text-slate-300">Description</span>
-              <Textarea value={activePlan.description} onChange={(event) => updatePlan({ description: event.target.value })} className="min-h-24 border-white/10 bg-[#0b1020] text-white" />
+              <span className="text-sm font-black text-slate-700">Description</span>
+              <Textarea value={activePlan.description} onChange={(event) => updatePlan({ description: event.target.value })} className="min-h-24" />
             </label>
           </div>
 
@@ -139,12 +139,12 @@ export default function AdminPlansPage() {
               {ownerModuleDefinitions.map((module) => {
                 const enabled = activePlan.modules.includes(module.key);
                 return (
-                  <button key={module.key} type="button" onClick={() => toggleModule(module.key)} className={cn("grid grid-cols-[1fr_auto] gap-3 rounded-2xl border p-3 text-left", enabled ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-white/[0.03]")}>
+                  <button key={module.key} type="button" onClick={() => toggleModule(module.key)} className={cn("grid grid-cols-[1fr_auto] gap-3 rounded-2xl border p-3 text-left", enabled ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white")}>
                     <span>
                       <span className="font-black">{module.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-400">{module.description}</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">{module.description}</span>
                     </span>
-                    {enabled ? <CheckCircle2 className="size-5 text-emerald-300" /> : <Edit3 className="size-5 text-slate-500" />}
+                    {enabled ? <CheckCircle2 className="size-5 text-emerald-700" /> : <Edit3 className="size-5 text-slate-500" />}
                   </button>
                 );
               })}
@@ -152,22 +152,22 @@ export default function AdminPlansPage() {
           </div>
         </div>
 
-        <aside className="rounded-2xl border border-white/10 bg-[#090e1d] p-4 shadow-xl">
+        <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-black">Assign plan</h2>
-          <p className="mt-1 text-sm text-slate-400">Apply plan limits and module visibility to a restaurant.</p>
+          <p className="mt-1 text-sm text-slate-500">Apply plan limits and module visibility to a restaurant.</p>
           <div className="mt-4 grid gap-3">
-            <select value={restaurantId} onChange={(event) => setSelectedRestaurant(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-white">
+            <select value={restaurantId} onChange={(event) => setSelectedRestaurant(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800">
               {restaurants.map((restaurant) => <option key={restaurant.slug} value={restaurant.slug}>{restaurant.name}</option>)}
             </select>
-            <select value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanKey)} className="h-11 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-white">
+            <select value={selectedPlan} onChange={(event) => setSelectedPlan(event.target.value as PlanKey)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800">
               {plans.map((plan) => <option key={plan.key} value={plan.key}>{plan.label}</option>)}
             </select>
-            <Button className="bg-violet-500 text-white hover:bg-violet-400" onClick={() => void assignPlan()}>Assign selected plan</Button>
+            <Button onClick={() => void assignPlan()}>Assign selected plan</Button>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <p className="font-black">Smart upgrade logic</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Branch limit, staff limit, accounting access, API access, and delivery integrations now share the same plan configuration.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Branch limit, staff limit, accounting access, API access, and delivery integrations now share the same plan configuration.</p>
           </div>
         </aside>
       </section>
@@ -177,8 +177,8 @@ export default function AdminPlansPage() {
 
 function PlanFact({ icon: Icon, value, label }: { icon: typeof Store; value: number | string; label: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2">
-      <Icon className="size-4 text-violet-300" />
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+      <Icon className="size-4 text-violet-700" />
       <p className="mt-1 font-black">{value}</p>
       <p className="text-slate-500">{label}</p>
     </div>
@@ -188,8 +188,8 @@ function PlanFact({ icon: Icon, value, label }: { icon: typeof Store; value: num
 function PlanInput({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
   return (
     <label className="grid gap-2">
-      <span className="text-sm font-black text-slate-300">{label}</span>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="border-white/10 bg-[#0b1020] text-white" />
+      <span className="text-sm font-black text-slate-700">{label}</span>
+      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

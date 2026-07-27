@@ -1,21 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, AlertTriangle, Bell, DatabaseZap, Plus, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 import { ReviewManagementPanel } from "@/components/commerce/review-management-panel";
 import { SimpleDataTable } from "@/components/dashboard/data-table";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { SectionHeader } from "@/components/layout/section-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
+import { formatCurrency } from "@/lib/utils";
 
 export default function AdminDashboardPage() {
-  const { restaurants, staffMembers: staff, orders } = useAdminRepositoryData();
+  const { restaurants, staffMembers: staff, orders, businessApplications, socialPosts, cateringInquiries } = useAdminRepositoryData();
+  const pendingRestaurants = restaurants.filter((restaurant) => restaurant.approved === false || restaurant.adminStatus === "Pending Approval" || restaurant.adminStatus === "Under Review").length;
+  const subscriptionAlerts = restaurants.filter((restaurant) => restaurant.subscriptionStatus === "expired" || restaurant.subscriptionStatus === "suspended" || restaurant.adminStatus === "Expired" || restaurant.adminStatus === "Suspended").length;
+  const pendingApprovals = businessApplications.filter((application) => application.status === "pending").length + pendingRestaurants + socialPosts.filter((post) => post.status === "pending").length;
+  const revenue = orders.reduce((sum, order) => sum + order.totals.total, 0);
   const adminStats = [
     { label: "Restaurants", value: String(restaurants.length), delta: "Firestore", tone: "info" as const },
     { label: "Users", value: String(staff.length), delta: "RBAC", tone: "success" as const },
     { label: "Orders", value: String(orders.length), delta: "Live", tone: "accent" as const },
+    { label: "Revenue", value: formatCurrency(revenue), delta: "Orders", tone: "success" as const },
+  ];
+  const topCards = [
+    { title: "System Health", value: "Live", copy: "Runtime and core UI are reachable.", href: "/admin/system/monitoring", icon: Activity, tone: "success" as const },
+    { title: "Platform Status", value: `${restaurants.length} restaurants`, copy: "Restaurant SaaS control is loaded.", href: "/admin/restaurants", icon: ShieldCheck, tone: "accent" as const },
+    { title: "Production Health", value: "Check", copy: "Open diagnostics before release approval.", href: "/admin/system/diagnostics", icon: DatabaseZap, tone: "warning" as const },
+    { title: "Pending Approvals", value: String(pendingApprovals), copy: "Applications, restaurant reviews, and social posts.", href: "/admin/reviews", icon: Bell, tone: pendingApprovals ? "warning" as const : "success" as const },
+    { title: "Subscriptions", value: String(subscriptionAlerts), copy: "Expired or suspended restaurants.", href: "/admin/subscriptions", icon: AlertTriangle, tone: subscriptionAlerts ? "warning" as const : "success" as const },
+    { title: "Platform Alerts", value: String(cateringInquiries.filter((quote) => quote.status === "new").length), copy: "Support and catering follow-up queue.", href: "/admin/support", icon: TrendingUp, tone: "accent" as const },
   ];
 
   return (
@@ -32,18 +47,41 @@ export default function AdminDashboardPage() {
           </Button>
         }
       />
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {topCards.map(({ title, value, copy, href, icon: Icon, tone }) => (
+          <Card key={title} className="shadow-sm">
+            <CardContent className="grid gap-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <span className="grid size-9 place-items-center rounded-xl bg-muted text-muted-foreground">
+                  <Icon className="size-4" />
+                </span>
+                <Badge variant={tone}>{value}</Badge>
+              </div>
+              <div>
+                <h2 className="font-black">{title}</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{copy}</p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="justify-self-start">
+                <Link href={href}>Open</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
       <section className="dashboard-grid">
         {adminStats.map((stat) => (
           <StatsCard key={stat.label} stat={stat} />
         ))}
       </section>
+
       <section className="grid gap-4 lg:grid-cols-3">
         {[
           ["Social approvals", "Owner promotions waiting for Nammude publishing", "/admin/social-queue"],
           ["Meta accounts", "Instagram, Facebook, Graph API and tokens", "/admin/meta"],
           ["Restaurant quality", "Review onboarding, menus, and service zones", "/admin/restaurants"],
         ].map(([title, copy, href]) => (
-          <Card key={title} className="border-primary/30 bg-primary/10">
+          <Card key={title} className="shadow-sm">
             <CardContent className="space-y-3 p-5">
               <Sparkles className="size-6 text-primary" />
               <h2 className="font-black">{title}</h2>

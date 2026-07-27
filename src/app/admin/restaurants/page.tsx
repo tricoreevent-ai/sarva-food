@@ -321,23 +321,23 @@ export default function AdminRestaurantsPage() {
   }
 
   return (
-    <main className="min-h-screen rounded-[1.5rem] border border-white/10 bg-[#060a16] p-3 text-white shadow-2xl shadow-black/30 sm:p-4">
-      <section className="rounded-[1.25rem] border border-white/10 bg-gradient-to-br from-[#0d1226] via-[#080d1d] to-[#06111d] p-4 shadow-2xl">
+    <main className="min-h-screen rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <section className="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-300">
+            <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
               <Sparkles className="size-3.5" />
               Restaurant SaaS Control Center
             </p>
             <h1 className="mt-3 text-2xl font-black tracking-normal sm:text-3xl">Restaurants</h1>
-            <p className="mt-1 text-sm font-semibold text-slate-400">Manage restaurants, owner access, plans, modules, limits, onboarding, and billing status.</p>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">Manage restaurants, owner access, plans, modules, limits, onboarding, and billing status.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button className="rounded-xl bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={() => setCreateOpen(true)}>
+            <Button className="rounded-xl" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" />
               Add Restaurant
             </Button>
-            <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" asChild>
+            <Button variant="outline" asChild>
               <Link href="/admin/plans">
                 <WalletCards className="size-4" />
                 Plans
@@ -358,31 +358,31 @@ export default function AdminRestaurantsPage() {
 
       <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]">
         <div className="min-w-0 space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-xl">
+          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.2fr)_repeat(5,minmax(130px,0.7fr))_auto]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
-                <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search restaurant, owner email, phone..." className="h-11 border-white/10 bg-[#0b1020] pl-10 text-white placeholder:text-slate-500" />
+                <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search restaurant, owner email, phone..." className="h-11 pl-10" />
               </div>
               <DarkSelect value={statusFilter} onChange={(value) => setStatusFilter(value as typeof statusFilter)} options={allStatuses} />
               <DarkSelect value={planFilter} onChange={(value) => setPlanFilter(value as typeof planFilter)} options={allPlans} />
               <DarkSelect value={cityFilter} onChange={setCityFilter} options={cities} />
               <DarkSelect value={billingFilter} onChange={(value) => setBillingFilter(value as typeof billingFilter)} options={allBillingStatuses} />
-              <label className="flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-slate-300">
+              <label className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
                 <input type="checkbox" checked={trialOnly} onChange={(event) => setTrialOnly(event.target.checked)} />
                 Trial
               </label>
-              <Button variant="outline" className="h-11 border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={clearFilters}>
+              <Button variant="outline" className="h-11" onClick={clearFilters}>
                 <X className="size-4" />
                 Clear
               </Button>
             </div>
           </div>
 
-          <div className="hidden overflow-hidden rounded-2xl border border-white/10 bg-[#090e1d] shadow-2xl lg:block">
+          <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1180px] text-left text-sm">
-                <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase text-slate-400">
+                <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Restaurant</th>
                     <th className="px-4 py-3">Owner</th>
@@ -397,18 +397,18 @@ export default function AdminRestaurantsPage() {
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-slate-100">
                   {filteredRows.map((row) => (
-                    <tr key={row.slug} className={cn("transition hover:bg-white/[0.04]", selected?.slug === row.slug && "bg-emerald-400/[0.06]")} onClick={() => selectRestaurant(row, setSelectedSlug, setEditState)}>
+                    <tr key={row.slug} className={cn("transition hover:bg-slate-50", selected?.slug === row.slug && "bg-orange-50")} onClick={() => selectRestaurant(row, setSelectedSlug, setEditState)}>
                       <td className="px-4 py-3">
                         <RestaurantIdentity row={row} />
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-black text-white">{row.ownerName}</p>
-                        <p className="mt-1 text-xs text-slate-400">{row.ownerEmail}</p>
+                        <p className="font-black text-slate-950">{row.ownerName}</p>
+                        <p className="mt-1 text-xs text-slate-500">{row.ownerEmail}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-bold text-slate-200">{row.city}</p>
+                        <p className="font-bold text-slate-700">{row.city}</p>
                         <p className="mt-1 text-xs text-slate-500">{row.deliveryRadiusKm ?? row.deliverySettings?.radiusKm ?? 5} km delivery</p>
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={row.statusLabel} /></td>
@@ -417,10 +417,10 @@ export default function AdminRestaurantsPage() {
                         <UsageLine label="Branches" used={row.branchCount} limit={row.branchLimit} />
                         <UsageLine label="Employees" used={row.employeeCount} limit={row.employeeLimit} />
                       </td>
-                      <td className="px-4 py-3 text-xs font-bold text-slate-300">{row.trialLeft}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-slate-300">{row.renewalLabel}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-slate-600">{row.trialLeft}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-slate-600">{row.renewalLabel}</td>
                       <td className="px-4 py-3 font-black">{row.monthlyOrders}</td>
-                      <td className="px-4 py-3 font-black text-emerald-300">{formatCurrency(row.revenue)}</td>
+                      <td className="px-4 py-3 font-black text-emerald-700">{formatCurrency(row.revenue)}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           <IconButton label="View" onClick={() => selectRestaurant(row, setSelectedSlug, setEditState)}><Eye className="size-4" /></IconButton>
@@ -438,15 +438,15 @@ export default function AdminRestaurantsPage() {
 
           <div className="grid gap-3 lg:hidden">
             {filteredRows.map((row) => (
-              <button key={row.slug} type="button" onClick={() => selectRestaurant(row, setSelectedSlug, setEditState)} className="rounded-2xl border border-white/10 bg-[#090e1d] p-3 text-left shadow-xl">
+              <button key={row.slug} type="button" onClick={() => selectRestaurant(row, setSelectedSlug, setEditState)} className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm">
                 <div className="flex items-start gap-3">
                   <RestaurantThumb row={row} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate font-black text-white">{row.name}</h2>
+                      <h2 className="truncate font-black text-slate-950">{row.name}</h2>
                       <StatusBadge status={row.statusLabel} />
                     </div>
-                    <p className="mt-1 text-xs font-semibold text-slate-400">{row.cuisine} · {row.city}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">{row.cuisine} · {row.city}</p>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <MobileFact label="Plan" value={row.planKey} />
                       <MobileFact label="Owner" value={row.ownerName} />
@@ -538,28 +538,28 @@ function DetailPanel({
   }
 
   return (
-    <aside className="min-w-0 rounded-2xl border border-white/10 bg-[#090e1d] shadow-2xl xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+    <aside className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
       <div className="relative h-40 overflow-hidden rounded-t-2xl">
         <SafeImage src={row.coverImage || row.coverImages?.[0] || row.image} fallbackSrc={IMAGE_FALLBACKS.restaurant} alt={row.name} fill cloudinaryPreset="restaurantCard" sizes="430px" className="object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090e1d] via-[#090e1d]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
         <StatusBadge className="absolute left-4 top-4" status={row.statusLabel} />
       </div>
       <div className="relative px-4 pb-4">
         <div className="-mt-10 flex items-end gap-3">
-          <div className="grid size-20 place-items-center overflow-hidden rounded-2xl border border-emerald-400/40 bg-[#0b1020] text-xl font-black text-emerald-300 shadow-xl">
+          <div className="grid size-20 place-items-center overflow-hidden rounded-2xl border border-white bg-white text-xl font-black text-emerald-700 shadow-sm">
             {row.logo ? <SafeImage src={row.logo} alt={`${row.name} logo`} width={80} height={80} cloudinaryPreset="logo" className="h-full w-full object-cover" /> : getInitials(row.name)}
           </div>
           <div className="min-w-0 pb-1">
-            <h2 className="truncate text-xl font-black text-white">{row.name}</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-400">{row.cuisine} · {row.location}</p>
+            <h2 className="truncate text-xl font-black text-white drop-shadow">{row.name}</h2>
+            <p className="mt-1 text-xs font-semibold text-white/85 drop-shadow">{row.cuisine} · {row.location}</p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <PanelAction label="View restaurant" href={`/restaurant/${row.slug}`} icon={ArrowUpRight} />
           <PanelAction label="Open owner" href="/owner" icon={Store} />
-          <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={onReset}><KeyRound className="size-4" />Reset password</Button>
-          <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={onCredentials}><MailCheck className="size-4" />Send credentials</Button>
+          <Button variant="outline" onClick={onReset}><KeyRound className="size-4" />Reset password</Button>
+          <Button variant="outline" onClick={onCredentials}><MailCheck className="size-4" />Send credentials</Button>
         </div>
 
         <div className="mt-4 grid gap-3">
@@ -582,7 +582,7 @@ function DetailPanel({
                   <button key={option} type="button" onClick={() => {
                     setEditDraft({ ...editDraft, ownerLoginEnabled: enabled });
                     onToggleLogin(enabled);
-                  }} className={cn("rounded-xl border px-3 py-2 text-sm font-black", active ? "border-emerald-400 bg-emerald-400/10 text-emerald-300" : "border-white/10 bg-white/5 text-slate-400")}>
+                  }} className={cn("rounded-xl border px-3 py-2 text-sm font-black", active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600")}>
                     Login {option}
                   </button>
                 );
@@ -609,12 +609,12 @@ function DetailPanel({
                 const allowed = planAllowsFeature(editDraft.subscriptionPlan ?? row.planKey, module.key);
                 const checked = enabledModules.includes(module.key);
                 return (
-                  <button key={module.key} type="button" onClick={() => toggleModule(module.key)} className={cn("grid grid-cols-[1fr_auto] gap-3 rounded-xl border p-3 text-left transition", checked ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-white/[0.03]", !allowed && "border-amber-400/30 bg-amber-400/10")}>
+                  <button key={module.key} type="button" onClick={() => toggleModule(module.key)} className={cn("grid grid-cols-[1fr_auto] gap-3 rounded-xl border p-3 text-left transition", checked ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white", !allowed && "border-amber-200 bg-amber-50")}>
                     <span>
-                      <span className="block text-sm font-black text-white">{module.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-400">{module.description}</span>
+                      <span className="block text-sm font-black text-slate-950">{module.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">{module.description}</span>
                     </span>
-                    <span className={cn("mt-1 h-5 w-9 rounded-full border p-0.5", checked ? "border-emerald-300 bg-emerald-400" : "border-white/20 bg-slate-800")}>
+                    <span className={cn("mt-1 h-5 w-9 rounded-full border p-0.5", checked ? "border-emerald-300 bg-emerald-400" : "border-slate-200 bg-slate-100")}>
                       <span className={cn("block size-3.5 rounded-full bg-white transition", checked && "translate-x-4")} />
                     </span>
                   </button>
@@ -631,15 +631,15 @@ function DetailPanel({
           ) : null}
 
           <PanelSection title="Audit note">
-            <Textarea value={String(editDraft.adminNote ?? "")} onChange={(event) => setEditDraft({ ...editDraft, adminNote: event.target.value })} className="min-h-24 border-white/10 bg-[#0b1020] text-white placeholder:text-slate-500" placeholder="Reason for plan/status/module change" />
+            <Textarea value={String(editDraft.adminNote ?? "")} onChange={(event) => setEditDraft({ ...editDraft, adminNote: event.target.value })} className="min-h-24" placeholder="Reason for plan/status/module change" />
             <InfoRow label="Credentials sent" value={row.lastCredentialsSentAt ? formatDate(row.lastCredentialsSentAt) : "Not sent"} />
           </PanelSection>
         </div>
 
-        <div className="sticky bottom-0 mt-4 grid grid-cols-3 gap-2 bg-[#090e1d] py-3">
-          <Button variant="outline" className="border-red-400/30 bg-red-400/10 text-red-200 hover:bg-red-400/20" onClick={onSuspend}><Ban className="size-4" />Suspend</Button>
-          <Button variant="outline" className="border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20" onClick={onActivate}><CheckCircle2 className="size-4" />Activate</Button>
-          <Button className="bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+        <div className="sticky bottom-0 mt-4 grid grid-cols-3 gap-2 bg-white py-3">
+          <Button variant="outline" className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100" onClick={onSuspend}><Ban className="size-4" />Suspend</Button>
+          <Button variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" onClick={onActivate}><CheckCircle2 className="size-4" />Activate</Button>
+          <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
         </div>
       </div>
     </aside>
@@ -669,21 +669,21 @@ function CreateRestaurantDialog({ open, onOpenChange, step, setStep, draft, setD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto border-white/10 bg-[#080d1d] text-white">
+      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-black text-white">Create restaurant</DialogTitle>
-          <DialogDescription className="text-slate-400">Step-based onboarding creates the profile shell, owner access, subscription, and module visibility.</DialogDescription>
+          <DialogTitle className="text-2xl font-black">Create restaurant</DialogTitle>
+          <DialogDescription>Step-based onboarding creates the profile shell, owner access, subscription, and module visibility.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-          <aside className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+          <aside className="rounded-2xl border border-slate-200 bg-white p-3">
             {[1, 2, 3, 4, 5].map((item) => (
-              <button key={item} type="button" onClick={() => setStep(item)} className={cn("mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-black", step === item ? "bg-emerald-400 text-slate-950" : "text-slate-300 hover:bg-white/10")}>
+              <button key={item} type="button" onClick={() => setStep(item)} className={cn("mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-black", step === item ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50")}>
                 <span className="grid size-7 place-items-center rounded-full bg-black/10">{item}</span>
                 {["Restaurant", "Owner", "Plan", "Features", "Review"][item - 1]}
               </button>
             ))}
           </aside>
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4">
             {step === 1 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 <CreateField label="Restaurant name" value={draft.restaurantName} onChange={(value) => setDraft({ ...draft, restaurantName: value })} />
@@ -694,8 +694,8 @@ function CreateRestaurantDialog({ open, onOpenChange, step, setStep, draft, setD
                 <CreateField label="GST" value={draft.gst} onChange={(value) => setDraft({ ...draft, gst: value })} />
                 <CreateField label="FSSAI" value={draft.fssai} onChange={(value) => setDraft({ ...draft, fssai: value })} />
                 <label className="grid gap-2 sm:col-span-2">
-                  <span className="text-sm font-black text-slate-300">Address</span>
-                  <Textarea value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} className="min-h-24 border-white/10 bg-[#0b1020] text-white" />
+                  <span className="text-sm font-black text-slate-700">Address</span>
+                  <Textarea value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} className="min-h-24" />
                 </label>
               </div>
             ) : null}
@@ -712,15 +712,15 @@ function CreateRestaurantDialog({ open, onOpenChange, step, setStep, draft, setD
             {step === 3 ? (
               <div className="grid gap-3 md:grid-cols-2">
                 {planDefinitions.map((item) => (
-                  <button key={item.key} type="button" onClick={() => selectPlan(item.key)} className={cn("rounded-2xl border p-4 text-left transition", draft.plan === item.key ? "border-emerald-400 bg-emerald-400/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]")}>
+                  <button key={item.key} type="button" onClick={() => selectPlan(item.key)} className={cn("rounded-2xl border p-4 text-left transition", draft.plan === item.key ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white hover:bg-slate-50")}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-lg font-black text-white">{item.label}</p>
-                        <p className="mt-1 text-sm text-slate-400">{item.description}</p>
+                        <p className="text-lg font-black text-slate-950">{item.label}</p>
+                        <p className="mt-1 text-sm text-slate-500">{item.description}</p>
                       </div>
                       <Badge variant="secondary">{item.priceLabel}</Badge>
                     </div>
-                    <p className="mt-3 text-xs font-bold text-emerald-300">{item.badge}</p>
+                    <p className="mt-3 text-xs font-bold text-emerald-700">{item.badge}</p>
                   </button>
                 ))}
               </div>
@@ -728,16 +728,16 @@ function CreateRestaurantDialog({ open, onOpenChange, step, setStep, draft, setD
             {step === 4 ? (
               <div className="grid gap-2 md:grid-cols-2">
                 {ownerModuleDefinitions.map((module) => (
-                  <button key={module.key} type="button" disabled={!planAllowsFeature(draft.plan, module.key)} onClick={() => toggleModule(module.key)} className={cn("rounded-2xl border p-3 text-left transition", draft.enabledModules.includes(module.key) ? "border-emerald-400/50 bg-emerald-400/10" : "border-white/10 bg-white/[0.03]", !planAllowsFeature(draft.plan, module.key) && "opacity-45")}>
-                    <p className="font-black text-white">{module.label}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-400">{module.description}</p>
+                  <button key={module.key} type="button" disabled={!planAllowsFeature(draft.plan, module.key)} onClick={() => toggleModule(module.key)} className={cn("rounded-2xl border p-3 text-left transition", draft.enabledModules.includes(module.key) ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white hover:bg-slate-50", !planAllowsFeature(draft.plan, module.key) && "opacity-45")}>
+                    <p className="font-black text-slate-950">{module.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{module.description}</p>
                   </button>
                 ))}
               </div>
             ) : null}
             {step === 5 ? (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-[#0b1020] p-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <h3 className="text-xl font-black">{draft.restaurantName || "Restaurant name not set"}</h3>
                   <p className="mt-1 text-sm text-slate-400">{draft.cuisine || "Cuisine not set"} · {draft.city || "City not set"}</p>
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -752,7 +752,7 @@ function CreateRestaurantDialog({ open, onOpenChange, step, setStep, draft, setD
               </div>
             ) : null}
             <div className="mt-5 flex justify-between">
-              <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>Back</Button>
               {step < 5 ? <Button className="bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={() => setStep(Math.min(5, step + 1))}>Continue</Button> : null}
             </div>
           </section>
@@ -832,14 +832,14 @@ function selectRestaurant(
 function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: number | string; icon: typeof Store; tone: "indigo" | "emerald" | "amber" | "red" | "cyan" | "violet" }) {
   const classes = {
     indigo: "text-indigo-300 bg-indigo-400/10 border-indigo-400/20",
-    emerald: "text-emerald-300 bg-emerald-400/10 border-emerald-400/20",
+    emerald: "text-emerald-700 bg-emerald-50 border-emerald-200",
     amber: "text-amber-300 bg-amber-400/10 border-amber-400/20",
     red: "text-red-300 bg-red-400/10 border-red-400/20",
     cyan: "text-cyan-300 bg-cyan-400/10 border-cyan-400/20",
     violet: "text-violet-300 bg-violet-400/10 border-violet-400/20",
   }[tone];
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-bold text-slate-400">{label}</p>
         <span className={cn("grid size-9 place-items-center rounded-xl border", classes)}><Icon className="size-4" /></span>
@@ -854,7 +854,7 @@ function RestaurantIdentity({ row }: { row: RestaurantRow }) {
     <div className="flex items-center gap-3">
       <RestaurantThumb row={row} />
       <div className="min-w-0">
-        <p className="truncate font-black text-white">{row.name}</p>
+        <p className="truncate font-black text-slate-950">{row.name}</p>
         <p className="mt-1 text-xs text-slate-400">{row.cuisine}</p>
       </div>
     </div>
@@ -863,7 +863,7 @@ function RestaurantIdentity({ row }: { row: RestaurantRow }) {
 
 function RestaurantThumb({ row }: { row: RestaurantRow }) {
   return (
-    <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/10">
+    <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
       <SafeImage src={row.logo || row.image} fallbackSrc={IMAGE_FALLBACKS.restaurant} alt={row.name} fill cloudinaryPreset="adminTable" sizes="56px" className="object-cover" />
     </div>
   );
@@ -871,7 +871,7 @@ function RestaurantThumb({ row }: { row: RestaurantRow }) {
 
 function StatusBadge({ status, className }: { status: AdminStatus; className?: string }) {
   const classes = status === "Active"
-    ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : status === "Suspended" || status === "Expired"
       ? "border-red-400/25 bg-red-400/10 text-red-300"
       : "border-amber-400/25 bg-amber-400/10 text-amber-300";
@@ -884,14 +884,14 @@ function PlanBadge({ plan }: { plan: PlanKey }) {
     : plan === "Pro"
       ? "border-cyan-400/25 bg-cyan-400/10 text-cyan-300"
       : plan === "Growth"
-        ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-        : "border-white/10 bg-white/5 text-slate-300";
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-slate-200 bg-white text-slate-600";
   return <span className={cn("inline-flex rounded-full border px-2 py-1 text-xs font-black", classes)}>{plan}</span>;
 }
 
 function DarkSelect({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: string[] }) {
   return (
-    <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 min-w-0 rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm font-bold text-white outline-none">
+    <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none">
       {options.map((option) => <option key={option} value={option}>{humanize(option)}</option>)}
     </select>
   );
@@ -899,7 +899,7 @@ function DarkSelect({ value, onChange, options }: { value: string; onChange: (va
 
 function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={(event) => { event.stopPropagation(); onClick(); }} className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white" aria-label={label} title={label}>
+    <button type="button" onClick={(event) => { event.stopPropagation(); onClick(); }} className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950" aria-label={label} title={label}>
       {children}
     </button>
   );
@@ -910,19 +910,19 @@ function UsageLine({ label, used, limit }: { label: string; used: number; limit:
 }
 
 function UsagePanel({ label, used, limit }: { label: string; used: number; limit: number | "unlimited" | undefined }) {
-  return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3"><p className="text-slate-500">{label}</p><p className="mt-1 font-black text-white">{used}/{formatLimit(limit ?? "unlimited")}</p></div>;
+  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-slate-500">{label}</p><p className="mt-1 font-black text-slate-950">{used}/{formatLimit(limit ?? "unlimited")}</p></div>;
 }
 
 function MobileFact({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-slate-500">{label}</p><p className="mt-1 truncate font-black text-slate-100">{value}</p></div>;
+  return <div className="rounded-xl bg-slate-50 p-2"><p className="text-slate-500">{label}</p><p className="mt-1 truncate font-black text-slate-950">{value}</p></div>;
 }
 
 function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><h3 className="mb-3 font-black text-white">{title}</h3><div className="grid gap-3">{children}</div></section>;
+  return <section className="rounded-2xl border border-slate-200 bg-white p-3"><h3 className="mb-3 font-black text-slate-950">{title}</h3><div className="grid gap-3">{children}</div></section>;
 }
 
 function PanelAction({ label, href, icon: Icon }: { label: string; href: string; icon: typeof Store }) {
-  return <Button asChild variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10"><Link href={href}><Icon className="size-4" />{label}</Link></Button>;
+  return <Button asChild variant="outline"><Link href={href}><Icon className="size-4" />{label}</Link></Button>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -930,15 +930,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function DarkField({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
-  return <label className="grid gap-2"><span className="text-xs font-black uppercase text-slate-500">{label}</span><Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="border-white/10 bg-[#0b1020] text-white placeholder:text-slate-500" /></label>;
+  return <label className="grid gap-2"><span className="text-xs font-black uppercase text-slate-500">{label}</span><Input type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function CreateField({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
-  return <label className="grid gap-2"><span className="text-sm font-black text-slate-300">{label}</span><Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="border-white/10 bg-[#0b1020] text-white placeholder:text-slate-500" /></label>;
+  return <label className="grid gap-2"><span className="text-sm font-black text-slate-700">{label}</span><Input type={type} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 
 function ReviewFact({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3"><p className="text-xs font-bold text-slate-500">{label}</p><p className="mt-1 font-black text-white">{value}</p></div>;
+  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-bold text-slate-500">{label}</p><p className="mt-1 font-black text-slate-950">{value}</p></div>;
 }
 
 function deriveStatus(restaurant: Restaurant): AdminStatus {
