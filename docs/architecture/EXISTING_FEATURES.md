@@ -1,4 +1,4 @@
-# Nammude Existing Features - Complete Reference
+# Food Gedi Existing Features - Complete Reference
 
 **Document Version**: 2026-06-30
 **Status**: Production Release
@@ -25,7 +25,7 @@
 
 ## Application Overview
 
-**Nammude** is a direct restaurant-to-customer food ordering and operations platform. It eliminates intermediaries by connecting customers directly with restaurant owners through an integrated commerce, delivery, and operational management system.
+**Food Gedi** is a direct restaurant-to-customer food ordering and operations platform. It eliminates intermediaries by connecting customers directly with restaurant owners through an integrated commerce, delivery, and operational management system.
 
 ### Core Capabilities
 - **Restaurant Discovery**: Search and filter restaurants by cuisine, location, ratings, and delivery options.
@@ -510,7 +510,7 @@ The owner module enables restaurant operators to manage menus, orders, staff, op
 1. Owner creates post with content, offer, and image.
 2. Post submitted with pending status.
 3. Admin reviews in moderation queue.
-4. Admin approves and publishes to Nammude social accounts.
+4. Admin approves and publishes to Food Gedi social accounts.
 5. Published posts appear in customer feeds.
 6. Customer taps link → item detail auto-opens with offer applied.
 
@@ -609,7 +609,7 @@ The owner module enables restaurant operators to manage menus, orders, staff, op
 
 ## Admin & Management Features
 
-The admin module provides platform-level management, monitoring, and configuration for the Nammude ecosystem.
+The admin module provides platform-level management, monitoring, and configuration for the Food Gedi ecosystem.
 
 ### 1. Admin Dashboard & Overview
 
@@ -668,7 +668,7 @@ The admin module provides platform-level management, monitoring, and configurati
   - CMS branding override (app name, colors, etc.).
 
 **Branding Settings**
-- App name configuration (Nammude).
+- App name configuration (Food Gedi).
 - App logo and favicon.
 - Primary color and theme settings.
 - Footer branding and links visibility.
@@ -1361,7 +1361,7 @@ The Point-of-Sale (POS) system for in-store order entry, billing, and kitchen in
 - CSS variable-based token system.
 
 **Brand Customization**
-- App name configuration (Nammude).
+- App name configuration (Food Gedi).
 - Logo and favicon management.
 - Primary color and palette.
 - Theme override by restaurant (admin CMS).
@@ -1436,7 +1436,7 @@ The Point-of-Sale (POS) system for in-store order entry, billing, and kitchen in
 
 ## Summary of Feature Coverage
 
-Nammude provides an end-to-end restaurant commerce and operations platform with:
+Food Gedi provides an end-to-end restaurant commerce and operations platform with:
 
 - **Customer Experience**: discovery, ordering, tracking, profile, loyalty
 - **Owner Operations**: menu, pricing, orders, kitchen, staff, inventory, reporting
@@ -1452,5 +1452,5 @@ All features are production-ready with comprehensive documentation, security mea
 ---
 
 **Last Updated**: 2026-06-30
-**Maintained By**: Nammude Development Team
+**Maintained By**: Food Gedi Development Team
 **Next Review**: Quarterly feature audit

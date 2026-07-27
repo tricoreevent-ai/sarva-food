@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import * as Popover from "@radix-ui/react-popover";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
+import { APP_NAME } from "@/lib/constants";
 import {
   AlertTriangle,
   Bell,
@@ -1343,7 +1344,7 @@ function CateringInquiryList({
     const body = encodeURIComponent([
       `Hello ${quote.name},`,
       "",
-      "Thank you for your catering request with Nammude.",
+      `Thank you for your catering request with ${APP_NAME}.`,
       `Revised quotation: ${formatCurrency(amount)}`,
       `Guests: ${quote.guestCount}`,
       `Event: ${quote.eventType ?? "Catering event"}`,

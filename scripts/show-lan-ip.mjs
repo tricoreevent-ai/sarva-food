@@ -8,7 +8,7 @@ const addresses = Object.values(interfaces)
   .map((entry) => entry.address);
 
 console.log("");
-console.log("Nammude LAN test URLs");
+console.log("Food Gedi LAN test URLs");
 console.log("------------------------");
 console.log("Local:   http://localhost:3000");
 console.log("Secure:  https://localhost:3000");

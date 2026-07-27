@@ -1,4 +1,4 @@
-# Nammude Release Report
+# Food Gedi Release Report
 
 | Field | Value |
 | --- | --- |

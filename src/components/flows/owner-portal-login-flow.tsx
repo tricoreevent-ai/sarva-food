@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, Mail, ShieldAlert, ShieldCheck, Store } from "lucide-react";
+import { BRAND_CONFIG } from "@/config/branding";
 import type { UserRole } from "@/types/firebase";
 
 type LoginResponse = {
@@ -150,7 +151,7 @@ export function OwnerPortalLoginFlow() {
               <Store className="size-5" />
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-200">Nammude OS</p>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-200">{BRAND_CONFIG.shortName} OS</p>
               <p className="text-sm font-black text-white">Enterprise restaurant command</p>
             </div>
           </div>

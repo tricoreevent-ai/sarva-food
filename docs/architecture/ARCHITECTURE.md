@@ -1,8 +1,8 @@
-# Nammude App Architecture Reference
+# Food Gedi App Architecture Reference
 
 ## Scope
 
-This reference covers the core architecture of the Nammude repository. It describes the main frontend and backend layers, route layout organization, reusable UI patterns, data/service separation, Firebase integration, and the key user surfaces supported by the project.
+This reference covers the core architecture of the Food Gedi repository. It describes the main frontend and backend layers, route layout organization, reusable UI patterns, data/service separation, Firebase integration, and the key user surfaces supported by the project.
 
 It is intended for developers who need a quick map of where features live and how the project is structured.
 
@@ -24,7 +24,7 @@ The architecture is intentionally modular:
 
 ## Features & Capabilities Overview
 
-Nammude is a comprehensive restaurant commerce and operations platform with three primary user surfaces:
+Food Gedi is a comprehensive restaurant commerce and operations platform with three primary user surfaces:
 
 ### Customer Surface
 - **Restaurant Discovery**: search, filter, and browse restaurants by cuisine, location, ratings, delivery status.
@@ -397,6 +397,6 @@ For comprehensive feature details, refer to the following documentation files:
 
 ---
 
-Created as a project architecture reference for the `Nammude` repository.
+Created as a project architecture reference for the `Food Gedi` repository.
 Last Updated: 2026-06-30
 For complete feature documentation, see `docs/architecture/EXISTING_FEATURES.md`.

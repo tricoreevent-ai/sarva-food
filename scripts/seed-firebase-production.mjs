@@ -666,7 +666,7 @@ for (const [name, icon, image, colorTheme] of appCategorySeeds) {
 }
 
 batch.set(db.collection("appSettings").doc("cms"), {
-  appName: "Nammude",
+  appName: "Food Gedi",
   homepage: {
     title: "Craving something delicious?",
     subtitle: "Order Arabic grills, biryani, meals, pizza, burgers, juices, and desserts from verified nearby restaurants.",
@@ -710,14 +710,14 @@ batch.set(db.collection("appSettings").doc("cms"), {
       sortOrder: 1,
     },
   ],
-  disclaimer: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Nammude acts only as a technology platform connecting customers and restaurants.",
+  disclaimer: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Food Gedi acts only as a technology platform connecting customers and restaurants.",
   footer: {
     visible: true,
-    note: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Nammude acts only as a technology platform connecting customers and restaurants.",
+    note: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Food Gedi acts only as a technology platform connecting customers and restaurants.",
   },
   legalPages: {
-    terms: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Nammude acts only as a technology platform connecting customers and restaurants.",
-    privacy: "Nammude uses account, location, cart, and order data only to operate food discovery, ordering, support, and safety workflows.",
+    terms: "Restaurants and food partners are solely responsible for food quality, hygiene, preparation, allergens, packaging, and safety. Food Gedi acts only as a technology platform connecting customers and restaurants.",
+    privacy: "Food Gedi uses account, location, cart, and order data only to operate food discovery, ordering, support, and safety workflows.",
   },
   updatedAt: now,
 }, { merge: true });

@@ -57,9 +57,9 @@ function logProduction(level: LogLevel, event: string, data: Record<string, unkn
   if (!shouldLog(level)) return;
   const payload = sanitize({ level, event, ...data, timestamp: new Date().toISOString() });
   recordMonitoringLog(level, event, data);
-  if (level === "ERROR" || level === "SECURITY" || level === "PAYMENT") return console.error("[nammude]", payload);
-  if (level === "WARN") return console.warn("[nammude]", payload);
-  console.info("[nammude]", payload);
+  if (level === "ERROR" || level === "SECURITY" || level === "PAYMENT") return console.error("[food-gedi]", payload);
+  if (level === "WARN") return console.warn("[food-gedi]", payload);
+  console.info("[food-gedi]", payload);
 }
 
 function shouldLog(level: LogLevel) {

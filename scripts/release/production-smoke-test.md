@@ -1,4 +1,4 @@
-# Nammude Production Smoke Test
+# Food Gedi Production Smoke Test
 
 | Area | Objective | Steps | Expected Result | Pass | Fail | Remarks |
 | --- | --- | --- | --- | --- | --- | --- |

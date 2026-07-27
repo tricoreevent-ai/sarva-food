@@ -8,6 +8,7 @@ import { getInitialTheme } from "@/lib/server/theme-preference";
 import { resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
+import { BRAND_CONFIG } from "@/config/branding";
 import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 import "./globals.css";
 
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
   },
   description: APP_DESCRIPTION,
   keywords: APP_SEO_KEYWORDS,
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   applicationName: APP_NAME,
   appleWebApp: {
     capable: true,
@@ -45,8 +46,8 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
       { url: BRAND_ASSETS.favicon16, sizes: "16x16", type: "image/png" },
       { url: BRAND_ASSETS.favicon32, sizes: "32x32", type: "image/png" },
-      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: BRAND_CONFIG.assets.androidIcon, sizes: "192x192", type: "image/png" },
+      { url: BRAND_CONFIG.assets.androidIconLarge, sizes: "512x512", type: "image/png" },
     ],
     apple: BRAND_ASSETS.appleTouchIcon,
   },
@@ -56,16 +57,18 @@ export const metadata: Metadata = {
     siteName: APP_NAME,
     type: "website",
     locale: "en_IN",
+    images: [{ url: BRAND_CONFIG.assets.openGraphImage, width: 1200, height: 630, alt: APP_NAME }],
   },
   twitter: {
     card: "summary_large_image",
     title: APP_DEFAULT_TITLE,
     description: APP_DESCRIPTION,
+    images: [BRAND_CONFIG.assets.twitterImage],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3B7A32",
+  themeColor: BRAND_CONFIG.colors.primary,
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

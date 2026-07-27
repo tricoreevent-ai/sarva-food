@@ -12,6 +12,7 @@ import {
   type VerifiedSession,
 } from "@/lib/server-auth";
 import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
+import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/firebase";
 
 type ModuleSurface = Extract<SessionSurface, "owner" | "admin">;
@@ -410,11 +411,11 @@ async function sendModuleOtpEmail(email: string, otp: string, surface: ModuleSur
   await retrySmtp(() => transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
-    subject: `Reset your Nammude ${moduleName} password`,
-    text: `Reset your Nammude ${moduleName} password\n\nYour OTP is ${otp}. It expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`,
+    subject: `Reset your ${APP_NAME} ${moduleName} password`,
+    text: `Reset your ${APP_NAME} ${moduleName} password\n\nYour OTP is ${otp}. It expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#241812">
-        <h1 style="font-size:24px;margin:0 0 12px">Reset your Nammude ${moduleName} password</h1>
+        <h1 style="font-size:24px;margin:0 0 12px">Reset your ${APP_NAME} ${moduleName} password</h1>
         <p style="font-size:15px;line-height:1.6">Use this one-time password to set a new ${moduleName.toLowerCase()} portal password. It expires in 10 minutes.</p>
         <div style="font-size:32px;font-weight:800;letter-spacing:8px;background:#fff0e2;border-radius:12px;padding:18px 20px;text-align:center">${otp}</div>
         <p style="font-size:13px;line-height:1.5;color:#7c5f50">For your safety, do not share this code with anyone.</p>

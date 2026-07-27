@@ -40,7 +40,7 @@ The final source uses a debounced search, one memoized filter/group pass, stable
 
 | Priority | Bottleneck | Evidence | Impact |
 | --- | --- | --- | --- |
-| P0 | Home LCP is text render delay, not image load. | Saved Lighthouse LCP element is `main.min-h-screen > section.container-page > div.grid > p.text-sm`, the "Nammude is a direct-to-customer..." paragraph; 93% of LCP was render delay. | JS/hydration and late content replacement delay the visible home content. |
+| P0 | Home LCP is text render delay, not image load. | Saved Lighthouse LCP element is `main.min-h-screen > section.container-page > div.grid > p.text-sm`, the "Food Gedi is a direct-to-customer..." paragraph; 93% of LCP was render delay. | JS/hydration and late content replacement delay the visible home content. |
 | P0 | Large CLS comes from page/footer movement after client data resolves. | Saved Lighthouse found CLS `0.863`; primary shifted node is the customer shell/footer area. | Skeleton/content height mismatch moves lower content significantly on mobile. |
 | P0 | Customer shell starts action-only/auth-heavy work too early. | `CustomerShellRuntime` mounts `AuthSessionBridge`, `FirestoreStoreHydrator`, `AppToaster`, PWA, push, analytics, and full `CustomerShellClient`; `CustomerShellClient` imports logout services statically. | More JS and Firebase/auth modules execute before first paint. |
 | P0 | Public header pulls Firebase/Firestore into initial customer bundle. | `PublicHeader` statically imports `firebase/firestore` and `@/firebase/client` for saved addresses even though addresses are only needed when the location picker opens. | Firestore/auth SDK cost appears on public home. |

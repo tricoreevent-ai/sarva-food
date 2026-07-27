@@ -2,7 +2,7 @@
 
 ## Tenant Model
 
-Nammude is one platform serving many restaurants, hotels, and cloud kitchens. A tenant is the restaurant business registered on the platform. The current compatibility tenant id for the seeded restaurant is `cafe-al-arab-thanisandra`.
+Food Gedi is one platform serving many restaurants, hotels, and cloud kitchens. A tenant is the restaurant business registered on the platform. The current compatibility tenant id for the seeded restaurant is `cafe-al-arab-thanisandra`.
 
 Core tenant records:
 

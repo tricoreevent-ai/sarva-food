@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { sendTenantPushNotification } from "@/lib/server/push-notifications";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { tenantScope } from "@/repositories/shared";
+import { APP_NAME } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
   const scope = tenantScope(access.session, body.restaurantId);
   const result = await sendTenantPushNotification(scope, {
     type: "notification_test",
-    title: "Nammude notification test",
+    title: `${APP_NAME} notification test`,
     message: "Owner push delivery is working on this device.",
     priority: "normal",
     link: "/owner/settings?tab=notifications",

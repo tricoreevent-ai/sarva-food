@@ -5,6 +5,7 @@ import { CheckCircle2, CreditCard, FlaskConical, Loader2, RefreshCcw, RotateCcw,
 import { toast } from "@/lib/client-toast";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { Button } from "@/components/ui/button";
+import { APP_NAME } from "@/lib/constants";
 import { openRazorpayCheckout, type RazorpayCheckoutResponse } from "@/services/razorpay-checkout-client";
 
 type TestOrder = { providerOrderId: string; keyId: string; amount: number; currency: string; name: string; image?: string };
@@ -80,7 +81,7 @@ export function PaymentVerificationCenter() {
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: order.name || "Nammude",
+        name: order.name || APP_NAME,
         image: order.image,
         description: "Owner payment verification",
         order_id: order.providerOrderId,

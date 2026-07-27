@@ -54,6 +54,7 @@ import { getRestaurantOperatingStatus } from "@/lib/restaurant-operating-status"
 import { formatScheduleDate, formatScheduleSlot, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { useThemeMode } from "@/lib/theme-provider";
 import { safeClientReason } from "@/lib/client-diagnostics";
+import { APP_NAME } from "@/lib/constants";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerAddressDoc } from "@/types/firebase";
@@ -1184,11 +1185,11 @@ function SupportIssueSheet({ open, onOpenChange, restaurant }: { open: boolean; 
       <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto rounded-t-[1.5rem] border-border bg-card p-0 text-card-foreground" style={{ zIndex: 99999 }}>
         <SheetHeader className="border-b px-5 py-4 pr-12">
           <SheetTitle className="text-left text-lg font-black">Report an issue</SheetTitle>
-          <SheetDescription className="text-left">Send this to the restaurant owner, Nammude admin, or both.</SheetDescription>
+          <SheetDescription className="text-left">Send this to the restaurant owner, {APP_NAME} admin, or both.</SheetDescription>
         </SheetHeader>
         <form className="grid gap-4 p-4" onSubmit={submitIssue}>
           <div className="grid gap-3 sm:grid-cols-3">
-            <FieldSelect id="report-target" label="Send to" value={target} onChange={setTarget} options={[["owner", "Restaurant owner"], ["admin", "Nammude admin"], ["both", "Owner and admin"]]} />
+            <FieldSelect id="report-target" label="Send to" value={target} onChange={setTarget} options={[["owner", "Restaurant owner"], ["admin", `${APP_NAME} admin`], ["both", "Owner and admin"]]} />
             <FieldSelect id="report-category" label="Category" value={category} onChange={setCategory} options={[["restaurant", "Restaurant"], ["order", "Order"], ["payment", "Payment"], ["delivery", "Delivery"], ["food_quality", "Food quality"], ["app", "App"], ["other", "Other"]]} />
             <FieldSelect id="report-priority" label="Priority" value={priority} onChange={setPriority} options={[["normal", "Normal"], ["high", "High"], ["urgent", "Urgent"], ["low", "Low"]]} />
           </div>
@@ -2438,10 +2439,10 @@ async function notifyOwnerAboutOrder(payload: Record<string, unknown>) {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null) as { error?: string } | null;
-      console.warn("[Nammude order] Owner email notification was not sent.", body?.error || response.status);
+      console.warn("[Food Gedi order] Owner email notification was not sent.", body?.error || response.status);
     }
   } catch (error) {
-    console.warn("[Nammude order] Owner email notification request failed.", { reason: safeClientReason(error) });
+    console.warn("[Food Gedi order] Owner email notification request failed.", { reason: safeClientReason(error) });
   }
 }
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {

@@ -1,6 +1,6 @@
 # Restaurant Operations System
 
-Nammude now extends the existing commerce platform into a restaurant operating ecosystem without replacing the completed architecture. The current implementation uses the persisted mock store as the integration layer so each workflow can later move to Firebase collections, Cloud Functions, and realtime listeners.
+Food Gedi now extends the existing commerce platform into a restaurant operating ecosystem without replacing the completed architecture. The current implementation uses the persisted mock store as the integration layer so each workflow can later move to Firebase collections, Cloud Functions, and realtime listeners.
 
 ## Onboarding Restrictions
 
@@ -49,7 +49,7 @@ Owners do not publish Instagram or Facebook posts directly.
 2. Owner uploads/selects food image, headline, offer code, caption, CTA, location tag, and optional schedule.
 3. Post is submitted with `pending` status.
 4. Admin reviews in `/admin/social-queue`.
-5. Admin approves, rejects, or publishes through official Nammude accounts.
+5. Admin approves, rejects, or publishes through official Food Gedi accounts.
 6. Published posts become location-based promotional content.
 
 The Meta integration panel at `/admin/meta` contains Instagram/Facebook account connection management, Graph API placeholders, token fields, page selection actions, and posting history.

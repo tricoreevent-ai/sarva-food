@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Food Gedi icon">
+  <defs>
+    <linearGradient id="fg-green" x1="77" y1="105" x2="329" y2="407" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22A33A"/>
+      <stop offset="1" stop-color="#0B3F1D"/>
+    </linearGradient>
+    <linearGradient id="fg-orange" x1="242" y1="116" x2="409" y2="406" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A00"/>
+      <stop offset="1" stop-color="#FF6A00"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="transparent"/>
+  <path d="M116 202C128 119 190 62 259 62c69 0 132 57 144 140h-37C355 141 310 101 259 101c-52 0-96 40-107 101h-36Z" fill="url(#fg-green)"/>
+  <path d="M240 46c0-15 13-27 29-27 17 0 31 12 31 27 0 16-14 25-32 25-16 0-28-10-28-25Zm19 4c0 4 4 7 10 7 7 0 12-3 12-7s-5-7-11-7c-7 0-11 3-11 7Z" fill="url(#fg-green)"/>
+  <path d="M178 186c10-53 43-83 87-83 46 0 80 31 89 83H178Z" fill="url(#fg-orange)"/>
+  <path d="M218 175c9-28 27-44 54-48" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".85"/>
+  <path d="M92 226c0-19 15-34 34-34h110c18 0 32 14 32 32s-14 32-32 32H153v44h75c18 0 32 14 32 32s-14 32-32 32h-75v90l-61-60V226Z" fill="url(#fg-green)"/>
+  <path d="M296 322c0-75 55-132 130-132h6c17 0 31 14 31 31s-14 31-31 31h-7c-38 0-66 30-66 70 0 42 30 72 72 72 27 0 50-13 62-34h-69c-17 0-30-13-30-30s13-30 30-30h116v24c0 80-48 132-116 132-73 0-128-57-128-134Z" fill="url(#fg-orange)"/>
+</svg>

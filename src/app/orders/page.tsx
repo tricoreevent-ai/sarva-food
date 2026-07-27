@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ArrowRight, CircleHelp, FileText, History, LogIn, PackageOpen, RefreshCw, RotateCcw, Star } from "lucide-react";
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { APP_NAME } from "@/lib/constants";
 import { EmptyStateCard } from "@/components/layout/empty-state";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
 import { InlineLoading, RetryState } from "@/components/state/page-state";
@@ -49,7 +50,7 @@ export default function OrdersPage() {
               <div className="max-w-md">
                 <LogIn className="mx-auto size-10 text-primary" />
                 <h2 className="mt-4 text-2xl font-black">Sign in to view orders</h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">Customer orders are tied to your Nammude account.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Customer orders are tied to your {APP_NAME} account.</p>
                 <Button asChild size="lg" className="mt-5">
                   <Link href="/login?next=/orders">Sign in</Link>
                 </Button>

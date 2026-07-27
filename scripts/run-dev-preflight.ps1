@@ -203,9 +203,9 @@ $sarvaProcesses = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue 
 })
 
 if ($sarvaProcesses.Count -gt 0) {
-  Write-Info "Found $($sarvaProcesses.Count) Nammude-related Node/Next process(es)."
+  Write-Info "Found $($sarvaProcesses.Count) Food Gedi-related Node/Next process(es)."
 } else {
-  Write-Info "No Nammude-related Node/Next process is currently running."
+  Write-Info "No Food Gedi-related Node/Next process is currently running."
 }
 
 $primaryHttpsPort = 3000

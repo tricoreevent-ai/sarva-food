@@ -239,12 +239,12 @@ function logPublicDataClientResult(path: string, count: number, meta?: PublicApi
     return;
   }
   if (process.env.NODE_ENV !== "production") {
-    console.info("[Nammude public data] restaurants loaded.", payload);
+    console.info("[Food Gedi public data] restaurants loaded.", payload);
   }
 }
 
 function logPublicDataClientWarning(scope: string, message: string, details?: Record<string, unknown>) {
-  console.warn(`[Nammude public data] ${scope}: ${message}`, details ?? {});
+  console.warn(`[Food Gedi public data] ${scope}: ${message}`, details ?? {});
 }
 
 function safeUrlPath(url: string) {

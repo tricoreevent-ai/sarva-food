@@ -220,7 +220,7 @@ Build summary:
 ### PWA And Mobile
 
 - Added `public/manifest.json` improvements.
-- Added `public/icons/sarva-icon.svg`.
+- Added `public/icons/food-gedi-icon.svg`.
 - Added `public/sw.js` service worker.
 - Added `/offline` fallback route.
 - Added production-only service worker registration.

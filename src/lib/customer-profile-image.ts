@@ -8,9 +8,9 @@ export function resolveCustomerPhotoURL(...values: Array<string | null | undefin
 
 function isBrandProfileImage(value: string) {
   const normalized = value.toLowerCase();
-  return normalized.includes("/icons/nammude-")
-    || normalized.includes("/brand/nammude-")
+  return normalized.includes("/icons/food-gedi-")
+    || normalized.includes("/brand/food-gedi-")
     || normalized.includes("/images/fallback-logo")
-    || normalized.includes("nammude-logo")
-    || normalized.includes("nammude-icon");
+    || normalized.includes("food-gedi-logo")
+    || normalized.includes("food-gedi-icon");
 }

@@ -1,4 +1,4 @@
-# Nammude Deployment Checklist
+# Food Gedi Deployment Checklist
 
 | Area | Check | Expected Result | Pass | Fail | Notes |
 | --- | --- | --- | --- | --- | --- |

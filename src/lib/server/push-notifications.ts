@@ -3,6 +3,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { FieldValue, type DocumentData, type DocumentReference } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { BRAND_CONFIG } from "@/config/branding";
+import { APP_NAME } from "@/lib/constants";
 import { adminApp, adminDb } from "@/firebase/admin";
 import { tenantAliases } from "@/lib/tenant";
 import type { TenantScope } from "@/repositories/shared";
@@ -144,7 +146,7 @@ export async function dispatchPendingTenantPushNotifications(scope: TenantScope,
       await sendTenantPushNotification(scope, {
         notificationId: item.id,
         type: String(claimed.type ?? "notification"),
-        title: String(claimed.title ?? "Nammude"),
+        title: String(claimed.title ?? APP_NAME),
         message: String(claimed.message ?? ""),
         priority: claimed.priority === "high" ? "high" : "normal",
         orderId: typeof claimed.orderId === "string" ? claimed.orderId : undefined,
@@ -208,8 +210,8 @@ export async function sendTenantPushNotification(scope: TenantScope, input: Push
       notification: {
         title: input.title,
         body: input.message,
-        icon: "/android-chrome-192x192.png",
-        badge: "/icons/nammude-icon-96.png",
+        icon: BRAND_CONFIG.assets.notificationIcon,
+        badge: BRAND_CONFIG.assets.notificationBadge,
         tag: input.notificationId || `${scope.tenantId}:${input.type}:${input.orderId ?? ""}`,
         renotify: input.priority === "high",
         requireInteraction: input.priority === "high",

@@ -87,7 +87,7 @@ Source: authenticated `https://violet-squid-380447.hostingersite.com`
 
 ```json
 {
-  "appName": "Nammude",
+  "appName": "Food Gedi",
   "releaseBranch": "release/production-nammude",
   "releaseMarker": "nammude-production-release",
   "buildCommit": "35017398773ba04efbdc3ab37d250cfa547c0675",

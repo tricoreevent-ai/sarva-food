@@ -1,6 +1,6 @@
 # Restaurant Business Suite
 
-Nammude now has production-oriented foundations for restaurant commerce, operations, accounting, inventory, loyalty, multilingual UX, and theming. The work remains incremental and keeps Firebase/service boundaries intact.
+Food Gedi now has production-oriented foundations for restaurant commerce, operations, accounting, inventory, loyalty, multilingual UX, and theming. The work remains incremental and keeps Firebase/service boundaries intact.
 
 ## Theme Architecture
 

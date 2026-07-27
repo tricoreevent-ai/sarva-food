@@ -1,4 +1,4 @@
-# Nammude Release Utilities
+# Food Gedi Release Utilities
 
 All release utilities live in `scripts/release`.
 

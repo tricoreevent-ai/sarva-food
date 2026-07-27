@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Food Gedi maskable icon">
+  <rect width="512" height="512" rx="96" fill="#166B2E"/>
+  <g transform="translate(64 64) scale(.75)">
+    <image href="/icons/food-gedi-icon.svg" width="512" height="512" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+</svg>

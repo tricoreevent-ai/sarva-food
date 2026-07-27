@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { shouldEnableDevLogin } from "@/lib/env";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
+import { APP_NAME } from "@/lib/constants";
 import type { MockUser } from "@/lib/types";
 import type { UserRole } from "@/types/firebase";
 
@@ -65,7 +66,7 @@ export function AuthSessionBridge() {
               if (stackUser?.id) {
                 setScopedAuthUser({
                   id: stackUser.id,
-                  name: stackUser.displayName || stackUser.primaryEmail || "Nammude Customer",
+                  name: stackUser.displayName || stackUser.primaryEmail || `${APP_NAME} Customer`,
                   role: "customer",
                   restaurantSlug: DEFAULT_TENANT_ID,
                 });

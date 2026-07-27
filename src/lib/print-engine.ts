@@ -1,3 +1,4 @@
+import { BRAND_CONFIG } from "@/config/branding";
 import { calculateRestaurantTax } from "@/lib/menu-engine";
 import { displayOrderNumber } from "@/lib/order-display";
 import { DEFAULT_BRANCH_ID } from "@/lib/tenant";
@@ -180,7 +181,7 @@ export function renderReceiptLines(context: BillContext, template: PrintTemplate
     if (template.footerImageUrl) lines.push(center("[ FOOTER IMAGE CONFIGURED ]", width));
     lines.push(center(template.footerNote ?? "THANK YOU", width));
     lines.push(...wrapText(template.refundPolicy ?? "Goods once sold cannot be returned.", width).map((line) => center(line, width)));
-    lines.push(center("@sarva.food", width));
+    lines.push(center(BRAND_CONFIG.support.website.replace(/^https?:\/\//, ""), width));
   }
 
   return lines;

@@ -47,7 +47,7 @@ installRuntimeSafetyHandlers();
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   console.error("");
-  console.error("Nammude HTTPS LAN startup failed");
+  console.error("Food Gedi HTTPS LAN startup failed");
   console.error("-----------------------------------");
   console.error(`Reason: ${message}`);
   if (error instanceof StartupError && error.nextAction) {
@@ -508,7 +508,7 @@ function createProxyServer(tls, httpsPort, nextPort) {
       }
       if (!clientResponse.destroyed) {
         if (!clientResponse.headersSent) clientResponse.writeHead(502, { "content-type": "text/plain; charset=utf-8" });
-        clientResponse.end("Nammude is starting. Refresh in a moment.");
+        clientResponse.end("Food Gedi is starting. Refresh in a moment.");
       }
     });
 
@@ -898,7 +898,7 @@ function describeOwners(owners) {
 function printStartupBanner({ nextPort, httpsPorts, redirectPort, useExistingNext: existing }) {
   const lanAddresses = getLanAddresses();
   console.log("");
-  console.log("Nammude HTTPS LAN test URLs");
+  console.log("Food Gedi HTTPS LAN test URLs");
   console.log("------------------------------");
   console.log(`Internal Next.js: http://127.0.0.1:${nextPort}${existing ? " (existing)" : ""}`);
   for (const port of httpsPorts) {
@@ -931,7 +931,7 @@ async function shutdown(signal, exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log("");
-  console.log(`Stopping Nammude HTTPS LAN mode (${signal})...`);
+  console.log(`Stopping Food Gedi HTTPS LAN mode (${signal})...`);
   if (nextHealthTimer) clearInterval(nextHealthTimer);
   await closeServers();
   if (managedNextProcess?.pid) {
@@ -994,10 +994,10 @@ function logTransientNetworkWarning(scope, error) {
   }
   const networkMessage = cleanNetworkMessage(error);
   if (!isTransientNetworkError(error)) {
-    logThrottledWarning(`warn:${scope}:${networkMessage}`, `Nammude HTTPS dev warning (${scope}): ${networkMessage}`);
+    logThrottledWarning(`warn:${scope}:${networkMessage}`, `Food Gedi HTTPS dev warning (${scope}): ${networkMessage}`);
     return;
   }
-  logThrottledWarning(`transient:${scope}:${networkMessage}`, `Nammude HTTPS dev recovered ${scope} disconnect: ${networkMessage}`);
+  logThrottledWarning(`transient:${scope}:${networkMessage}`, `Food Gedi HTTPS dev recovered ${scope} disconnect: ${networkMessage}`);
 }
 
 function isHttpOnHttpsError(error) {

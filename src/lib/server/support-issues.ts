@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
+import { APP_NAME } from "@/lib/constants";
 import type { VerifiedSession } from "@/lib/server-auth";
 
 export const supportIssueStatuses = ["open", "waiting_owner", "waiting_admin", "waiting_customer", "resolved", "closed"] as const;
@@ -75,7 +76,7 @@ export function sanitizePatch(input: Record<string, unknown>) {
 }
 
 function actorLabel(actor: SupportIssueActor) {
-  if (actor === "admin") return "Nammude support";
+  if (actor === "admin") return `${APP_NAME} support`;
   if (actor === "owner") return "Restaurant team";
   if (actor === "system") return "System";
   return "Customer";

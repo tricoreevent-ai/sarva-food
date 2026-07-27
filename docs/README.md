@@ -1,4 +1,4 @@
-# Sarva Food App Documentation Hub
+# Food Gedi App Documentation Hub
 
 This is the single entry point for repository documentation on `release/production-nammude`.
 

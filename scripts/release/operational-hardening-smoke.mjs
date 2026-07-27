@@ -133,7 +133,7 @@ await check("owner-api:proxy-safe-origin-guard", () => {
 });
 
 await check("owner-login:enterprise-auth-experience", () => {
-  for (const token of ["Nammude OS", "Remember email", "Caps Lock is on", "sarva.owner.login.email", "autoFocus", "autoComplete", "Secure access", "Securing session"]) assert.ok(ownerLogin.includes(token), token);
+  for (const token of ["BRAND_CONFIG.shortName} OS", "Remember email", "Caps Lock is on", "sarva.owner.login.email", "autoFocus", "autoComplete", "Secure access", "Securing session"]) assert.ok(ownerLogin.includes(token), token);
   assert.ok(ownerLogin.includes("Forgot password?"));
   assert.ok(ownerLogin.includes("one-time-code"));
 });

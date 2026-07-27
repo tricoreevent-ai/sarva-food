@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CircleHelp, ClipboardList, Clock, LogOut, ReceiptText, Settings, UserSearch, Utensils, type LucideIcon } from "lucide-react";
 import { useAppStore } from "@/lib/app-store";
+import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export type PosPanel = "new" | "active" | "held" | "past" | "customers";
@@ -32,7 +33,7 @@ export function PosSidebar({
   onPastOrders,
   onCustomers,
 }: PosSidebarProps) {
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || APP_NAME);
   const initials = productName.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "SF";
 
   return (

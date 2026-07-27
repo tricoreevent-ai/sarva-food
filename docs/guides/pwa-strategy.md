@@ -14,7 +14,7 @@ No critical checkout step should require installation.
 ## Implemented PWA Pieces
 
 - `public/manifest.json` with name, theme color, icon, categories, and shortcuts.
-- `public/icons/sarva-icon.svg` for install surfaces.
+- `public/icons/food-gedi-icon.svg` for install surfaces.
 - `public/sw.js` for offline fallback and lightweight restaurant page caching.
 - `src/components/pwa/pwa-registrar.tsx` for production service worker registration.
 - `src/components/pwa/install-prompt.tsx` for optional install prompt.

@@ -97,13 +97,13 @@ export function FirestoreStoreHydrator() {
         .then((items) => {
           if (active) applyOwnerMenuItems(items);
         })
-        .catch((error) => console.warn("[Nammude owner menu] server load failed", safeClientReason(error)));
+        .catch((error) => console.warn("[Food Gedi owner menu] server load failed", safeClientReason(error)));
 
       unsubscribers.push(
         listenMenuItems(restaurantId, (items) => {
           applyOwnerMenuItems(items);
         }, (error) => {
-          console.warn("[Nammude owner menu] Firestore listener failed; keeping server menu snapshot.", safeClientReason(error));
+          console.warn("[Food Gedi owner menu] Firestore listener failed; keeping server menu snapshot.", safeClientReason(error));
           void fetchOwnerMenuItems(restaurantId)
             .then((items) => {
               if (active) applyOwnerMenuItems(items);

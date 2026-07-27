@@ -1,6 +1,6 @@
 # Restaurant Billing And Printing System
 
-Nammude now uses a shared thermal print engine for POS bills, GST invoices, KOT tickets, print previews, printer settings, and audit-ready print records.
+Food Gedi now uses a shared thermal print engine for POS bills, GST invoices, KOT tickets, print previews, printer settings, and audit-ready print records.
 
 ## Receipt Workflow
 

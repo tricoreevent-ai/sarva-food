@@ -7,6 +7,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
+import { APP_NAME } from "@/lib/constants";
 import { PUBLIC_CMS_CACHE_EVENT, PUBLIC_CMS_CACHE_KEY, readCachedPublicCmsSettings } from "@/lib/public-cms-cache";
 import { resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import type { CmsSettings } from "@/lib/types";
@@ -27,7 +28,7 @@ export function CustomerFooter() {
   if (cmsSettings.footer?.visible === false) return null;
 
   const branding = cmsSettings.branding ?? defaultCmsSettings.branding!;
-  const appName = branding.appName || cmsSettings.appName || defaultCmsSettings.appName || "Nammude";
+  const appName = branding.appName || cmsSettings.appName || defaultCmsSettings.appName || APP_NAME;
   const sections = footerSections(cmsSettings);
   const partnerCard = { ...defaultCmsSettings.footer.partnerCard, ...(cmsSettings.footer.partnerCard ?? {}) };
   const socialLinks = footerSocialLinks(cmsSettings);

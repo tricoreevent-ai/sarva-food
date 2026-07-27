@@ -2,6 +2,7 @@
 
 import type { MessagePayload, Unsubscribe } from "firebase/messaging";
 import { isFirebaseConfigured } from "@/firebase/config";
+import { APP_NAME } from "@/lib/constants";
 
 export type PushSurface = "customer" | "owner" | "admin" | "kitchen" | "pos" | "waiter";
 
@@ -101,7 +102,7 @@ export async function listenForForegroundPush(callback: (payload: MessagePayload
 export function normalizePushPayload(payload: MessagePayload) {
   const data = payload.data ?? {};
   return {
-    title: payload.notification?.title || data.title || "Nammude",
+    title: payload.notification?.title || data.title || APP_NAME,
     body: payload.notification?.body || data.body || data.message || "",
     link: safeLink(data.link),
     tone: data.priority === "high" ? "critical" as const : data.type === "payment" ? "success" as const : "info" as const,

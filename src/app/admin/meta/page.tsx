@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { APP_NAME } from "@/lib/constants";
 
 const history: Array<{ id: string; channel: string; status: string; time: string }> = [];
 
@@ -13,12 +14,12 @@ export default function AdminMetaPage() {
     <div className="space-y-6">
       <SectionHeader
         title="Meta integrations"
-        description="Official Nammude account connection, token storage, page selection, and posting history."
+        description={`Official ${APP_NAME} account connection, token storage, page selection, and posting history.`}
         action={<Badge variant="muted">Graph API ready</Badge>}
       />
       <section className="grid gap-4 lg:grid-cols-2">
-        <IntegrationCard icon={<Camera className="size-5" />} title="Instagram" account="@sarva.food" />
-        <IntegrationCard icon={<MessageCircle className="size-5" />} title="Facebook" account="Nammude Official" />
+        <IntegrationCard icon={<Camera className="size-5" />} title="Instagram" account="@foodgedi" />
+        <IntegrationCard icon={<MessageCircle className="size-5" />} title="Facebook" account={`${APP_NAME} Official`} />
       </section>
       <Card>
         <CardHeader>

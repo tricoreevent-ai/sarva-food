@@ -1,3 +1,5 @@
+import { APP_NAME } from "@/lib/constants";
+
 export type WhatsAppTemplateKind = "todays-special" | "promotional" | "festival";
 
 export type MarketingSettings = {
@@ -16,7 +18,7 @@ export const defaultMarketingSettings: MarketingSettings = {
   defaultTemplate: "todays-special",
   defaultCtaText: "Buy Now",
   tinyUrlEnabled: true,
-  promotionalFooter: "❤️ Order directly from Nammude",
+  promotionalFooter: `❤️ Order directly from ${APP_NAME}`,
 };
 
 export const defaultRestaurantMarketingSettings: RestaurantMarketingSettings = {

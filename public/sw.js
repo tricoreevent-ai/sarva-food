@@ -1,5 +1,8 @@
 const CACHE_VERSION = "sarva-v15-20260716-push-diagnostics";
 const CACHE_PREFIX = "sarva-";
+const BRAND_NAME = "Food Gedi";
+const BRAND_NOTIFICATION_ICON = "/android-chrome-192x192.png";
+const BRAND_NOTIFICATION_BADGE = "/icons/food-gedi-icon-96.png";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_URLS = [
   "/offline",
@@ -211,7 +214,7 @@ function notificationFromPush(data) {
   if (!payload) return null;
   const rawNotification = payload.notification || payload.webpush?.notification || {};
   const rawData = payload.data || rawNotification.data || {};
-  const title = String(rawNotification.title || rawData.title || "Nammude");
+  const title = String(rawNotification.title || rawData.title || BRAND_NAME);
   const body = String(rawNotification.body || rawData.body || rawData.message || "");
   const link = safeClientLink(
     rawData.link ||
@@ -226,8 +229,8 @@ function notificationFromPush(data) {
     badgeCount,
     options: {
       body,
-      icon: rawNotification.icon || "/android-chrome-192x192.png",
-      badge: rawNotification.badge || "/icons/nammude-icon-96.png",
+      icon: rawNotification.icon || BRAND_NOTIFICATION_ICON,
+      badge: rawNotification.badge || BRAND_NOTIFICATION_BADGE,
       tag: rawNotification.tag || rawData.notificationId || rawData.orderId || "sarva-notification",
       renotify: rawData.priority === "high",
       requireInteraction: rawData.priority === "high",
@@ -246,11 +249,11 @@ function localTestNotification(payload = {}) {
   const link = safeClientLink(payload.link || "/owner/settings?tab=notifications");
   const actions = normalizeActions(payload.actions);
   return {
-    title: String(payload.title || "Nammude notification test"),
+    title: String(payload.title || `${BRAND_NAME} notification test`),
     options: {
       body: String(payload.body || "Browser notification delivery is available."),
-      icon: "/android-chrome-192x192.png",
-      badge: "/icons/nammude-icon-96.png",
+      icon: BRAND_NOTIFICATION_ICON,
+      badge: BRAND_NOTIFICATION_BADGE,
       tag: String(payload.notificationId || `local-test-${Date.now()}`),
       actions,
       data: {

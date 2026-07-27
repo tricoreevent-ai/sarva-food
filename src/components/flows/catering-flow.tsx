@@ -8,6 +8,7 @@ import { z } from "zod";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { APP_NAME } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -157,7 +158,7 @@ export function CateringFlow() {
               Generate quote
             </Button>
             <Button type="button" variant="outline" className="w-full" asChild>
-              <a href={`https://wa.me/?text=${encodeURIComponent("I want a catering callback from Nammude.")}`} target="_blank" rel="noreferrer">
+              <a href={`https://wa.me/?text=${encodeURIComponent(`I want a catering callback from ${APP_NAME}.`)}`} target="_blank" rel="noreferrer">
                 <MessageCircle className="size-4" />
                 WhatsApp quick contact
               </a>

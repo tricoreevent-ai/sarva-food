@@ -25,7 +25,7 @@ export function runDataConsistencyAudit(input: AuditInput) {
 
   window.setTimeout(() => {
     void runAudit(input).catch((error) => {
-      console.warn("[Nammude data audit] audit failed.", error instanceof Error ? error.name : typeof error);
+      console.warn("[Food Gedi data audit] audit failed.", error instanceof Error ? error.name : typeof error);
     });
   }, 800);
 }
@@ -45,7 +45,7 @@ async function runAudit(input: AuditInput) {
     auditCollections(db, categoryCollections, restaurantIds, ownerIds),
   ]);
 
-  console.groupCollapsed("[Nammude data audit] restaurant/customer data consistency");
+  console.groupCollapsed("[Food Gedi data audit] restaurant/customer data consistency");
   console.info("environment", env);
   console.info("restaurant", input);
   console.table(menus.map((entry) => ({

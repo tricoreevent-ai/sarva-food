@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 180" role="img" aria-label="Food Gedi compact logo">
+  <image href="/icons/food-gedi-icon.svg" x="0" y="18" width="140" height="140" preserveAspectRatio="xMidYMid meet"/>
+  <text x="158" y="112" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="64" font-weight="900" letter-spacing="-4">
+    <tspan fill="#166B2E">Food</tspan><tspan dx="12" fill="#FF7A00">Gedi</tspan>
+  </text>
+</svg>

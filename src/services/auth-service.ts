@@ -25,6 +25,7 @@ import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/fires
 import { getFirebaseAuth, getFirebaseDb } from "@/firebase/client";
 import { COLLECTIONS } from "@/firebase/collections";
 import { DEFAULT_BRANCH_ID, DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { APP_NAME } from "@/lib/constants";
 import type { UserDoc, UserRole } from "@/types/firebase";
 
 const CUSTOMER_ROLES: UserRole[] = ["customer"];
@@ -294,7 +295,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
     await setDoc(
       userRef,
       omitUndefinedFields({
-        displayName: user.displayName ?? existing.data().displayName ?? "Nammude user",
+        displayName: user.displayName ?? existing.data().displayName ?? `${APP_NAME} user`,
         email: user.email ?? existing.data().email,
         phone: user.phoneNumber ?? existing.data().phone,
         photoURL: user.photoURL ?? existing.data().photoURL,
@@ -307,7 +308,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
       omitUndefinedFields({
         id: user.uid,
         uid: user.uid,
-        displayName: user.displayName ?? existing.data().displayName ?? "Nammude user",
+        displayName: user.displayName ?? existing.data().displayName ?? `${APP_NAME} user`,
         email: user.email ?? existing.data().email,
         phone: user.phoneNumber ?? existing.data().phone,
         photoURL: user.photoURL ?? existing.data().photoURL,
@@ -324,7 +325,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
   const profile: Omit<UserDoc, "createdAt" | "updatedAt"> = {
     id: user.uid,
     uid: user.uid,
-    displayName: user.displayName ?? "Nammude user",
+    displayName: user.displayName ?? `${APP_NAME} user`,
     email: user.email ?? undefined,
     phone: user.phoneNumber ?? undefined,
     photoURL: user.photoURL ?? undefined,
@@ -347,7 +348,7 @@ export async function ensureCustomerProfile(user: User, role: UserRole = "custom
     omitUndefinedFields({
       id: user.uid,
       uid: user.uid,
-      displayName: user.displayName ?? "Nammude user",
+      displayName: user.displayName ?? `${APP_NAME} user`,
       email: user.email ?? undefined,
       phone: user.phoneNumber ?? undefined,
       photoURL: user.photoURL ?? undefined,

@@ -1,6 +1,6 @@
 # Mobile Local Testing
 
-Use LAN mode when testing Nammude from a phone on the same WiFi network.
+Use LAN mode when testing Food Gedi from a phone on the same WiFi network.
 
 ## Start The App
 

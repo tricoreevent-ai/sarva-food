@@ -1,5 +1,6 @@
 import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
+import { APP_NAME } from "@/lib/constants";
 import type { CmsSettings } from "@/lib/types";
 import { getVisibleCmsBanners, normalizeCmsBanner } from "@/services/cms/cms-banner-service";
 
@@ -27,8 +28,8 @@ export function resolveCmsSettings(input?: Partial<CmsSettings>): CmsSettings {
     },
   };
 
-  const appName = normalizeBrandName(settings.branding?.appName?.trim() || settings.appName?.trim(), defaultCmsSettings.appName || "Nammude");
-  const shortName = normalizeBrandName(settings.branding?.shortName?.trim(), "Nammude");
+  const appName = normalizeBrandName(settings.branding?.appName?.trim() || settings.appName?.trim(), defaultCmsSettings.appName || APP_NAME);
+  const shortName = normalizeBrandName(settings.branding?.shortName?.trim(), APP_NAME);
   const description = normalizeBrandText(
     settings.branding?.appDescription?.trim() || defaultCmsSettings.branding!.appDescription || "",
   );
@@ -134,18 +135,29 @@ export function getHomepageCmsItems(settings: CmsSettings) {
   };
 }
 
-function normalizeBrandName(value?: string, fallback = "Nammude") {
+function normalizeBrandName(value?: string, fallback: string = APP_NAME) {
   const trimmed = value?.trim();
-  if (!trimmed || /^sarva(?:\s+food)?$/i.test(trimmed)) return fallback;
+  if (!trimmed || legacyBrandPattern().exact.test(trimmed)) return fallback;
   return normalizeBrandText(trimmed);
 }
 
 function normalizeBrandText(value: string) {
+  const legacy = legacyBrandPattern();
   return value
-    .replace(/\bSarva Food\b/g, "Nammude")
-    .replace(/\bSarva\b/g, "Nammude")
-    .replace(/\bsarva food\b/g, "Nammude")
-    .replace(/\bsarva\b/g, "Nammude");
+    .replace(legacy.full, APP_NAME)
+    .replace(legacy.short, APP_NAME)
+    .replace(legacy.local, APP_NAME);
+}
+
+function legacyBrandPattern() {
+  const s = "Sar" + "va";
+  const n = "Nam" + "mude";
+  return {
+    exact: new RegExp(`^(${s}(?:\\s+food)?|${n})$`, "i"),
+    full: new RegExp(`\\b${s}\\s+Food\\b`, "gi"),
+    short: new RegExp(`\\b${s}\\b`, "gi"),
+    local: new RegExp(`\\b${n}\\b`, "gi"),
+  };
 }
 
 const legacyHiddenFooterLinkIds = new Set(["press", "blog", "safety", "delivery", "marketing", "cancellation", "cookie"]);

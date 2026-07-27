@@ -1,6 +1,6 @@
 # Application File Structure
 
-This document records the current structure of the Nammude repository.
+This document records the current structure of the Food Gedi repository.
 
 ```
 .

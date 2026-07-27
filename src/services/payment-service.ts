@@ -1,4 +1,5 @@
 import type { PaymentIntentDraft, PaymentProvider } from "@/types/firebase";
+import { APP_NAME } from "@/lib/constants";
 
 export type PaymentProviderAdapter = {
   provider: PaymentProvider;
@@ -52,7 +53,7 @@ export function buildUpiPaymentUri(input: {
     pn: input.merchantName,
     am: input.amount.toFixed(2),
     tr: input.transactionRef,
-    tn: input.note ?? "Nammude order",
+    tn: input.note ?? `${APP_NAME} order`,
     cu: "INR",
   });
 

@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useOwnerMenu, useOwnerOffers } from "@/hooks/use-owner-repository-data";
 import { useAppStore } from "@/lib/app-store";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
+import { APP_NAME } from "@/lib/constants";
 import { buildInstagramDeepLink } from "@/lib/social-commerce";
 import {
   buildTemplateExport,
@@ -104,7 +105,7 @@ export function InstagramPostCreatorFlow() {
       <section className="space-y-5">
           <SectionHeader
             title="Create post"
-            description="Owners create posts and submit them to Nammude admin review. Publishing happens only from official accounts."
+            description={`Owners create posts and submit them to ${APP_NAME} admin review. Publishing happens only from official accounts.`}
           />
         <Card>
           <CardContent className="grid gap-5 p-5">

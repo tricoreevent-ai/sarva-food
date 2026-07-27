@@ -27,7 +27,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 ```env
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
-NEXT_PUBLIC_APP_NAME=Nammude
+NEXT_PUBLIC_APP_NAME=Food Gedi
 NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
@@ -65,7 +65,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
-SMTP_FROM="Nammude <orders@your-domain.com>"
+SMTP_FROM="Food Gedi <orders@your-domain.com>"
 DATABASE_ALERT_EMAIL=
 ```
 
@@ -162,7 +162,7 @@ npm run firebase:seed:production
 5. Set the build settings from the table above.
 6. Add all required environment variables.
 7. Click Deploy.
-8. After deployment, open `/api/public/restaurants`. It should return `{"data":[...]}` with HTTP 200. If it returns 500, open Hostinger application logs and look for a `[Nammude public API] restaurants failed` message.
+8. After deployment, open `/api/public/restaurants`. It should return `{"data":[...]}` with HTTP 200. If it returns 500, open Hostinger application logs and look for a `[Food Gedi public API] restaurants failed` message.
 9. Verify `/`, `/restaurants`, `/restaurant/cafe-al-arab-thanisandra`, `/owner/login`, and `/admin/login`.
 10. Connect the final custom domain and update `NEXT_PUBLIC_APP_URL` to that HTTPS URL.
 11. Redeploy after changing `NEXT_PUBLIC_APP_URL`.

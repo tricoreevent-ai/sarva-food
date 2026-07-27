@@ -1,11 +1,12 @@
 import Image from "next/image";
-import { AlertCircle, Bike, ChefHat, Loader2, PackageOpen, RefreshCw, Utensils } from "lucide-react";
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { AlertCircle, PackageOpen, RefreshCw } from "lucide-react";
+import { BrandLogo, LoadingLogo } from "@/components/brand/brand-logo";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
+import { APP_NAME } from "@/lib/constants";
 
 export function PageLoading() {
   return (
@@ -17,7 +18,7 @@ export function PageLoading() {
 
 export function CustomerHomeLoading() {
   return (
-    <main className="customer-theme min-h-[1600px] space-y-5 pb-24" aria-busy="true" aria-live="polite" aria-label="Loading Nammude">
+    <main className="customer-theme min-h-[1600px] space-y-5 pb-24" aria-busy="true" aria-live="polite" aria-label={`Loading ${APP_NAME}`}>
       <section className="px-4 pb-4 pt-4 md:hidden">
         <div className="grid grid-cols-[1fr_7.6rem] items-end gap-1">
           <div className="space-y-2 pb-2">
@@ -83,7 +84,7 @@ export function OwnerLoadingScreen({ label = "Loading....." }: { label?: string 
       <section style={{ display: "grid", placeItems: "center", gap: 18, textAlign: "center" }}>
         <Image
           src={BRAND_ASSETS.primaryLogo}
-          alt="Nammude"
+          alt={APP_NAME}
           width={320}
           height={152}
           priority
@@ -99,7 +100,7 @@ export function InlineLoading({ label = "Loading" }: { label?: string }) {
   return (
     <Card>
       <CardContent className="flex min-h-40 flex-col items-center justify-center gap-3 p-6 text-center text-sm font-semibold text-muted-foreground">
-        <FoodLoadingMark compact />
+        <LoadingLogo className="size-14" />
         <span>{label}</span>
       </CardContent>
     </Card>
@@ -123,25 +124,11 @@ export function SkeletonGrid({ count = 6 }: { count?: number }) {
   );
 }
 
-function FoodLoadingMark({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className={compact ? "relative size-14 shrink-0" : "relative size-20 shrink-0"} aria-hidden="true">
-      <div className="absolute inset-0 rounded-full bg-primary/12" />
-      <div className="plate-loader absolute inset-2 grid place-items-center rounded-full border-4 border-secondary bg-card text-primary shadow-lg">
-        <Utensils className={compact ? "size-5" : "size-7"} />
-      </div>
-      <ChefHat className="steam-loader absolute -top-1 left-1/2 size-5 -translate-x-1/2 text-primary" />
-      <Bike className="delivery-loader absolute -bottom-1 left-1 size-5 text-accent" />
-      <Loader2 className="absolute right-0 top-1 size-4 animate-spin text-muted-foreground" />
-    </div>
-  );
-}
-
 function AppSplashLoading() {
   return (
     <section className="grid w-full max-w-md place-items-center rounded-[2rem] bg-card/96 p-8 text-center text-card-foreground shadow-2xl ring-1 ring-orange-100">
       <div className="relative grid w-full place-items-center rounded-3xl bg-white px-5 py-6 shadow-inner">
-        <BrandLogo className="h-28 w-full max-w-80 animate-[customer-loading-breathe_1.8s_ease-in-out_infinite]" priority sizes="320px" />
+        <BrandLogo variant="vertical" className="h-28 w-full max-w-80 animate-[customer-loading-breathe_1.8s_ease-in-out_infinite]" priority sizes="320px" />
       </div>
       <p className="mt-5 text-sm font-black text-muted-foreground">Finding restaurants near you</p>
       <div className="mt-6 h-1.5 w-44 overflow-hidden rounded-full bg-primary/10">

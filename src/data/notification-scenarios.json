@@ -1,5 +1,5 @@
 [
-  { "id": "customer.welcome", "audience": "customer", "title": "Welcome to Nammude", "body": "Your account is ready.", "link": "/", "priority": "normal", "verification": "automated" },
+  { "id": "customer.welcome", "audience": "customer", "title": "Welcome to Food Gedi", "body": "Your account is ready.", "link": "/", "priority": "normal", "verification": "automated" },
   { "id": "customer.login", "audience": "customer", "title": "New sign-in", "body": "Your account was signed in successfully.", "link": "/profile", "priority": "normal", "verification": "automated" },
   { "id": "customer.logout", "audience": "customer", "title": "Signed out", "body": "Your account was signed out.", "link": "/login", "priority": "normal", "verification": "automated" },
   { "id": "customer.loyalty_update", "audience": "customer", "title": "Loyalty balance updated", "body": "Your loyalty balance has changed.", "link": "/profile", "priority": "normal", "verification": "automated" },

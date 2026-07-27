@@ -81,7 +81,7 @@ exit /b 0
 
 :write_report
 set "REPORT=%~dp0release-report.md"
-> "%REPORT%" echo # Nammude Release Report
+> "%REPORT%" echo # Food Gedi Release Report
 >> "%REPORT%" echo.
 >> "%REPORT%" echo ^| Field ^| Value ^|
 >> "%REPORT%" echo ^| --- ^| --- ^|

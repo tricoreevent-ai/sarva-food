@@ -35,6 +35,7 @@ import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
 import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
 import { safeClientReason } from "@/lib/client-diagnostics";
+import { APP_NAME } from "@/lib/constants";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -51,10 +52,10 @@ const STALE_DEFAULT_HOME_SUBTITLES = new Set([
 ]);
 const CUSTOMER_HERO_FALLBACK_IMAGE = "/images/customer-hero-restaurant.svg";
 const LOGO_IMAGE_PATTERNS = [
-  "/brand/nammude-logo",
-  "/icons/nammude-",
-  "/_next/image?url=%2fbrand%2fnammude-logo",
-  "/_next/image?url=%2ficons%2fnammude-",
+  "/brand/food-gedi-logo",
+  "/icons/food-gedi-",
+  "/_next/image?url=%2fbrand%2ffood-gedi-logo",
+  "/_next/image?url=%2ficons%2ffood-gedi-",
 ];
 
 export function CustomerDiscoveryHome() {
@@ -405,12 +406,12 @@ export function CustomerDiscoveryHome() {
       <section className="container-page py-5 md:py-7">
         <div className="grid gap-4 rounded-2xl bg-white p-5 shadow-sm md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-7">
           <div>
-            <p className="text-xs font-black uppercase tracking-normal text-primary">Why Choose Nammude?</p>
+            <p className="text-xs font-black uppercase tracking-normal text-primary">Why Choose {APP_NAME}?</p>
             <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">Food Ordering Without Middlemen</h2>
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{DIRECT_HOMEPAGE_SUPPORT}</p>
           </div>
           <p className="text-sm font-semibold leading-7 text-muted-foreground md:text-base md:leading-8">
-            Nammude is a direct-to-customer restaurant platform where customers connect directly with restaurant owners. Discover local restaurants, access genuine offers, view real-time menus, and place orders without relying on third-party aggregators. Better communication, better pricing, and a more transparent food ordering experience.
+            {APP_NAME} is a direct-to-customer restaurant platform where customers connect directly with restaurant owners. Discover local restaurants, access genuine offers, view real-time menus, and place orders without relying on third-party aggregators. Better communication, better pricing, and a more transparent food ordering experience.
           </p>
         </div>
       </section>

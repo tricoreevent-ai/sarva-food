@@ -6,6 +6,7 @@ import { createTraceContext, publicTraceMeta, traceLogFields } from "@/lib/serve
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { OrderRepository } from "@/repositories/order-repository";
+import { APP_NAME } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: ownerEmail,
-      subject: `New Nammude order ${safeText(payload.orderId)} - ${safeText(payload.restaurantName)}`,
+      subject: `New ${APP_NAME} order ${safeText(payload.orderId)} - ${safeText(payload.restaurantName)}`,
       text: buildTextEmail(payload),
       html: buildHtmlEmail(payload),
     });

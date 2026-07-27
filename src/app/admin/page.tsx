@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdminRepositoryData } from "@/hooks/use-admin-repository-data";
 import { formatCurrency } from "@/lib/utils";
+import { APP_NAME } from "@/lib/constants";
 
 export default function AdminDashboardPage() {
   const { restaurants, staffMembers: staff, orders, businessApplications, socialPosts, cateringInquiries } = useAdminRepositoryData();
@@ -77,7 +78,7 @@ export default function AdminDashboardPage() {
 
       <section className="grid gap-4 lg:grid-cols-3">
         {[
-          ["Social approvals", "Owner promotions waiting for Nammude publishing", "/admin/social-queue"],
+          ["Social approvals", `Owner promotions waiting for ${APP_NAME} publishing`, "/admin/social-queue"],
           ["Meta accounts", "Instagram, Facebook, Graph API and tokens", "/admin/meta"],
           ["Restaurant quality", "Review onboarding, menus, and service zones", "/admin/restaurants"],
         ].map(([title, copy, href]) => (

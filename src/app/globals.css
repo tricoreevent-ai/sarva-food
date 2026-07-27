@@ -694,6 +694,19 @@ textarea::selection,
   }
 }
 
+@keyframes brandPulse {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
 @media (max-width: 767px) {
   .sarva-toast-container {
     bottom: auto !important;

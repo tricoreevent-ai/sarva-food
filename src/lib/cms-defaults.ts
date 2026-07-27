@@ -1,5 +1,6 @@
 import type { CmsSettings } from "@/lib/types";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
+import { BRAND_CONFIG } from "@/config/branding";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import { CMS_VERSION } from "@/modules/shared/config/environment/cms.config";
 
@@ -58,7 +59,7 @@ const LEGAL_TERMS = `
 <p>Under no circumstances shall such developers or technology providers be liable for restaurant operations, food quality issues, payment disputes, delivery disputes, customer claims, business losses suffered by restaurants or customers, or regulatory actions arising from restaurant conduct.</p>
 <p>Any claim relating to food services, restaurant operations, payments, deliveries, or transactions shall be directed solely against the relevant Restaurant Partner or responsible party.</p>
 <h2>17. Contact Information</h2>
-<p>For platform-related technical support, contact <a href="mailto:support@nammude.com">support@nammude.com</a>.</p>
+<p>For platform-related technical support, contact <a href="mailto:${BRAND_CONFIG.support.email}">${BRAND_CONFIG.support.email}</a>.</p>
 <p>For food, delivery, pricing, quality, hygiene, refund, ingredient, allergen, or restaurant-related concerns, customers must contact the respective Restaurant Partner directly using the contact information available on the restaurant page.</p>
 `;
 
@@ -96,7 +97,7 @@ const PRIVACY_POLICY = `
 <h2>14. Changes to This Policy</h2>
 <p>We may update this Privacy Policy from time to time. Updated versions will be posted on the platform with a revised date.</p>
 <h2>15. Contact</h2>
-<p>For privacy questions or platform-related data requests, contact <a href="mailto:privacy@nammude.com">privacy@nammude.com</a> or <a href="mailto:support@nammude.com">support@nammude.com</a>.</p>
+<p>For privacy questions or platform-related data requests, contact <a href="mailto:${BRAND_CONFIG.support.privacyEmail}">${BRAND_CONFIG.support.privacyEmail}</a> or <a href="mailto:${BRAND_CONFIG.support.email}">${BRAND_CONFIG.support.email}</a>.</p>
 `;
 
 const REFUND_CANCELLATION_POLICY = `
@@ -129,7 +130,7 @@ const REFUND_CANCELLATION_POLICY = `
 <p>${APP_NAME} does not guarantee refunds and is not liable for refund decisions made by Restaurant Partners. As a technology intermediary, ${APP_NAME}'s role is limited to facilitating order placement and communication.</p>
 <p>All refund obligations, where applicable, remain the responsibility of the Restaurant Partner and relevant payment service providers.</p>
 <h2>12. Contact Information</h2>
-<p>For technical issues related to the platform, contact <a href="mailto:support@nammude.com">support@nammude.com</a>.</p>
+<p>For technical issues related to the platform, contact <a href="mailto:${BRAND_CONFIG.support.email}">${BRAND_CONFIG.support.email}</a>.</p>
 <p>For food quality, pricing, preparation, delivery, refund, cancellation, ingredient, allergen, or restaurant service issues, customers must contact the respective Restaurant Partner directly using the contact details available on the restaurant page.</p>
 `;
 
@@ -137,13 +138,13 @@ export const defaultCmsSettings: CmsSettings = {
   appName: APP_NAME,
   branding: {
     appName: APP_NAME,
-    shortName: "Nammude",
+    shortName: BRAND_CONFIG.shortName,
     logoUrl: BRAND_ASSETS.logos.english.lightTheme,
     faviconUrl: BRAND_ASSETS.favicon32,
     appDescription: APP_DESCRIPTION,
-    supportEmail: "support@nammude.com",
+    supportEmail: BRAND_CONFIG.support.email,
     supportPhone: "",
-    onboardingEmail: "partners@nammude.com",
+    onboardingEmail: BRAND_CONFIG.support.partnersEmail,
     onboardingWhatsapp: "",
   },
   disclaimer: RESPONSIBILITY_DISCLAIMER,
@@ -184,8 +185,8 @@ export const defaultCmsSettings: CmsSettings = {
   footer: {
     visible: true,
     note: "",
-    supportEmail: "support@sarvafood.com",
-    copyright: `© ${APP_NAME} 2026. All rights reserved.`,
+    supportEmail: BRAND_CONFIG.support.email,
+    copyright: BRAND_CONFIG.copyright,
     trustText: "100% Secure & Trusted Platform",
     socialLinks: [
       { id: "facebook", platform: "facebook", label: "Facebook", url: "#", enabled: true },
@@ -323,6 +324,6 @@ export const defaultCmsSettings: CmsSettings = {
     refund: REFUND_CANCELLATION_POLICY,
     cancellation: REFUND_CANCELLATION_POLICY,
     delivery: "Delivery availability, fees, distance limits, and ETA are set by each restaurant and may change based on location, weather, traffic, and operational load.",
-    cookie: "Nammude uses cookies and local storage for sign-in, cart persistence, preferences, analytics, and secure application operation.",
+    cookie: `${APP_NAME} uses cookies and local storage for sign-in, cart persistence, preferences, analytics, and secure application operation.`,
   },
 };

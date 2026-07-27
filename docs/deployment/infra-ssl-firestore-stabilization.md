@@ -1,4 +1,4 @@
-Build the next production stabilization pass for the Nammude application.
+Build the next production stabilization pass for the Food Gedi application.
 
 This is NOT a prototype anymore. 
 Do NOT add mock data, fake placeholders, demo widgets, fake stats, or temporary UI. 

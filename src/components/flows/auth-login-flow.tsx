@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { APP_NAME } from "@/lib/constants";
 import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -134,7 +135,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     const profile = await getUserProfile(uid).catch(() => null);
     const fallbackRole = isCustomerSurface ? "customer" : surface === "admin-login" ? "admin" : "owner";
     const role = profile?.role ?? fallbackRole;
-    const displayName = profile?.displayName ?? fallback?.displayName ?? fallback?.email ?? "Nammude Customer";
+    const displayName = profile?.displayName ?? fallback?.displayName ?? fallback?.email ?? `${APP_NAME} Customer`;
     setAuthUser({
       id: profile?.id ?? uid,
       name: displayName,
@@ -161,7 +162,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
     const user = await getStackCustomer();
     setAuthUser({
       id: user?.id || email.trim().toLowerCase() || "stack-customer",
-      name: user?.displayName || name.trim() || user?.primaryEmail || "Nammude Customer",
+      name: user?.displayName || name.trim() || user?.primaryEmail || `${APP_NAME} Customer`,
       role: "customer",
       restaurantSlug: DEFAULT_TENANT_ID,
     });

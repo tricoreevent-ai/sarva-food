@@ -51,6 +51,7 @@ import { parseFirestoreDate } from "@/lib/firestore-date";
 import { isFirebaseConfigured } from "@/firebase/config";
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
+import { APP_NAME } from "@/lib/constants";
 import { useCartStore } from "@/lib/cart-store";
 import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
 import { safeClientReason } from "@/lib/client-diagnostics";
@@ -975,7 +976,7 @@ function PaymentsPanel({ payments, walletValue = 0, points = 0 }: { payments: Ar
     <ProfileSection title="Payment methods" icon={CreditCard}>
       <div className="grid gap-3 rounded-lg border bg-primary/5 p-4 sm:grid-cols-2">
         <div>
-          <p className="text-sm font-bold text-muted-foreground">Nammude Wallet</p>
+          <p className="text-sm font-bold text-muted-foreground">{APP_NAME} Wallet</p>
           <p className="mt-1 text-2xl font-black">{formatCurrency(walletValue)}</p>
         </div>
         <div>

@@ -127,7 +127,7 @@ export function listenToQueryShared<T extends DocumentData>(
           return;
         }
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[Nammude] Firestore listener stopped.", error.message);
+          console.warn("[Food Gedi] Firestore listener stopped.", error.message);
         }
         emit([]);
       }),

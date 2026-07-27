@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/firebase/admin";
+import { APP_NAME } from "@/lib/constants";
 import { defaultOperationalView, type OperationalView } from "@/lib/operational-access";
 import { inheritedPermissions } from "@/lib/rbac";
 import type { UserRole } from "@/types/firebase";
@@ -136,7 +137,7 @@ async function ensureCustomerProfileFromAuth(uid: string) {
   }
 
   const now = new Date().toISOString();
-  const displayName = authUser.displayName || existingData?.displayName || authUser.email?.split("@")[0] || "Nammude user";
+  const displayName = authUser.displayName || existingData?.displayName || authUser.email?.split("@")[0] || `${APP_NAME} user`;
   const email = authUser.email || existingData?.email;
   const phone = authUser.phoneNumber || existingData?.phone;
   const photoURL = authUser.photoURL || existingData?.photoURL;

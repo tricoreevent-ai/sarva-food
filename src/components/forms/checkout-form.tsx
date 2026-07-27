@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/schemas/checkout";
 import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
+import { APP_NAME } from "@/lib/constants";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useCustomerData } from "@/hooks/use-customer-data";
@@ -234,7 +235,7 @@ export function CheckoutForm({
                     amount: totals.total,
                     customerName: values.name,
                     customerPhone: values.phone,
-                    restaurantName: restaurant?.name || restaurant?.displayName || "Nammude",
+                    restaurantName: restaurant?.name || restaurant?.displayName || APP_NAME,
                   });
                 }
                 clearScheduledOrderDraft();

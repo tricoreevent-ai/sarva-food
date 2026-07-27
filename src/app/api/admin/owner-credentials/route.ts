@@ -4,6 +4,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/firebase/admin";
 import { getSessionFromRequest } from "@/lib/server-auth";
+import { BRAND_CONFIG } from "@/config/branding";
+import { APP_NAME } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -110,8 +112,8 @@ async function sendCredentialEmail(input: {
   if (!smtp.ok) return { sent: false, skippedReason: smtp.error };
 
   const subject = input.action === "reset-password"
-    ? "Nammude owner password reset"
-    : "Nammude owner login credentials";
+    ? `${APP_NAME} owner password reset`
+    : `${APP_NAME} owner login credentials`;
   const passwordText = input.temporaryPassword
     ? `Temporary password: ${input.temporaryPassword}`
     : "Use the forgot password link on the owner login screen if you need to set a new password.";
@@ -121,10 +123,10 @@ async function sendCredentialEmail(input: {
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: input.to,
     subject,
-    text: `Hi ${input.ownerName},\n\nYour Nammude owner access for ${input.restaurantName} is ready.\n\nUsername: ${input.to}\n${passwordText}\n\nLogin: ${process.env.NEXT_PUBLIC_APP_URL || "https://nammude.example"}/owner/login\n\nFor security, change the password after login.`,
+    text: `Hi ${input.ownerName},\n\nYour ${APP_NAME} owner access for ${input.restaurantName} is ready.\n\nUsername: ${input.to}\n${passwordText}\n\nLogin: ${process.env.NEXT_PUBLIC_APP_URL || BRAND_CONFIG.support.website}/owner/login\n\nFor security, change the password after login.`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111827">
-        <h1 style="margin:0 0 12px;font-size:24px">Nammude owner access</h1>
+        <h1 style="margin:0 0 12px;font-size:24px">${APP_NAME} owner access</h1>
         <p style="line-height:1.6">Hi ${escapeHtml(input.ownerName)}, your owner access for <strong>${escapeHtml(input.restaurantName)}</strong> is ready.</p>
         <div style="border:1px solid #e5e7eb;border-radius:14px;padding:16px;background:#f9fafb">
           <p><strong>Username:</strong> ${escapeHtml(input.to)}</p>

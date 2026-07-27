@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/client-toast";
+import { APP_NAME } from "@/lib/constants";
 import { AlertTriangle, CheckCircle2, Clock3, Inbox, RefreshCw, Search, Send } from "lucide-react";
 import { SectionHeader } from "@/components/layout/section-header";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +118,7 @@ export function SupportInbox({ scope }: { scope: Scope }) {
     <div className="space-y-5">
       <SectionHeader
         title={scope === "customer" ? "Support Inbox" : scope === "owner" ? "Restaurant Inbox" : "Support Command Center"}
-        description={scope === "customer" ? "Track replies from restaurants and Nammude support." : "Handle customer issues, replies, escalation, and closure from one queue."}
+        description={scope === "customer" ? `Track replies from restaurants and ${APP_NAME} support.` : "Handle customer issues, replies, escalation, and closure from one queue."}
         action={<Button onClick={() => void loadIssues()} disabled={loading}><RefreshCw className="size-4" />Refresh</Button>}
       />
 
@@ -267,7 +268,7 @@ function labelStatus(status: IssueStatus) {
 }
 
 function labelActor(actor: IssueMessage["actor"]) {
-  if (actor === "admin") return "Nammude support";
+  if (actor === "admin") return `${APP_NAME} support`;
   if (actor === "owner") return "Restaurant team";
   return "Customer";
 }

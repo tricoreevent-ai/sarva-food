@@ -5,6 +5,7 @@ import Link from "next/link";
 import { OwnerBreadcrumbs } from "@/components/layout/owner-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
+import { APP_NAME } from "@/lib/constants";
 
 export function PosHeader({
   query,
@@ -19,7 +20,7 @@ export function PosHeader({
   notificationCount: number;
   profileName: string;
 }) {
-  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || "Nammude");
+  const productName = useAppStore((state) => state.cmsSettings.appName?.trim() || APP_NAME);
 
   return (
     <header className="grid gap-3 border-b border-slate-200 bg-white p-4 xl:grid-cols-[auto_1fr_auto] xl:items-center">

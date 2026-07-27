@@ -1,6 +1,6 @@
 # Restaurant Printing System
 
-Nammude now uses a shared print engine for POS bills, printable invoices, KOT previews, printer settings, ESC/POS command planning, and audit-ready print records.
+Food Gedi now uses a shared print engine for POS bills, printable invoices, KOT previews, printer settings, ESC/POS command planning, and audit-ready print records.
 
 ## Bill Workflow
 

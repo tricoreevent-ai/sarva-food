@@ -47,7 +47,7 @@ export default function AdminUsersPage() {
         return {
           ...member,
           adminRole,
-          emailLabel: member.email ?? `${member.id}@sarva.admin`,
+          emailLabel: member.email ?? `${member.id}@foodgedi.admin`,
           permissionLabel: member.permissions.filter((permission) => !permission.startsWith("admin-role:")).join(", ") || "read",
         };
       });
@@ -148,7 +148,7 @@ export default function AdminUsersPage() {
           </label>
           <label className="grid gap-1 text-sm font-bold">
             Email
-            <Input type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} placeholder="admin@sarva.in" />
+            <Input type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} placeholder="admin@foodgedi.com" />
           </label>
           <label className="grid gap-1 text-sm font-bold">
             Admin role

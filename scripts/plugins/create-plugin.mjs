@@ -33,7 +33,7 @@ write("services/index.ts", "export {};\n");
 write("types/index.ts", "export type PluginConfig = Record<string, never>;\n");
 write("ui/index.tsx", "export function Widget() {\n  return null;\n}\n");
 write("tests/README.md", `# ${title} Tests\n\nRun \`npm run test:enhancements\`.\n`);
-write("docs/README.md", `# ${title}\n\nGenerated Sarva plugin scaffold.\n`);
+write("docs/README.md", `# ${title}\n\nGenerated Food Gedi plugin scaffold.\n`);
 write("examples/README.md", `# ${title} Examples\n\nAdd SDK-only usage examples here.\n`);
 write("README.md", `# ${title}\n\nGenerated with \`npm run plugin:create\`.\n`);
 
@@ -57,7 +57,7 @@ async function ask() {
 }
 
 function metadata(id, title, flag) {
-  return `import type { PluginMetadata } from "@/plugins/core/metadata/types";\n\nexport const metadata = {\n  id: "${id}",\n  name: "${id}",\n  displayName: "${title}",\n  description: "Generated Sarva plugin.",\n  author: "Sarva",\n  company: "Sarva",\n  version: "1.0.0",\n  license: "Proprietary",\n  category: "developer",\n  priority: "P3",\n  dependencies: [],\n  peerDependencies: [],\n  optionalDependencies: [],\n  softDependencies: [],\n  developmentDependencies: [],\n  permissions: ["developer"],\n  featureFlag: "${flag}" as PluginMetadata["featureFlag"],\n  minimumPluginRuntime: "2.0.0",\n  compatiblePlatforms: ["web"],\n  supportedModules: ["developer"],\n  entry: "@/plugins/${id}/plugin",\n  screenshots: [],\n  documentation: "src/plugins/${id}/docs/README.md",\n  keywords: ["generated"],\n  tags: ["generated"],\n  bundleSize: 0,\n  checksum: "local-development",\n  signature: "local-development",\n  installSize: 0,\n  health: "unknown",\n  status: "available",\n} satisfies PluginMetadata;\n`;
+  return `import type { PluginMetadata } from "@/plugins/core/metadata/types";\n\nexport const metadata = {\n  id: "${id}",\n  name: "${id}",\n  displayName: "${title}",\n  description: "Generated Food Gedi plugin.",\n  author: "Food Gedi",\n  company: "Food Gedi",\n  version: "1.0.0",\n  license: "Proprietary",\n  category: "developer",\n  priority: "P3",\n  dependencies: [],\n  peerDependencies: [],\n  optionalDependencies: [],\n  softDependencies: [],\n  developmentDependencies: [],\n  permissions: ["developer"],\n  featureFlag: "${flag}" as PluginMetadata["featureFlag"],\n  minimumPluginRuntime: "2.0.0",\n  compatiblePlatforms: ["web"],\n  supportedModules: ["developer"],\n  entry: "@/plugins/${id}/plugin",\n  screenshots: [],\n  documentation: "src/plugins/${id}/docs/README.md",\n  keywords: ["generated"],\n  tags: ["generated"],\n  bundleSize: 0,\n  checksum: "local-development",\n  signature: "local-development",\n  installSize: 0,\n  health: "unknown",\n  status: "available",\n} satisfies PluginMetadata;\n`;
 }
 
 function plugin(id) {

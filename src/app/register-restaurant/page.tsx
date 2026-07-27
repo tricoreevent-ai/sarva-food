@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Building2, Send } from "lucide-react";
 import { CustomerShell } from "@/components/layout/customer-shell";
 import { SectionHeader } from "@/components/layout/section-header";
+import { APP_NAME } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,7 +39,7 @@ export default function RegisterRestaurantPage() {
           </div>
           <SectionHeader
             title="Register Your Restaurant"
-            description="Submit the public inquiry. Nammude admin reviews the details, then creates the tenant, owner account, primary branch, and subscription record."
+            description={`Submit the public inquiry. ${APP_NAME} admin reviews the details, then creates the tenant, owner account, primary branch, and subscription record.`}
           />
         </section>
         <Card className="customer-surface">

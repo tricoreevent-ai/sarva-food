@@ -1,4 +1,4 @@
-# Nammude Master Implementation Tracker
+# Food Gedi Master Implementation Tracker
 
 Last updated: 2026-07-22
 
@@ -1563,7 +1563,7 @@ Only unfinished work is listed. Do not start any item unless the user explicitly
 
 ## 1. Executive Summary
 
-Nammude is a Next.js App Router restaurant management and direct ordering platform with customer, owner, kitchen, waiter/table, POS, admin, delivery, marketing, accounting, printing, QR ordering, PWA, Firebase, and Hostinger deployment surfaces.
+Food Gedi is a Next.js App Router restaurant management and direct ordering platform with customer, owner, kitchen, waiter/table, POS, admin, delivery, marketing, accounting, printing, QR ordering, PWA, Firebase, and Hostinger deployment surfaces.
 
 Current status: production release baseline is implemented and validated. The remaining final-release work is mostly manual deployment/configuration and external provider access.
 

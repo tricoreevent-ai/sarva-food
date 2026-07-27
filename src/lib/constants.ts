@@ -1,19 +1,9 @@
-export const APP_NAME = "Nammude";
-export const APP_DESCRIPTION =
-  "Nammude is a direct restaurant-to-customer platform that connects food lovers with local restaurant owners without third-party intermediaries. Order directly, access exclusive offers, enjoy transparent pricing, and support local businesses.";
-export const APP_DEFAULT_TITLE = "Order Directly From Restaurants Near You";
-export const APP_SEO_KEYWORDS = [
-  "direct restaurant ordering",
-  "order directly from restaurants",
-  "restaurant to customer platform",
-  "food ordering without middlemen",
-  "local restaurants",
-  "restaurant offers",
-  "real-time menus",
-  "transparent food pricing",
-  "restaurant owner direct ordering",
-  "Nammude",
-];
+import { BRAND_CONFIG } from "@/config/branding";
+
+export const APP_NAME = BRAND_CONFIG.name;
+export const APP_DESCRIPTION = BRAND_CONFIG.metaDescription;
+export const APP_DEFAULT_TITLE = BRAND_CONFIG.metaTitle;
+export const APP_SEO_KEYWORDS = [...BRAND_CONFIG.keywords];
 
 export const DEFAULT_RESTAURANT_SLUG = "cafe-al-arab-thanisandra";
 

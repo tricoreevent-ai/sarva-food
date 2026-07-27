@@ -95,7 +95,7 @@ export function initializeNativeAlertOverrides(api: AlertApi) {
 
   if (process.env.NODE_ENV !== "production" && !warnedNativeOverride) {
     warnedNativeOverride = true;
-    console.warn("[Nammude] Native alert uses toast notifications; confirm/prompt use the custom AlertProvider.");
+    console.warn("[Food Gedi] Native alert uses toast notifications; confirm/prompt use the custom AlertProvider.");
   }
 
   const controller: NativeAlertOverrideController = {

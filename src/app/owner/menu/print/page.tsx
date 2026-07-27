@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOwnerMenu } from "@/hooks/use-owner-repository-data";
 import { BRAND_ASSETS } from "@/lib/brand-assets";
+import { APP_NAME } from "@/lib/constants";
 import { useAppStore } from "@/lib/app-store";
 import { formatCurrency } from "@/lib/utils";
 
@@ -40,7 +41,7 @@ export default function PrintMenuPage() {
           ) : (
           <div className="mx-auto max-w-4xl border-4 border-double border-foreground bg-white p-8 text-black print:border-black print:shadow-none">
             <header className="mb-8 text-center">
-              <Image src={BRAND_ASSETS.appIcon} alt="Nammude logo" width={58} height={58} className="mx-auto rounded-xl" />
+              <Image src={BRAND_ASSETS.appIcon} alt={`${APP_NAME} logo`} width={58} height={58} className="mx-auto rounded-xl" />
               <h1 className="mt-3 text-5xl font-black tracking-normal">{profile?.hotelName ?? "Restaurant menu"}</h1>
               <p className="mt-2 text-sm uppercase">{profile?.cuisineType ?? "Menu"} {profile?.businessAddress ? `· ${profile.businessAddress}` : ""}</p>
             </header>
