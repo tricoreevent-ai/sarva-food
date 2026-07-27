@@ -31,7 +31,7 @@
 ## Pending Manual Tasks
 - Hostinger env/cache/redeploy and hosted route smoke.
 - Firestore rules/index deployment.
-- Deploy Hostinger from the final pushed `release/production-nammude` commit; `v1.0.0-rc5` must be the immutable runtime release tag after keeping RC4 unchanged.
+- Deploy Hostinger from the final pushed `release/production-nammude` commit; `v1.0.0-rc6` must be the immutable runtime release tag after keeping previous RC tags unchanged.
 - Rerun Lighthouse/Core Web Vitals/Chrome Performance/Coverage/Memory after production-env redeploy.
 - Browser, tablet, mobile, Kitchen TV, and multi-device smoke.
 - Printer profile and physical output validation.

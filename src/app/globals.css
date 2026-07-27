@@ -707,6 +707,22 @@ textarea::selection,
   }
 }
 
+.brand-mark {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.brand-mark:hover {
+  transform: scale(1.025);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark,
+  .brand-mark:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
 @media (max-width: 767px) {
   .sarva-toast-container {
     bottom: auto !important;

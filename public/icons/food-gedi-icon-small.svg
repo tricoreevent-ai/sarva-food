@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="fg-icon-small-title">
+  <title id="fg-icon-small-title">Food Gedi small-size icon</title>
+  <rect x="28" y="28" width="456" height="456" rx="96" fill="#FFFFFF"/>
+  <path d="M116 202C128 119 190 62 259 62c69 0 132 57 144 140h-42C349 147 307 111 259 111c-49 0-90 36-102 91h-41Z" fill="#166B2E"/>
+  <path d="M178 187c12-48 43-76 87-76 45 0 77 28 89 76H178Z" fill="#FF7A00"/>
+  <path d="M92 226c0-20 16-36 36-36h110c20 0 35 15 35 34 0 20-15 35-35 35h-80v39h75c20 0 35 15 35 34s-15 35-35 35h-75v91l-66-64V226Z" fill="#166B2E"/>
+  <path d="M296 322c0-76 56-134 132-134h8c19 0 34 15 34 34s-15 34-34 34h-8c-36 0-63 29-63 66 0 40 29 69 69 69 24 0 45-10 58-29h-68c-19 0-33-14-33-32s14-32 33-32h119v26c0 82-49 135-119 135-74 0-128-58-128-137Z" fill="#FF7A00"/>
+  <rect x="28" y="28" width="456" height="456" rx="96" fill="none" stroke="#166B2E" stroke-width="12" opacity=".14"/>
+</svg>

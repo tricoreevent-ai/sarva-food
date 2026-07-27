@@ -13,16 +13,16 @@ if /I "%~1"=="/?" (
   exit /b 0
 )
 
-set "LOG_DIR=%TEMP%\nammude-release"
-set "OUT_LOG=%LOG_DIR%\nammude-release-start.out.log"
-set "ERR_LOG=%LOG_DIR%\nammude-release-start.err.log"
+set "LOG_DIR=%TEMP%\food-gedi-release"
+set "OUT_LOG=%LOG_DIR%\food-gedi-release-start.out.log"
+set "ERR_LOG=%LOG_DIR%\food-gedi-release-start.err.log"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>nul
 
 call scripts\release\cleanup.bat
 if errorlevel 1 exit /b 1
 
 echo [validate] Starting production server
-start "nammude-release-server" /b cmd /c "npm run start > ""%OUT_LOG%"" 2> ""%ERR_LOG%"""
+start "food-gedi-release-server" /b cmd /c "npm run start > ""%OUT_LOG%"" 2> ""%ERR_LOG%"""
 
 set "READY="
 for /l %%I in (1,1,30) do (

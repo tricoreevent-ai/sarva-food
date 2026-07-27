@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/schemas/checkout";
-import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
+import { formatScheduleDate, formatScheduleSlot, LEGACY_SCHEDULE_STORAGE_KEYS, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { APP_NAME } from "@/lib/constants";
 import { DEFAULT_RESTAURANT_ID } from "@/lib/tenant";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -54,7 +54,8 @@ type CreateOrderRequest = {
   acceptedTermsVersion: string;
   acceptedTermsAt: string;
 };
-const checkoutPrefsKey = "nammude.checkout.preferences:v1";
+const checkoutPrefsKey = "food-gedi.checkout.preferences:v1";
+const legacyCheckoutPrefsKeys = ["nammude.checkout.preferences:v1"] as const;
 
 export function CheckoutForm({
   fastMode = false,
@@ -511,7 +512,7 @@ function scheduledOrderFromIso(restaurantId: string, value: string): ScheduledOr
 function readScheduledOrderDraft(): ScheduledOrderSelection | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    const raw = readStorageWithLegacy(SCHEDULE_STORAGE_KEY, LEGACY_SCHEDULE_STORAGE_KEYS);
     return raw ? JSON.parse(raw) as ScheduledOrderSelection : null;
   } catch {
     return null;
@@ -520,16 +521,18 @@ function readScheduledOrderDraft(): ScheduledOrderSelection | null {
 
 function saveScheduledOrderDraft(value: ScheduledOrderSelection) {
   window.localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(value));
+  LEGACY_SCHEDULE_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
 }
 
 function clearScheduledOrderDraft() {
   window.localStorage.removeItem(SCHEDULE_STORAGE_KEY);
+  LEGACY_SCHEDULE_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
 }
 
 function readCheckoutPrefs() {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(window.localStorage.getItem(checkoutPrefsKey) ?? "{}") as Partial<Pick<CheckoutFormValues, "fulfillmentType" | "scheduleMode" | "payment">>;
+    return JSON.parse(readStorageWithLegacy(checkoutPrefsKey, legacyCheckoutPrefsKeys) ?? "{}") as Partial<Pick<CheckoutFormValues, "fulfillmentType" | "scheduleMode" | "payment">>;
   } catch {
     return {};
   }
@@ -538,6 +541,17 @@ function readCheckoutPrefs() {
 function saveCheckoutPrefs(value: Pick<CheckoutFormValues, "fulfillmentType" | "scheduleMode" | "payment">) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(checkoutPrefsKey, JSON.stringify(value));
+  legacyCheckoutPrefsKeys.forEach((key) => window.localStorage.removeItem(key));
+}
+
+function readStorageWithLegacy(key: string, legacyKeys: readonly string[]) {
+  const current = window.localStorage.getItem(key);
+  if (current) return current;
+  const legacyKey = legacyKeys.find((item) => window.localStorage.getItem(item));
+  if (!legacyKey) return null;
+  const value = window.localStorage.getItem(legacyKey);
+  if (value) window.localStorage.setItem(key, value);
+  return value;
 }
 
 function readSavedDeliveryLocation() {

@@ -72,7 +72,7 @@ if errorlevel 1 (
 exit /b 0
 
 :run
-set "LOG=%TEMP%\nammude-release-%RANDOM%%RANDOM%.log"
+set "LOG=%TEMP%\food-gedi-release-%RANDOM%%RANDOM%.log"
 %* >"%LOG%" 2>&1
 set "RC=%ERRORLEVEL%"
 type "%LOG%"

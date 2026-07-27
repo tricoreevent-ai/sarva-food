@@ -104,11 +104,11 @@ type Store = {
 };
 
 const limit = 100;
-const globalKey = "__nammudeProductionMonitoring";
+const globalKey = "__foodGediProductionMonitoring";
 const sensitive = /(password|secret|token|credential|authorization|cookie|private|otp|signature|api[-_]?key|card|cvv|keySecret|webhookSecret)/i;
 
 type MonitorGlobal = typeof globalThis & {
-  __nammudeProductionMonitoring?: Store;
+  __foodGediProductionMonitoring?: Store;
 };
 
 export function recordMonitoringLog(level: string, event: string, data: Record<string, unknown> = {}) {

@@ -61,7 +61,7 @@ function tableQrSecret() {
   if (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_APP_ENV === "production") {
     throw new Error("TABLE_QR_SECRET is required for production QR signing.");
   }
-  return "nammude-table-qr-dev";
+  return "food-gedi-table-qr-dev";
 }
 
 function configuredOrigin() {

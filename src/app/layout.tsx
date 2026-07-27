@@ -4,11 +4,12 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { AlertProvider } from "@/components/ui/AlertProvider";
+import { BrandProvider } from "@/components/brand/brand-provider";
 import { getInitialTheme } from "@/lib/server/theme-preference";
 import { resolveThemeMode, THEME_COOKIE_NAME, THEME_STORAGE_KEY, type AppTheme } from "@/lib/theme";
-import { BRAND_ASSETS } from "@/lib/brand-assets";
 import { APP_DEFAULT_TITLE, APP_DESCRIPTION, APP_NAME, APP_SEO_KEYWORDS } from "@/lib/constants";
 import { BRAND_CONFIG } from "@/config/branding";
+import { getFavicon, BrandAssets } from "@/lib/brand-system";
 import { getConfiguredPublicAppUrl } from "@/lib/server/public-app-url";
 import "./globals.css";
 
@@ -43,13 +44,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
-      { url: BRAND_ASSETS.favicon16, sizes: "16x16", type: "image/png" },
-      { url: BRAND_ASSETS.favicon32, sizes: "32x32", type: "image/png" },
-      { url: BRAND_CONFIG.assets.androidIcon, sizes: "192x192", type: "image/png" },
-      { url: BRAND_CONFIG.assets.androidIconLarge, sizes: "512x512", type: "image/png" },
+      { url: getFavicon("ico"), sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: getFavicon(16), sizes: "16x16", type: "image/png" },
+      { url: getFavicon(32), sizes: "32x32", type: "image/png" },
+      { url: BrandAssets.pwa.android, sizes: "192x192", type: "image/png" },
+      { url: BrandAssets.pwa.androidLarge, sizes: "512x512", type: "image/png" },
     ],
-    apple: BRAND_ASSETS.appleTouchIcon,
+    apple: BrandAssets.pwa.apple,
   },
   openGraph: {
     title: APP_DEFAULT_TITLE,
@@ -57,13 +58,13 @@ export const metadata: Metadata = {
     siteName: APP_NAME,
     type: "website",
     locale: "en_IN",
-    images: [{ url: BRAND_CONFIG.assets.openGraphImage, width: 1200, height: 630, alt: APP_NAME }],
+    images: [{ url: BrandAssets.social.openGraph, width: 1200, height: 630, alt: APP_NAME }],
   },
   twitter: {
     card: "summary_large_image",
     title: APP_DEFAULT_TITLE,
     description: APP_DESCRIPTION,
-    images: [BRAND_CONFIG.assets.twitterImage],
+    images: [BrandAssets.social.twitter],
   },
 };
 
@@ -236,9 +237,11 @@ export default async function RootLayout({
           </>
         ) : null}
         <ThemeProvider initialTheme={initialTheme}>
-          <I18nProvider>
-            <AlertProvider>{children}</AlertProvider>
-          </I18nProvider>
+          <BrandProvider surface="auto">
+            <I18nProvider>
+              <AlertProvider>{children}</AlertProvider>
+            </I18nProvider>
+          </BrandProvider>
         </ThemeProvider>
       </body>
     </html>

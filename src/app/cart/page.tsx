@@ -8,7 +8,7 @@ import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { formatScheduleDate, formatScheduleSlot, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
+import { formatScheduleDate, formatScheduleSlot, LEGACY_SCHEDULE_STORAGE_KEYS, SCHEDULE_STORAGE_KEY, type ScheduledOrderSelection } from "@/lib/schedule-slots";
 import { getCartTotals, useCartStore } from "@/lib/cart-store";
 import { formatCurrency } from "@/lib/utils";
 import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
@@ -28,11 +28,13 @@ export default function CartPage() {
 
   function saveSchedule(value: ScheduledOrderSelection) {
     window.localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(value));
+    LEGACY_SCHEDULE_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
     setScheduledOrder(value);
   }
 
   function clearSchedule() {
     window.localStorage.removeItem(SCHEDULE_STORAGE_KEY);
+    LEGACY_SCHEDULE_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
     setScheduledOrder(null);
   }
 
@@ -135,9 +137,19 @@ export default function CartPage() {
 function readScheduleDraft(): ScheduledOrderSelection | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    const raw = readStorageWithLegacy(SCHEDULE_STORAGE_KEY, LEGACY_SCHEDULE_STORAGE_KEYS);
     return raw ? JSON.parse(raw) as ScheduledOrderSelection : null;
   } catch {
     return null;
   }
+}
+
+function readStorageWithLegacy(key: string, legacyKeys: readonly string[]) {
+  const current = window.localStorage.getItem(key);
+  if (current) return current;
+  const legacyKey = legacyKeys.find((item) => window.localStorage.getItem(item));
+  if (!legacyKey) return null;
+  const value = window.localStorage.getItem(legacyKey);
+  if (value) window.localStorage.setItem(key, value);
+  return value;
 }

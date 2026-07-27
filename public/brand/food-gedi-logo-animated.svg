@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-labelledby="fg-logo-animated-title">
+  <title id="fg-logo-animated-title">Food Gedi animated loading logo</title>
+  <style>
+    @media (prefers-reduced-motion: no-preference) {
+      .mark { transform-origin: 110px 112px; animation: pulse 1.4s ease-in-out infinite; }
+      .steam { animation: rise 1.6s ease-in-out infinite; }
+    }
+    @keyframes pulse { 50% { transform: scale(1.035); } }
+    @keyframes rise { 50% { transform: translateY(-8px); opacity: .45; } }
+  </style>
+  <path class="steam" d="M76 49c-10-15 12-22 2-36M110 43c-10-15 12-22 2-36M144 49c-10-15 12-22 2-36" fill="none" stroke="#FF7A00" stroke-width="7" stroke-linecap="round"/>
+  <image class="mark" href="/icons/food-gedi-icon-small.svg" x="26" y="44" width="168" height="168" preserveAspectRatio="xMidYMid meet"/>
+</svg>

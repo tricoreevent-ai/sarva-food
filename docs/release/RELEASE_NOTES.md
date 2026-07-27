@@ -1,5 +1,14 @@
 # Release Notes
 
+## RC6 Brand Visibility and Logo System Hardening - 2026-07-27
+
+- Added a centralized brand system with `BrandProvider`, `BrandAssets`, `BrandTokens`, `BrandVariants`, and surface-aware helper APIs for logo, app icon, favicon, loading, notification, receipt, invoice, print, and social assets.
+- Reworked shared brand components so `surface="auto"` reads the effective parent background and chooses the correct Food Gedi mark for light, dark, green, orange, print, and high-contrast surfaces without CSS filter hacks.
+- Improved the compact header brand mark to `[icon] Food Gedi`, strengthened SVG stroke/padding/small-size readability, added accessible SVG titles, and respected reduced-motion for brand animations.
+- Added white, black, high-contrast, print, text, text-white, small, animated, icon-white, icon-black, icon-small, and loading SVG variants; regenerated favicon, Apple Touch, Android, maskable, and notification icon assets.
+- Aligned manifest, metadata, browser notifications, FCM webpush, brand compatibility shims, release version, and release marker with the RC6 Food Gedi brand system.
+- Generated `docs/validation/BRAND_AUDIT_REPORT.md`; the audit reports zero actionable old-brand public hits and zero direct logo-asset references outside the brand layer, with compatibility namespaces documented separately.
+
 ## RC5 Deployment Certification Security Audit - 2026-07-24
 
 - Closed unauthenticated signed Cloudinary uploads: signature creation now requires an active Admin/Owner/Manager session, enforces tenant folder ownership, signs only approved transformation fields, and applies per-user rate limiting.

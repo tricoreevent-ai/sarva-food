@@ -34,9 +34,11 @@ const serviceActions = [
 export function TableQrOrderingFlow({ token }: { token: string }) {
   const [data, setData] = useState<SessionData | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
-  const storageKey = `nammude-qr-cart:${token.slice(0, 24)}`;
+  const storageKey = `food-gedi-qr-cart:${token.slice(0, 24)}`;
+  const legacyStorageKey = `nammude-qr-cart:${token.slice(0, 24)}`;
   const sessionStorageKey = `${storageKey}:session`;
-  const [cart, setCart] = useState<CartLine[]>(() => readSavedCart(storageKey));
+  const legacySessionStorageKey = `${legacyStorageKey}:session`;
+  const [cart, setCart] = useState<CartLine[]>(() => readSavedCart(storageKey, legacyStorageKey));
   const [sessionId, setSessionId] = useState("");
   const [sessionExpiresAt, setSessionExpiresAt] = useState("");
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "", guestCount: "1" });
@@ -64,9 +66,9 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     setSessionId("");
     setSessionExpiresAt("");
     setIdleWarning(false);
-    clearSavedSession(sessionStorageKey);
+    clearSavedSession(sessionStorageKey, legacySessionStorageKey);
     toast.error("Table session expired. Please scan or continue from the QR welcome screen.");
-  }, [sessionStorageKey]);
+  }, [legacySessionStorageKey, sessionStorageKey]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setQrDeviceId(deviceId()), 0);
@@ -81,20 +83,20 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     });
     const payload = await response.json().catch(() => ({})) as { data?: { table?: { sessionExpiresAt?: string } }; error?: string };
     if (!response.ok) {
-      clearSavedSession(sessionStorageKey);
+      clearSavedSession(sessionStorageKey, legacySessionStorageKey);
       toast.error(payload.error || "Session recovery failed.");
       return;
     }
     const nextExpiresAt = String(payload.data?.table?.sessionExpiresAt ?? "");
     setSessionId(activeSessionId);
     setSessionExpiresAt(nextExpiresAt);
-    saveSession(sessionStorageKey, activeSessionId, nextExpiresAt);
+    saveSession(sessionStorageKey, activeSessionId, nextExpiresAt, legacySessionStorageKey);
     toast.success("Session recovered.");
-  }, [sessionStorageKey, token]);
+  }, [legacySessionStorageKey, sessionStorageKey, token]);
 
   useEffect(() => {
     let active = true;
-    const saved = qrDeviceId ? readSavedSession(sessionStorageKey) : null;
+    const saved = qrDeviceId ? readSavedSession(sessionStorageKey, legacySessionStorageKey) : null;
     const params = new URLSearchParams({ token });
     if (saved?.sessionId) {
       params.set("sessionId", saved.sessionId);
@@ -112,7 +114,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         } else if (saved?.sessionId && payload.data.session?.recoverable && payload.data.session.status === "device_mismatch") {
           void recoverDeviceSession(saved.sessionId, qrDeviceId);
         } else if (saved?.sessionId && payload.data.session?.status === "expired") {
-          clearSavedSession(sessionStorageKey);
+          clearSavedSession(sessionStorageKey, legacySessionStorageKey);
         }
         if (!payload.data.settings.allowDineIn && payload.data.settings.allowParcel) setMode("parcel");
         const menuResponse = await fetch(`/api/public/menu?restaurantId=${encodeURIComponent(payload.data.restaurant.id)}`, { cache: "no-store" });
@@ -124,11 +126,12 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [qrDeviceId, recoverDeviceSession, sessionStorageKey, token]);
+  }, [legacySessionStorageKey, qrDeviceId, recoverDeviceSession, sessionStorageKey, token]);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(cart));
-  }, [cart, storageKey]);
+    window.localStorage.removeItem(legacyStorageKey);
+  }, [cart, legacyStorageKey, storageKey]);
 
   useEffect(() => {
     if (!sessionId || !data) return undefined;
@@ -190,7 +193,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     }
     setSessionId(payload.data?.sessionId ?? "");
     setSessionExpiresAt(payload.data?.expiresAt ?? "");
-    saveSession(sessionStorageKey, payload.data?.sessionId ?? "", payload.data?.expiresAt ?? "");
+    saveSession(sessionStorageKey, payload.data?.sessionId ?? "", payload.data?.expiresAt ?? "", legacySessionStorageKey);
     toast.success("Table session started.");
   }
 
@@ -220,7 +223,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     if (action === "end") {
       setSessionId("");
       setSessionExpiresAt("");
-      clearSavedSession(sessionStorageKey);
+      clearSavedSession(sessionStorageKey, legacySessionStorageKey);
       toast.success("Session ended.");
       return;
     }
@@ -228,7 +231,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
     const nextExpiresAt = String(payload.data?.expiresAt ?? payload.data?.table?.sessionExpiresAt ?? sessionExpiresAt);
     setSessionId(nextSessionId);
     setSessionExpiresAt(nextExpiresAt);
-    saveSession(sessionStorageKey, nextSessionId, nextExpiresAt);
+    saveSession(sessionStorageKey, nextSessionId, nextExpiresAt, legacySessionStorageKey);
     toast.success(action === "extend" ? "Session extended." : action === "update-customer" ? "Session updated." : "Session refreshed.");
   }
 
@@ -272,6 +275,7 @@ export function TableQrOrderingFlow({ token }: { token: string }) {
       setCart([]);
       setLastOrderId(payload.orderId ?? "");
       window.localStorage.removeItem(storageKey);
+      window.localStorage.removeItem(legacyStorageKey);
       toast.success("Order sent to kitchen.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Order could not be placed.";
@@ -446,40 +450,56 @@ function currentLocation() {
 }
 
 function deviceId() {
-  const key = "nammude-qr-device-id";
+  const key = "food-gedi-qr-device-id";
+  const legacyKey = "nammude-qr-device-id";
   const existing = window.localStorage.getItem(key);
   if (existing) return existing;
+  const legacy = window.localStorage.getItem(legacyKey);
+  if (legacy) {
+    window.localStorage.setItem(key, legacy);
+    window.localStorage.removeItem(legacyKey);
+    return legacy;
+  }
   const next = crypto.randomUUID();
   window.localStorage.setItem(key, next);
   return next;
 }
 
-function readSavedCart(key: string) {
+function readSavedCart(key: string, legacyKey: string) {
   if (typeof window === "undefined") return [];
   try {
-    const saved = window.localStorage.getItem(key);
+    const saved = window.localStorage.getItem(key) ?? window.localStorage.getItem(legacyKey);
+    if (saved) window.localStorage.setItem(key, saved);
     return saved ? JSON.parse(saved) as CartLine[] : [];
   } catch {
     return [];
   }
 }
 
-function readSavedSession(key: string) {
+function readSavedSession(key: string, legacyKey: string) {
   if (typeof window === "undefined") return null;
   try {
-    const saved = JSON.parse(window.localStorage.getItem(key) ?? "null") as { sessionId?: string; expiresAt?: string } | null;
+    const raw = window.localStorage.getItem(key) ?? window.localStorage.getItem(legacyKey);
+    if (raw) window.localStorage.setItem(key, raw);
+    const saved = JSON.parse(raw ?? "null") as { sessionId?: string; expiresAt?: string } | null;
     return saved?.sessionId ? saved : null;
   } catch {
     return null;
   }
 }
 
-function saveSession(key: string, sessionId: string, expiresAt?: string) {
-  if (typeof window !== "undefined" && sessionId) window.localStorage.setItem(key, JSON.stringify({ sessionId, expiresAt }));
+function saveSession(key: string, sessionId: string, expiresAt?: string, legacyKey?: string) {
+  if (typeof window !== "undefined" && sessionId) {
+    window.localStorage.setItem(key, JSON.stringify({ sessionId, expiresAt }));
+    if (legacyKey) window.localStorage.removeItem(legacyKey);
+  }
 }
 
-function clearSavedSession(key: string) {
-  if (typeof window !== "undefined") window.localStorage.removeItem(key);
+function clearSavedSession(key: string, legacyKey?: string) {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(key);
+    if (legacyKey) window.localStorage.removeItem(legacyKey);
+  }
 }
 
 function isQrItemVisible(item: MenuItem, mode: "dine-in" | "parcel") {

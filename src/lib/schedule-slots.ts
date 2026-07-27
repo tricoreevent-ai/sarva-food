@@ -1,6 +1,7 @@
 import type { Restaurant } from "@/lib/types";
 
-export const SCHEDULE_STORAGE_KEY = "nammude.scheduledOrder";
+export const SCHEDULE_STORAGE_KEY = "food-gedi.scheduledOrder";
+export const LEGACY_SCHEDULE_STORAGE_KEYS = ["nammude.scheduledOrder"] as const;
 
 export type ScheduleTimeSlot = {
   slotStart: string;

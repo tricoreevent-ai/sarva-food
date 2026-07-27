@@ -16,7 +16,7 @@ export function SearchInput({ value, onChange, placeholder, ariaLabel, className
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [locked, setLocked] = useState(!autoFocus);
   const armed = useRef(Boolean(autoFocus));
-  const fieldId = `nammude-${scope}-query-${id}`;
+  const fieldId = `food-gedi-${scope}-query-${id}`;
 
   function arm(event: { currentTarget: HTMLInputElement }) {
     armed.current = true;

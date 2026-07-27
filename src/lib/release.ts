@@ -1,3 +1,3 @@
 export const RELEASE_BRANCH = "release/production-nammude";
-export const RELEASE_VERSION = "v1.0.0-rc5";
-export const RELEASE_MARKER = "nammude-production-release";
+export const RELEASE_VERSION = "v1.0.0-rc6";
+export const RELEASE_MARKER = "food-gedi-production-release";

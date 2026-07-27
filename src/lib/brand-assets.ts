@@ -1,22 +1,22 @@
-import { BRAND_CONFIG } from "@/config/branding";
+import { BrandAssets, getAppIcon, getFavicon, getLogoForBackground } from "@/lib/brand-system";
 
 export const BRAND_ASSETS = {
-  appIcon: BRAND_CONFIG.assets.icon,
-  appIconMaskable: BRAND_CONFIG.assets.maskableIcon,
-  favicon16: BRAND_CONFIG.assets.favicon16,
-  favicon32: BRAND_CONFIG.assets.favicon32,
-  appleTouchIcon: BRAND_CONFIG.assets.appleTouchIcon,
-  primaryLogo: BRAND_CONFIG.assets.logo,
-  logoCard: BRAND_CONFIG.assets.logoCompact,
-  logoSticker: BRAND_CONFIG.assets.icon,
+  appIcon: getAppIcon("light"),
+  appIconMaskable: BrandAssets.pwa.maskable,
+  favicon16: getFavicon(16),
+  favicon32: getFavicon(32),
+  appleTouchIcon: BrandAssets.pwa.apple,
+  primaryLogo: getLogoForBackground("light"),
+  logoCard: getLogoForBackground("light", "compact"),
+  logoSticker: getAppIcon("light"),
   logos: {
     english: {
-      lightTheme: BRAND_CONFIG.assets.logoLight,
-      darkTheme: BRAND_CONFIG.assets.logoDark,
+      lightTheme: getLogoForBackground("light"),
+      darkTheme: getLogoForBackground("dark"),
     },
     malayalam: {
-      lightTheme: BRAND_CONFIG.assets.logoLight,
-      darkTheme: BRAND_CONFIG.assets.logoDark,
+      lightTheme: getLogoForBackground("light"),
+      darkTheme: getLogoForBackground("dark"),
     },
   },
 } as const;

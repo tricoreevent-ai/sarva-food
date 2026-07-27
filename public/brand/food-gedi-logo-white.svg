@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 260" role="img" aria-labelledby="fg-logo-white-title">
+  <title id="fg-logo-white-title">Food Gedi logo for dark backgrounds</title>
+  <image href="/icons/food-gedi-icon-white.svg" x="0" y="28" width="188" height="188" preserveAspectRatio="xMidYMid meet"/>
+  <text x="214" y="139" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="88" font-weight="900" letter-spacing="-5">
+    <tspan fill="#FFFFFF">Food</tspan><tspan dx="18" fill="#FFB24A">Gedi</tspan>
+  </text>
+  <line x1="218" y1="180" x2="266" y2="180" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+  <text x="286" y="190" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="700" fill="#FFFFFF" letter-spacing="1">Run Smarter. Serve Better.</text>
+  <line x1="748" y1="180" x2="796" y2="180" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+</svg>

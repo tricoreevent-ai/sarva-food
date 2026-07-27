@@ -55,7 +55,7 @@ exit /b 0
 :run_step
 set "LABEL=%~1"
 set "CMD=%~2"
-set "LOG=%TEMP%\nammude-release-%RANDOM%%RANDOM%.log"
+set "LOG=%TEMP%\food-gedi-release-%RANDOM%%RANDOM%.log"
 echo.
 echo %CYAN%Running %LABEL%...%RESET%
 cmd /c "%CMD%" >"%LOG%" 2>&1

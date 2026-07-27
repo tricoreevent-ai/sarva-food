@@ -5,7 +5,7 @@ import { BellRing, Clipboard, History, Loader2, RefreshCcw, Send, Smartphone, Tr
 import { toast } from "@/lib/client-toast";
 import { DashboardCard } from "@/components/owner/dashboard-card";
 import { Button } from "@/components/ui/button";
-import { BRAND_CONFIG } from "@/config/branding";
+import { getNotificationIcon } from "@/lib/brand-system";
 import { playOperationalSound } from "@/lib/operational-sounds";
 import {
   dispatchBackgroundPushTest,
@@ -117,7 +117,7 @@ export function NotificationTestCenter() {
         <div className="flex flex-wrap gap-2">
           <Action label="Browser Notification" icon={BellRing} busy={busy} onClick={() => run("Browser Notification", async () => {
             if (!("Notification" in window) || Notification.permission !== "granted") throw new Error("Grant notification permission first.");
-            new Notification("Browser notification test", { body: "Native browser notification display is available.", icon: BRAND_CONFIG.assets.notificationIcon });
+            new Notification("Browser notification test", { body: "Native browser notification display is available.", icon: getNotificationIcon() });
             return "Native browser notification displayed.";
           })} />
           <Action label="Send Test Notification" icon={Send} busy={busy} onClick={() => run("Push Notification", async () => {

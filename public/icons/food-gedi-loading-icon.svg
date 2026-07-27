@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="fg-loading-title">
+  <title id="fg-loading-title">Food Gedi loading icon</title>
+  <style>
+    @media (prefers-reduced-motion: no-preference) {
+      .ring { transform-origin: 256px 256px; animation: spin 1.4s linear infinite; }
+      .steam { animation: steam 1.6s ease-in-out infinite; }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes steam { 50% { transform: translateY(-10px); opacity: .45; } }
+  </style>
+  <circle class="ring" cx="256" cy="256" r="214" fill="none" stroke="#166B2E" stroke-width="28" stroke-linecap="round" stroke-dasharray="720 260"/>
+  <path class="steam" d="M190 144c-16-24 18-34 2-58M256 132c-16-24 18-34 2-58M322 144c-16-24 18-34 2-58" fill="none" stroke="#FF7A00" stroke-width="20" stroke-linecap="round"/>
+  <image href="/icons/food-gedi-icon-small.svg" x="128" y="138" width="256" height="256" preserveAspectRatio="xMidYMid meet"/>
+</svg>

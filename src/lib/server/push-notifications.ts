@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { FieldValue, type DocumentData, type DocumentReference } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
-import { BRAND_CONFIG } from "@/config/branding";
+import { BrandAssets, getNotificationIcon } from "@/lib/brand-system";
 import { APP_NAME } from "@/lib/constants";
 import { adminApp, adminDb } from "@/firebase/admin";
 import { tenantAliases } from "@/lib/tenant";
@@ -210,8 +210,8 @@ export async function sendTenantPushNotification(scope: TenantScope, input: Push
       notification: {
         title: input.title,
         body: input.message,
-        icon: BRAND_CONFIG.assets.notificationIcon,
-        badge: BRAND_CONFIG.assets.notificationBadge,
+        icon: getNotificationIcon(),
+        badge: BrandAssets.icons.notificationBadge,
         tag: input.notificationId || `${scope.tenantId}:${input.type}:${input.orderId ?? ""}`,
         renotify: input.priority === "high",
         requireInteraction: input.priority === "high",

@@ -1,6 +1,6 @@
 # Food Gedi Master Implementation Tracker
 
-Last updated: 2026-07-22
+Last updated: 2026-07-27
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,28 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC5 Owner/Waiter Active Orders Unification |
-| Release Version | `v1.0.0-rc5` candidate |
-| Latest Git Commit | Pending RC5 Owner/Waiter Active Orders unification commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
+| Current Sprint | RC6 Brand Visibility and Logo System Hardening |
+| Release Version | `v1.0.0-rc6` candidate |
+| Latest Git Commit | Pending RC6 brand-system hardening commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
 | Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
-| Build Date | 2026-07-15 |
-| Verification Status | Owner/Waiter Active Orders unification passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (42/42), `profile:runtime`, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC5 preserves the completed enterprise workflow while unifying Owner/Waiter Active Orders on one operational component, adding transactional send-to-kitchen linkage for online/order-only tickets, and retaining POS/Kitchen/payment/realtime hardening. |
+| Build Date | 2026-07-27 |
+| Verification Status | RC6 brand hardening passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (49/49), `profile:runtime`, `theme:contrast`, brand audit, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC6 eliminates logo visibility failures through one brand asset manager/provider, surface-aware logo selection, stronger Food Gedi SVG variants, regenerated favicon/PWA assets, notification/manifest/release metadata alignment, compact header branding, and reduced-motion-safe brand animation. |
+
+## RC6 Brand Visibility and Logo System Hardening - 2026-07-27
+
+| Area | Result |
+| --- | --- |
+| Root cause | Fixed. Logo selection was previously spread across assets/components and could render low-contrast art on light/dark/colored surfaces. |
+| Brand architecture | Complete. `BrandProvider`, `BrandAssets`, `BrandTokens`, `BrandVariants`, and helpers in `src/lib/brand-system.ts` centralize future rebrands behind one config/asset layer. |
+| Surface detection | Complete. Shared brand components resolve `auto` surfaces from computed parent background color and select dark, white, primary, accent, print, or high-contrast assets without CSS filter hacks. |
+| Assets | Complete. Added white, black, high-contrast, print, text, text-white, small, animated, white icon, black icon, small icon, and loading icon SVG variants; regenerated favicon/PWA PNG set from the strengthened icon. |
+| Header | Complete. Header branding now renders a compact `[icon] Food Gedi` mark with tighter alignment and memoized shared components. |
+| Notifications/PWA | Complete. Manifest, metadata, browser notifications, and FCM webpush use the centralized brand helpers/assets. |
+| Accessibility | Complete. SVG variants include titles, visible small-size stroke/padding improvements, explicit alt/ARIA behavior, and reduced-motion-safe logo animations. |
+| Audit evidence | `docs/validation/BRAND_AUDIT_REPORT.md` reports zero actionable old-brand public hits and zero direct logo-asset references outside the brand layer; legacy storage/branch compatibility namespaces are documented separately. |
+| Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (49/49), `profile:runtime`, `theme:contrast`, brand audit, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning. |
 
 ## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
 
