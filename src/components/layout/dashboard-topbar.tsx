@@ -252,7 +252,7 @@ function OwnerOperationsTopbar({ app, appName, navItems, homeHref }: DashboardTo
   }
 
   return (
-    <TooltipProvider delayDuration={150}>
+    <TooltipProvider delayDuration={300}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/94 shadow-sm backdrop-blur-xl">
         <div className="flex min-h-16 w-full items-center gap-2 px-3 py-2 sm:px-5 2xl:px-8">
           <Sheet>

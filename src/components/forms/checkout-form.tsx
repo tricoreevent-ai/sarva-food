@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import Link from "next/link";
-import { Bike, CalendarClock, CreditCard, Home, Loader2, LogIn, PackageCheck, Smartphone, Users, Zap } from "lucide-react";
+import { Bike, CalendarClock, CreditCard, Home, Loader2, LogIn, PackageCheck, Smartphone, Zap } from "lucide-react";
 import { WhatsAppOrderFlow } from "@/components/flows/whatsapp-order-flow";
 import { ScheduleOrderDialog } from "@/components/schedule/schedule-order-dialog";
 import { InlineLoading } from "@/components/state/page-state";
@@ -37,13 +37,12 @@ type CreateOrderRequest = {
   deliveryPlaceId?: string;
   deliveryAddressLabel?: string;
   channel: "web";
-  fulfillmentType: "delivery" | "parcel" | "dine-in";
+  fulfillmentType: "delivery" | "parcel";
   scheduleMode: "now" | "scheduled";
   scheduledFor?: string;
   scheduledDateLabel?: string;
   prepEstimateMinutes: number;
   cutoffAt?: Date;
-  guestCount?: number;
   lines: Array<{ menuItemId: string; name: string; price: number; quantity: number }>;
   offerCode?: string;
   subtotal: number;
@@ -89,7 +88,6 @@ export function CheckoutForm({
     defaultValues: {
       fulfillmentType: "delivery",
       scheduleMode: "now",
-      guestCount: 2,
       payment: "upi",
       acceptedTerms: false,
     },
@@ -102,7 +100,7 @@ export function CheckoutForm({
 
   useEffect(() => {
     const saved = readCheckoutPrefs();
-    if (saved.fulfillmentType) setValue("fulfillmentType", saved.fulfillmentType);
+    if (saved.fulfillmentType === "delivery" || saved.fulfillmentType === "parcel") setValue("fulfillmentType", saved.fulfillmentType);
     if (saved.scheduleMode) setValue("scheduleMode", saved.scheduleMode);
     if (saved.payment) setValue("payment", saved.payment);
   }, [setValue]);
@@ -211,7 +209,6 @@ export function CheckoutForm({
                 scheduledDateLabel: scheduledFor ? new Date(scheduledFor).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : undefined,
                 prepEstimateMinutes: estimatePrepMinutes(items.length),
                 cutoffAt: scheduledFor ? new Date(new Date(scheduledFor).getTime() - 45 * 60_000) : undefined,
-                guestCount: values.fulfillmentType === "dine-in" ? values.guestCount : undefined,
                 lines: items.map((item) => ({
                   menuItemId: item.id,
                   name: item.name,
@@ -278,11 +275,10 @@ export function CheckoutForm({
           </div>
           <fieldset className="grid gap-2">
             <legend className="text-sm font-semibold">Fulfillment</legend>
-            <div className="grid rounded-xl border bg-muted/40 p-1 sm:grid-cols-3">
+            <div className="grid rounded-xl border bg-muted/40 p-1 sm:grid-cols-2">
               {[
                 { value: "delivery", label: "Delivery", icon: Bike },
-                { value: "parcel", label: "Parcel", icon: PackageCheck },
-                { value: "dine-in", label: "Dine-in", icon: Users },
+                { value: "parcel", label: "Pickup", icon: PackageCheck },
               ].map((option) => {
                 const Icon = option.icon;
                 return (
@@ -348,13 +344,6 @@ export function CheckoutForm({
                   <CalendarClock className="size-4 text-primary" />
                   {scheduledOrderValue ? "Change slot" : "Pick slot"}
                 </Button>
-              </div>
-            ) : null}
-            {fulfillmentType === "dine-in" ? (
-              <div className="grid gap-2 sm:max-w-xs">
-                <Label htmlFor="guest-count">Guest count</Label>
-                <Input id="guest-count" inputMode="numeric" {...register("guestCount", { valueAsNumber: true })} />
-                {errors.guestCount ? <p className="text-xs text-destructive">{errors.guestCount.message}</p> : null}
               </div>
             ) : null}
           </fieldset>

@@ -13,7 +13,7 @@ export async function placeCustomerOrder(input: {
   lines: OrderLine[];
   totals: OrderTotals;
   offerCode?: string;
-  fulfillmentType?: "delivery" | "parcel" | "dine-in";
+  fulfillmentType?: "delivery" | "parcel";
   scheduleMode?: "now" | "scheduled";
   scheduledFor?: string;
   guestCount?: number;
@@ -45,7 +45,7 @@ export async function placeCustomerOrder(input: {
       acceptedTermsAt: new Date().toISOString(),
     }),
   });
-  const payload = await response.json().catch(() => ({})) as { ok?: boolean; orderId?: string; error?: string };
+  const payload = await response.json().catch(() => ({})) as { ok?: boolean; orderId?: string; verificationId?: string; error?: string };
   if (!response.ok || !payload.ok || !payload.orderId) throw new Error(payload.error || "Unable to create order right now.");
-  return { id: payload.orderId };
+  return { id: payload.orderId, verificationId: payload.verificationId };
 }

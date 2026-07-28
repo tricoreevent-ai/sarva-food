@@ -4,7 +4,7 @@ export const checkoutSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().min(10, "Enter a reachable phone number"),
   address: z.string().optional(),
-  fulfillmentType: z.enum(["delivery", "parcel", "dine-in"]).default("delivery"),
+  fulfillmentType: z.enum(["delivery", "parcel"]).default("delivery"),
   scheduleMode: z.enum(["now", "scheduled"]).default("now"),
   scheduledFor: z.string().optional(),
   guestCount: z.coerce.number().int().min(1).max(500).optional(),
@@ -23,13 +23,6 @@ export const checkoutSchema = z.object({
       code: "custom",
       path: ["scheduledFor"],
       message: "Choose a date and time for the scheduled order",
-    });
-  }
-  if (value.fulfillmentType === "dine-in" && !value.guestCount) {
-    context.addIssue({
-      code: "custom",
-      path: ["guestCount"],
-      message: "Guest count is required for dine-in reservations",
     });
   }
 });

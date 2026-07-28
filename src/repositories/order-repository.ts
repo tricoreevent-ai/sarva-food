@@ -463,8 +463,9 @@ export class OrderRepository {
           const foodStatus = orderStatusToFoodStatus(nextStatus);
           if (nextStatus !== order.status) assertLegalOrderTransition(order, nextStatus);
           const orderPatch = cleanRecord({
-            kitchenOrderId: kitchenOrder.id,
-            status: nextStatus,
+              kitchenOrderId: kitchenOrder.id,
+              verificationId: order.verificationId ?? (order.orderNumber ? verificationIdFor(Number(order.orderNumber)) : undefined),
+              status: nextStatus,
             foodStatus,
             statusHistory: nextStatus !== order.status ? FieldValue.arrayUnion({ status: nextStatus, foodStatus, paymentStatus: order.paymentStatus ?? "pending", event: "kitchen_sent", at: now, by: input.userId ?? scope.uid }) : undefined,
             auditTimeline: nextStatus !== order.status ? FieldValue.arrayUnion(auditEvent("kitchen_sent", scope, input, now, { status: nextStatus, kitchenOrderId: kitchenOrder.id, repairedLink: true })) : undefined,
@@ -539,6 +540,7 @@ export class OrderRepository {
             total: money(order.total),
             paymentStatus: order.paymentStatus ?? "pending",
             etaMinutes: Number(order.prepEstimateMinutes ?? 12),
+            verificationId: order.verificationId ?? (order.orderNumber ? verificationIdFor(Number(order.orderNumber)) : undefined),
             orderNumber: order.orderNumber,
             displayOrderNumber: order.displayOrderNumber,
             billNumber: order.billNumber,
@@ -554,6 +556,7 @@ export class OrderRepository {
           };
       const orderPatch = cleanRecord({
         kitchenOrderId: kitchenId,
+        verificationId: order.verificationId ?? (order.orderNumber ? verificationIdFor(Number(order.orderNumber)) : undefined),
         status: nextStatus,
         foodStatus,
         statusHistory: FieldValue.arrayUnion({ status: nextStatus, foodStatus, paymentStatus: order.paymentStatus ?? "pending", event: "kitchen_sent", at: now, by: input.userId ?? scope.uid }),
@@ -1553,6 +1556,7 @@ function withSequentialOrderNumber(order: OrderDoc, orderNumber: number): OrderD
   return {
     ...order,
     orderNumber,
+    verificationId: order.verificationId ?? verificationIdFor(orderNumber),
     displayOrderNumber: order.displayOrderNumber ?? orderNumber,
     billNumber: order.billNumber ?? billNumberFor(orderNumber),
     invoiceNumber: order.invoiceNumber ?? invoiceNumberFor(orderNumber),
@@ -1574,6 +1578,10 @@ function invoiceNumberFor(orderNumber: number) {
 
 function billNumberFor(orderNumber: number) {
   return `BILL-${String(orderNumber).padStart(6, "0")}`;
+}
+
+function verificationIdFor(orderNumber: number) {
+  return `FG-${String(orderNumber).padStart(4, "0").slice(-4)}`;
 }
 
 function displayOrderNumberText(orderNumber: number) {

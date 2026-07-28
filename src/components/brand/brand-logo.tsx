@@ -49,7 +49,7 @@ export const BrandLogo = memo(function BrandLogo({
 
   return (
     <span ref={surfaceRef} className={cn("inline-flex shrink-0 items-center gap-2.5", sizeClass[size], className)} aria-label={BRAND_CONFIG.name}>
-      <BrandIcon className="size-9 rounded-xl sm:size-10" priority={priority} sizes="40px" surface={resolvedSurface} />
+      <BrandIcon className="size-9 sm:size-10" priority={priority} sizes="40px" surface={resolvedSurface} />
       <BrandWordmark className="hidden leading-none sm:block" surface={resolvedSurface} />
     </span>
   );
@@ -75,15 +75,16 @@ export function BrandIcon({
       ref={surfaceRef}
       data-brand-logo-icon
       className={cn(
-        "brand-mark relative block size-10 shrink-0 overflow-hidden rounded-xl",
-        tone === "on-light" && "bg-white ring-1 ring-emerald-900/10",
-        tone === "on-dark" && "bg-white/10 ring-1 ring-white/20",
-        tone === "print" && "bg-white ring-1 ring-slate-900/20",
+        "brand-mark relative block size-10 shrink-0",
+        variant === "maskable" && "overflow-hidden rounded-xl",
+        variant === "maskable" && tone === "on-light" && "bg-white ring-1 ring-emerald-900/10",
+        variant === "maskable" && tone === "on-dark" && "bg-white/10 ring-1 ring-white/20",
+        variant === "maskable" && tone === "print" && "bg-white ring-1 ring-slate-900/20",
         className,
       )}
       aria-hidden="true"
     >
-      <FoodGediIconSvg mode={iconMode} tile={variant === "maskable" || tone !== "on-dark"} className="size-full" />
+      <FoodGediIconSvg mode={iconMode} tile={variant === "maskable"} className="size-full" />
     </span>
   );
 }
@@ -109,7 +110,7 @@ export function LoadingLogo({ className, priority = false, surface }: { classNam
   const { surfaceRef, resolvedSurface } = useAutoBrandSurface(surface ?? brand.surface);
   return (
     <span ref={surfaceRef} className={cn("motion-safe:animate-[brandPulse_1000ms_ease-in-out_infinite] inline-grid place-items-center", className)}>
-      <span className="relative block size-16 overflow-hidden rounded-2xl">
+      <span className="relative block size-16">
         <Image src={getLoadingLogo(resolvedSurface)} alt="" fill sizes="64px" priority={priority} className="object-contain" />
       </span>
     </span>
@@ -119,7 +120,7 @@ export function LoadingLogo({ className, priority = false, surface }: { classNam
 export function BrandBadge({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700", className)}>
-      <BrandIcon className="size-5 rounded-md" sizes="20px" surface="light" />
+      <BrandIcon className="size-5" sizes="20px" surface="light" />
       {BRAND_CONFIG.shortName}
     </span>
   );

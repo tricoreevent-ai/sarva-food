@@ -390,6 +390,7 @@ export type OrderDoc = TenantScopedDoc & {
   lastPrintedAt?: FirestoreDate | null;
   deliveryOtp: string;
   kitchenOrderId?: string;
+  verificationId?: string;
   orderNumber?: number;
   displayOrderNumber?: number | string;
   billNumber?: string;
@@ -449,6 +450,7 @@ export type KitchenOrderDoc = TenantScopedDoc & {
   servedBy?: string;
   completedBy?: string;
   etaMinutes: number;
+  verificationId?: string;
   orderNumber?: number;
   displayOrderNumber?: number | string;
   billNumber?: string;

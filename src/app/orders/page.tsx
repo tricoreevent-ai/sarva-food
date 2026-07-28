@@ -17,6 +17,7 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import { usePublicRestaurants } from "@/hooks/use-public-data";
 import { useCartStore, type CartLine } from "@/lib/cart-store";
 import { parseFirestoreDate } from "@/lib/firestore-date";
+import { readableOrderId } from "@/lib/order-display";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerOrderDoc, FirestoreDate } from "@/types/firebase";
@@ -91,6 +92,7 @@ function OrderHistoryCard({ order, restaurant }: { order: CustomerOrderDoc; rest
   const active = !["completed", "delivered", "cancelled", "rejected"].includes(order.status);
   const image = restaurant?.primaryThumbnail || restaurant?.image || IMAGE_FALLBACKS.restaurant;
   const itemText = order.lines.map((line) => `${line.name} x${line.quantity}`).join(", ");
+  const displayId = readableOrderId(order);
 
   async function reorder(mode: "merge" | "replace") {
     const menu = await fetchCurrentMenu(order.restaurantId);
@@ -124,7 +126,7 @@ function OrderHistoryCard({ order, restaurant }: { order: CustomerOrderDoc; rest
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-primary">Order {order.id.slice(0, 8)}</p>
+              <p className="text-xs font-black uppercase text-primary">Order {displayId}</p>
               <h2 className="mt-1 truncate text-xl font-black">{restaurant?.displayName || restaurant?.name || order.restaurantId}</h2>
               <p className="mt-1 line-clamp-2 text-sm font-semibold text-muted-foreground">{itemText}</p>
             </div>

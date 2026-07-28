@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         ...(order.deliveryPlaceId ? { placeId: order.deliveryPlaceId } : {}),
       };
     })() : undefined;
-    await repository.create(order, address);
+    const savedOrder = await repository.create(order, address);
     await new AuditRepository().record({
       tenantId: order.tenantId,
       restaurantId: order.restaurantId,
@@ -202,10 +202,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      orderId: order.id,
+      orderId: savedOrder.id,
+      verificationId: savedOrder.verificationId,
       distanceKm,
       deliveryRadiusKm,
-      status: order.status,
+      status: savedOrder.status,
     }, { status: 201 });
   } catch (error) {
     productionLogger.warn("orders.create_failed", { errorName: safeErrorName(error) });

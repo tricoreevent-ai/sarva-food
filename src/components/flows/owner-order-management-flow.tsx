@@ -88,6 +88,7 @@ type DateRange = { preset: DatePreset; from: string; to: string };
 type OpsOrder = {
   id: string;
   displayId?: string;
+  verificationId?: string;
   age: string;
   actualTime?: string;
   source: string;
@@ -688,7 +689,7 @@ export function OwnerOrderManagementFlow() {
 
           {!activeView ? <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-24 text-sm font-bold text-slate-950 outline-none focus:border-orange-400" placeholder="Search orders, tables, customers, items, waiters" aria-label="Search active orders by order, table, customer, item, waiter, phone, or date" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-24 text-sm font-bold text-slate-950 outline-none focus:border-orange-400" placeholder="Search FG ID, order, phone, table, KOT, payment" aria-label="Search active orders by verification ID, order ID, table, customer, item, waiter, phone, KOT, payment, or date" />
             <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-500 sm:inline-flex">{visibleOrders.length} match{visibleOrders.length === 1 ? "" : "es"}</span>
           </label> : null}
 
@@ -1545,12 +1546,18 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       id: order.id,
       displayId: readableOrderId({
         id: order.id,
+        verificationId: order.verificationId,
+        orderNumber: order.orderNumber,
+        displayOrderNumber: order.displayOrderNumber,
+        invoiceNumber: order.invoiceNumber,
+        billNumber: order.billNumber,
         channel: order.channel,
         orderType: order.fulfillmentType,
         tableNumber: (order as { tableNumber?: string }).tableNumber,
         createdAt: order.createdAt,
         sequence: index + 1,
       }),
+      verificationId: order.verificationId,
       age: relativeOrderTime(order.createdAt, now),
       actualTime: actualOrderTime(order.createdAt),
       source: sourceLabel(order.channel),
@@ -1590,6 +1597,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       ...order,
       orderNumber: canonical?.orderNumber ?? order.orderNumber,
       displayOrderNumber: canonical?.displayOrderNumber ?? order.displayOrderNumber,
+      verificationId: canonical?.verificationId ?? order.verificationId,
       invoiceNumber: canonical?.invoiceNumber ?? order.invoiceNumber,
       billNumber: canonical?.billNumber ?? order.billNumber,
     };
@@ -1598,6 +1606,7 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
       id: order.id,
       canonicalOrderId: canonical?.id,
       displayId: readableTableOrderId(displayOrder, index + 1),
+      verificationId: canonical?.verificationId ?? order.verificationId,
       age: relativeOrderTime(order.createdAt, now),
       actualTime: actualOrderTime(order.createdAt),
       source: order.source === "Delivery" ? "POS Delivery" : order.source === "Parcel" ? "POS Parcel" : "POS",
@@ -1739,6 +1748,9 @@ function matchesSearch(order: ActiveOpsOrder, query: string) {
   if (!search) return true;
   return [
     order.displayId,
+    order.verificationId,
+    order.id,
+    order.canonicalOrderId,
     order.customer,
     order.phone,
     order.email,
@@ -1749,6 +1761,12 @@ function matchesSearch(order: ActiveOpsOrder, query: string) {
     order.scheduledLabel,
     order.itemSummary,
     order.tableNumber,
+    order.kitchenOrder?.id,
+    order.kitchenOrder?.verificationId,
+    order.kitchenOrder?.orderNumber,
+    order.kitchenOrder?.displayOrderNumber,
+    order.kitchenOrder?.invoiceNumber,
+    order.kitchenOrder?.billNumber,
     order.kitchenOrder?.waiterName,
     order.kitchenOrder?.assignedStaffName,
     order.kitchenOrder?.kitchenStation,
@@ -1772,6 +1790,7 @@ function matchesCateringTab(quote: CateringQuote, tab: OrderTab) {
 function toDemoOrder(order: OrderDoc): DemoOrder {
   const demo: DemoOrder & { tableNumber?: string } = {
     id: order.id,
+    verificationId: order.verificationId,
     orderNumber: order.orderNumber,
     displayOrderNumber: order.displayOrderNumber,
     invoiceNumber: order.invoiceNumber,

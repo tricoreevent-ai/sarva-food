@@ -65,7 +65,7 @@ export function AppStartupGate() {
   return (
     <div className="customer-theme fixed inset-0 z-[100] grid place-items-center bg-background px-6 transition-opacity duration-300">
       <div className="grid w-full max-w-xs animate-[fadeIn_280ms_ease-out] justify-items-center gap-5 text-center">
-        <BrandIcon className="size-24 animate-pulse rounded-lg shadow-2xl" priority sizes="96px" />
+        <BrandIcon className="size-24 animate-pulse" priority sizes="96px" />
         <div>
           <h1 className="text-3xl font-black">{productName}</h1>
           <p className="mt-2 text-sm font-semibold text-muted-foreground">{label}</p>

@@ -200,7 +200,7 @@ export function PublicHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-background/94 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 bg-background/94 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-xl">
       <div className="container-page flex min-h-16 items-center justify-between gap-3 py-2 md:min-h-20">
         <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-3" aria-label={`${productName} home`}>
           <BrandLogo className="h-10 w-32 md:h-12 md:w-44" priority />
@@ -222,7 +222,7 @@ export function PublicHeader() {
             loggedIn={loggedIn}
           />
           <form
-            className="flex h-11 min-w-[20rem] max-w-2xl flex-1 items-center gap-3 rounded-lg border bg-white px-4 text-sm font-semibold text-muted-foreground shadow-sm transition focus-within:border-primary/40"
+            className="flex h-11 min-w-[20rem] max-w-2xl flex-1 items-center gap-3 rounded-lg bg-white px-4 text-sm font-semibold text-muted-foreground shadow-[0_1px_0_rgba(15,23,42,0.08)] transition focus-within:ring-2 focus-within:ring-primary/20"
             onSubmit={(event) => {
               event.preventDefault();
               const queryText = searchQuery.trim();
@@ -271,7 +271,7 @@ export function PublicHeader() {
                 variant="ghost"
                 size="icon"
                 aria-label="Open cart"
-                className={`relative bg-card ${restaurantRoute ? "hidden md:inline-flex" : ""}`}
+                className={`relative ${restaurantRoute ? "hidden md:inline-flex" : ""}`}
               >
                 <ShoppingBag className="size-4" />
                 {cartCount ? (

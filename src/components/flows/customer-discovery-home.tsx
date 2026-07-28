@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Bell,
   ChevronRight,
@@ -37,6 +37,7 @@ import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-home
 import { safeClientReason } from "@/lib/client-diagnostics";
 import { APP_NAME } from "@/lib/constants";
 import type { MenuItem, Restaurant } from "@/lib/types";
+import type { CommerceLocation } from "@/hooks/use-location-commerce";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const DIRECT_HOMEPAGE_TITLE = "Connect Directly with Restaurants";
@@ -78,6 +79,7 @@ export function CustomerDiscoveryHome() {
     selectLocation,
   } = useLocationCommerce(restaurants);
   const [locationQuery, setLocationQuery] = useState("");
+  const [foodSearch, setFoodSearch] = useState("");
   const [locationResultsOpen, setLocationResultsOpen] = useState(false);
   const [menuPreviewReady, setMenuPreviewReady] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -137,6 +139,24 @@ export function CustomerDiscoveryHome() {
         return true;
       });
   }, [customer.savedRestaurants, restaurants]);
+  const nearbyRestaurantList = useMemo(() => (nearbyRestaurants.length ? nearbyRestaurants : restaurants).slice(0, 8), [nearbyRestaurants, restaurants]);
+  const popularRestaurants = useMemo(
+    () => [...restaurants]
+      .sort((first, second) => Number((second as Restaurant & { orderCount?: number }).orderCount ?? 0) - Number((first as Restaurant & { orderCount?: number }).orderCount ?? 0) || (second.rating ?? 0) - (first.rating ?? 0))
+      .slice(0, 8),
+    [restaurants],
+  );
+  const recentlyOrderedRestaurants = useMemo(() => {
+    const seen = new Set<string>();
+    return customer.orders
+      .map((order) => restaurants.find((restaurant) => restaurant.slug === order.restaurantId || restaurant.id === order.restaurantId))
+      .filter((restaurant): restaurant is Restaurant => {
+        if (!restaurant || seen.has(restaurant.id)) return false;
+        seen.add(restaurant.id);
+        return true;
+      })
+      .slice(0, 8);
+  }, [customer.orders, restaurants]);
 
   const popularItems = useMemo(() => {
     const nearbySlugs = new Set(recommendedRestaurants.map((restaurant) => restaurant.slug));
@@ -184,6 +204,12 @@ export function CustomerDiscoveryHome() {
     selectLocation(nextLocation);
     setLocationQuery(nextLocation.label);
     setLocationResultsOpen(false);
+  }
+
+  function handleFoodSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = foodSearch.trim();
+    router.push(query ? `/restaurants?query=${encodeURIComponent(query)}` : "/restaurants");
   }
 
   async function handleFavoriteToggle(restaurant: Restaurant) {
@@ -403,86 +429,27 @@ export function CustomerDiscoveryHome() {
         </div>
       </section>
 
-      <section className="container-page py-5 md:py-7">
-        <div className="grid gap-4 rounded-2xl bg-white p-5 shadow-sm md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-7">
-          <div>
-            <p className="text-xs font-black uppercase tracking-normal text-primary">Why Choose {APP_NAME}?</p>
-            <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">Food Ordering Without Middlemen</h2>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{DIRECT_HOMEPAGE_SUPPORT}</p>
-          </div>
-          <p className="text-sm font-semibold leading-7 text-muted-foreground md:text-base md:leading-8">
-            {APP_NAME} is a direct-to-customer restaurant platform where customers connect directly with restaurant owners. Discover local restaurants, access genuine offers, view real-time menus, and place orders without relying on third-party aggregators. Better communication, better pricing, and a more transparent food ordering experience.
-          </p>
-        </div>
-      </section>
-
-      {cmsSettings.sections?.categoriesVisible !== false && categoryChips.length ? (
-      <section className="customer-scroll flex gap-3 overflow-x-auto px-4 pb-4 md:hidden">
-        <Link
-          href="/restaurants"
-          className="flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center"
-        >
-          <span className="food-gradient grid size-14 place-items-center overflow-hidden rounded-full border border-transparent text-white shadow-xl">
-            <Grid2X2 className="size-6" />
-          </span>
-          <span className="text-xs font-bold">All</span>
-        </Link>
-        {categoryChips.slice(0, 10).map((chip) => (
-          <Link
-            key={chip.id}
-            href={`/restaurants?query=${encodeURIComponent(chip.name)}`}
-            className="group flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center"
-          >
-            <span className="grid size-14 place-items-center overflow-hidden rounded-full bg-white shadow-md transition duration-200 group-hover:-translate-y-1 group-hover:scale-105 group-hover:shadow-xl">
-              <SafeImage
-                src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food}
-                alt={chip.name}
-                width={50}
-                height={50}
-                fallbackSrc={IMAGE_FALLBACKS.food}
-                cloudinaryPreset="categoryIcon"
-                className="size-11 rounded-full object-cover"
-              />
-            </span>
-            <span className="text-xs font-bold">{chip.name}</span>
-          </Link>
-        ))}
-      </section>
-      ) : null}
-
-      {cmsSettings.sections?.categoriesVisible !== false && categoryChips.length ? (
-      <section className="container-page hidden gap-4 py-5 md:flex">
-        <Link
-          href="/restaurants"
-          className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-primary/5 text-center text-primary shadow-sm transition duration-200 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl"
-        >
-          <span className="grid size-10 place-items-center overflow-hidden rounded-full text-primary">
-            <Grid2X2 className="size-6" />
-          </span>
-          <span className="text-sm font-black">All</span>
-        </Link>
-        {categoryChips.slice(0, 9).map((chip) => (
-          <Link
-            key={chip.id}
-            href={`/restaurants?query=${encodeURIComponent(chip.name)}`}
-            className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-white text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl"
-          >
-            <span className="grid size-10 place-items-center overflow-hidden rounded-full bg-orange-50">
-              <SafeImage
-                src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food}
-                alt={chip.name}
-                width={40}
-                height={40}
-                fallbackSrc={IMAGE_FALLBACKS.food}
-                cloudinaryPreset="categoryIcon"
-                className="size-10 rounded-full object-cover"
-              />
-            </span>
-            <span className="text-sm font-black">{chip.name}</span>
-          </Link>
-        ))}
-      </section>
-      ) : null}
+      <CustomerLocationSearchPanel
+        location={location}
+        query={locationQuery}
+        foodSearch={foodSearch}
+        open={locationResultsOpen}
+        detecting={detecting}
+        hydrated={hydrated}
+        status={status}
+        permission={permission}
+        options={visibleLocationOptions}
+        onQueryChange={(value) => {
+          setLocationQuery(value);
+          setLocationResultsOpen(Boolean(value.trim()));
+          searchPlaces(value);
+        }}
+        onFoodSearchChange={setFoodSearch}
+        onFoodSearch={handleFoodSearch}
+        onOpenChange={setLocationResultsOpen}
+        onDetect={detectLocation}
+        onSelect={handleLocationSelect}
+      />
 
       {cmsBanners.length ? (
         <section className="customer-scroll container-page flex gap-4 overflow-x-auto pb-5">
@@ -521,6 +488,18 @@ export function CustomerDiscoveryHome() {
         </>
       ) : null}
 
+      <MobileSectionHeader title="Nearby restaurants" href="/restaurants" />
+      <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+        {nearbyRestaurantList.map((restaurant) => (
+          <MemoMobileRestaurantCard
+            key={restaurant.id}
+            restaurant={restaurant}
+            saved={savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id)}
+            onFavorite={() => void handleFavoriteToggle(restaurant)}
+          />
+        ))}
+      </section>
+
       {cmsSettings.sections?.featuredRestaurantsVisible !== false ? (
         <>
           <MobileSectionHeader title={cmsSettings.sections?.recommendedTitle || "Recommended for you"} href="/restaurants" />
@@ -536,6 +515,18 @@ export function CustomerDiscoveryHome() {
           </section>
         </>
       ) : null}
+
+      <MobileSectionHeader title="Popular restaurants" href="/restaurants?sort=popular" />
+      <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+        {popularRestaurants.map((restaurant) => (
+          <MemoMobileRestaurantCard
+            key={restaurant.id}
+            restaurant={restaurant}
+            saved={savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id)}
+            onFavorite={() => void handleFavoriteToggle(restaurant)}
+          />
+        ))}
+      </section>
 
       {featuredItems.length ? (
         <>
@@ -559,23 +550,179 @@ export function CustomerDiscoveryHome() {
         </>
       ) : null}
 
-      {freeDeliveryTarget ? (
-      <section className="px-4 pt-3 md:hidden">
-        <div className="flex items-center gap-3 rounded-2xl bg-green-50 p-4 shadow-sm">
-          <span className="grid size-10 place-items-center rounded-full bg-white text-xl">🛵</span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold"><span className="font-black text-green-700">FREE</span> delivery on orders above {formatCurrency(freeDeliveryTarget)}</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-green-100">
-              <div className="h-full rounded-full bg-green-600" style={{ width: `${freeDeliveryProgress}%` }} />
-            </div>
-          </div>
-          <span className="text-xs font-black text-muted-foreground">{freeDeliveryRemaining ? `${formatCurrency(freeDeliveryRemaining)} more` : "Unlocked"}</span>
-        </div>
+      {cmsSettings.sections?.categoriesVisible !== false && categoryChips.length ? (
+      <section className="customer-scroll flex gap-3 overflow-x-auto px-4 pb-4 md:hidden">
+        <Link href="/restaurants" className="flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center">
+          <span className="food-gradient grid size-14 place-items-center overflow-hidden rounded-full text-white shadow-sm">
+            <Grid2X2 className="size-6" />
+          </span>
+          <span className="text-xs font-bold">All</span>
+        </Link>
+        {categoryChips.slice(0, 10).map((chip) => (
+          <Link key={chip.id} href={`/restaurants?query=${encodeURIComponent(chip.name)}`} className="group flex w-[4.25rem] shrink-0 flex-col items-center gap-2 text-center">
+            <span className="grid size-14 place-items-center overflow-hidden rounded-full bg-white shadow-sm transition duration-200 group-hover:-translate-y-1 group-hover:shadow-md">
+              <SafeImage src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food} alt={chip.name} width={50} height={50} fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="categoryIcon" className="size-11 rounded-full object-cover" />
+            </span>
+            <span className="text-xs font-bold">{chip.name}</span>
+          </Link>
+        ))}
       </section>
       ) : null}
+
+      {cmsSettings.sections?.categoriesVisible !== false && categoryChips.length ? (
+      <section className="container-page hidden gap-4 py-5 md:flex">
+        <Link href="/restaurants" className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-primary/5 text-center text-primary shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md">
+          <span className="grid size-10 place-items-center overflow-hidden rounded-full text-primary">
+            <Grid2X2 className="size-6" />
+          </span>
+          <span className="text-sm font-black">All</span>
+        </Link>
+        {categoryChips.slice(0, 9).map((chip) => (
+          <Link key={chip.id} href={`/restaurants?query=${encodeURIComponent(chip.name)}`} className="group flex h-[5.25rem] min-w-24 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-white text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md">
+            <span className="grid size-10 place-items-center overflow-hidden rounded-full bg-orange-50">
+              <SafeImage src={categoryImages.get(chip.slug) || IMAGE_FALLBACKS.food} alt={chip.name} width={40} height={40} fallbackSrc={IMAGE_FALLBACKS.food} cloudinaryPreset="categoryIcon" className="size-10 rounded-full object-cover" />
+            </span>
+            <span className="text-sm font-black">{chip.name}</span>
+          </Link>
+        ))}
+      </section>
+      ) : null}
+
+      {freeDeliveryTarget ? (
+        <section className="container-page py-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-green-50 p-4 shadow-sm">
+            <span className="grid size-10 place-items-center rounded-full bg-white text-xl">🛵</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold"><span className="font-black text-green-700">Offer:</span> free delivery above {formatCurrency(freeDeliveryTarget)}</p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-green-100">
+                <div className="h-full rounded-full bg-green-600" style={{ width: `${freeDeliveryProgress}%` }} />
+              </div>
+            </div>
+            <span className="text-xs font-black text-muted-foreground">{freeDeliveryRemaining ? `${formatCurrency(freeDeliveryRemaining)} more` : "Unlocked"}</span>
+          </div>
+        </section>
+      ) : null}
+
+      {recentlyOrderedRestaurants.length ? (
+        <>
+          <MobileSectionHeader title="Recently ordered" href="/orders" />
+          <section className="customer-scroll container-page flex w-full gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+            {recentlyOrderedRestaurants.map((restaurant) => (
+              <MemoMobileRestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                saved={savedRestaurantMap.has(restaurant.slug) || savedRestaurantMap.has(restaurant.id)}
+                onFavorite={() => void handleFavoriteToggle(restaurant)}
+              />
+            ))}
+          </section>
+        </>
+      ) : null}
+
+      <section className="container-page py-5 md:py-7">
+        <div className="grid gap-4 rounded-2xl bg-white p-5 shadow-sm md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-7">
+          <div>
+            <p className="text-xs font-black uppercase tracking-normal text-primary">Why Choose {APP_NAME}?</p>
+            <h2 className="mt-2 text-2xl font-black tracking-normal md:text-3xl">Food Ordering Without Middlemen</h2>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{DIRECT_HOMEPAGE_SUPPORT}</p>
+          </div>
+          <p className="text-sm font-semibold leading-7 text-muted-foreground md:text-base md:leading-8">
+            {APP_NAME} is a direct-to-customer restaurant platform where customers connect directly with restaurant owners. Discover local restaurants, access genuine offers, view real-time menus, and place orders without relying on third-party aggregators.
+          </p>
+        </div>
+      </section>
+
     </main>
   );
 }
+
+function CustomerLocationSearchPanel({
+  location,
+  query,
+  foodSearch,
+  open,
+  detecting,
+  hydrated,
+  status,
+  permission,
+  options,
+  onQueryChange,
+  onFoodSearchChange,
+  onFoodSearch,
+  onOpenChange,
+  onDetect,
+  onSelect,
+}: {
+  location: CommerceLocation;
+  query: string;
+  foodSearch: string;
+  open: boolean;
+  detecting: boolean;
+  hydrated: boolean;
+  status: string;
+  permission: string;
+  options: CommerceLocation[];
+  onQueryChange: (value: string) => void;
+  onFoodSearchChange: (value: string) => void;
+  onFoodSearch: (event: FormEvent<HTMLFormElement>) => void;
+  onOpenChange: (value: boolean) => void;
+  onDetect: () => void;
+  onSelect: (location: CommerceLocation) => void;
+}) {
+  return (
+    <section className="container-page py-5 md:py-7">
+      <div className="grid gap-3 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:p-5">
+        <div className="relative">
+          <label className="text-xs font-black uppercase text-primary" htmlFor="customer-location-control">Delivery location</label>
+          <div className="mt-2 flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <MapPin className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-primary" />
+              <Input
+                id="customer-location-control"
+                value={query || location.label || location.address}
+                onChange={(event) => onQueryChange(event.target.value)}
+                onFocus={() => onOpenChange(Boolean(query.trim()))}
+                className="h-12 rounded-xl border-slate-200 bg-white pl-11 text-sm font-bold"
+                placeholder="Search area, apartment, office, or pinned place"
+                aria-label="Search or change delivery location"
+              />
+            </div>
+            <Button type="button" variant="outline" className="h-12 rounded-xl bg-white" onClick={onDetect} disabled={detecting}>
+              <LocateFixed className={cn("size-4", detecting && "animate-pulse")} />
+              GPS
+            </Button>
+          </div>
+          <p className="mt-2 text-xs font-semibold text-muted-foreground">
+            <LocationHydrationBoundary>{hydrated ? statusLabel(status, permission) : "Choose delivery location"}</LocationHydrationBoundary>
+          </p>
+          {open && options.length ? (
+            <div className="absolute left-0 right-0 top-[5.4rem] z-30 rounded-2xl border bg-card p-2 shadow-xl">
+              <LocationSuggestionList locations={options} onSelect={onSelect} />
+            </div>
+          ) : null}
+        </div>
+        <form onSubmit={onFoodSearch} className="grid gap-2">
+          <label className="text-xs font-black uppercase text-primary" htmlFor="customer-food-search">Search food or restaurant</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="customer-food-search"
+              value={foodSearch}
+              onChange={(event) => onFoodSearchChange(event.target.value)}
+              className="h-12 rounded-xl border-slate-200 bg-white pl-11 pr-28 text-sm font-bold"
+              placeholder="Biryani, meals, grill..."
+              aria-label="Search restaurants, cuisines, or dishes"
+            />
+            <Button type="submit" className="absolute right-1 top-1 h-10 rounded-lg px-4">
+              Find food
+            </Button>
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+
 function MobileSectionHeader({ title, href }: { title: string; href: string }) {
   return (
     <div className="container-page flex w-full items-center justify-between pb-3 pt-5 md:pb-5 md:pt-2">

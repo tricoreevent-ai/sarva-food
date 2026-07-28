@@ -613,6 +613,7 @@ export type DemoOrder = {
   createdAt: string;
   deliveryOtp: string;
   kitchenOrderId?: string;
+  verificationId?: string;
   statusNote?: string;
   fulfillmentType?: "delivery" | "parcel" | "dine-in";
   scheduleMode?: "now" | "scheduled";
@@ -946,6 +947,7 @@ export type TableOrder = {
   activityLog?: ActivityLog[];
   createdAt: string;
   etaMinutes: number;
+  verificationId?: string;
   total?: number;
   printedCount?: number;
   lastPrintedAt?: string;

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRealtimeOrder } from "@/hooks/use-realtime-order";
 import { InlineLoading } from "@/components/state/page-state";
+import { readableOrderId } from "@/lib/order-display";
 import { formatCurrency } from "@/lib/utils";
 
 export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
@@ -35,6 +36,7 @@ export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
   }
 
   // Success receipt reads the order cache immediately after checkout; tracking can subscribe to Firestore by order ID.
+  const displayId = readableOrderId(order);
   return (
     <CustomerShell>
       <main className="container-page grid gap-6 py-5 sm:py-8 lg:grid-cols-[1fr_380px]">
@@ -47,7 +49,7 @@ export function OrderSuccessFlow({ orderId }: { orderId?: string }) {
                 description="The order has entered the owner dashboard queue and is ready for status updates."
               />
               <div className="flex flex-wrap gap-2">
-                <Badge variant="success">{order.id}</Badge>
+                <Badge variant="success">{displayId}</Badge>
                 <Badge variant="muted">{order.channel}</Badge>
                 {order.offerCode ? <Badge variant="accent">{order.offerCode}</Badge> : null}
               </div>

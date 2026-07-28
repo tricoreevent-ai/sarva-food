@@ -2,6 +2,7 @@ import type { OrderChannel, PosOrderType, TableOrder } from "@/lib/types";
 
 type ReadableOrderInput = {
   id?: string;
+  verificationId?: string | number;
   orderNumber?: string | number;
   displayOrderNumber?: string | number;
   invoiceNumber?: string | number;
@@ -10,14 +11,24 @@ type ReadableOrderInput = {
   channel?: OrderChannel | string;
   orderType?: PosOrderType | string;
   tableNumber?: string;
-  createdAt?: string;
+  createdAt?: unknown;
   sequence?: number;
 };
 
 const readablePattern = /^(DIN|PAR|WEB|SWG|ZMT|POS)-/i;
 
 export function readableOrderId(input: ReadableOrderInput) {
-  return displayOrderNumber(input);
+  return customerVerificationId(input) || displayOrderNumber(input);
+}
+
+export function customerVerificationId(input: ReadableOrderInput) {
+  const explicit = normalizeVerificationId(input.verificationId);
+  if (explicit) return explicit;
+  const source = input.orderNumber ?? input.displayOrderNumber;
+  const number = orderNumberFromValue(source).replace(/\D/g, "");
+  if (number) return `FG-${number.padStart(4, "0").slice(-4)}`;
+  if (!input.id) return "";
+  return `FG-${String(stableSequence(input.id)).padStart(4, "0").slice(-4)}`;
 }
 
 export function displayOrderNumber(input: ReadableOrderInput) {
@@ -33,10 +44,18 @@ export function displayOrderNumber(input: ReadableOrderInput) {
   return `#${String(sequence).padStart(4, "0").slice(-4)}`;
 }
 
+function normalizeVerificationId(value?: string | number) {
+  const text = String(value ?? "").trim().toUpperCase();
+  if (!text) return "";
+  const digits = text.match(/(?:FG[-\s]?|^)(\d{1,6})$/)?.[1];
+  return digits ? `FG-${digits.padStart(4, "0").slice(-4)}` : "";
+}
+
 export function readableTableOrderId(order: TableOrder, sequence?: number) {
-  const extended = order as TableOrder & Pick<ReadableOrderInput, "orderNumber" | "displayOrderNumber" | "invoiceNumber" | "billNumber">;
+  const extended = order as TableOrder & Pick<ReadableOrderInput, "verificationId" | "orderNumber" | "displayOrderNumber" | "invoiceNumber" | "billNumber">;
   return readableOrderId({
     id: order.id,
+    verificationId: extended.verificationId,
     orderNumber: extended.orderNumber,
     displayOrderNumber: extended.displayOrderNumber,
     invoiceNumber: extended.invoiceNumber,
@@ -83,7 +102,7 @@ function orderNumberFromValue(value?: string | number) {
   return trailing ? `#${trailing.padStart(4, "0")}` : "";
 }
 
-function compactOrderDate(value?: string) {
+function compactOrderDate(value?: unknown) {
   const date = safeDate(value) ?? new Date();
   const yy = String(date.getFullYear()).slice(-2);
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -91,9 +110,9 @@ function compactOrderDate(value?: string) {
   return `${yy}${month}${day}`;
 }
 
-function safeDate(value?: string) {
+function safeDate(value?: unknown) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = value instanceof Date ? value : typeof (value as { toDate?: unknown }).toDate === "function" ? (value as { toDate: () => Date }).toDate() : new Date(String(value));
   return Number.isFinite(date.getTime()) ? date : null;
 }
 

@@ -232,7 +232,7 @@ export function PremiumSplash() {
               transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
               className="grid size-24 place-items-center"
             >
-              <BrandIcon className="size-24 rounded-lg shadow-2xl" priority sizes="96px" />
+              <BrandIcon className="size-24" priority sizes="96px" />
             </motion.div>
             <div>
               <Badge className="mb-3 bg-primary/10 text-primary">

@@ -14,7 +14,6 @@ import {
   ChevronRight,
   CreditCard,
   Gift,
-  Home,
   Loader2,
   MoreVertical,
   MapPin,
@@ -61,7 +60,7 @@ import type { CustomerAddressDoc } from "@/types/firebase";
 import { placeCustomerOrder } from "@/services/customer-order-api";
 
 type WizardStep = "menu" | "offers" | "details" | "confirm" | "success";
-type FulfillmentType = "delivery" | "parcel" | "dine-in";
+type FulfillmentType = "delivery" | "parcel";
 type ViewMode = "grid" | "list";
 type OrderTiming = "now" | "scheduled";
 
@@ -83,7 +82,6 @@ const STEP_LABELS: Array<{ id: WizardStep; label: string }> = [
 const ORDER_TYPES: Array<{ id: FulfillmentType; label: string; helper: string; icon: typeof Bike }> = [
   { id: "delivery", label: "Delivery", helper: "Address required", icon: Bike },
   { id: "parcel", label: "Pickup", helper: "Collect from counter", icon: Package },
-  { id: "dine-in", label: "Dine-in", helper: "Address optional", icon: Home },
 ];
 
 export function RestaurantDetailFlow({ slug }: { slug: string }) {
@@ -490,7 +488,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       });
       clearCart();
       setSuccessOrder({
-        id: readableOrderId({
+        id: order.verificationId ?? readableOrderId({
           id: order.id,
           channel: "Web",
           orderType: fulfillmentType,
@@ -2021,7 +2019,7 @@ function CustomerDetailsStep({
   const update = (key: keyof CustomerForm, value: string) => setCustomer({ ...customer, [key]: value });
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
-      <SectionTitle eyebrow="Step 3" title="Customer details" description="Delivery needs an address. Pickup and dine-in can be completed with name and phone." />
+      <SectionTitle eyebrow="Step 3" title="Customer details" description="Delivery needs an address. Pickup can be completed with name and phone." />
       <div className="mt-5">
         <OrderTimingStrip
           mode={orderTiming}
@@ -2911,7 +2909,6 @@ function humanize(value: string) {
 }
 
 function itemPrice(item: MenuItem, fulfillmentType: FulfillmentType) {
-  if (fulfillmentType === "dine-in") return item.dineInPrice ?? item.price;
   if (fulfillmentType === "parcel") return item.parcelPrice ?? item.price;
   return item.deliveryPrice ?? item.price;
 }
@@ -2928,7 +2925,7 @@ type CartTotals = {
 
 function calculateTotals(items: CartLine[], offerCode: string, offers: Offer[], fulfillmentType: FulfillmentType, restaurant: Restaurant | null): CartTotals {
   const subtotal = items.reduce((sum, item) => sum + itemPrice(item, fulfillmentType) * item.quantity, 0);
-  const packingCharge = fulfillmentType === "dine-in" ? 0 : items.reduce((sum, item) => sum + (item.packingCharge ?? 0) * item.quantity, 0);
+  const packingCharge = items.reduce((sum, item) => sum + (item.packingCharge ?? 0) * item.quantity, 0);
   const appliedOffer = offers.find((offer) => offer.code.toUpperCase() === offerCode.trim().toUpperCase() && offerEligible(offer, items, fulfillmentType)) ?? null;
   const rawDiscount = appliedOffer
     ? appliedOffer.discountType === "flat" || appliedOffer.offerType === "flat"
@@ -3078,7 +3075,6 @@ function compactAddressParts(parts: Array<string | undefined>) {
 }
 
 function fulfillmentLabel(value: FulfillmentType) {
-  if (value === "dine-in") return "Dine-in";
   if (value === "parcel") return "Pickup";
   return "Delivery";
 }
