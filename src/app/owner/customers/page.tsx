@@ -5,9 +5,11 @@ import { History, IndianRupee, Star, Users } from "lucide-react";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
+import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { buildOrderClassificationOptions, filterOrdersByClassification, type OrderClassificationId } from "@/lib/order-classification";
 import { formatCurrency } from "@/lib/utils";
 import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 
@@ -24,7 +26,7 @@ type Customer = {
   lastOrderAt?: string;
 };
 
-type Detail = { customer: Customer; orders: Array<{ id: string; total?: number; status?: string; createdAt?: string; lines?: Array<{ name: string }> }>; loyalty: { points?: number; tier?: string } };
+type Detail = { customer: Customer; orders: Array<{ id: string; total?: number; status?: string; createdAt?: string; source?: string; orderType?: string; fulfillmentType?: string; scheduledFor?: string; lines?: Array<{ name: string }> }>; loyalty: { points?: number; tier?: string } };
 
 export default function OwnerCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -112,6 +114,9 @@ export default function OwnerCustomersPage() {
 function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => void }) {
   const { customer, orders, loyalty } = detail;
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [classification, setClassification] = useState<OrderClassificationId>("all");
+  const classificationOptions = useMemo(() => buildOrderClassificationOptions(orders, { includeZero: true }), [orders]);
+  const visibleOrders = useMemo(() => filterOrdersByClassification(orders, classification), [classification, orders]);
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
@@ -128,7 +133,8 @@ function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => v
         <div><p className="text-sm font-black">Favorite items</p><p className="mt-1 text-sm text-muted-foreground">{customer.favoriteItems?.join(", ") || "No order history yet"}</p></div>
         <div className="space-y-2">
           <p className="flex items-center gap-2 text-sm font-black"><History className="size-4" />Order history</p>
-          {orders.length ? orders.slice(0, 10).map((order) => (
+          <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} />
+          {visibleOrders.length ? visibleOrders.slice(0, 10).map((order) => (
             <CompactOrderAccordion
               key={order.id}
               id={`customer-order-${order.id}`}
@@ -152,7 +158,7 @@ function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => v
               isOpen={expandedOrderId === order.id}
               onOpenChange={(open) => setExpandedOrderId(open ? order.id : null)}
             />
-          )) : <p className="text-sm text-muted-foreground">No orders recorded.</p>}
+          )) : <p className="text-sm text-muted-foreground">No orders match this classification.</p>}
         </div>
       </CardContent>
     </Card>

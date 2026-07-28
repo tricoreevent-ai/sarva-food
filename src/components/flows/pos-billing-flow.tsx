@@ -14,6 +14,7 @@ import { CustomerSelector } from "@/modules/owner/pos/components/customer-select
 import { TableSelector } from "@/modules/owner/pos/components/table-selector";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
+import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import { RestaurantBill, KotTicket } from "@/components/printing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/or
 import { formatDelayTime, formatOperationalDuration, getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings, type PosDisplayPreferenceDefaults } from "@/lib/order-delay-settings";
 import { playOperationalSound } from "@/lib/operational-sounds";
+import { buildOrderClassificationOptions, filterOrdersByClassification, type OrderClassificationId } from "@/lib/order-classification";
 import { normalizePhone } from "@/lib/phone";
 import { getRetryDelayMs } from "@/lib/offline/retry-manager";
 import {
@@ -4256,6 +4258,7 @@ function ActiveOrdersPanel({
   waiterView?: boolean;
 }) {
   const [view, setView] = useState<ActiveOrderView>(() => waiterView ? "waiter" : "all");
+  const [classification, setClassification] = useState<OrderClassificationId>("all");
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(() => new Set());
@@ -4318,6 +4321,8 @@ function ActiveOrdersPanel({
     const value = debouncedSearch.trim().toLowerCase();
     return value ? allActiveKitchenOrders.filter((order) => activeOrderSearchText(order).includes(value)) : allActiveKitchenOrders;
   }, [allActiveKitchenOrders, debouncedSearch]);
+  const classificationOptions = useMemo(() => buildOrderClassificationOptions(allActiveKitchenOrders, { includeZero: true, now }), [allActiveKitchenOrders, now]);
+  const classifiedKitchenOrders = useMemo(() => filterOrdersByClassification(activeKitchenOrders, classification, now), [activeKitchenOrders, classification, now]);
   const delaysById = useMemo(
     () => new Map(allActiveKitchenOrders.map((order) => [order.id, getKitchenDelay(order, now, { orderDelayThresholdMinutes })])),
     [allActiveKitchenOrders, now, orderDelayThresholdMinutes],
@@ -4333,7 +4338,7 @@ function ActiveOrdersPanel({
     let pendingBills = 0;
     let critical = 0;
     let requests = 0;
-    for (const order of activeKitchenOrders) {
+    for (const order of classifiedKitchenOrders) {
       const delay = delaysById.get(order.id);
       const operations = ["new", "occupied", "accepted", "preparing"].includes(order.status);
       const waiter = Boolean(order.waiterId || order.waiterName || order.source === "Waiter" || order.hasKitchenTicket !== false || ["ready", "served"].includes(order.status));
@@ -4352,7 +4357,7 @@ function ActiveOrdersPanel({
       if (order.priority === "rush") requests += 1;
     }
     return { operationsOrders, waiterOrders, cashierOrders, managerOrders, inKitchen, ready, served, pendingBills, critical, requests };
-  }, [activeKitchenOrders, delaysById]);
+  }, [classifiedKitchenOrders, delaysById]);
   const displayedOrders = view === "operations"
     ? groups.operationsOrders
     : view === "waiter"
@@ -4361,7 +4366,7 @@ function ActiveOrdersPanel({
         ? groups.cashierOrders
         : view === "manager"
           ? groups.managerOrders
-          : activeKitchenOrders;
+          : classifiedKitchenOrders;
   const waiterStageOrders = useMemo(
     () => activeOrderKanbanStages.map((stage) => ({ ...stage, orders: displayedOrders.filter((order) => stage.statuses.includes(order.status)) })),
     [displayedOrders],
@@ -4377,7 +4382,7 @@ function ActiveOrdersPanel({
     ["manager", "Manager", UsersRound],
   ] as const;
   const viewCounts = {
-    all: activeKitchenOrders.length,
+    all: classifiedKitchenOrders.length,
     operations: groups.operationsOrders.length,
     waiter: groups.waiterOrders.length,
     cashier: groups.cashierOrders.length,
@@ -4481,6 +4486,9 @@ function ActiveOrdersPanel({
       </div>
 
       <div className="grid shrink-0 gap-2 lg:grid-cols-[auto_minmax(18rem,1fr)]">
+        <div className="lg:col-span-2">
+          <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} sticky />
+        </div>
         <div className="customer-scroll flex h-11 max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           {views.map(([key, label, Icon]) => (
             <button
@@ -4506,7 +4514,7 @@ function ActiveOrdersPanel({
             placeholder="Search order, table, customer, item, waiter..."
             aria-label="Search active orders"
           />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">{displayedOrders.length}/{activeKitchenOrders.length}</span>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">{displayedOrders.length}/{classifiedKitchenOrders.length}</span>
         </label>
       </div>
 

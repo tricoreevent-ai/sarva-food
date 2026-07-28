@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
 import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
+import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import { usePrinterSettings } from "@/hooks/use-printer-settings";
 import { delaySortRank, formatDelayTime, formatOperationalDuration, getKitchenDelay, type DelayState } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalNotificationSoundTarget, type OperationalSettings } from "@/lib/order-delay-settings";
@@ -41,6 +42,7 @@ import { readableTableOrderId } from "@/lib/order-display";
 import { playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
 import { cn } from "@/lib/utils";
+import { buildOrderClassificationOptions, filterOrdersByClassification, type OrderClassificationId } from "@/lib/order-classification";
 import type { PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 
@@ -163,6 +165,7 @@ export function KitchenDisplayFlow() {
   const [compactPane, setCompactPane] = useState<CompactPane>("orders");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<TableOrder["source"] | "all">("all");
+  const [classification, setClassification] = useState<OrderClassificationId>("all");
   const [priorityFilter, setPriorityFilter] = useState<TableOrder["priority"] | "all">("all");
   const [statusFilter, setStatusFilter] = useState<TableOrderStatus | "all">("all");
   const [tableFilter, setTableFilter] = useState("all");
@@ -194,11 +197,13 @@ export function KitchenDisplayFlow() {
   const selectedPrinterRef = useRef<PrinterProfile | undefined>(selectedPrinter);
   const nowBucket = Math.floor(now / 60000);
   const boardOrders = useMemo(() => orders.filter(isVisibleOnBoard).sort((a, b) => sortKitchenOrders(a, b, now, operationalSettings.orderDelayThresholdMinutes)), [now, operationalSettings.orderDelayThresholdMinutes, orders]);
-  const stationOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.kitchenStation || stationForOrder(order)).filter(isStringValue))).sort(), [boardOrders]);
-  const tableOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.tableNumber).filter(isStringValue))).sort(), [boardOrders]);
-  const staffOptions = useMemo(() => Array.from(new Set(boardOrders.map((order) => order.assignedStaffName || order.waiterName).filter(isStringValue))).sort(), [boardOrders]);
-  const compactBaseOrders = useMemo(() => filterKitchenOrders(boardOrders, { query, source: sourceFilter, priority: priorityFilter, status: "all", table: tableFilter, station: stationFilter, staff: staffFilter, orderType: orderTypeFilter }), [boardOrders, orderTypeFilter, priorityFilter, query, sourceFilter, staffFilter, stationFilter, tableFilter]);
-  const visibleOrders = useMemo(() => filterKitchenOrders(boardOrders, { query, source: sourceFilter, priority: priorityFilter, status: statusFilter, table: tableFilter, station: stationFilter }), [boardOrders, priorityFilter, query, sourceFilter, stationFilter, statusFilter, tableFilter]);
+  const classificationOptions = useMemo(() => buildOrderClassificationOptions(boardOrders, { ids: ["all", "dine-in", "parcel", "delivery", "online", "qr", "scheduled", "catering"], includeZero: true, now }), [boardOrders, now]);
+  const classifiedBoardOrders = useMemo(() => filterOrdersByClassification(boardOrders, classification, now), [boardOrders, classification, now]);
+  const stationOptions = useMemo(() => Array.from(new Set(classifiedBoardOrders.map((order) => order.kitchenStation || stationForOrder(order)).filter(isStringValue))).sort(), [classifiedBoardOrders]);
+  const tableOptions = useMemo(() => Array.from(new Set(classifiedBoardOrders.map((order) => order.tableNumber).filter(isStringValue))).sort(), [classifiedBoardOrders]);
+  const staffOptions = useMemo(() => Array.from(new Set(classifiedBoardOrders.map((order) => order.assignedStaffName || order.waiterName).filter(isStringValue))).sort(), [classifiedBoardOrders]);
+  const compactBaseOrders = useMemo(() => filterKitchenOrders(classifiedBoardOrders, { query, source: sourceFilter, priority: priorityFilter, status: "all", table: tableFilter, station: stationFilter, staff: staffFilter, orderType: orderTypeFilter }), [classifiedBoardOrders, orderTypeFilter, priorityFilter, query, sourceFilter, staffFilter, stationFilter, tableFilter]);
+  const visibleOrders = useMemo(() => filterKitchenOrders(classifiedBoardOrders, { query, source: sourceFilter, priority: priorityFilter, status: statusFilter, table: tableFilter, station: stationFilter }), [classifiedBoardOrders, priorityFilter, query, sourceFilter, stationFilter, statusFilter, tableFilter]);
   const compactOrders = useMemo(() => {
     const tab = compactTabs.find((item) => item.id === compactTab) ?? compactTabs[0];
     return compactBaseOrders.filter((order) => tab.statuses.includes(order.status));
@@ -583,6 +588,8 @@ export function KitchenDisplayFlow() {
           filtersOpen={filtersOpen}
           historyOrders={historyOrders}
           highlightedOrderId={highlightedOrderId}
+          classification={classification}
+          classificationOptions={classificationOptions}
           orderDelayThresholdMinutes={operationalSettings.orderDelayThresholdMinutes}
           nowBucket={nowBucket}
           selectedPrinter={selectedPrinter}
@@ -602,7 +609,8 @@ export function KitchenDisplayFlow() {
           stationFilter={stationFilter}
           query={query}
           onCancel={requestCancel}
-          onClearFilters={() => { setQuery(""); setSourceFilter("all"); setPriorityFilter("all"); setStatusFilter("all"); setTableFilter("all"); setStationFilter("all"); setStaffFilter("all"); setOrderTypeFilter("all"); }}
+          onClassificationChange={setClassification}
+          onClearFilters={() => { setQuery(""); setSourceFilter("all"); setClassification("all"); setPriorityFilter("all"); setStatusFilter("all"); setTableFilter("all"); setStationFilter("all"); setStaffFilter("all"); setOrderTypeFilter("all"); }}
           onFilterOpenChange={setFiltersOpen}
           onOrderTypeChange={setOrderTypeFilter}
           onPaneChange={setCompactPane}
@@ -659,6 +667,8 @@ export function KitchenDisplayFlow() {
         </div>
       ) : null}
 
+      <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} sticky />
+
       {filtersOpen ? (
         <section className="grid gap-2 rounded-lg border bg-white p-2 shadow-sm lg:grid-cols-[160px_160px_160px_160px_160px_auto]">
           <select className="h-10 rounded-lg border bg-white px-3 text-sm font-semibold" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as TableOrder["source"] | "all")} aria-label="Filter by source">
@@ -714,7 +724,7 @@ export function KitchenDisplayFlow() {
           <Button variant="outline" onClick={() => readyOrders.forEach((order) => void notifyWaiter(order))} disabled={!readyOrders.length} title="Signal all ready orders to floor operations"><BellRing className="size-4" />Signal Ready</Button>
           <Button variant="outline" className="text-red-600" onClick={requestBulkCancel} disabled={!cancellableOrders.length} title="Cancel all visible active kitchen tickets"><XCircle className="size-4" />Bulk Cancel</Button>
           <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-            {visibleOrders.length} visible / {boardOrders.length} board orders
+            {visibleOrders.length} visible / {classifiedBoardOrders.length} classified / {boardOrders.length} board orders
           </div>
         </section>
       ) : null}
@@ -824,6 +834,7 @@ export function KitchenOrderHistoryFlow() {
     item: "",
     printStatus: "all",
   }));
+  const [classification, setClassification] = useState<OrderClassificationId>("all");
   const deferredQuery = useDeferredValue(filters.query);
   const [savedFilters, setSavedFilters] = useState<SavedKitchenHistoryFilter[]>(() => readSavedKitchenHistoryFilters());
   const [hiddenColumns, setHiddenColumns] = useState<KitchenHistoryColumnKey[]>(() => readKitchenHistoryHiddenColumns());
@@ -883,7 +894,8 @@ export function KitchenOrderHistoryFlow() {
 
   const visibleColumns = useMemo(() => kitchenHistoryColumns.filter((column) => !hiddenColumns.includes(column.key)), [hiddenColumns]);
   const visibleTableWidth = useMemo(() => visibleColumns.reduce((sum, column) => sum + (columnWidths[column.key] ?? defaultKitchenHistoryColumnWidths[column.key]), 36), [columnWidths, visibleColumns]);
-  const sortedOrders = useMemo(() => [...orders].sort((first, second) => compareKitchenHistoryRows(first, second, sortKey, now) * (sortDirection === "asc" ? 1 : -1)), [now, orders, sortDirection, sortKey]);
+  const classificationOptions = useMemo(() => buildOrderClassificationOptions(orders, { includeZero: true, now }), [now, orders]);
+  const sortedOrders = useMemo(() => filterOrdersByClassification(orders, classification, now).sort((first, second) => compareKitchenHistoryRows(first, second, sortKey, now) * (sortDirection === "asc" ? 1 : -1)), [classification, now, orders, sortDirection, sortKey]);
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
   const expandedOrder = orders.find((order) => order.id === expandedOrderId) ?? null;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -1025,6 +1037,7 @@ export function KitchenOrderHistoryFlow() {
       </header>
 
       <section className="rounded-xl border bg-white p-2 shadow-sm">
+        <OrderClassificationBar value={classification} options={classificationOptions} onChange={(next) => { setClassification(next); setPage(1); }} className="mb-2" />
         <div className="grid gap-2 2xl:grid-cols-[minmax(260px,1fr)_138px_132px_132px_auto]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
@@ -1698,6 +1711,8 @@ function CompactKitchenBoard({
   filtersOpen,
   historyOrders,
   highlightedOrderId,
+  classification,
+  classificationOptions,
   kitchenPrinters,
   nowBucket,
   orderDelayThresholdMinutes,
@@ -1717,6 +1732,7 @@ function CompactKitchenBoard({
   tableFilter,
   tableOptions,
   onCancel,
+  onClassificationChange,
   onClearFilters,
   onFilterOpenChange,
   onNext,
@@ -1749,6 +1765,8 @@ function CompactKitchenBoard({
   filtersOpen: boolean;
   historyOrders: TableOrder[];
   highlightedOrderId: string | null;
+  classification: OrderClassificationId;
+  classificationOptions: ReturnType<typeof buildOrderClassificationOptions>;
   kitchenPrinters: PrinterProfile[];
   nowBucket: number;
   orderDelayThresholdMinutes: number;
@@ -1768,6 +1786,7 @@ function CompactKitchenBoard({
   tableFilter: string;
   tableOptions: string[];
   onCancel: (order: TableOrder) => void;
+  onClassificationChange: (classification: OrderClassificationId) => void;
   onClearFilters: () => void;
   onFilterOpenChange: (open: boolean) => void;
   onNext: (order: TableOrder, status: TableOrderStatus) => void;
@@ -1817,6 +1836,8 @@ function CompactKitchenBoard({
             </Button>
           </div>
         </section>
+
+        <OrderClassificationBar value={classification} options={classificationOptions} onChange={onClassificationChange} sticky />
 
         <section className="rounded-xl border bg-white shadow-sm">
           <button type="button" onClick={onSummaryToggle} className="flex min-h-12 w-full items-center justify-between px-3 text-sm font-black" aria-expanded={summaryOpen}>
