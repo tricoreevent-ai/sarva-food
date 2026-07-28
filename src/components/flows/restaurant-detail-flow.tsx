@@ -1349,7 +1349,7 @@ function HeroSection({
   const heroImages = useMemo(() => normalizeHeroImages(restaurant), [restaurant]);
 
   return (
-    <section className="pt-0 md:pt-4">
+    <section>
       <div className="relative overflow-hidden bg-slate-950 text-white shadow-xl shadow-orange-950/10">
         <HeroBannerCarousel images={heroImages} title={title} />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/68 to-black/10" />
