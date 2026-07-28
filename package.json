@@ -1,6 +1,6 @@
 {
   "name": "food-gedi-commerce-ecosystem",
-  "version": "1.0.0-rc.6",
+  "version": "1.0.0-rc.6.2",
   "private": true,
   "engines": {
     "node": ">=22 <23",
@@ -19,6 +19,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "theme:contrast": "node scripts/validate-theme-contrast.mjs",
+    "brand:visual": "node scripts/brand-visual-regression.mjs",
     "validate:prod-env": "node scripts/validate-production-env.mjs",
     "verify:deployment": "node scripts/release/verify-deployment.mjs",
     "verify:performance": "node scripts/release/verify-performance.mjs",

@@ -1,6 +1,6 @@
-# Nammude Production Release
+# Food Gedi Production Release
 
-Nammude is a direct restaurant-to-customer food ordering platform. This release branch is intended for production deployment and keeps the public application name hardcoded/fallback-safe as `Nammude`.
+Food Gedi is a direct restaurant-to-customer food ordering platform. This release branch is intended for production deployment and keeps the public application name hardcoded/fallback-safe as `Food Gedi`.
 
 ## Documentation Hub
 
@@ -25,11 +25,11 @@ Recommended Hostinger settings:
 Required public branding environment values:
 
 ```env
-NEXT_PUBLIC_APP_NAME=Nammude
-NEXT_PUBLIC_BRAND_NAME=Nammude
+NEXT_PUBLIC_APP_NAME=Food Gedi
+NEXT_PUBLIC_BRAND_NAME=Food Gedi
 ```
 
-After each deployment, clear Hostinger cache and verify the hosted HTML, manifest, and header show `Nammude`.
+After each deployment, clear Hostinger cache and verify the hosted HTML, manifest, and header show `Food Gedi`.
 
 Verify the active deployment with:
 
@@ -41,7 +41,7 @@ The response must include:
 
 ```json
 {
-  "appName": "Nammude",
+  "appName": "Food Gedi",
   "releaseBranch": "release/production-nammude",
   "releaseMarker": "nammude-production-release"
 }
@@ -64,5 +64,5 @@ Do not use the old product name in application UI, metadata, email templates, ma
 ## Production Notes
 
 - Public pages are dynamic/no-store guarded to avoid stale Hostinger prerendered HTML.
-- Owner-configured CMS branding is normalized so old saved app-name values resolve to `Nammude`.
+- Owner-configured CMS branding is normalized so old saved app-name values resolve to `Food Gedi`.
 - Static assets remain cacheable; clear Hostinger cache after a release.

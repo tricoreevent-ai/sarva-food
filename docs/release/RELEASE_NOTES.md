@@ -1,5 +1,19 @@
 # Release Notes
 
+## RC6.2 Critical Brand Logo Rendering Pipeline Fix - 2026-07-28
+
+- Confirmed the production failure through browser DOM evidence: deployed commit `b992d2631bc3ed2dc785957c81bee174b927270f` renders `.brand-mark > img[src="/icons/food-gedi-icon-filled.svg"]`; the container and image are visible, but there are no inline SVG paths in the DOM.
+- Confirmed the deployed SVG payload is a wrapper tile with `<image href="/icons/food-gedi-icon.svg">`, producing the blank cream square seen in production when the nested mark fails to render.
+- Kept the logo design/colors unchanged and removed the fragile runtime image dependency from the main app/header icon path by rendering `BrandIcon` as inline SVG paths with explicit fills and instance-safe gradient ids.
+- Added browser proof artifacts from a local production build: customer home/login show `svgMounted=true`, `pathCount=6`, 40x40 icon/svg boxes, visible display/opacity, and zero console errors.
+
+## RC6.1 Critical Brand Logo Rendering Fix - 2026-07-27
+
+- Fixed the actual blank-logo root cause: several Food Gedi SVG variants were wrapper SVGs with nested `<image href="/icons/...">` references, which could reserve layout space while failing to render the nested mark through `<img>`/`next/image`.
+- Regenerated the full Food Gedi SVG/favicon/PWA family as self-contained vector assets with explicit fills, strokes, titles, viewBoxes, and no `currentColor` or nested image dependency.
+- Changed the primary header/app `BrandIcon` to render inline SVG paths with instance-safe ids, so Customer, Owner, POS, Kitchen, Waiter, Cashier, Manager, Login, and mobile headers can show the actual mark without relying on image loading.
+- Added `npm run brand:visual` as a release gate; it renders all Food Gedi SVG assets, verifies visible pixels, fails on nested SVG image/currentColor dependencies, and generates a contact-sheet artifact.
+
 ## RC6 Brand Visibility and Logo System Hardening - 2026-07-27
 
 - Added a centralized brand system with `BrandProvider`, `BrandAssets`, `BrandTokens`, `BrandVariants`, and surface-aware helper APIs for logo, app icon, favicon, loading, notification, receipt, invoice, print, and social assets.

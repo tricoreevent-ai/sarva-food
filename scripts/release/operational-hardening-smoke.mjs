@@ -264,7 +264,7 @@ await check("active-orders:strict-lifecycle", () => {
   assert.ok(orderRepository.includes("assertPaymentLockOwner(order"));
   assert.ok(kitchenRepository.includes("assertLegalOrderTransition({ status: current, paymentStatus }, next)"));
   assert.ok(activeOrders.includes('const kitchenOwnedStatus = ["accepted", "preparing", "ready", "cancelled"].includes(status)'));
-  assert.ok(activeOrders.includes('["picked-up", "served", "completed", "cancelled"].includes(status)'));
+  assert.ok(activeOrders.includes('!["completed", "cancelled", "billed"].includes(order.status)') || activeOrders.includes('!["completed", "cancelled", "rejected", "billed"].includes(status)'));
   assert.ok(!stateMachine.includes('current === "ready" && next === "served"'));
   assert.ok(!stateMachine.includes('current === "ready" && next === "completed"'));
 });

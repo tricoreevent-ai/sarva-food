@@ -92,6 +92,8 @@ const directAssetRows = (directAssetResult.stdout.trim() ? directAssetResult.std
     const allowed = normalizedFile === "src/lib/brand-system.ts" || normalizedFile === "src/components/brand/brand-logo.tsx" || normalizedFile === "scripts/brand-audit.mjs";
     return { file, lineNo, text, status: allowed ? "contained" : "review" };
   });
+const nestedImageResult = spawnSync("rg", ["--line-number", "--regexp", "<image\\s+href|currentColor", "public/brand", "public/icons", "public/favicon.svg", "public/images/fallback-logo.svg"], { cwd: root, encoding: "utf8" });
+const nestedImageRows = nestedImageResult.stdout.trim() ? nestedImageResult.stdout.trim().split(/\r?\n/) : [];
 
 const md = [
   "# Food Gedi Branding Audit",
@@ -106,10 +108,11 @@ const md = [
   `- Actionable old-brand public hits: ${rows.filter((row) => row.status === "pending").length}`,
   `- Documented compatibility old-brand hits: ${rows.filter((row) => row.status !== "pending").length}`,
   `- Direct asset references outside brand layer: ${directAssetRows.filter((row) => row.status === "review").length}`,
+  `- Nested SVG image/currentColor dependencies: ${nestedImageRows.length}`,
   "",
   "## Root Cause Closed",
   "",
-  "The prior logo visibility defects came from fixed asset selection at call sites. RC6 contains that decision in `src/lib/brand-system.ts` and `src/components/brand/brand-logo.tsx`, then resolves logos by surface instead of relying on CSS filters or each screen choosing a file manually.",
+  "The visible text + blank icon defect came from wrapper SVG assets that used nested `<image href=\"/icons/...\">` references. Those wrappers reserve layout space but the nested SVG/image is not reliably rendered when the wrapper is loaded through `<img>`/`next/image`, so Customer and Owner headers could show only the wordmark. RC6.1 replaces the Food Gedi SVG family with self-contained vector geometry and renders the primary header icon as inline SVG paths.",
   "",
   "## Surface Inventory",
   "",
@@ -128,6 +131,13 @@ const md = [
   "| File | Line | Status |",
   "| --- | ---: | --- |",
   ...(directAssetRows.length ? directAssetRows.map((row) => `| ${escapeMd(row.file)} | ${row.lineNo} | ${row.status} |`) : ["| None | - | completed |"]),
+  "",
+  "## SVG Render-Safety Scan",
+  "",
+  "| Rule | Status |",
+  "| --- | --- |",
+  `| No nested \`<image href>\` in Food Gedi SVG assets | ${nestedImageRows.length ? "failed" : "completed"} |`,
+  `| No \`currentColor\` dependency in Food Gedi SVG assets | ${nestedImageRows.length ? "failed" : "completed"} |`,
   "",
   "## Legacy reference scan",
   "",

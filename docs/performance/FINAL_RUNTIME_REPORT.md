@@ -1,16 +1,16 @@
 # Final Runtime Report
 
-Date: 2026-07-27T08:12:25.252Z
+Date: 2026-07-28T07:36:44.690Z
 
 ## Runtime Measurements
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.64ms | 0.91ms | 1.50ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.10ms | 0.61ms | <100ms update |
-| POS 1000-item category switch | 0.10ms | 0.20ms | 0.72ms | <50ms switch |
-| POS 1000-item search filter | 0.18ms | 0.34ms | 0.82ms | debounced |
-| Active Orders 100-order filter/group | 0.27ms | 0.39ms | 0.92ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.64ms | 0.81ms | 1.77ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.03ms | 0.07ms | 0.47ms | <100ms update |
+| POS 1000-item category switch | 0.10ms | 0.19ms | 0.57ms | <50ms switch |
+| POS 1000-item search filter | 0.14ms | 0.25ms | 0.83ms | debounced |
+| Active Orders 100-order filter/group | 0.26ms | 0.43ms | 1.42ms | <50ms interaction |
 
 ## Continuous Operation Controls
 

@@ -1,14 +1,14 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-27T08:12:25.856Z
+Generated: 2026-07-28T07:36:44.866Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
 | runtime-console | 17 | Runtime console call; prefer productionLogger or operational logging. |
-| raw-error-message | 62 | Raw error-message access; ensure returned/logged text is sanitized. |
+| raw-error-message | 61 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
-| listener-lifecycle | 60 | Realtime/listener site; verify cleanup and reconnect bounds. |
+| listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
 | api-error-envelope | 175 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
@@ -44,7 +44,7 @@ Generated: 2026-07-27T08:12:25.856Z
 - `src/components/flows/owner-order-management-flow.tsx` (7)
 - `src/components/flows/owner-portal-login-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (9)
-- `src/components/flows/pos-billing-flow.tsx` (15)
+- `src/components/flows/pos-billing-flow.tsx` (14)
 - `src/components/flows/restaurant-detail-flow.tsx` (1)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 - `src/components/flows/schedule-order-flow.tsx` (1)
@@ -71,7 +71,7 @@ Generated: 2026-07-27T08:12:25.856Z
 - `src/components/flows/kitchen-display-flow.tsx` (14)
 - `src/components/flows/owner-order-management-flow.tsx` (3)
 - `src/components/flows/owner-settings-flow.tsx` (1)
-- `src/components/flows/pos-billing-flow.tsx` (13)
+- `src/components/flows/pos-billing-flow.tsx` (14)
 - `src/components/flows/restaurant-browser-flow.tsx` (1)
 - `src/components/flows/restaurant-detail-flow.tsx` (3)
 - `src/components/flows/table-qr-ordering-flow.tsx` (3)

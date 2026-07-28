@@ -1,10 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 260" role="img" aria-labelledby="fg-logo-white-title">
-  <title id="fg-logo-white-title">Food Gedi logo for dark backgrounds</title>
-  <image href="/icons/food-gedi-icon-white.svg" x="0" y="28" width="188" height="188" preserveAspectRatio="xMidYMid meet"/>
-  <text x="214" y="139" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="88" font-weight="900" letter-spacing="-5">
-    <tspan fill="#FFFFFF">Food</tspan><tspan dx="18" fill="#FFB24A">Gedi</tspan>
-  </text>
-  <line x1="218" y1="180" x2="266" y2="180" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
-  <text x="286" y="190" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="700" fill="#FFFFFF" letter-spacing="1">Run Smarter. Serve Better.</text>
-  <line x1="748" y1="180" x2="796" y2="180" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 260" role="img" aria-labelledby="fg-logo-title">
+  <title id="fg-logo-title">Food Gedi white logo</title>
+
+  <g transform="translate(0 28) scale(.367)">
+  <path d="M116 202C128 119 190 62 259 62c69 0 132 57 144 140h-39C353 144 309 104 259 104c-51 0-94 39-106 98h-37Z" fill="#FFFFFF"/>
+  <path d="M240 46c0-15 13-27 29-27 17 0 31 12 31 27 0 16-14 25-32 25-16 0-28-10-28-25Zm19 4c0 4 4 7 10 7 7 0 12-3 12-7s-5-7-11-7c-7 0-11 3-11 7Z" fill="#FFFFFF"/>
+  <path d="M178 186c10-53 43-83 87-83 46 0 80 31 89 83H178Z" fill="#FFB24A" stroke="#FFB24A" stroke-width="5"/>
+  <path d="M218 175c9-28 27-44 54-48" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity=".92"/>
+  <path d="M92 226c0-20 16-36 36-36h110c20 0 35 15 35 34 0 20-15 35-35 35h-80v39h75c20 0 35 15 35 34s-15 35-35 35h-75v91l-66-64V226Z" fill="#FFFFFF"/>
+  <path d="M296 322c0-76 56-134 132-134h8c19 0 34 15 34 34s-15 34-34 34h-8c-36 0-63 29-63 66 0 40 29 69 69 69 24 0 45-10 58-29h-68c-19 0-33-14-33-32s14-32 33-32h119v26c0 82-49 135-119 135-74 0-128-58-128-137Z" fill="#FFFFFF" transform="translate(44 0) scale(.82 1)"/>
+  </g>
+  <text x="214" y="139" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="88" font-weight="950" letter-spacing="-5"><tspan fill="#FFFFFF">Food</tspan><tspan dx="18" fill="#FFB24A">Gedi</tspan></text>
+  <line x1="218" y1="180" x2="266" y2="180" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <text x="286" y="190" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="31" font-weight="650" fill="#FFFFFF" letter-spacing="1">Run Smarter. Serve Better.</text>
+  <line x1="748" y1="180" x2="796" y2="180" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
 </svg>

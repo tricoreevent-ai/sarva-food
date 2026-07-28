@@ -1,6 +1,6 @@
 # Food Gedi Branding Audit
 
-Generated: 2026-07-27T08:07:16.829Z
+Generated: 2026-07-28T07:23:07.951Z
 
 ## Summary
 
@@ -10,10 +10,11 @@ Generated: 2026-07-27T08:07:16.829Z
 - Actionable old-brand public hits: 0
 - Documented compatibility old-brand hits: 10
 - Direct asset references outside brand layer: 0
+- Nested SVG image/currentColor dependencies: 0
 
 ## Root Cause Closed
 
-The prior logo visibility defects came from fixed asset selection at call sites. RC6 contains that decision in `src/lib/brand-system.ts` and `src/components/brand/brand-logo.tsx`, then resolves logos by surface instead of relying on CSS filters or each screen choosing a file manually.
+The visible text + blank icon defect came from wrapper SVG assets that used nested `<image href="/icons/...">` references. Those wrappers reserve layout space but the nested SVG/image is not reliably rendered when the wrapper is loaded through `<img>`/`next/image`, so Customer and Owner headers could show only the wordmark. RC6.1 replaces the Food Gedi SVG family with self-contained vector geometry and renders the primary header icon as inline SVG paths.
 
 ## Surface Inventory
 
@@ -71,6 +72,10 @@ The prior logo visibility defects came from fixed asset selection at call sites.
 | scripts\brand-audit.mjs | 23 | contained |
 | scripts\brand-audit.mjs | 24 | contained |
 | scripts\brand-audit.mjs | 86 | contained |
+| src\components\brand\brand-logo.tsx | 138 | contained |
+| src\components\brand\brand-logo.tsx | 139 | contained |
+| src\components\brand\brand-logo.tsx | 140 | contained |
+| src\components\brand\brand-logo.tsx | 141 | contained |
 | src\lib\brand-system.ts | 19 | contained |
 | src\lib\brand-system.ts | 20 | contained |
 | src\lib\brand-system.ts | 21 | contained |
@@ -117,23 +122,25 @@ The prior logo visibility defects came from fixed asset selection at call sites.
 | src\lib\brand-system.ts | 116 | contained |
 | src\lib\brand-system.ts | 117 | contained |
 | src\lib\brand-system.ts | 118 | contained |
-| src\components\brand\brand-logo.tsx | 73 | contained |
-| src\components\brand\brand-logo.tsx | 139 | contained |
-| src\components\brand\brand-logo.tsx | 140 | contained |
-| src\components\brand\brand-logo.tsx | 141 | contained |
-| src\components\brand\brand-logo.tsx | 142 | contained |
+
+## SVG Render-Safety Scan
+
+| Rule | Status |
+| --- | --- |
+| No nested `<image href>` in Food Gedi SVG assets | completed |
+| No `currentColor` dependency in Food Gedi SVG assets | completed |
 
 ## Legacy reference scan
 
 | Old Brand | File | Line | Replacement | Status |
 | --- | --- | ---: | --- | --- |
-| nammude | scripts\release\performance-phase3-reports.mjs | 361 | Food Gedi public brand or documented compatibility namespace | release-branch |
-| nammude | scripts\release\performance-phase3-reports.mjs | 433 | Food Gedi public brand or documented compatibility namespace | release-branch |
 | nammude | scripts\release\release-report.md | 6 | Food Gedi public brand or documented compatibility namespace | release-branch |
 | nammude | scripts\release\release-report.md | 34 | Food Gedi public brand or documented compatibility namespace | release-branch |
+| nammude | scripts\release\performance-phase3-reports.mjs | 361 | Food Gedi public brand or documented compatibility namespace | release-branch |
+| nammude | scripts\release\performance-phase3-reports.mjs | 433 | Food Gedi public brand or documented compatibility namespace | release-branch |
 | nammude | src\components\forms\checkout-form.tsx | 58 | Food Gedi public brand or documented compatibility namespace | compatibility-namespace |
 | nammude | src\components\flows\table-qr-ordering-flow.tsx | 38 | Food Gedi public brand or documented compatibility namespace | compatibility-namespace |
 | nammude | src\components\flows\table-qr-ordering-flow.tsx | 454 | Food Gedi public brand or documented compatibility namespace | compatibility-namespace |
 | nammude | src\lib\release.ts | 1 | Food Gedi public brand or documented compatibility namespace | release-branch |
-| nammude | src\lib\server\secret-box.ts | 13 | Food Gedi public brand or documented compatibility namespace | compatibility-namespace |
 | nammude | src\lib\schedule-slots.ts | 4 | Food Gedi public brand or documented compatibility namespace | compatibility-namespace |
+| nammude | src\lib\server\secret-box.ts | 13 | Food Gedi public brand or documented compatibility namespace | compatibility-namespace |

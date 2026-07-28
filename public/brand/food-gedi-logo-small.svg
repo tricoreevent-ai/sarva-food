@@ -1,7 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 180" role="img" aria-labelledby="fg-logo-small-title">
-  <title id="fg-logo-small-title">Food Gedi compact logo</title>
-  <image href="/icons/food-gedi-icon-small.svg" x="0" y="10" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>
-  <text x="168" y="108" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="76" font-weight="950" letter-spacing="-4">
-    <tspan fill="#0B3F1D">Food</tspan><tspan dx="14" fill="#D86100">Gedi</tspan>
-  </text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 180" role="img" aria-labelledby="fg-compact-title">
+  <title id="fg-compact-title">Food Gedi small logo</title>
+  <defs>
+    <linearGradient id="fg-compact-color-green" x1="77" y1="105" x2="329" y2="407" gradientUnits="userSpaceOnUse"><stop stop-color="#22A33A"/><stop offset="1" stop-color="#0B3F1D"/></linearGradient>
+    <linearGradient id="fg-compact-color-orange" x1="242" y1="116" x2="409" y2="406" gradientUnits="userSpaceOnUse"><stop stop-color="#FF8A00"/><stop offset="1" stop-color="#FF6A00"/></linearGradient>
+  </defs>
+  <g transform="translate(0 10) scale(.293)">
+  <path d="M116 202C128 119 190 62 259 62c69 0 132 57 144 140h-39C353 144 309 104 259 104c-51 0-94 39-106 98h-37Z" fill="url(#fg-compact-color-green)"/>
+  <path d="M240 46c0-15 13-27 29-27 17 0 31 12 31 27 0 16-14 25-32 25-16 0-28-10-28-25Zm19 4c0 4 4 7 10 7 7 0 12-3 12-7s-5-7-11-7c-7 0-11 3-11 7Z" fill="url(#fg-compact-color-green)"/>
+  <path d="M178 186c10-53 43-83 87-83 46 0 80 31 89 83H178Z" fill="url(#fg-compact-color-orange)" stroke="#FF7A00" stroke-width="5"/>
+  <path d="M218 175c9-28 27-44 54-48" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" opacity=".92"/>
+  <path d="M92 226c0-20 16-36 36-36h110c20 0 35 15 35 34 0 20-15 35-35 35h-80v39h75c20 0 35 15 35 34s-15 35-35 35h-75v91l-66-64V226Z" fill="url(#fg-compact-color-green)"/>
+  <path d="M296 322c0-76 56-134 132-134h8c19 0 34 15 34 34s-15 34-34 34h-8c-36 0-63 29-63 66 0 40 29 69 69 69 24 0 45-10 58-29h-68c-19 0-33-14-33-32s14-32 33-32h119v26c0 82-49 135-119 135-74 0-128-58-128-137Z" fill="url(#fg-compact-color-orange)" transform="translate(44 0) scale(.82 1)"/>
+  <rect x="22" y="22" width="468" height="468" rx="104" fill="none" stroke="#166B2E" stroke-width="10" opacity=".12"/></g>
+  <text x="156" y="112" font-family="Inter, Plus Jakarta Sans, Arial, sans-serif" font-size="56" font-weight="950" letter-spacing="-3"><tspan fill="#0B3F1D">Food</tspan><tspan dx="11" fill="#D86100">Gedi</tspan></text>
 </svg>

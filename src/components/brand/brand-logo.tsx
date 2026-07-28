@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { memo, type RefObject, useEffect, useRef, useState } from "react";
+import { memo, type RefObject, useEffect, useId, useRef, useState } from "react";
 import { useBrand } from "@/components/brand/brand-provider";
 import { BRAND_CONFIG, type BrandLogoVariant } from "@/config/branding";
-import { brandSurfaceFromCssColor, getAppIcon, getBrandSurfaceTone, getLoadingLogo, getLogoVariant, surfaceNeedsLightLogo, type BrandSurface } from "@/lib/brand-system";
+import { brandSurfaceFromCssColor, getBrandSurfaceTone, getLoadingLogo, getLogoVariant, surfaceNeedsLightLogo, type BrandSurface } from "@/lib/brand-system";
 import { cn } from "@/lib/utils";
 
 type BrandSize = "small" | "medium" | "large" | "responsive";
@@ -57,8 +57,6 @@ export const BrandLogo = memo(function BrandLogo({
 
 export function BrandIcon({
   className,
-  priority = false,
-  sizes = "48px",
   variant = "filled",
   surface,
 }: {
@@ -70,11 +68,12 @@ export function BrandIcon({
 }) {
   const brand = useBrand();
   const { surfaceRef, resolvedSurface } = useAutoBrandSurface(surface ?? brand.surface);
-  const src = variant === "monochrome" ? BRAND_CONFIG.assets.iconMonochrome : variant === "maskable" ? BRAND_CONFIG.assets.iconMaskable : getAppIcon(resolvedSurface);
   const tone = getBrandSurfaceTone(resolvedSurface);
+  const iconMode = variant === "monochrome" ? tone === "on-dark" ? "white" : "black" : tone === "on-dark" ? "white" : "color";
   return (
     <span
       ref={surfaceRef}
+      data-brand-logo-icon
       className={cn(
         "brand-mark relative block size-10 shrink-0 overflow-hidden rounded-xl",
         tone === "on-light" && "bg-white ring-1 ring-emerald-900/10",
@@ -84,7 +83,7 @@ export function BrandIcon({
       )}
       aria-hidden="true"
     >
-      <Image src={src} alt="" fill sizes={sizes} priority={priority} className="object-contain" />
+      <FoodGediIconSvg mode={iconMode} tile={variant === "maskable" || tone !== "on-dark"} className="size-full" />
     </span>
   );
 }
@@ -185,4 +184,41 @@ function useAutoBrandSurface(requested: BrandSurface = "auto") {
   }, [requested]);
 
   return { surfaceRef, resolvedSurface: requested === "auto" ? detected : requested };
+}
+
+function FoodGediIconSvg({ mode, tile, className }: { mode: "color" | "white" | "black"; tile: boolean; className?: string }) {
+  const id = useId().replace(/:/g, "");
+  const color = mode === "color";
+  const white = mode === "white";
+  const titleId = `${id}-title`;
+  const greenId = `${id}-green`;
+  const orangeId = `${id}-orange`;
+  const green = color ? `url(#${greenId})` : white ? "#FFFFFF" : "#111827";
+  const orange = color ? `url(#${orangeId})` : white ? "#FFFFFF" : "#111827";
+  const cloche = white ? "#FFB24A" : orange;
+  return (
+    <svg className={className} viewBox="0 0 512 512" role="img" aria-labelledby={titleId} focusable="false">
+      <title id={titleId}>{BRAND_CONFIG.name} icon</title>
+      {color ? (
+        <defs>
+          <linearGradient id={greenId} x1="77" y1="105" x2="329" y2="407" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#22A33A" />
+            <stop offset="1" stopColor="#0B3F1D" />
+          </linearGradient>
+          <linearGradient id={orangeId} x1="242" y1="116" x2="409" y2="406" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FF8A00" />
+            <stop offset="1" stopColor="#FF6A00" />
+          </linearGradient>
+        </defs>
+      ) : null}
+      {tile ? <rect x="22" y="22" width="468" height="468" rx="104" fill="#FFFFFF" opacity=".94" /> : null}
+      <path d="M116 202C128 119 190 62 259 62c69 0 132 57 144 140h-39C353 144 309 104 259 104c-51 0-94 39-106 98h-37Z" fill={green} />
+      <path d="M240 46c0-15 13-27 29-27 17 0 31 12 31 27 0 16-14 25-32 25-16 0-28-10-28-25Zm19 4c0 4 4 7 10 7 7 0 12-3 12-7s-5-7-11-7c-7 0-11 3-11 7Z" fill={green} />
+      <path d="M178 186c10-53 43-83 87-83 46 0 80 31 89 83H178Z" fill={cloche} stroke={white ? "#FFB24A" : color ? "#FF7A00" : "#111827"} strokeWidth="5" />
+      <path d="M218 175c9-28 27-44 54-48" fill="none" stroke="#FFFFFF" strokeWidth="14" strokeLinecap="round" opacity=".92" />
+      <path d="M92 226c0-20 16-36 36-36h110c20 0 35 15 35 34 0 20-15 35-35 35h-80v39h75c20 0 35 15 35 34s-15 35-35 35h-75v91l-66-64V226Z" fill={green} />
+      <path d="M296 322c0-76 56-134 132-134h8c19 0 34 15 34 34s-15 34-34 34h-8c-36 0-63 29-63 66 0 40 29 69 69 69 24 0 45-10 58-29h-68c-19 0-33-14-33-32s14-32 33-32h119v26c0 82-49 135-119 135-74 0-128-58-128-137Z" fill={orange} transform="translate(44 0) scale(.82 1)" />
+      {color ? <rect x="22" y="22" width="468" height="468" rx="104" fill="none" stroke="#166B2E" strokeWidth="10" opacity=".12" /> : null}
+    </svg>
+  );
 }

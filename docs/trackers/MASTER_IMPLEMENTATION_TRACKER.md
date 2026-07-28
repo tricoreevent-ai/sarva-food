@@ -1,6 +1,6 @@
 # Food Gedi Master Implementation Tracker
 
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -12,12 +12,12 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Field | Value |
 | --- | --- |
 | Current Sprint | RC6 Brand Visibility and Logo System Hardening |
-| Release Version | `v1.0.0-rc6` candidate |
-| Latest Git Commit | Pending RC6 brand-system hardening commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
+| Release Version | `v1.0.0-rc6.2` candidate |
+| Latest Git Commit | Pending RC6.2 brand rendering pipeline commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, Firestore connected on ready/startup, Storage/SMTP/Cloudinary configured, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. Use `/api/release-info` for the exact hosted SHA. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports commit `b992d2631bc3ed2dc785957c81bee174b927270f`; that deployed runtime still uses the old image-based logo pipeline and is the source of the blank cream icon tile until RC6.2 is redeployed. Use `/api/release-info` for the exact hosted SHA. |
 | Build Date | 2026-07-27 |
-| Verification Status | RC6 brand hardening passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (49/49), `profile:runtime`, `theme:contrast`, brand audit, and `git diff --check`. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Verification Status | RC6.2 brand rendering pipeline passed browser DOM/computed-style proof on local production build for customer home/login, plus brand visual/audit and release validation gates. Build/analyze retain the accepted Firebase/protobuf warning. |
 | Scope | RC6 eliminates logo visibility failures through one brand asset manager/provider, surface-aware logo selection, stronger Food Gedi SVG variants, regenerated favicon/PWA assets, notification/manifest/release metadata alignment, compact header branding, and reduced-motion-safe brand animation. |
 
 ## RC6 Brand Visibility and Logo System Hardening - 2026-07-27
@@ -33,6 +33,17 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Accessibility | Complete. SVG variants include titles, visible small-size stroke/padding improvements, explicit alt/ARIA behavior, and reduced-motion-safe logo animations. |
 | Audit evidence | `docs/validation/BRAND_AUDIT_REPORT.md` reports zero actionable old-brand public hits and zero direct logo-asset references outside the brand layer; legacy storage/branch compatibility namespaces are documented separately. |
 | Validation | Passed `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational` (49/49), `profile:runtime`, `theme:contrast`, brand audit, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning. |
+
+## RC6.2 Critical Brand Logo Rendering Pipeline Fix - 2026-07-28
+
+| Area | Result |
+| --- | --- |
+| Root cause | Confirmed by production DOM. Deployed commit `b992d2631bc3ed2dc785957c81bee174b927270f` renders `.brand-mark > img[src="/icons/food-gedi-icon-filled.svg"]`; that SVG is a 277-byte cream tile wrapper with `<image href="/icons/food-gedi-icon.svg">`, so the tile renders while the nested mark is absent. |
+| RC6.1 gap | RC6.1 corrected generated assets locally, but the deployed runtime still used the old image-based `BrandIcon` pipeline. The permanent fix is to remove the image fetch from operational header/app icons and render inline SVG geometry. |
+| SVG hardening | Complete. `scripts/generate-brand-assets.mjs` now generates self-contained Food Gedi SVGs with inline paths/text/gradients and no nested image or `currentColor` dependency. |
+| Header icon | Complete. `BrandIcon` now renders inline SVG geometry with instance-safe gradient/title ids, controlled sizing, explicit fills/strokes, and no image fetch dependency. |
+| Browser evidence | Production before: `.brand-mark` mounted, `imgMounted=true`, `svgMounted=false`, `pathCount=0`, 40x40 visible cream tile. Local after: `data-brand-logo-icon` mounted, `svgMounted=true`, `pathCount=6`, icon/svg 40x40, display `block`, visibility `visible`, opacity `1`, zero console errors on customer home/login. |
+| Visual regression | Complete. Added `npm run brand:visual`, which renders 25 Food Gedi SVG assets, checks visible pixels, rejects nested `<image href>`/`currentColor`, and writes `docs/validation/BRAND_VISUAL_REGRESSION_REPORT.md` plus a contact sheet. |
 
 ## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
 

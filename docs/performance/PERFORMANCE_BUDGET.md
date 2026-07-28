@@ -1,20 +1,20 @@
 # Performance Budget
 
-Date: 2026-07-27T08:12:25.252Z
+Date: 2026-07-28T07:36:44.690Z
 
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
-| / | 18 | 481 KB | 193 KB | 250 KB | Over |
-| /restaurants | 20 | 510 KB | 193 KB | - | Tracked |
-| /checkout | 27 | 615 KB | 193 KB | - | Tracked |
-| /orders | 21 | 538 KB | 193 KB | - | Tracked |
-| /profile | 25 | 578 KB | 193 KB | 250 KB | Over |
-| /owner | 28 | 631 KB | 193 KB | 350 KB | Over |
-| /owner/orders | 33 | 775 KB | 193 KB | 500 KB | Over |
-| /owner/settings | 32 | 757 KB | 193 KB | 300 KB | Over |
-| /owner/kitchen | 31 | 736 KB | 193 KB | - | Tracked |
-| /owner/pos | 29 | 636 KB | 193 KB | 650 KB | Pass |
-| /admin | 23 | 540 KB | 193 KB | - | Tracked |
+| / | 18 | 483 KB | 193 KB | 250 KB | Over |
+| /restaurants | 20 | 512 KB | 193 KB | - | Tracked |
+| /checkout | 27 | 617 KB | 193 KB | - | Tracked |
+| /orders | 21 | 540 KB | 193 KB | - | Tracked |
+| /profile | 25 | 580 KB | 193 KB | 250 KB | Over |
+| /owner | 28 | 633 KB | 193 KB | 350 KB | Over |
+| /owner/orders | 33 | 777 KB | 193 KB | 500 KB | Over |
+| /owner/settings | 32 | 759 KB | 193 KB | 300 KB | Over |
+| /owner/kitchen | 31 | 738 KB | 193 KB | - | Tracked |
+| /owner/pos | 29 | 638 KB | 193 KB | 650 KB | Pass |
+| /admin | 23 | 542 KB | 193 KB | - | Tracked |
 
 ## Runtime Budgets
 

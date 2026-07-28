@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 :: =========================================================
-:: Nammude - LAN-ready Dev Launcher
+:: Food Gedi - LAN-ready Dev Launcher
 :: =========================================================
 :: HTTP MODE  : run.bat
 :: HTTPS MODE : run.bat https
@@ -12,7 +12,7 @@ cd /d "%~dp0"
 
 echo.
 echo =====================================
-echo     NAMMUDE DEV STARTUP
+echo     FOOD GEDI DEV STARTUP
 echo =====================================
 echo.
 
@@ -38,7 +38,7 @@ if errorlevel 1 (
 
 if not exist "package.json" (
     echo [ERROR] package.json not found.
-    echo Run this file from the Nammude project root folder.
+    echo Run this file from the Food Gedi project root folder.
     pause
     exit /b 1
 )
@@ -52,7 +52,7 @@ if exist "out" (
     echo   Removing out directory...
     rmdir /s /q "out"
 )
-echo Stopping stale Nammude dev processes on known ports...
+echo Stopping stale Food Gedi dev processes on known ports...
 for %%p in (3000 3001 3002 3003 3443 3080) do (
     for /f "tokens=5" %%a in ('netstat -aon ^| findstr /R /C:":%%p .*LISTENING"') do (
         echo   Port %%p is busy by PID %%a. Stopping it...
@@ -69,7 +69,7 @@ echo.
 node scripts\show-lan-ip.mjs
 
 echo =====================================
-echo Starting Nammude Application
+echo Starting Food Gedi Application
 echo =====================================
 if /I "%HTTPS_MODE%"=="true" (
     echo Mode : HTTPS LAN
