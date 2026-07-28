@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { History, IndianRupee, Star, Users } from "lucide-react";
+import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
 import { AdvancedDataTable, type AdvancedColumn } from "@/components/dashboard/data-table";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
@@ -9,7 +10,7 @@ import { OrderClassificationBar } from "@/components/orders/order-classification
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { buildOrderClassificationOptions, filterOrdersByClassification, type OrderClassificationId } from "@/lib/order-classification";
+import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 import { formatCurrency } from "@/lib/utils";
 import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 
@@ -114,9 +115,12 @@ export default function OwnerCustomersPage() {
 function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => void }) {
   const { customer, orders, loyalty } = detail;
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [classification, setClassification] = useState<OrderClassificationId>("all");
+  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>("sarva.orderFilters.customers.primary", "all", orderClassificationIds);
+  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>("sarva.orderFilters.customers.operation", "all", orderOperationIds);
   const classificationOptions = useMemo(() => buildOrderClassificationOptions(orders, { includeZero: true }), [orders]);
-  const visibleOrders = useMemo(() => filterOrdersByClassification(orders, classification), [classification, orders]);
+  const primaryOrders = useMemo(() => filterOrdersByClassification(orders, classification), [classification, orders]);
+  const operationOptions = useMemo(() => buildOrderOperationOptions(primaryOrders, { includeZero: true }), [primaryOrders]);
+  const visibleOrders = useMemo(() => filterOrdersByOperation(primaryOrders, operation), [operation, primaryOrders]);
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
@@ -134,6 +138,7 @@ function CustomerProfile({ detail, onClose }: { detail: Detail; onClose: () => v
         <div className="space-y-2">
           <p className="flex items-center gap-2 text-sm font-black"><History className="size-4" />Order history</p>
           <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} />
+          <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" />
           {visibleOrders.length ? visibleOrders.slice(0, 10).map((order) => (
             <CompactOrderAccordion
               key={order.id}

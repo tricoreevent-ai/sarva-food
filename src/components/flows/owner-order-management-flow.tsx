@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import * as Popover from "@radix-ui/react-popover";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
+import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
 import { APP_NAME } from "@/lib/constants";
 import {
   AlertTriangle,
@@ -39,7 +40,7 @@ import { OrderClassificationBar } from "@/components/orders/order-classification
 import { OrderFilters } from "@/components/orders/order-filters";
 import { OrderMetricCard } from "@/components/orders/metric-card";
 import { buildOperationalOrders, type OperationalOrder } from "@/lib/active-orders-model";
-import { buildOrderClassificationOptions, filterOrdersByClassification, type OrderClassificationId } from "@/lib/order-classification";
+import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -185,7 +186,8 @@ const orderTabs: Array<{ key: OrderTab; label: string; group: "Operations" | "Ch
 export function OwnerOrderManagementFlow() {
   const alert = useAlert();
   const [tab, setTab] = useState<OrderTab>("needs-acceptance");
-  const [classification, setClassification] = useState<OrderClassificationId>("all");
+  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>("sarva.orderFilters.owner.orders.primary", "all", orderClassificationIds);
+  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>("sarva.orderFilters.owner.orders.operation", "all", orderOperationIds);
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>(() => readSessionDateRange());
@@ -210,14 +212,16 @@ export function OwnerOrderManagementFlow() {
   const rangeLabel = useMemo(() => formatRangeLabel(dateRange), [dateRange]);
   const mappedOrders = useMemo(() => buildOpsOrders(orders, tableOrders, now, operationalSettings.orderDelayThresholdMinutes), [now, operationalSettings.orderDelayThresholdMinutes, orders, tableOrders]);
   const classificationOptions = useMemo(() => buildOrderClassificationOptions(mappedOrders, { includeZero: true, now }), [mappedOrders, now]);
-  const classifiedMappedOrders = useMemo(() => filterOrdersByClassification(mappedOrders, classification, now), [classification, mappedOrders, now]);
+  const primaryMappedOrders = useMemo(() => filterOrdersByClassification(mappedOrders, classification, now), [classification, mappedOrders, now]);
+  const operationOptions = useMemo(() => buildOrderOperationOptions(primaryMappedOrders, { includeZero: true, now }), [now, primaryMappedOrders]);
+  const classifiedMappedOrders = useMemo(() => sortOrdersByOperationalPriority(filterOrdersByOperation(primaryMappedOrders, operation, now), now), [now, operation, primaryMappedOrders]);
   const tabOrders = useMemo(() => classifiedMappedOrders.filter((order) => matchesTab(order, tab)), [classifiedMappedOrders, tab]);
   const tabCatering = useMemo(() => cateringInquiries.filter((quote) => matchesCateringTab(quote, tab)), [cateringInquiries, tab]);
   const visibleOrders = useMemo(() => tabOrders.filter((order) => matchesFilter(order, filter) && matchesSearch(order, debouncedSearch)), [debouncedSearch, filter, tabOrders]);
   const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, debouncedSearch)), [debouncedSearch, filter, tabCatering]);
   const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
   const unifiedActiveOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
-  const visibleUnifiedActiveOrders = useMemo(() => filterOrdersByClassification(unifiedActiveOrders, classification, now).filter((order) => matchesOperationalTab(order, tab)), [classification, now, tab, unifiedActiveOrders]);
+  const visibleUnifiedActiveOrders = useMemo(() => unifiedActiveOrders.filter((order) => matchesOperationalTab(order, tab)), [tab, unifiedActiveOrders]);
   const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
   const tabCounts = useMemo(() => buildTabCounts(mappedOrders, cateringInquiries), [cateringInquiries, mappedOrders]);
   const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
@@ -228,7 +232,7 @@ export function OwnerOrderManagementFlow() {
     if (next === "cancelled") setTab("cancelled");
     else if (next === "catering") setTab("catering");
     else if (["cancelled", "catering", "completed"].includes(tab)) setTab("needs-acceptance");
-  }, [tab]);
+  }, [setClassification, tab]);
 
   useEffect(() => {
     tableOrdersRef.current = tableOrders;
@@ -654,11 +658,12 @@ export function OwnerOrderManagementFlow() {
 
       <div className={operationsOpen ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" : "grid gap-6"}>
         <main className="space-y-5">
-          <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
+          {!activeView ? <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 flex-1 pb-3">
               <OrderClassificationBar value={classification} options={classificationOptions} onChange={changeClassification} sticky />
+              <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" className="mt-2" sticky />
             </div>
-          </div>
+          </div> : null}
           <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
             <Tabs value={tab} onValueChange={(value) => setTab(value as OrderTab)}>
               <TabsList className="customer-scroll h-auto max-w-full justify-start gap-4 overflow-x-auto rounded-none bg-transparent p-0">

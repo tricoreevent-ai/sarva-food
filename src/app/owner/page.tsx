@@ -33,12 +33,15 @@ import { DashboardCard } from "@/components/owner/dashboard-card";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { QuickActionButton } from "@/components/owner/quick-action";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
+import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import { Button } from "@/components/ui/button";
+import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { isLiveTerminalStatus, mergeLiveOperationalOrders, type LiveOperationalOrder } from "@/lib/live-operational-orders";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
+import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 import type { DemoOrder, MenuItem, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
 import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -469,6 +472,13 @@ function AnimatedNumber({ value, format, className }: { value: number; format: (
 }
 
 function LiveOrdersPanel({ orders }: { orders: DashboardOrder[] }) {
+  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>("sarva.orderFilters.dashboard.live.primary", "all", orderClassificationIds);
+  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>("sarva.orderFilters.dashboard.live.operation", "all", orderOperationIds);
+  const [now] = useState(() => Date.now());
+  const classificationOptions = useMemo(() => buildOrderClassificationOptions(orders, { includeZero: true, now }), [now, orders]);
+  const primaryOrders = useMemo(() => filterOrdersByClassification(orders, classification, now), [classification, now, orders]);
+  const operationOptions = useMemo(() => buildOrderOperationOptions(primaryOrders, { includeZero: true, now }), [now, primaryOrders]);
+  const visibleOrders = useMemo(() => sortOrdersByOperationalPriority(filterOrdersByOperation(primaryOrders, operation, now), now), [now, operation, primaryOrders]);
   return (
     <DashboardCard
       title="Live Orders"
@@ -476,8 +486,10 @@ function LiveOrdersPanel({ orders }: { orders: DashboardOrder[] }) {
       className="h-full"
     >
       <div className="space-y-2" title="Orders currently being processed.">
+        <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} />
+        <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" />
         <AnimatePresence initial={false}>
-          {orders.length ? orders.map((order) => (
+          {visibleOrders.length ? visibleOrders.map((order) => (
             <motion.div key={order.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
               <LiveOrderRow order={order} />
             </motion.div>
@@ -741,6 +753,7 @@ type DashboardOrder = {
   amount: number;
   customer: string;
   source: string;
+  paymentStatus?: string;
   table?: string;
   lines: OrderLine[];
   type: string;
@@ -1058,6 +1071,7 @@ function dashboardRowFromLiveOrder(order: LiveOperationalOrder, index: number): 
     amount: order.total ?? orderTotal(order),
     customer: order.customerName ?? order.guestName ?? order.customerPhone ?? "Guest",
     source: order.source,
+    paymentStatus: order.paymentStatus,
     table: order.tableNumber,
     lines: order.lines,
     type: order.orderType ?? order.source,

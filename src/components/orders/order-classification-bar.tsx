@@ -1,10 +1,10 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, ChefHat, ClipboardList, PackageCheck, QrCode, Truck, Utensils, Wifi, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, ClipboardList, CircleDollarSign, PackageCheck, QrCode, ReceiptText, RefreshCw, Truck, Utensils, Wifi, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { OrderClassificationId, OrderClassificationOption } from "@/lib/order-classification";
+import type { OrderFilterOption } from "@/lib/order-classification";
 
-const icons: Record<OrderClassificationId, LucideIcon> = {
+const icons: Record<string, LucideIcon> = {
   all: ClipboardList,
   "dine-in": Utensils,
   parcel: PackageCheck,
@@ -14,9 +14,20 @@ const icons: Record<OrderClassificationId, LucideIcon> = {
   scheduled: CalendarClock,
   catering: ChefHat,
   cancelled: AlertTriangle,
+  new: ClipboardList,
+  kitchen: ChefHat,
+  preparing: ChefHat,
+  ready: CheckCircle2,
+  serving: Utensils,
+  completed: CheckCircle2,
+  delayed: CalendarClock,
+  critical: AlertTriangle,
+  "pending-payment": CircleDollarSign,
+  paid: ReceiptText,
+  refund: RefreshCw,
 };
 
-export function OrderClassificationBar({
+export function OrderClassificationBar<T extends string>({
   value,
   options,
   onChange,
@@ -25,9 +36,9 @@ export function OrderClassificationBar({
   sticky,
   readOnly,
 }: {
-  value: OrderClassificationId;
-  options: OrderClassificationOption[];
-  onChange: (value: OrderClassificationId) => void;
+  value: T;
+  options: Array<OrderFilterOption<T>>;
+  onChange: (value: T) => void;
   label?: string;
   className?: string;
   sticky?: boolean;
@@ -37,7 +48,7 @@ export function OrderClassificationBar({
     <nav className={cn(sticky && "sticky top-0 z-20 bg-inherit py-1", className)} aria-label={label}>
       <div className="customer-scroll flex snap-x snap-mandatory gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {options.map((item) => {
-          const Icon = icons[item.id];
+          const Icon = icons[item.id] ?? ClipboardList;
           const active = value === item.id;
           return (
             <button
@@ -64,7 +75,7 @@ export function OrderClassificationBar({
   );
 }
 
-function toneClass(tone: OrderClassificationOption["tone"]) {
+function toneClass(tone: OrderFilterOption["tone"]) {
   if (tone === "danger") return "bg-red-600 text-white";
   if (tone === "warning") return "bg-amber-500 text-white";
   if (tone === "success") return "bg-emerald-600 text-white";
@@ -72,7 +83,7 @@ function toneClass(tone: OrderClassificationOption["tone"]) {
   return "bg-slate-950 text-white";
 }
 
-function insightClass(tone: OrderClassificationOption["tone"]) {
+function insightClass(tone: OrderFilterOption["tone"]) {
   if (tone === "danger") return "bg-red-50 text-red-700";
   if (tone === "warning") return "bg-amber-50 text-amber-700";
   if (tone === "success") return "bg-emerald-50 text-emerald-700";

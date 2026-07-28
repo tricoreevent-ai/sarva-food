@@ -5,6 +5,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { ArrowLeft, ArrowRightLeft, BellRing, CheckCircle2, ChefHat, ChevronDown, CircleDollarSign, ClipboardList, Clock3, Download, Eye, FileDown, GitMerge, Grid2X2, History, List, Loader2, MapPin, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, SlidersHorizontal, UserRound, UsersRound, Utensils, X, XCircle, type LucideIcon } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from "react";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
+import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
 import { PosSidebar, type PosPanel } from "@/modules/owner/pos/components/pos-sidebar";
 import { CategoryList, type PosCategory } from "@/modules/owner/pos/components/category-list";
 import { ProductGrid } from "@/modules/owner/pos/components/product-grid";
@@ -29,7 +30,7 @@ import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/or
 import { formatDelayTime, formatOperationalDuration, getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings, type PosDisplayPreferenceDefaults } from "@/lib/order-delay-settings";
 import { playOperationalSound } from "@/lib/operational-sounds";
-import { buildOrderClassificationOptions, filterOrdersByClassification, type OrderClassificationId } from "@/lib/order-classification";
+import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 import { normalizePhone } from "@/lib/phone";
 import { getRetryDelayMs } from "@/lib/offline/retry-manager";
 import {
@@ -4258,7 +4259,8 @@ function ActiveOrdersPanel({
   waiterView?: boolean;
 }) {
   const [view, setView] = useState<ActiveOrderView>(() => waiterView ? "waiter" : "all");
-  const [classification, setClassification] = useState<OrderClassificationId>("all");
+  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>("sarva.orderFilters.pos.active.primary", "all", orderClassificationIds);
+  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>("sarva.orderFilters.pos.active.operation", "all", orderOperationIds);
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(() => new Set());
@@ -4322,7 +4324,9 @@ function ActiveOrdersPanel({
     return value ? allActiveKitchenOrders.filter((order) => activeOrderSearchText(order).includes(value)) : allActiveKitchenOrders;
   }, [allActiveKitchenOrders, debouncedSearch]);
   const classificationOptions = useMemo(() => buildOrderClassificationOptions(allActiveKitchenOrders, { includeZero: true, now }), [allActiveKitchenOrders, now]);
-  const classifiedKitchenOrders = useMemo(() => filterOrdersByClassification(activeKitchenOrders, classification, now), [activeKitchenOrders, classification, now]);
+  const primaryKitchenOrders = useMemo(() => filterOrdersByClassification(activeKitchenOrders, classification, now), [activeKitchenOrders, classification, now]);
+  const operationOptions = useMemo(() => buildOrderOperationOptions(filterOrdersByClassification(allActiveKitchenOrders, classification, now), { includeZero: true, now }), [allActiveKitchenOrders, classification, now]);
+  const classifiedKitchenOrders = useMemo(() => sortOrdersByOperationalPriority(filterOrdersByOperation(primaryKitchenOrders, operation, now), now), [now, operation, primaryKitchenOrders]);
   const delaysById = useMemo(
     () => new Map(allActiveKitchenOrders.map((order) => [order.id, getKitchenDelay(order, now, { orderDelayThresholdMinutes })])),
     [allActiveKitchenOrders, now, orderDelayThresholdMinutes],
@@ -4488,6 +4492,9 @@ function ActiveOrdersPanel({
       <div className="grid shrink-0 gap-2 lg:grid-cols-[auto_minmax(18rem,1fr)]">
         <div className="lg:col-span-2">
           <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} sticky />
+        </div>
+        <div className="lg:col-span-2">
+          <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" sticky />
         </div>
         <div className="customer-scroll flex h-11 max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           {views.map(([key, label, Icon]) => (
