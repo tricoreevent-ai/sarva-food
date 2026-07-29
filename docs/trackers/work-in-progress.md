@@ -2,9 +2,11 @@
 
 Last updated: 2026-07-29
 
-Current Sprint: RC6.5 final tracker reconciliation and project completion pass
+Current Sprint: RC6.10 final production certification and release closure
 
-RC6.5 Tracker Reconciliation Result: repository implementation is complete through RC6.4.1 base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`. The RC6.5 pass found stale tracker/release-artifact drift, not unfinished application features. Release metadata now targets `v1.0.0-rc6.5`; remaining work is external Hostinger deployment verification, provider dashboards, Firebase Console, authenticated browser/device, Lighthouse/Chrome, long-run heap, and hardware/printer/QR validation.
+RC6.10 Production Certification Result: repository and remote are synchronized at `c17119a509aa28880fc9a507b94317b1d1727b69`, Hostinger `/api/release-info` reports the same SHA, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, Node `v22.18.0`, and the deployment verification suite passes 17/17. Remaining work is limited to authenticated live browser/device workflow evidence, provider dashboards, Firebase Console rules/indexes/auth-domain checks, Lighthouse/Chrome profiling, long-run heap, and hardware/printer/QR validation.
+
+RC6.5 Tracker Reconciliation Result: repository implementation is complete through RC6.4.1 base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`. The RC6.5 pass found stale tracker/release-artifact drift, not unfinished application features. Release metadata now targets `v1.0.0-rc6.5`; Hostinger deployment metadata is now verified, while provider dashboards, Firebase Console, authenticated browser/device, Lighthouse/Chrome, long-run heap, and hardware/printer/QR validation remain external/manual.
 
 RC6.4.1 Operational Classification Result: primary source/type tabs are retained, secondary operational-state chips and smart priority counts are derived from the shared classification model, last filters persist per module on the client, and Dashboard/Order Desk/Active Orders/Kitchen/History/Customer Search reuse the same classification helpers without new APIs or listeners.
 
@@ -44,9 +46,9 @@ Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 waiter-servi
 
 Phase 4E Result: POS Active Orders actions are fully wired and regression-checked; completion now requires Served + Paid, Ready can only transition to Served, delay values are capped into human/stale labels, duplicate timeline events collapse, 100% kitchen progress is green, cards use a responsive compact grid, and the footer is a sticky four-metric bar. Operational smoke passes 12/12.
 
-Current Phase: RC6.5 repository reconciliation complete pending final validation
+Current Phase: RC6.10 production metadata verified; manual live workflow certification remains
 
-Current Task: Commit/push the RC6.5 synchronized tracker/release metadata after validation, then deploy and verify hosted SHA before production signoff.
+Current Task: Complete authenticated live customer/owner/kitchen/waiter/POS browser workflow certification and remaining provider/Firebase/hardware gates before production signoff.
 
 Phase 4D Result: operational automation now passes 9/9 deterministic checks covering dual-storage draft recovery, restaurant/operator isolation, quota/network/permission/conflict/provider faults, reconnect/focus/visibility replay, role contracts, notification retry/dedup/token lifecycle, service-worker background actions/deep links, and Active Orders accessibility. Fixed service-worker deep-link tab reuse so a matching tab with query parameters is focused instead of duplicated.
 
@@ -64,7 +66,7 @@ Phase 4C Result: added bounded push retry, a 34-scenario notification contract m
 
 POS Draft Autosave P0 Result: confirmed `403 pos:update` authorization mismatch for waiter/cashier modes plus remote-first cart state and absent browser recovery. POS draft changes now commit locally first, persist one scoped recovery snapshot in localStorage and IndexedDB metadata, coalesce autosaves, retry with exponential backoff on reconnect/focus/visibility, route Clear/Hold deletion through the same recovery coordinator, and show one categorized Retry/Dismiss notification.
 
-Release Package Result: hosted metadata now reports `v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and a runtime that includes the Active Orders code baseline. Use `/api/release-info` for the exact hosted SHA.
+Release Package Result: hosted metadata now reports `v1.0.0-rc6.5`, `deploymentEnvironment=production`, Node `v22.18.0`, and commit `c17119a509aa28880fc9a507b94317b1d1727b69`. Use `/api/release-info` for the exact hosted SHA.
 
 Files Changed:
 
@@ -86,7 +88,7 @@ Files Changed:
 
 Repository readiness: 100%
 
-Production readiness: 92%
+Production readiness: 95%
 
 Current Branch: `release/production-nammude`
 
@@ -96,26 +98,26 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 
 Last Verified Build: RC6.5 validation is rerun in this pass: `npm run typecheck`, `npm run lint`, `npm run build`, `npm run analyze`, `npm run audit:release`, `npm run smoke:operational`, `npm run profile:runtime`, `npm run theme:contrast`, `npm run brand:visual`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
 
-Last Verified Production Runtime: verify `/api/release-info` after RC6.5 deployment; do not claim production readiness until hosted SHA and version match the final commit.
+Last Verified Production Runtime: `/api/release-info`, `/health/live`, `/health/ready`, and `/health/startup` pass on Hostinger with SHA `c17119a509aa28880fc9a507b94317b1d1727b69`, branch `release/production-nammude`, `applicationVersion=v1.0.0-rc6.5`, and `deploymentEnvironment=production`.
 
 Files Remaining:
 
-- Final RC5 hardening hosted deploy, VAPID health, real-device Waiter ready acknowledgement/recovery plus Owner/Manager escalation, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated multi-role Active Orders/POS/Kitchen/Owner Dashboard/Reports browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, long-run heap, and printer/QR/hardware validation.
+- VAPID health, real-device Waiter ready acknowledgement/recovery plus Owner/Manager escalation, owner Razorpay sandbox/live webhook/payment, Firebase Console rules/indexes/auth domains, provider dashboards, authenticated multi-role Active Orders/POS/Kitchen/Owner Dashboard/Reports browser/device smoke, Lighthouse/Core Web Vitals, Chrome profiling, long-run heap, and printer/QR/hardware validation.
 
 Next Command:
 
 ```powershell
-Deploy final RC6.5 commit and verify `/api/release-info`, health endpoints, authenticated multi-role workflows, providers, browser/device matrix, Lighthouse/Chrome, long-run heap, and hardware/printer/QR gates.
+Verify authenticated multi-role workflows, providers, browser/device matrix, Lighthouse/Chrome, long-run heap, and hardware/printer/QR gates against the deployed RC6.5 SHA.
 ```
 
 Next Exact Task:
 
-Deploy final RC6.5 repository candidate, verify hosted SHA/version, then complete Firebase Console, provider, browser/device, Lighthouse, Chrome profiling, long-run heap, Active Orders/Owner Dashboard/Reports multi-role, and hardware QA.
+Complete Firebase Console, provider, browser/device, Lighthouse, Chrome profiling, long-run heap, Active Orders/Owner Dashboard/Reports multi-role, and hardware QA against the deployed RC6.5 SHA.
 
 Known Risks:
 
 - RC4 tag points behind the current workspace and should remain immutable.
-- Hosted docs-only branch head can trail runtime deployment without changing application behavior; verify `/api/release-info` before final tag/signoff.
+- Hosted metadata is current; recheck `/api/release-info` before final tag/signoff if another deployment occurs.
 - Production provider/hardware/browser smoke is not complete.
 - Hosted owner/manager/waiter/cashier/Kitchen Active Orders action matrix and real Firestore interruption/close-reopen smoke are not complete.
 

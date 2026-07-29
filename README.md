@@ -34,7 +34,7 @@ After each deployment, clear Hostinger cache and verify the hosted HTML, manifes
 Verify the active deployment with:
 
 ```text
-https://mistyrose-butterfly-740173.hostingersite.com/api/release-info
+https://violet-squid-380447.hostingersite.com/api/release-info
 ```
 
 The response must include:
@@ -43,7 +43,8 @@ The response must include:
 {
   "appName": "Food Gedi",
   "releaseBranch": "release/production-nammude",
-  "releaseMarker": "nammude-production-release"
+  "releaseMarker": "food-gedi-production-release",
+  "applicationVersion": "v1.0.0-rc6.5"
 }
 ```
 

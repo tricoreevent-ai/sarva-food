@@ -7,13 +7,13 @@ Date: 2026-07-29
 
 Current decision: `NO GO`.
 
-Production readiness score: `92%`.
+Production readiness score: `95%`.
 
 ## Required Pass Gates
 
 | Gate | Status | Required Evidence |
 | --- | --- | --- |
-| Release metadata | 🔴 Required | `/api/release-info` must show final RC6.5 SHA, branch, `v1.0.0-rc6.5`, HTTPS URL, and `deploymentEnvironment: production`. |
+| Release metadata | ✅ Completed | `/api/release-info` shows SHA `c17119a509aa28880fc9a507b94317b1d1727b69`, branch `release/production-nammude`, `v1.0.0-rc6.5`, HTTPS URL, and `deploymentEnvironment: production`. |
 | Production env validation | 🔴 Blocking | `npm run validate:prod-env` passes with real production values. |
 | Health endpoints | ✅ Completed | `/health/live`, `/health/ready`, `/health/startup` return healthy/safe metadata after final redeploy. |
 | Build pipeline | ✅ Completed | Typecheck, lint, build, analyze pass. |
@@ -30,7 +30,7 @@ Production readiness score: `92%`.
 
 | Endpoint | Status | Current Result | Required Result |
 | --- | --- | --- | --- |
-| `/api/release-info` | REQUIRED | Hosted metadata must report Node `v22.x`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and final RC6.5 SHA. | Recheck exact hosted SHA before final tag/signoff. |
+| `/api/release-info` | PASS | Hosted metadata reports Node `v22.18.0`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and SHA `c17119a509aa28880fc9a507b94317b1d1727b69`. | Recheck exact hosted SHA before final tag/signoff if another deployment occurs. |
 | `/health/live` | PASS | Endpoint returns `ok` with safe public metadata. | Endpoint returns `ok` after final RC6.5 redeploy. |
 | `/health/ready` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok`; provider gaps are either configured or explicitly accepted for production scope. |
 | `/health/startup` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok` after final RC6.5 redeploy/restart. |
@@ -40,7 +40,7 @@ Production readiness score: `92%`.
 | Item | Status | Current Evidence | Required Action |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_APP_ENV` | PASS | Hosted metadata reports `production`. | Keep value set during latest SHA redeploy/restart. |
-| `NEXT_PUBLIC_APP_VERSION` | REQUIRED | Hosted metadata must report `v1.0.0-rc6.5`. | Keep value set during latest SHA redeploy/restart. |
+| `NEXT_PUBLIC_APP_VERSION` | PASS | Hosted metadata reports `v1.0.0-rc6.5`. | Keep value set during latest SHA redeploy/restart. |
 | `NEXT_PUBLIC_APP_URL` | PASS | Hosted metadata reports `https://violet-squid-380447.hostingersite.com`. | Replace only if final custom HTTPS domain is used. |
 | Firebase Admin | PASS | Health endpoints report Admin configured. | Keep service account values in Hostinger only. |
 | Firebase Client | PASS | Health endpoints report public Firebase configured. | Confirm Firebase authorized domains before launch. |

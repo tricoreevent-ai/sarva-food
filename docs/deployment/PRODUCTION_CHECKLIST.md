@@ -15,7 +15,7 @@ Feature ID: `RC6.5-SYNCHRONIZED-READINESS`
 | ✅ Completed | Bundle/performance reports | `docs/performance/FINAL_BUNDLE_REPORT.md`, `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md`. |
 | ✅ Completed | Phase 4C repository verification | `docs/validation/PHASE_4C_AUTOMATED_VERIFICATION.md`: `19/19` checks, 34 notification scenarios, 10 tenant mappings. |
 | ✅ Completed | Phase 5C workflow verification | `docs/validation/OPERATIONAL_HARDENING_REPORT.md`: `20/20` checks covering payment independence, POS New Order cancel resume, Owner Orders payment state, and Kitchen item-first cards. |
-| 🔴 Required | Hostinger RC6.5 runtime metadata | Hosted metadata must report final RC6.5 SHA, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and Node `v22.x`; use `/api/release-info` for the exact hosted SHA. |
+| ✅ Completed | Hostinger RC6.5 runtime metadata | `/api/release-info` reports SHA `c17119a509aa28880fc9a507b94317b1d1727b69`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and Node `v22.18.0`. |
 | 🔴 Blocking | Production env validation | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `17` errors and `1` manual check needing production Hostinger/Firebase/QR/alert/encryption values and owner Razorpay verification. |
 | 🟡 Pending Manual | Browser/device/provider/hardware/Lighthouse | Complete before go-live. |
 
@@ -35,9 +35,9 @@ Feature ID: `RC6.5-SYNCHRONIZED-READINESS`
 - Verify `/api/release-info` reports final SHA, `applicationVersion: v1.0.0-rc6.5`, and `deploymentEnvironment: production`.
 - Verify `/health/live`, `/health/ready`, and `/health/startup`.
 
-Current hosted probe on 2026-07-16:
+Current hosted probe on 2026-07-29:
 
-- `/api/release-info`: Node is `v22.x`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and the hosted SHA matches the final RC6.5 commit.
+- `/api/release-info`: Node is `v22.18.0`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and the hosted SHA is `c17119a509aa28880fc9a507b94317b1d1727b69`.
 - `/health/ready`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 - `/health/startup`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 

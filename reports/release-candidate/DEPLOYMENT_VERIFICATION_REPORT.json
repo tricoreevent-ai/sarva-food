@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-07-26T13:58:12.791Z",
+  "generatedAt": "2026-07-29T14:54:44.484Z",
   "summary": {
     "counts": {
-      "PASS": 10,
+      "PASS": 17,
       "WARNING": 0,
-      "ERROR": 3,
+      "ERROR": 0,
       "FAIL": 0,
       "MANUAL": 0
     },
-    "exitCode": 1
+    "exitCode": 0
   },
   "checks": [
     {
@@ -19,12 +19,12 @@
     {
       "name": "release:version",
       "status": "PASS",
-      "detail": "expected v1.0.0-rc5, saw v1.0.0-rc5"
+      "detail": "expected v1.0.0-rc6.5, saw v1.0.0-rc6.5"
     },
     {
       "name": "release:sha",
       "status": "PASS",
-      "detail": "expected c5fd64c84f8bb247a509ded693089c4878e9f6a4, saw c5fd64c84f8bb247a509ded693089c4878e9f6a4"
+      "detail": "expected c17119a509aa28880fc9a507b94317b1d1727b69, saw c17119a509aa28880fc9a507b94317b1d1727b69"
     },
     {
       "name": "release:branch",
@@ -63,18 +63,38 @@
     },
     {
       "name": "http:health-ready",
-      "status": "ERROR",
-      "detail": "This operation was aborted"
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com/health/ready -> HTTP 200"
+    },
+    {
+      "name": "health:ready-http",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "firebase:firestore",
+      "status": "PASS",
+      "detail": "connected"
+    },
+    {
+      "name": "firebase:admin",
+      "status": "PASS",
+      "detail": "Firebase Admin configured"
+    },
+    {
+      "name": "env:consistency",
+      "status": "PASS",
+      "detail": "release-info and health environment match"
     },
     {
       "name": "http:health-startup",
-      "status": "ERROR",
-      "detail": "https://violet-squid-380447.hostingersite.com/health/startup -> HTTP 503"
+      "status": "PASS",
+      "detail": "https://violet-squid-380447.hostingersite.com/health/startup -> HTTP 200"
     },
     {
       "name": "health:startup",
-      "status": "ERROR",
-      "detail": "HTTP 503"
+      "status": "PASS",
+      "detail": "HTTP 200"
     }
   ],
   "sections": []
