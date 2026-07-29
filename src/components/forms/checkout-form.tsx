@@ -25,6 +25,7 @@ import { useCustomerData } from "@/hooks/use-customer-data";
 import type { CommerceLocation } from "@/hooks/use-location-commerce";
 import { usePublicMenu, usePublicRestaurant } from "@/hooks/use-public-data";
 import { captureException, trackAnalyticsEvent } from "@/services/analytics-service";
+import { CustomerOrderError } from "@/services/customer-order-api";
 import { openRazorpayCheckout } from "@/services/razorpay-checkout-client";
 
 type CreateOrderRequest = {
@@ -245,7 +246,7 @@ export function CheckoutForm({
                 });
                 router.push(`/order-success?orderId=${order.orderId}`);
               } catch (error) {
-                const safeMessage = error instanceof Error ? error.message : "Unable to create order right now.";
+                const safeMessage = checkoutFailureMessage(error);
                 setSubmitError(safeMessage);
                 await captureException(error, { surface: "checkout-server-order" });
                 setSubmitting(false);
@@ -256,7 +257,7 @@ export function CheckoutForm({
                 error: error instanceof Error ? error.message : "unknown",
               });
               await captureException(error, { surface: "checkout" });
-              setSubmitError("Unable to create order right now. Please try again.");
+              setSubmitError(checkoutFailureMessage(error));
               setSubmitting(false);
             }
           })}
@@ -387,7 +388,7 @@ export function CheckoutForm({
             </span>
           </label>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="hidden gap-2 md:grid md:grid-cols-2">
             <Button type="submit" size="lg" disabled={submitting || !items.length} className="shadow-lg">
               {submitting ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -427,11 +428,26 @@ async function createOrderThroughServer(input: CreateOrderRequest) {
     ok?: boolean;
     orderId?: string;
     error?: string;
+    code?: string;
   };
   if (!response.ok || !payload.ok || !payload.orderId) {
-    throw new Error(payload.error || "Unable to create order right now.");
+    throw new CustomerOrderError(payload.error || checkoutStatusMessage(response.status), response.status, payload.code);
   }
   return { orderId: payload.orderId };
+}
+
+function checkoutFailureMessage(error: unknown) {
+  if (error instanceof CustomerOrderError) return error.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return "Order could not be placed. Please review your cart and delivery details.";
+}
+
+function checkoutStatusMessage(status: number) {
+  if (status === 401) return "Your session expired. Please sign in again.";
+  if (status === 409) return "Restaurant is not accepting orders right now.";
+  if (status === 422) return "Please review your cart and delivery details.";
+  if (status >= 500) return "Unable to connect to the restaurant. Please try again in a moment.";
+  return "Order could not be placed. Please review your cart and delivery details.";
 }
 
 async function payWithRazorpay(input: { orderId: string; amount: number; customerName: string; customerPhone: string; restaurantName: string }) {

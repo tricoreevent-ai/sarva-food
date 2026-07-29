@@ -29,19 +29,21 @@ export const useCartStore = create<CartState>()(
       offerCode: "",
       addItem: (item) =>
         set((state) => {
-          const existing = state.items.find((line) => line.id === item.id);
+          const compatibleItems = state.items.filter((line) => line.restaurantSlug === item.restaurantSlug);
+          const existing = compatibleItems.find((line) => line.id === item.id);
 
           if (existing) {
             return {
-              items: state.items.map((line) =>
+              items: compatibleItems.map((line) =>
                 line.id === item.id
                   ? { ...line, quantity: line.quantity + 1 }
                   : line,
               ),
+              offerCode: state.items.length === compatibleItems.length ? state.offerCode : "",
             };
           }
 
-          return { items: [...state.items, { ...item, quantity: 1 }] };
+          return { items: [...compatibleItems, { ...item, quantity: 1 }], offerCode: state.items.length === compatibleItems.length ? state.offerCode : "" };
         }),
       removeItem: (id) =>
         set((state) => ({
@@ -61,6 +63,9 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "sarva-cart",
+      version: 2,
+      migrate: () => ({ items: [], offerCode: "" }),
+      partialize: (state) => ({ items: state.items, offerCode: state.offerCode }),
     },
   ),
 );

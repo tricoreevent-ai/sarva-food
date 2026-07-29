@@ -33,6 +33,7 @@ import { useAppStore } from "@/lib/app-store";
 import { useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { APP_NAME } from "@/lib/constants";
+import { resetCustomerOrderingSession } from "@/lib/customer-session-reset";
 import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
 import { shouldUseFirebase } from "@/lib/env";
 import { customerNav } from "@/lib/navigation";
@@ -58,7 +59,6 @@ export function PublicHeader() {
   const branding = cmsSettings.branding;
   const productName = branding?.appName?.trim() || cmsSettings.appName?.trim() || APP_NAME;
   const setAuthUser = useAppStore((state) => state.setAuthUser);
-  const clearCart = useCartStore((state) => state.clearCart);
   const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
   const [profileOpen, setProfileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -181,12 +181,12 @@ export function PublicHeader() {
       import("@/services/auth-service"),
       import("@/services/auth/stack-auth-client"),
     ]);
+    await resetCustomerOrderingSession({ clearRemoteCart: true });
     await Promise.all([
       signOutUser().catch(() => undefined),
       signOutStackCustomer().catch(() => undefined),
       fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
     ]);
-    clearCart();
     setRemoteAddresses([]);
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });

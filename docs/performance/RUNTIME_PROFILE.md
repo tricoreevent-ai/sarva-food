@@ -1,6 +1,6 @@
 # Runtime Profile
 
-Date: 2026-07-29T02:26:24.876Z
+Date: 2026-07-29T11:16:40.043Z
 
 ## Measurement Inputs
 
@@ -15,26 +15,26 @@ Date: 2026-07-29T02:26:24.876Z
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
 | / | 18 | 487 KB | 194 KB | 250 KB | Over |
-| /restaurants | 20 | 516 KB | 194 KB | - | Tracked |
-| /checkout | 27 | 620 KB | 194 KB | - | Tracked |
-| /orders | 21 | 546 KB | 194 KB | - | Tracked |
-| /profile | 25 | 584 KB | 194 KB | 250 KB | Over |
-| /owner | 28 | 647 KB | 194 KB | 350 KB | Over |
+| /restaurants | 21 | 521 KB | 194 KB | - | Tracked |
+| /checkout | 27 | 622 KB | 194 KB | - | Tracked |
+| /orders | 21 | 547 KB | 194 KB | - | Tracked |
+| /profile | 25 | 586 KB | 194 KB | 250 KB | Over |
+| /owner | 28 | 643 KB | 194 KB | 350 KB | Over |
 | /owner/orders | 33 | 790 KB | 194 KB | 500 KB | Over |
-| /owner/settings | 32 | 773 KB | 194 KB | 300 KB | Over |
-| /owner/kitchen | 31 | 754 KB | 194 KB | - | Tracked |
-| /owner/pos | 29 | 652 KB | 194 KB | 650 KB | Over |
+| /owner/settings | 32 | 769 KB | 194 KB | 300 KB | Over |
+| /owner/kitchen | 31 | 755 KB | 194 KB | - | Tracked |
+| /owner/pos | 29 | 647 KB | 194 KB | 650 KB | Pass |
 | /admin | 23 | 546 KB | 194 KB | - | Tracked |
 
 ## Stress Timing Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.40ms | 0.51ms | 0.98ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.33ms | <100ms update |
-| POS 1000-item category switch | 0.06ms | 0.17ms | 0.27ms | <50ms switch |
-| POS 1000-item search filter | 0.09ms | 0.16ms | 0.68ms | debounced |
-| Active Orders 100-order filter/group | 0.16ms | 0.24ms | 0.57ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.22ms | 0.28ms | 0.65ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.01ms | 0.03ms | 0.22ms | <100ms update |
+| POS 1000-item category switch | 0.04ms | 0.07ms | 0.16ms | <50ms switch |
+| POS 1000-item search filter | 0.06ms | 0.11ms | 0.38ms | debounced |
+| Active Orders 100-order filter/group | 0.10ms | 0.15ms | 0.35ms | <50ms interaction |
 
 ## Notes
 

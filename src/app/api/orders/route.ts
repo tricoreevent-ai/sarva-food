@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSessionFromRequest(request);
     if (!session || session.role !== "customer") {
-      return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+      return fail("Your session expired. Please sign in again.", 401, "CUSTOMER_AUTH_REQUIRED");
     }
 
     const body = (await request.json().catch(() => ({}))) as CreateOrderBody;
@@ -49,29 +49,26 @@ export async function POST(request: NextRequest) {
     const hasCoordinates = typeof deliveryGeo?.lat === "number" && typeof deliveryGeo.lng === "number";
 
     if (!restaurantId || !requestedLines.length || !body.customerName?.trim() || !body.customerPhone?.trim()) {
-      return NextResponse.json({ ok: false, error: "Restaurant, customer, and order lines are required." }, { status: 400 });
-    }
-    if (fulfillmentType === "delivery" && !hasCoordinates) {
-      return NextResponse.json({ ok: false, error: "Delivery coordinates are required." }, { status: 400 });
+      return fail("Restaurant, customer, and order lines are required.", 400, "VALIDATION_REQUIRED_FIELDS");
     }
     if (fulfillmentType === "delivery" && !body.deliveryAddress?.trim()) {
-      return NextResponse.json({ ok: false, error: "Delivery address is required." }, { status: 400 });
+      return fail("Please complete your delivery address.", 400, "DELIVERY_ADDRESS_REQUIRED");
     }
     if (scheduleMode === "scheduled" && !scheduledFor) {
-      return NextResponse.json({ ok: false, error: "A valid scheduled date and time is required." }, { status: 400 });
+      return fail("Choose a valid scheduled date and time.", 400, "SCHEDULE_REQUIRED");
     }
 
     const repository = new OrderRepository();
     const restaurant = await repository.restaurant(restaurantId);
     if (!restaurant) {
-      return NextResponse.json({ ok: false, error: "Restaurant is not available." }, { status: 404 });
+      return fail("Restaurant is currently unavailable.", 404, "RESTAURANT_UNAVAILABLE");
     }
 
     if (!restaurant.active || (fulfillmentType === "delivery" && (typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number"))) {
-      return NextResponse.json({ ok: false, error: "Restaurant is not accepting delivery orders." }, { status: 409 });
+      return fail("Restaurant is not accepting online delivery orders right now.", 409, "RESTAURANT_NOT_ACCEPTING_DELIVERY");
     }
     const lines = await repository.resolveOrderLines(restaurantId, fulfillmentType, requestedLines);
-    if (!lines) return NextResponse.json({ ok: false, error: "One or more menu items are unavailable or invalid." }, { status: 422 });
+    if (!lines) return fail("One or more menu items are unavailable. Review your cart and try again.", 422, "MENU_ITEM_UNAVAILABLE");
 
     const deliveryPoint = hasCoordinates ? { lat: deliveryGeo.lat as number, lng: deliveryGeo.lng as number } : undefined;
     const distanceKm = fulfillmentType === "delivery" && deliveryPoint
@@ -81,13 +78,8 @@ export async function POST(request: NextRequest) {
         )
       : 0;
     const deliveryRadiusKm = restaurant.deliveryRadiusKm ?? 0;
-    if (fulfillmentType === "delivery" && (!deliveryRadiusKm || distanceKm > deliveryRadiusKm)) {
-      return NextResponse.json({
-        ok: false,
-        error: "This address is outside the restaurant delivery radius.",
-        distanceKm,
-        deliveryRadiusKm,
-      }, { status: 422 });
+    if (fulfillmentType === "delivery" && deliveryPoint && (!deliveryRadiusKm || distanceKm > deliveryRadiusKm)) {
+      return fail("This address is outside the restaurant delivery radius.", 422, "DELIVERY_OUT_OF_RANGE", { distanceKm, deliveryRadiusKm });
     }
 
     const schedule = await validateSchedule({
@@ -99,7 +91,7 @@ export async function POST(request: NextRequest) {
       lineCount: lines.reduce((sum, line) => sum + line.quantity, 0),
     });
     if (!schedule.ok) {
-      return NextResponse.json({ ok: false, error: schedule.error }, { status: 422 });
+      return fail(schedule.error, 422, "SCHEDULE_UNAVAILABLE");
     }
 
     const now = new Date();
@@ -110,7 +102,7 @@ export async function POST(request: NextRequest) {
     const subtotal = money(lines.reduce((sum, line) => sum + line.price * line.quantity, 0));
     const offerValidation = await repository.validateOffer({ restaurantId, offerCode, subtotal, fulfillmentType, lines });
     if (!offerValidation.ok) {
-      return NextResponse.json({ ok: false, error: offerValidation.error }, { status: 422 });
+      return fail(offerValidation.error, 422, "OFFER_INVALID");
     }
     const discount = offerValidation.discount ?? money(body.discount);
     const tax = money((subtotal - discount) * 0.05);
@@ -209,9 +201,13 @@ export async function POST(request: NextRequest) {
       status: savedOrder.status,
     }, { status: 201 });
   } catch (error) {
-    productionLogger.warn("orders.create_failed", { errorName: safeErrorName(error) });
-    return NextResponse.json({ ok: false, error: "Unable to create order right now." }, { status: 500 });
+    productionLogger.warn("orders.create_failed", { errorName: safeErrorName(error), reason: error instanceof Error ? error.message : String(error) });
+    return fail("Unable to connect to the restaurant. Please try again in a moment.", 500, "ORDER_CREATE_FAILED");
   }
+}
+
+function fail(error: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json({ ok: false, error, code, ...details }, { status });
 }
 
 function isValidLine(line: OrderLineDoc) {

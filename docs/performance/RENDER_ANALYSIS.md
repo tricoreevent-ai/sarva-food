@@ -1,14 +1,14 @@
 # Render Analysis
 
-Date: 2026-07-29T02:26:24.876Z
+Date: 2026-07-29T11:16:40.043Z
 
 ## Source Hot Paths
 
 | File | Lines | useMemo | useCallback | memo | Listeners | Timers | map/filter/sort |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | src/components/flows/customer-discovery-home.tsx | 844 | 13 | 0 | 1 | 0 | 1 | 15/7/5 |
-| src/app/profile/page.tsx | 1368 | 0 | 0 | 0 | 0 | 2 | 10/4/0 |
-| src/components/flows/owner-order-management-flow.tsx | 2082 | 17 | 16 | 1 | 2 | 4 | 28/39/2 |
+| src/app/profile/page.tsx | 1367 | 0 | 0 | 0 | 0 | 2 | 10/4/0 |
+| src/components/flows/owner-order-management-flow.tsx | 2097 | 16 | 16 | 1 | 2 | 4 | 28/32/2 |
 | src/components/flows/owner-settings-flow.tsx | 2193 | 1 | 1 | 0 | 0 | 4 | 46/18/2 |
 | src/components/flows/kitchen-display-flow.tsx | 2888 | 26 | 13 | 3 | 13 | 3 | 57/44/5 |
 | src/components/flows/pos-billing-flow.tsx | 5366 | 37 | 20 | 1 | 13 | 17 | 95/60/11 |

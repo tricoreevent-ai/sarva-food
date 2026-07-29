@@ -52,7 +52,7 @@ import { isFirebaseConfigured } from "@/firebase/config";
 import { shouldUseFirebase } from "@/lib/env";
 import { useAppStore } from "@/lib/app-store";
 import { APP_NAME } from "@/lib/constants";
-import { useCartStore } from "@/lib/cart-store";
+import { resetCustomerOrderingSession } from "@/lib/customer-session-reset";
 import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
 import { safeClientReason } from "@/lib/client-diagnostics";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
@@ -108,7 +108,6 @@ function ProfilePageContent() {
   const customer = useCustomerData(user?.uid);
   const { profile: customerProfile, retry: retryCustomer, status: customerStatus } = customer;
   const setAuthUser = useAppStore((state) => state.setAuthUser);
-  const clearCart = useCartStore((state) => state.clearCart);
   const phoneRequired = searchParams.get("phoneRequired") === "1";
   const [activeTab, setActiveTab] = useState(() => phoneRequired ? "settings" : profileTabFromUrl(searchParams.get("tab")));
   const [signingOut, setSigningOut] = useState(false);
@@ -144,16 +143,16 @@ function ProfilePageContent() {
   useEffect(() => {
     if (!blockedByRole) return;
     void signOutProfileServices().finally(() => {
-      clearCart();
+      void resetCustomerOrderingSession({ clearRemoteCart: true });
       setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
       router.replace("/login?next=/profile");
     });
-  }, [blockedByRole, clearCart, router, setAuthUser]);
+  }, [blockedByRole, router, setAuthUser]);
 
   async function handleLogout() {
     setSigningOut(true);
+    await resetCustomerOrderingSession({ clearRemoteCart: true });
     await signOutProfileServices();
-    clearCart();
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
     setSigningOut(false);

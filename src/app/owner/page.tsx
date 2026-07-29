@@ -16,13 +16,11 @@ import {
   MessageCircle,
   PackageCheck,
   Printer,
-  QrCode,
   ReceiptText,
   Settings2,
   Table2,
   UserPlus,
   UserRound,
-  Users,
   Utensils,
   Wifi,
   X,
@@ -33,15 +31,13 @@ import { DashboardCard } from "@/components/owner/dashboard-card";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
 import { QuickActionButton } from "@/components/owner/quick-action";
 import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion";
-import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import { Button } from "@/components/ui/button";
-import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
 import { useWhatsAppShare } from "@/hooks/useWhatsAppShare";
 import { useAppStore } from "@/lib/app-store";
 import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTime } from "@/lib/order-display";
 import { isLiveTerminalStatus, mergeLiveOperationalOrders, type LiveOperationalOrder } from "@/lib/live-operational-orders";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
-import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
+import { sortOrdersByOperationalPriority } from "@/lib/order-classification";
 import type { DemoOrder, MenuItem, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
 import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -312,14 +308,14 @@ export default function OwnerDashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        <KpiCard title="Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Repository revenue for this restaurant." />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7" aria-label="Restaurant health and priority metrics">
+        <KpiCard title="Restaurant Health" value={metrics.healthScore} format={(value) => `${Math.round(value)}%`} delta={metrics.sync.failed ? `${metrics.sync.failed} sync failed` : "Healthy"} icon={Wifi} tone={metrics.sync.failed ? "red" : "green"} spark={metrics.healthSpark} tooltip="Overall operational health from sync, kitchen delay, and printer state." />
+        <KpiCard title="Urgent Actions" value={metrics.urgentActions} delta={metrics.urgentActions ? "Needs review" : "Clear"} icon={AlertTriangle} tone={metrics.urgentActions ? "red" : "green"} spark={metrics.urgentSpark} tooltip="Delayed kitchen orders, failed sync, bill requests, and offline printer issues." />
         <KpiCard title="Orders" value={metrics.activeOrdersCount} delta={`${metrics.ordersToday} total`} icon={ReceiptText} tone="orange" spark={metrics.orderSpark} tooltip="Canonical order count from analytics." />
-        <KpiCard title="Kitchen Operations" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
-        <KpiCard title="QR Sessions" value={metrics.qr.active} delta={`${metrics.qr.billRequests} bills · ${metrics.qr.serviceRequests} requests`} icon={QrCode} tone={metrics.qr.billRequests ? "orange" : "blue"} spark={metrics.qr.spark} tooltip="Live table QR sessions, bill requests, and waiter requests." />
-        <KpiCard title="Staff" value={metrics.staff.total} delta={`${metrics.staff.waitersActive} waiters`} icon={Users} tone="green" spark={metrics.staff.spark} tooltip="Repository staff count for this restaurant." />
-        <KpiCard title="Menu" value={metrics.menuCount} delta={`${metrics.loyaltyCount} loyalty`} icon={Utensils} tone="purple" spark={metrics.avgSpark} tooltip="Repository menu count." />
+        <KpiCard title="Kitchen" value={metrics.kitchen.total} delta={`${metrics.kitchen.delayed} delayed`} icon={ChefHat} tone={metrics.kitchen.delayed ? "red" : "blue"} spark={metrics.kitchen.spark} tooltip="Orders waiting in the kitchen workflow." />
+        <KpiCard title="Revenue" value={metrics.revenueToday} format={formatCurrency} delta={metrics.revenueDelta} icon={IndianRupee} tone="green" spark={metrics.revenueSpark} tooltip="Repository revenue for this restaurant." />
         <KpiCard title="Customers" value={metrics.newCustomers} delta={`${metrics.loyaltyCount} loyalty`} icon={UserRound} tone="amber" spark={metrics.customerSpark} tooltip="Customer and loyalty records available to this restaurant." />
+        <KpiCard title="Reports" value={metrics.typeTotal} delta="Open reports" icon={BarChart3} tone="purple" spark={metrics.orderSpark} tooltip="Reporting coverage from the current operational snapshot." />
       </section>
 
       {liveWidgets.length ? (
@@ -421,27 +417,28 @@ function KpiCard({
   tooltip: string;
 }) {
   const positive = !delta.trim().startsWith("-");
+  const directional = /^[+-]/.test(delta.trim()) || delta.includes("%");
   return (
     <motion.article
       layout
       whileHover={{ y: -2 }}
-      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
       title={tooltip}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-black text-slate-500">{title}</p>
-          <AnimatedNumber value={value} format={format} className="mt-2 block text-2xl font-black text-slate-950" />
+          <AnimatedNumber value={value} format={format} className="mt-1.5 block text-xl font-black text-slate-950" />
         </div>
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", toneClass[tone].bg, toneClass[tone].text)}>
-          <Icon className="size-5" />
+        <span className={cn("grid size-8 shrink-0 place-items-center rounded-full", toneClass[tone].bg, toneClass[tone].text)}>
+          <Icon className="size-4" />
         </span>
       </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
+      <div className="mt-2 flex items-end justify-between gap-3">
         <span className={cn("text-xs font-black", positive ? "text-emerald-600" : "text-red-600")}>
-          {positive ? "↑" : "↓"} {delta.replace(/^[-+]/, "")}
+          {directional ? (positive ? "↑ " : "↓ ") : ""}{delta.replace(/^[-+]/, "")}
         </span>
-        <Sparkline values={spark} color={toneClass[tone].stroke} className="h-8 w-24" />
+        <Sparkline values={spark} color={toneClass[tone].stroke} className="h-7 w-20" />
       </div>
     </motion.article>
   );
@@ -472,13 +469,8 @@ function AnimatedNumber({ value, format, className }: { value: number; format: (
 }
 
 function LiveOrdersPanel({ orders }: { orders: DashboardOrder[] }) {
-  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>("sarva.orderFilters.dashboard.live.primary", "all", orderClassificationIds);
-  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>("sarva.orderFilters.dashboard.live.operation", "all", orderOperationIds);
   const [now] = useState(() => Date.now());
-  const classificationOptions = useMemo(() => buildOrderClassificationOptions(orders, { includeZero: true, now }), [now, orders]);
-  const primaryOrders = useMemo(() => filterOrdersByClassification(orders, classification, now), [classification, now, orders]);
-  const operationOptions = useMemo(() => buildOrderOperationOptions(primaryOrders, { includeZero: true, now }), [now, primaryOrders]);
-  const visibleOrders = useMemo(() => sortOrdersByOperationalPriority(filterOrdersByOperation(primaryOrders, operation, now), now), [now, operation, primaryOrders]);
+  const visibleOrders = useMemo(() => sortOrdersByOperationalPriority(orders, now).slice(0, 4), [now, orders]);
   return (
     <DashboardCard
       title="Live Orders"
@@ -486,8 +478,6 @@ function LiveOrdersPanel({ orders }: { orders: DashboardOrder[] }) {
       className="h-full"
     >
       <div className="space-y-2" title="Orders currently being processed.">
-        <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} />
-        <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" />
         <AnimatePresence initial={false}>
           {visibleOrders.length ? visibleOrders.map((order) => (
             <motion.div key={order.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
@@ -811,9 +801,9 @@ function dashboardStatusTone(status: string): OrderBadgeTone {
 
 function MiniMetric({ label, value, tone, pulse = false }: { label: string; value: number; tone: "green" | "orange" | "blue" | "red"; pulse?: boolean }) {
   return (
-    <motion.div layout className={cn("rounded-2xl p-4", toneClass[tone].soft, pulse && "animate-pulse")} title={label === "Delayed" ? "Orders exceeding configured preparation time." : `${label} kitchen tickets.`}>
-      <p className="text-xs font-black uppercase tracking-wide opacity-70">{label}</p>
-      <AnimatedNumber value={value} format={(input) => String(Math.round(input))} className="mt-2 block text-2xl font-black" />
+    <motion.div layout className={cn("rounded-xl border border-slate-200 bg-white p-3", pulse && "animate-pulse")} title={label === "Delayed" ? "Orders exceeding configured preparation time." : `${label} kitchen tickets.`}>
+      <p className={cn("text-xs font-black uppercase tracking-wide", toneClass[tone].text)}>{label}</p>
+      <AnimatedNumber value={value} format={(input) => String(Math.round(input))} className="mt-1.5 block text-xl font-black text-slate-950" />
     </motion.div>
   );
 }
@@ -1006,6 +996,8 @@ function buildDashboardMetrics({
   const printerTone = printerSettings.connectionStatus === "offline" ? "red" : "green";
   const typeCounts = buildTypeCounts(combined);
   const alerts = buildAlerts({ activeOrders, delayed, syncFailed, syncPending, printerOffline: printerTone === "red" });
+  const urgentActions = delayed + syncFailed + billRequests + (printerTone === "red" ? 1 : 0);
+  const healthScore = Math.max(0, 100 - urgentActions * 12 - syncPending * 3);
 
   return {
     revenueToday,
@@ -1013,6 +1005,8 @@ function buildDashboardMetrics({
     ordersToday,
     ordersDelta: percentDelta(ordersToday, ordersYesterday),
     activeOrdersCount: activeOrders.length,
+    urgentActions,
+    healthScore,
     avgOrderValue,
     avgDelta: percentDelta(avgOrderValue, avgYesterday),
     newCustomers: analytics?.customerCount ?? customerCount,
@@ -1024,6 +1018,8 @@ function buildDashboardMetrics({
       return dayOrders.length ? sum(dayOrders.map((order) => order.amount)) / dayOrders.length : 0;
     }),
     customerSpark: week.map(() => customerCount),
+    healthSpark: week.map(() => healthScore),
+    urgentSpark: week.map(() => urgentActions),
     weekLabels: week.map((date) => date.toLocaleDateString("en-IN", { weekday: "short" })),
     topItems: buildTopItems(combined.flatMap((order) => order.lines), menuItems),
     liveRows: activeOrders.slice(0, 5),

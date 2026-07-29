@@ -14,7 +14,7 @@ import { CustomerAuthProvider } from "@/context/auth/customer-auth-provider";
 import { CustomerFooter } from "@/components/layout/customer-footer";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/app-store";
-import { useCartStore } from "@/lib/cart-store";
+import { resetCustomerOrderingSession } from "@/lib/customer-session-reset";
 import { customerNav } from "@/lib/navigation";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { useThemeMode } from "@/lib/theme-provider";
@@ -36,7 +36,6 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const authUser = useAppStore((state) => state.authUser);
   const setAuthUser = useAppStore((state) => state.setAuthUser);
-  const clearCart = useCartStore((state) => state.clearCart);
   const { theme, setTheme } = useThemeMode();
   const restaurantRoute = pathname.startsWith("/restaurant/");
   const showMobileFooter = pathname === "/";
@@ -50,12 +49,12 @@ export function CustomerShellClient({ children }: { children: ReactNode }) {
       import("@/services/auth-service"),
       import("@/services/auth/stack-auth-client"),
     ]);
+    await resetCustomerOrderingSession({ clearRemoteCart: true });
     await Promise.all([
       signOutUser().catch(() => undefined),
       signOutStackCustomer().catch(() => undefined),
       fetch("/api/auth/session?surface=customer", { method: "DELETE" }).catch(() => undefined),
     ]);
-    clearCart();
     window.localStorage.removeItem("sarva-customer-auth");
     setAuthUser({ id: "anonymous", name: "Anonymous", role: "customer", restaurantSlug: DEFAULT_TENANT_ID });
     setMenuOpen(false);

@@ -4,15 +4,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useAppStore } from "@/lib/app-store";
 import { type CartLine, useCartStore } from "@/lib/cart-store";
-
-type CartApiPayload = {
-  data?: {
-    items?: CartLine[];
-    offerCode?: string;
-  };
-};
+import { resetCustomerOrderingSession } from "@/lib/customer-session-reset";
 
 const CART_SYNC_DEBOUNCE_MS = 600;
+const CUSTOMER_SESSION_KEY = "sarva-customer-session:v1";
 
 export function CustomerCartSync() {
   const auth = useAuthUser();
@@ -29,33 +24,19 @@ export function CustomerCartSync() {
   useEffect(() => {
     if (!customerId) {
       hydratedCustomerRef.current = null;
+      window.localStorage.removeItem(CUSTOMER_SESSION_KEY);
+      void resetCustomerOrderingSession();
       return;
     }
 
     let active = true;
     hydratedCustomerRef.current = null;
-    void fetch("/api/customer/cart", {
-      cache: "no-store",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        "x-sarva-surface": "customer",
-      },
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Cart sync unavailable.");
-        return response.json() as Promise<CartApiPayload>;
-      })
-      .then((payload) => {
+    const previousCustomerId = window.localStorage.getItem(CUSTOMER_SESSION_KEY);
+    const shouldReset = previousCustomerId !== customerId;
+    void (shouldReset ? resetCustomerOrderingSession({ clearRemoteCart: true }) : Promise.resolve())
+      .then(() => {
         if (!active) return;
-        const remoteItems = Array.isArray(payload.data?.items) ? payload.data.items : [];
-        const remoteOfferCode = payload.data?.offerCode ?? "";
-        const current = useCartStore.getState();
-        if (remoteItems.length || !current.items.length) {
-          current.replaceCart(remoteItems, remoteOfferCode);
-        } else {
-          void saveCart(current.items, current.offerCode);
-        }
+        window.localStorage.setItem(CUSTOMER_SESSION_KEY, customerId);
         hydratedCustomerRef.current = customerId;
       })
       .catch(() => {

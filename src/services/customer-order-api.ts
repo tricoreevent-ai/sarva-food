@@ -2,6 +2,13 @@
 
 import type { OrderLine, OrderTotals } from "@/lib/types";
 
+export class CustomerOrderError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message);
+    this.name = "CustomerOrderError";
+  }
+}
+
 export async function placeCustomerOrder(input: {
   restaurantId: string;
   customerName: string;
@@ -45,7 +52,19 @@ export async function placeCustomerOrder(input: {
       acceptedTermsAt: new Date().toISOString(),
     }),
   });
-  const payload = await response.json().catch(() => ({})) as { ok?: boolean; orderId?: string; verificationId?: string; error?: string };
-  if (!response.ok || !payload.ok || !payload.orderId) throw new Error(payload.error || "Unable to create order right now.");
+  const payload = await response.json().catch(() => ({})) as { ok?: boolean; orderId?: string; verificationId?: string; error?: string; code?: string };
+  if (!response.ok || !payload.ok || !payload.orderId) {
+    throw new CustomerOrderError(customerOrderMessage(payload.error, response.status), response.status, payload.code);
+  }
   return { id: payload.orderId, verificationId: payload.verificationId };
+}
+
+function customerOrderMessage(message: string | undefined, status: number) {
+  const text = message?.trim();
+  if (text) return text;
+  if (status === 401) return "Your session expired. Please sign in again.";
+  if (status === 409) return "Restaurant is not accepting orders right now.";
+  if (status === 422) return "Please review your cart and delivery details.";
+  if (status >= 500) return "Unable to connect to the restaurant. Please try again in a moment.";
+  return "Order could not be created. Please review your details and try again.";
 }

@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { APP_NAME } from "@/lib/constants";
+import { resetCustomerOrderingSession } from "@/lib/customer-session-reset";
 import { FormAlert } from "@/components/state/form-alert";
 import { useAppStore } from "@/lib/app-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
@@ -142,6 +143,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       role,
       restaurantSlug: resolveTenantId(profile?.tenantId ?? profile?.restaurantIds?.[0] ?? DEFAULT_TENANT_ID),
     });
+    if (role === "customer") await resetCustomerOrderingSession({ clearRemoteCart: true });
     return { role, phone: profile?.phone ?? "" };
   }, [isCustomerSurface, setAuthUser, surface]);
 
@@ -166,6 +168,7 @@ export function AuthLoginFlow({ surface = "customer-login" }: { surface?: AuthSu
       role: "customer",
       restaurantSlug: DEFAULT_TENANT_ID,
     });
+    await resetCustomerOrderingSession({ clearRemoteCart: true });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

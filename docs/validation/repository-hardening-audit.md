@@ -1,11 +1,11 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-29T02:13:05.762Z
+Generated: 2026-07-29T11:15:36.980Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
-| runtime-console | 17 | Runtime console call; prefer productionLogger or operational logging. |
-| raw-error-message | 61 | Raw error-message access; ensure returned/logged text is sanitized. |
+| runtime-console | 15 | Runtime console call; prefer productionLogger or operational logging. |
+| raw-error-message | 63 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
 | listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
@@ -20,7 +20,6 @@ Generated: 2026-07-29T02:13:05.762Z
 - `src/components/flows/customer-discovery-home.tsx` (1)
 - `src/components/flows/kitchen-display-flow.tsx` (5)
 - `src/components/flows/pos-billing-flow.tsx` (4)
-- `src/components/flows/restaurant-detail-flow.tsx` (2)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 
 ### raw-error-message
@@ -28,6 +27,7 @@ Generated: 2026-07-29T02:13:05.762Z
 - `src/app/api/auth/phone-verification/route.ts` (1)
 - `src/app/api/auth/session/route.ts` (1)
 - `src/app/api/customer/account/route.ts` (1)
+- `src/app/api/orders/route.ts` (1)
 - `src/app/api/owner/kitchen/route.ts` (4)
 - `src/app/api/owner/orders/route.ts` (1)
 - `src/app/api/owner/payment-settings/route.ts` (1)
@@ -45,7 +45,7 @@ Generated: 2026-07-29T02:13:05.762Z
 - `src/components/flows/owner-portal-login-flow.tsx` (1)
 - `src/components/flows/owner-settings-flow.tsx` (9)
 - `src/components/flows/pos-billing-flow.tsx` (14)
-- `src/components/flows/restaurant-detail-flow.tsx` (1)
+- `src/components/flows/restaurant-detail-flow.tsx` (2)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 - `src/components/flows/schedule-order-flow.tsx` (1)
 - `src/components/flows/table-qr-ordering-flow.tsx` (2)

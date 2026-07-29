@@ -1,4 +1,4 @@
-export type OrderClassificationId = "all" | "dine-in" | "parcel" | "delivery" | "online" | "qr" | "scheduled" | "catering" | "cancelled";
+export type OrderClassificationId = "all" | "dine-in" | "parcel" | "delivery" | "online" | "qr" | "website" | "swiggy" | "zomato" | "ondc" | "scheduled" | "catering" | "cancelled";
 export type OrderOperationId = "all" | "new" | "kitchen" | "preparing" | "ready" | "serving" | "delivery" | "completed" | "delayed" | "critical" | "pending-payment" | "paid" | "refund" | "cancelled";
 export type OrderFilterId = OrderClassificationId | OrderOperationId;
 
@@ -40,6 +40,10 @@ export const defaultOrderClassifications: Array<{ id: OrderClassificationId; lab
   { id: "delivery", label: "Delivery" },
   { id: "online", label: "Online" },
   { id: "qr", label: "QR" },
+  { id: "website", label: "Website" },
+  { id: "swiggy", label: "Swiggy" },
+  { id: "zomato", label: "Zomato" },
+  { id: "ondc", label: "ONDC" },
   { id: "scheduled", label: "Scheduled" },
   { id: "catering", label: "Catering" },
   { id: "cancelled", label: "Cancelled" },
@@ -75,6 +79,10 @@ export function classifyOrder(order: ClassifiableOrder, now = Date.now()) {
   if (scheduledAt || type.includes("scheduled")) set.add("scheduled");
   if (source.includes("catering") || type.includes("catering")) set.add("catering");
   if (source === "qr" || source.includes("table-order")) set.add("qr");
+  if (source === "website" || source === "web") set.add("website");
+  if (source === "swiggy") set.add("swiggy");
+  if (source === "zomato") set.add("zomato");
+  if (source === "ondc") set.add("ondc");
   if (source === "website" || source === "web" || source === "mobile" || source === "online" || ["swiggy", "zomato", "magicpin", "ondc", "instagram", "whatsapp"].includes(source)) set.add("online");
   if (type.includes("delivery") || source === "delivery" || ["swiggy", "zomato", "magicpin", "ondc"].includes(source)) set.add("delivery");
   if (type.includes("parcel") || type.includes("takeaway") || source === "parcel" || source === "takeaway") set.add("parcel");

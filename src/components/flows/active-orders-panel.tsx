@@ -1,7 +1,7 @@
 "use client";
 
 import * as Popover from "@radix-ui/react-popover";
-import { ArrowRightLeft, BellRing, CheckCircle2, ChefHat, ChevronDown, CircleDollarSign, ClipboardList, Clock3, Eye, GitMerge, Grid2X2, History, MessageCircle, MoreHorizontal, PlusCircle, Printer, ReceiptText, Scissors, Search, UserRound, UsersRound, Utensils, XCircle, type LucideIcon } from "lucide-react";
+import { ArrowRightLeft, BellRing, CheckCircle2, ChefHat, ChevronDown, CircleDollarSign, ClipboardList, Clock3, Eye, GitMerge, History, MoreHorizontal, PlusCircle, Printer, Scissors, Search, UserRound, Utensils, XCircle } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
@@ -16,7 +16,7 @@ import type { OperationalSettings } from "@/lib/order-delay-settings";
 import { playOperationalSound } from "@/lib/operational-sounds";
 import type { OrderAccordionDelay, OrderBadgeTone, OrderDelayLevel } from "@/components/orders/OrderAccordion.types";
 import type { ExtendedDemoOrder, OperationalOrder, TimelineEntry } from "@/lib/active-orders-model";
-import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
+import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 
 export { buildOperationalOrders, orderToOperationalOrder } from "@/lib/active-orders-model";
 export type { ExtendedDemoOrder, OperationalOrder } from "@/lib/active-orders-model";
@@ -173,13 +173,6 @@ function normalizeTableName(value?: string) {
   return String(value ?? "").trim().toUpperCase();
 }
 
-function isToday(value?: string) {
-  if (!value) return false;
-  const date = new Date(value);
-  const now = new Date();
-  return date.toDateString() === now.toDateString();
-}
-
 function readableOrderType(type?: TableOrder["orderType"]) {
   if (type === "dine-in") return "Dine-in";
   if (type === "takeaway") return "Quick Bill";
@@ -198,12 +191,15 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
 export type ActiveOrderView = "all" | "operations" | "waiter" | "cashier" | "manager";
 type ActiveOrderActionId = "accept" | "prepare" | "ready" | "pickup" | "serve" | "notify" | "payment" | "print" | "preview" | "receipt" | "kot" | "add" | "split" | "transfer" | "reassign" | "merge" | "reminder" | "recall" | "complete" | "archive" | "cancel" | "timeline" | "history";
 type ActiveOrderMenuAction = { id: ActiveOrderActionId; label: string; icon: ReactNode; disabled?: boolean; danger?: boolean; reason?: string };
+const activeOrderOperationIds = ["new", "kitchen", "ready", "serving", "pending-payment", "delayed", "completed"] as const satisfies readonly OrderOperationId[];
+const activeOrderChannelIds = ["all", "dine-in", "parcel", "delivery", "qr", "website", "swiggy", "zomato", "ondc"] as const satisfies readonly OrderClassificationId[];
+const activeOrderOperationLabels: Partial<Record<OrderOperationId, string>> = {
+  new: "Needs Acceptance",
+  kitchen: "Kitchen Queue",
+};
 
 export function ActiveOrdersPanel({
-  orders,
   kitchenOrders,
-  tables,
-  staff,
   loading,
   error,
   orderDelayThresholdMinutes,
@@ -267,13 +263,12 @@ export function ActiveOrdersPanel({
   waiterView?: boolean;
 }) {
   const [view, setView] = useState<ActiveOrderView>(() => waiterView ? "waiter" : "all");
-  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>(waiterView ? "sarva.orderFilters.active.waiter.primary" : "sarva.orderFilters.active.primary", "all", orderClassificationIds);
-  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>(waiterView ? "sarva.orderFilters.active.waiter.operation" : "sarva.orderFilters.active.operation", "all", orderOperationIds);
+  const [classification, setClassification] = usePersistedOrderFilter<OrderClassificationId>(waiterView ? "sarva.orderFilters.active.waiter.primary" : "sarva.orderFilters.active.primary", "all", activeOrderChannelIds);
+  const [operation, setOperation] = usePersistedOrderFilter<OrderOperationId>(waiterView ? "sarva.orderFilters.active.waiter.operation" : "sarva.orderFilters.active.operation", waiterView ? "ready" : "new", activeOrderOperationIds);
   const [search, setSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(() => new Set());
   const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(() => new Set());
-  const [summaryOpen, setSummaryOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const readyAlertedIds = useRef(new Set<string>());
   const debouncedSearch = useDebouncedValue(search, 120);
@@ -335,9 +330,13 @@ export function ActiveOrdersPanel({
     const value = debouncedSearch.trim().toLowerCase();
     return value ? allActiveKitchenOrders.filter((order) => activeOrderSearchText(order).includes(value)) : allActiveKitchenOrders;
   }, [allActiveKitchenOrders, debouncedSearch]);
-  const classificationOptions = useMemo(() => buildOrderClassificationOptions(allActiveKitchenOrders, { includeZero: true, now }), [allActiveKitchenOrders, now]);
+  const classificationOptions = useMemo(() => buildOrderClassificationOptions(allActiveKitchenOrders, { ids: [...activeOrderChannelIds], includeZero: true, now }), [allActiveKitchenOrders, now]);
   const primaryKitchenOrders = useMemo(() => filterOrdersByClassification(activeKitchenOrders, classification, now), [activeKitchenOrders, classification, now]);
-  const operationOptions = useMemo(() => buildOrderOperationOptions(filterOrdersByClassification(allActiveKitchenOrders, classification, now), { includeZero: true, now }), [allActiveKitchenOrders, classification, now]);
+  const operationOptions = useMemo(
+    () => buildOrderOperationOptions(filterOrdersByClassification(allActiveKitchenOrders, classification, now), { ids: [...activeOrderOperationIds], includeZero: true, now })
+      .map((item) => ({ ...item, label: activeOrderOperationLabels[item.id] ?? item.label })),
+    [allActiveKitchenOrders, classification, now],
+  );
   const classifiedKitchenOrders = useMemo(() => sortOrdersByOperationalPriority(filterOrdersByOperation(primaryKitchenOrders, operation, now), now), [now, operation, primaryKitchenOrders]);
   const delaysById = useMemo(
     () => new Map(allActiveKitchenOrders.map((order) => [order.id, getKitchenDelay(order, now, { orderDelayThresholdMinutes })])),
@@ -387,32 +386,6 @@ export function ActiveOrdersPanel({
     () => activeOrderKanbanStages.map((stage) => ({ ...stage, orders: displayedOrders.filter((order) => stage.statuses.includes(order.status)) })),
     [displayedOrders],
   );
-  const completedToday = useMemo(() => orders.filter((order) => ["delivered", "completed"].includes(order.status) && isToday(order.createdAt)).length, [orders]);
-  const occupiedTableCount = useMemo(() => (
-    tables.length
-      ? tables.filter((table) => ["occupied", "reserved"].includes(String(table.status))).length
-      : new Set(activeKitchenOrders.map((order) => order.tableNumber).filter(Boolean)).size
-  ), [activeKitchenOrders, tables]);
-  const activeStaffCount = useMemo(() => (
-    staff.length
-      ? staff.filter((member) => member.status === "active").length
-      : new Set(activeKitchenOrders.map((order) => order.waiterName || order.assignedStaffName).filter(Boolean)).size
-  ), [activeKitchenOrders, staff]);
-  const views = [
-    ["all", "All", ClipboardList],
-    ["operations", "Operations", Grid2X2],
-    ["waiter", "Waiter", Utensils],
-    ["cashier", "Cashier", ReceiptText],
-    ["manager", "Manager", UsersRound],
-  ] as const;
-  const viewCounts = {
-    all: classifiedKitchenOrders.length,
-    operations: groups.operationsOrders.length,
-    waiter: groups.waiterOrders.length,
-    cashier: groups.cashierOrders.length,
-    manager: groups.managerOrders.length,
-  };
-
   useEffect(() => {
     if (!waiterView && view !== "waiter") return;
     const readyOrders = groups.waiterOrders.filter((order) => order.status === "ready");
@@ -517,36 +490,20 @@ export function ActiveOrdersPanel({
   }, []);
 
   return (
-    <section className="flex h-[calc(100dvh-6rem)] min-h-[32rem] min-w-0 flex-col gap-1 overflow-hidden xl:col-span-2" aria-label="Active Orders operational workspace">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-3">
+    <section className="flex h-[calc(100dvh-6rem)] min-h-[32rem] min-w-0 flex-col gap-2 overflow-hidden" aria-label="Active Orders operational workspace">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-black text-slate-950">Active Orders</h1>
+          <h1 className="truncate text-xl font-black text-slate-950">Active Orders</h1>
         </div>
-        <Button className="h-11 shrink-0 bg-orange-600 text-white hover:bg-orange-700" onClick={onOpenNew}><PlusCircle className="size-4" />New Order</Button>
+        <Button className="h-10 shrink-0 bg-orange-600 text-white hover:bg-orange-700" onClick={onOpenNew}><PlusCircle className="size-4" />New Order</Button>
       </div>
 
-      <div className="grid shrink-0 gap-2 lg:grid-cols-[auto_minmax(18rem,1fr)]">
+      <div className="grid shrink-0 gap-2">
         <div className="lg:col-span-2">
-          <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} sticky />
+          <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operations" sticky />
         </div>
         <div className="lg:col-span-2">
-          <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" sticky />
-        </div>
-        <div className="customer-scroll flex h-11 max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-          {views.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setView(key)}
-              className={cn("flex min-h-11 shrink-0 items-center gap-2 border-r border-slate-100 px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 last:border-r-0 motion-reduce:transition-none", view === key ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50")}
-              aria-label={`${label} ${viewCounts[key]} orders`}
-              aria-pressed={view === key}
-            >
-              <Icon className="size-4" />
-              <span>{label}</span>
-              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", view === key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500")}>{viewCounts[key]}</span>
-            </button>
-          ))}
+          <OrderClassificationBar value={classification} options={classificationOptions} onChange={setClassification} label="Channels" sticky />
         </div>
         <label className="relative block h-11">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -560,19 +517,6 @@ export function ActiveOrdersPanel({
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">{displayedOrders.length}/{classifiedKitchenOrders.length}</span>
         </label>
       </div>
-
-      <ActiveOrderSummaryBoard
-        withWaiter={groups.waiterOrders.length}
-        inKitchen={groups.inKitchen}
-        ready={groups.ready}
-        served={groups.served}
-        pendingBills={groups.pendingBills}
-        critical={groups.critical}
-        requests={groups.requests}
-        tableTrend={`${occupiedTableCount} tables`}
-        servedTrend={`${completedToday} done`}
-        requestTrend={`${activeStaffCount} staff`}
-      />
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" tabIndex={0} aria-label="Scrollable active order cards">
         {error ? (
@@ -609,7 +553,7 @@ export function ActiveOrdersPanel({
             ))}
           </div>
         ) : (
-        <div className="grid grid-cols-1 items-start gap-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 min-[1920px]:grid-cols-6">
+        <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
           {loading && !displayedOrders.length ? (
             <ActiveOrdersSkeleton />
           ) : displayedOrders.length ? displayedOrders.map((order) => (
@@ -626,7 +570,7 @@ export function ActiveOrdersPanel({
               onAction={runOrderAction}
             />
           )) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500 lg:col-span-4 2xl:col-span-5 min-[1920px]:col-span-6">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500 xl:col-span-3 2xl:col-span-4 min-[1920px]:col-span-5">
               {view === "waiter" ? "No orders assigned for waiter service." : view === "manager" ? "No delayed orders need manager attention." : "No active orders right now."}
             </div>
           )}
@@ -634,23 +578,6 @@ export function ActiveOrdersPanel({
         )}
       </div>
 
-      <div className="shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <button type="button" className="flex min-h-11 w-full items-center justify-between gap-3 px-3 text-left text-xs font-black text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600" onClick={() => setSummaryOpen((current) => !current)} aria-expanded={summaryOpen}>
-          <span>Status ribbon</span>
-          <span className="flex min-w-0 items-center gap-3 overflow-hidden text-[10px] text-slate-500">
-            <span className="truncate">Kitchen {groups.inKitchen}</span>
-            <span className="truncate">Ready {groups.ready}</span>
-            <span className="truncate">Bills {groups.pendingBills}</span>
-            <span className="truncate text-red-600">Critical {groups.critical}</span>
-            <ChevronDown className={cn("size-4 shrink-0 transition-transform motion-reduce:transition-none", summaryOpen && "rotate-180")} />
-          </span>
-        </button>
-        {summaryOpen ? (
-          <div className="customer-scroll flex gap-4 overflow-x-auto border-t border-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600">
-            {activeOrderLegendItems.map(([label, color]) => <span key={label} className="flex shrink-0 items-center gap-2"><span className={cn("size-2 rounded-full", color)} />{label}</span>)}
-          </div>
-        ) : null}
-      </div>
     </section>
   );
 }
@@ -806,16 +733,19 @@ function ActiveOrderCard({
       )}
       aria-labelledby={`pos-active-${order.id}-title`}
     >
-      <div className="relative grid min-h-[5.75rem] content-center gap-1 px-2 py-1.5 pr-12">
+      <div className="relative grid min-h-[6.75rem] content-center gap-1.5 px-3 py-2 pr-11">
         <div className="flex min-w-0 items-center gap-1.5">
           {unread ? <span className="size-2 shrink-0 rounded-full bg-red-500" title="Unread operational notification"><span className="sr-only">Unread operational notification</span></span> : null}
-          <h2 id={`pos-active-${order.id}-title`} className="shrink-0 truncate text-[11px] font-black text-slate-950">{orderNumber}</h2>
-          <OperationalOrderStatusBadge status={order.status} label={kitchenStatus} compact className="max-w-24 truncate" />
-          <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase", activeOrderPaymentBadgeClass(order.paymentStatus))} title={`Payment ${paymentStatus} · ${formatCurrency(total)}`}>P:{paymentStatus}</span>
+          <h2 id={`pos-active-${order.id}-title`} className="shrink-0 truncate text-sm font-black text-slate-950">{orderNumber}</h2>
+          <OperationalOrderStatusBadge status={order.status} label={kitchenStatus} compact className="max-w-28 truncate" />
+          <span className="ml-auto shrink-0 text-sm font-black text-slate-950" title={`Amount ${formatCurrency(total)}`}>{formatCurrency(total)}</span>
         </div>
-        <div className="grid grid-cols-6 gap-1 text-[8px] font-black text-slate-500">
-          <span className="truncate" title={`${itemCount} items`}>{itemCount}i</span>
-          <span className="col-span-2 truncate" title={`${table} · ${customer}`}>{table} · {customer}</span>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 text-[11px] font-bold text-slate-600">
+          <span className="truncate" title={`${customer} · ${table}`}>{customer} · {table}</span>
+          <span className="truncate text-slate-500" title={`Waiter ${waiter}`}>{waiter}</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1 text-[10px] font-black text-slate-500">
+          <span className="truncate" title={`${itemCount} items`}>{itemCount} items</span>
           <span className={cn("truncate", delay.lateMinutes > 2 && "text-red-700")} title={`ETA ${eta}`}>{eta}</span>
           <span className="truncate" title={`Waiting ${waiting}`}>{waiting}</span>
           <span className={cn("truncate", priority === "Critical" || priority === "High" ? "text-red-700" : "text-slate-500")} title={`Priority ${priority}`}>{priority}</span>
@@ -823,7 +753,8 @@ function ActiveOrderCard({
         <div className="h-1 overflow-hidden rounded-full bg-slate-100" title={`Preparation Progress ${preparationProgress}%`}>
           <span className={cn("block h-full rounded-full", activeOrderProgressClass(order.status))} style={{ width: `${preparationProgress}%` }} />
         </div>
-        <div className="grid grid-cols-3 gap-1 text-[7px] font-black uppercase">
+        <div className="grid grid-cols-4 gap-1 text-[9px] font-black uppercase">
+          <span className={cn("truncate rounded border px-1 py-0.5", activeOrderPaymentBadgeClass(order.paymentStatus))} title={`Payment ${paymentStatus}`}>{paymentStatus}</span>
           <span className={activeOrderServiceFlagClass(ready || pickedUp, "pickup")} title={pickedUp ? "Picked Up" : "Ready for Pickup"}>{pickedUp ? "Picked" : "Pickup"}</span>
           <span className={activeOrderServiceFlagClass(served, "served")} title="Serving">Serving</span>
           <span className={activeOrderServiceFlagClass(completed, "completed")} title="Completed">Done</span>
@@ -1144,16 +1075,6 @@ function activeOrderSearchText(order: OperationalOrder) {
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
-const activeOrderLegendItems = [
-  ["With Waiter", "bg-blue-500"],
-  ["In Kitchen", "bg-orange-500"],
-  ["Ready", "bg-emerald-500"],
-  ["Picked Up", "bg-cyan-500"],
-  ["Serving", "bg-violet-500"],
-  ["Pending", "bg-amber-500"],
-  ["Delayed", "bg-red-500"],
-] as const;
-
 const activeOrderKanbanStages: Array<{ id: string; label: string; statuses: TableOrder["status"][] }> = [
   { id: "new", label: "New", statuses: ["new", "occupied"] },
   { id: "accepted", label: "Accepted", statuses: ["accepted"] },
@@ -1163,66 +1084,4 @@ const activeOrderKanbanStages: Array<{ id: string; label: string; statuses: Tabl
   { id: "serving", label: "Serving", statuses: ["served"] },
   { id: "completed", label: "Completed", statuses: ["completed", "billed"] },
 ];
-
-function ActiveOrderSummaryBoard({
-  withWaiter,
-  inKitchen,
-  ready,
-  served,
-  pendingBills,
-  critical,
-  requests,
-  tableTrend,
-  servedTrend,
-  requestTrend,
-}: {
-  withWaiter: number;
-  inKitchen: number;
-  ready: number;
-  served: number;
-  pendingBills: number;
-  critical: number;
-  requests: number;
-  tableTrend: string;
-  servedTrend: string;
-  requestTrend: string;
-}) {
-  const cards: Array<{ label: string; value: number; trend: string; icon: LucideIcon; tone: "blue" | "orange" | "green" | "violet" | "amber" | "red" | "slate" }> = [
-    { label: "With Waiter", value: withWaiter, trend: tableTrend, icon: UserRound, tone: "blue" },
-    { label: "In Kitchen", value: inKitchen, trend: "Live queue", icon: ChefHat, tone: "orange" },
-    { label: "Ready To Serve", value: ready, trend: "Serve next", icon: Utensils, tone: "green" },
-    { label: "Serving", value: served, trend: servedTrend, icon: CheckCircle2, tone: "violet" },
-    { label: "Pending Bills", value: pendingBills, trend: "Cashier action", icon: ReceiptText, tone: "amber" },
-    { label: "Critical Delay", value: critical, trend: critical ? "Act now" : "On target", icon: BellRing, tone: "red" },
-    { label: "Requests", value: requests, trend: requestTrend, icon: MessageCircle, tone: "slate" },
-  ];
-  return (
-    <section className="customer-scroll grid h-14 shrink-0 grid-flow-col auto-cols-[minmax(8rem,1fr)] gap-1 overflow-x-auto" aria-label="Active order summary">
-      {cards.map((card) => {
-        const tone = activeOrderSummaryTone(card.tone);
-        const Icon = card.icon;
-        return (
-          <article key={card.label} className={cn("grid h-14 min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-1.5 rounded-lg border bg-white px-2 shadow-sm", tone.border)}>
-            <span className={cn("grid size-7 shrink-0 place-items-center rounded-full", tone.bg, tone.text)}><Icon className="size-3.5" /></span>
-            <div className="min-w-0">
-              <p className="text-lg font-black leading-none text-slate-950">{card.value}</p>
-              <p className="mt-0.5 truncate text-[9px] font-black uppercase text-slate-500">{card.label}</p>
-              <p className={cn("truncate text-[8px] font-black", tone.text)}>{card.trend}</p>
-            </div>
-          </article>
-        );
-      })}
-    </section>
-  );
-}
-
-function activeOrderSummaryTone(tone: "blue" | "orange" | "green" | "violet" | "amber" | "red" | "slate") {
-  if (tone === "blue") return { border: "border-blue-100", bg: "bg-blue-50", text: "text-blue-700" };
-  if (tone === "orange") return { border: "border-orange-100", bg: "bg-orange-50", text: "text-orange-700" };
-  if (tone === "green") return { border: "border-emerald-100", bg: "bg-emerald-50", text: "text-emerald-700" };
-  if (tone === "violet") return { border: "border-violet-100", bg: "bg-violet-50", text: "text-violet-700" };
-  if (tone === "amber") return { border: "border-amber-100", bg: "bg-amber-50", text: "text-amber-700" };
-  if (tone === "red") return { border: "border-red-100", bg: "bg-red-50", text: "text-red-700" };
-  return { border: "border-slate-200", bg: "bg-slate-100", text: "text-slate-700" };
-}
 

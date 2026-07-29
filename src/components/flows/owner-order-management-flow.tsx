@@ -38,7 +38,6 @@ import { CompactOrderAccordion } from "@/components/orders/CompactOrderAccordion
 import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
 import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import { OrderFilters } from "@/components/orders/order-filters";
-import { OrderMetricCard } from "@/components/orders/metric-card";
 import { buildOperationalOrders, type OperationalOrder } from "@/lib/active-orders-model";
 import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 import { parseFirestoreDateIso } from "@/lib/firestore-date";
@@ -221,8 +220,7 @@ export function OwnerOrderManagementFlow() {
   const visibleCatering = useMemo(() => tabCatering.filter((quote) => (filter === "all" || filter === "catering") && matchesCateringSearch(quote, debouncedSearch)), [debouncedSearch, filter, tabCatering]);
   const activeOrders = useMemo(() => visibleOrders.filter(isActiveOpsOrder).sort(newestFirst), [visibleOrders]);
   const unifiedActiveOrders = useMemo(() => buildOperationalOrders(orders, tableOrders), [orders, tableOrders]);
-  const visibleUnifiedActiveOrders = useMemo(() => unifiedActiveOrders.filter((order) => matchesOperationalTab(order, tab)), [tab, unifiedActiveOrders]);
-  const metrics = useMemo(() => buildOrderMetrics(mappedOrders, tableOrders, cateringInquiries), [cateringInquiries, mappedOrders, tableOrders]);
+  const activeTabOrderCount = useMemo(() => unifiedActiveOrders.filter((order) => matchesOperationalTab(order, tab)).length, [tab, unifiedActiveOrders]);
   const tabCounts = useMemo(() => buildTabCounts(mappedOrders, cateringInquiries), [cateringInquiries, mappedOrders]);
   const filters = useMemo(() => buildFilters(tabOrders, tabCatering), [tabCatering, tabOrders]);
   const activeSummary = useMemo(() => buildActiveOrderSummary(activeOrders), [activeOrders]);
@@ -636,34 +634,49 @@ export function OwnerOrderManagementFlow() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-neutral-950">{activeView ? "Active Orders" : "Orders"}</h1>
-          <p className="mt-2 text-base font-medium text-slate-600">Manage live restaurant orders across waiter, kitchen, cashier, and partner channels.</p>
-          <p className="mt-2 text-sm font-black text-orange-600">{rangeLabel}</p>
+          <h1 className="text-2xl font-black tracking-tight text-neutral-950">{activeView ? "Active Orders" : "Orders"}</h1>
+          <p className="mt-1 text-sm font-medium text-slate-600">Manage live restaurant orders across waiter, kitchen, cashier, and partner channels.</p>
+          <p className="mt-1 text-xs font-black text-orange-600">{rangeLabel}</p>
         </div>
         <DateRangePicker key={`${dateRange.preset}:${dateRange.from}:${dateRange.to}`} open={datePickerOpen} range={dateRange} onChange={setDateRange} onOpenChange={setDatePickerOpen} />
       </div>
       {loadError ? <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm font-semibold text-destructive">{loadError}</div> : null}
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-6">
-        <OrderMetricCard label="New" value={String(metrics.newOrders)} note="New orders" icon={ShoppingBag} tone="purple" />
-        <OrderMetricCard label="Preparing" value={String(metrics.preparing)} note="Being prepared" icon={ChefHat} tone="orange" />
-        <OrderMetricCard label="Ready" value={String(metrics.ready)} note="Ready for pickup" icon={CheckCircle2} tone="green" />
-        <OrderMetricCard label="Kitchen Tickets" value={String(metrics.kotTickets)} note="Sent to kitchen" icon={ClipboardList} tone="blue" />
-        <OrderMetricCard label="Delayed" value={String(metrics.delayed)} note="Needs attention" icon={Bell} tone="red" />
-        <OrderMetricCard label="Critical" value={String(metrics.critical)} note="Top priority" icon={ChefHat} tone="red" />
-      </section>
-
-      <div className={operationsOpen ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" : "grid gap-6"}>
-        <main className="space-y-5">
+      <div className="grid gap-4">
+        <main className="space-y-3">
           {!activeView ? <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 flex-1 pb-3">
               <OrderClassificationBar value={classification} options={classificationOptions} onChange={changeClassification} sticky />
               <OrderClassificationBar value={operation} options={operationOptions} onChange={setOperation} label="Operational state" className="mt-2" sticky />
             </div>
           </div> : null}
+          {activeView ? (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-b border-neutral-200 pb-3">
+            <span className="text-xs font-black text-neutral-950">Auto-accept</span>
+            <button
+              type="button"
+              onClick={() => setAutoAccept((value) => !value)}
+              title="Quickly pause or resume auto-accept. Configure rules in Settings."
+              className={autoAccept ? "h-9 w-14 rounded-full bg-orange-500 p-1" : "h-9 w-14 rounded-full bg-slate-300 p-1"}
+              aria-pressed={autoAccept}
+            >
+              <span className={autoAccept ? "block size-7 translate-x-5 rounded-full bg-white transition" : "block size-7 rounded-full bg-white transition"} />
+            </button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/owner/settings">
+                <Settings className="size-4" />
+                Settings
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setOperationsOpen(true)}>
+              <Settings className="size-4" />
+              Operations panel
+            </Button>
+          </div>
+          ) : (
           <div className="flex flex-col gap-4 border-b border-neutral-200 pb-0 lg:flex-row lg:items-end lg:justify-between">
             <Tabs value={tab} onValueChange={(value) => setTab(value as OrderTab)}>
               <TabsList className="customer-scroll h-auto max-w-full justify-start gap-4 overflow-x-auto rounded-none bg-transparent p-0">
@@ -707,6 +720,7 @@ export function OwnerOrderManagementFlow() {
               </Button>
             </div>
           </div>
+          )}
 
           {!activeView ? <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -726,7 +740,7 @@ export function OwnerOrderManagementFlow() {
             {activeView ? (
               <ActiveOrdersPanel
                 orders={orders}
-                kitchenOrders={visibleUnifiedActiveOrders}
+                kitchenOrders={unifiedActiveOrders}
                 tables={[]}
                 staff={[]}
                 loading={loading}
@@ -774,52 +788,64 @@ export function OwnerOrderManagementFlow() {
               />
             ) : null}
             {!loading && !visibleOrders.length && !visibleCatering.length && !activeView ? <EmptyOrders /> : null}
-            {!loading && activeView && !activeOrders.length && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
+            {!loading && activeView && !unifiedActiveOrders.length && activeTabOrderCount === 0 && !visibleCatering.length ? <EmptyOrders title="No active orders" /> : null}
           </div>
         </main>
 
         {operationsOpen ? (
-        <aside className="space-y-5">
-          <DashboardCard title="Delivery Partner Integrations">
-            <p className="mb-4 text-sm text-slate-600">Connect and manage delivery partner accounts.</p>
-            <div className="space-y-3">
-              {["Zomato", "Swiggy", "Dunzo", "Porter", "Rapido", "Shadowfax"].map((partner, index) => (
-                <PartnerCard
-                  key={partner}
-                  name={partner}
-                  connected={index < 2}
-                  status={index < 2 ? "connected" : index === 2 ? "sync-failed" : "disconnected"}
-                  lastSync={index < 2 ? "2 min ago" : "Not connected"}
-                  onConfigure={() => setDialogPartner(partner)}
-                />
-              ))}
-            </div>
-          </DashboardCard>
-
-          <DashboardCard title="Order Alerts & Sound">
-            <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
-              <div className="flex items-start gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-white text-orange-600 shadow-sm">
-                  <Bell className="size-5" />
-                </span>
-                <div>
-                  <p className="font-black text-slate-950">Sound settings moved to Settings</p>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">Configure loud online alerts, kitchen sounds, waiter order sounds, repeat count, and test sounds from one place.</p>
-                </div>
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Order operations panel">
+          <button type="button" className="absolute inset-0 bg-slate-950/20" aria-label="Close operations panel" onClick={() => setOperationsOpen(false)} />
+          <aside className="absolute right-0 top-0 h-full w-[min(92vw,28rem)] overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-black text-slate-950">Operations Panel</h2>
+                <p className="text-xs font-semibold text-slate-500">Partners, alerts, and automation settings.</p>
               </div>
-              <Button className="mt-4 w-full" variant="outline" asChild>
-                <Link href="/owner/settings">Open Notification & Sound</Link>
-              </Button>
+              <Button variant="outline" size="icon-sm" onClick={() => setOperationsOpen(false)} aria-label="Close operations panel">×</Button>
             </div>
-          </DashboardCard>
+            <div className="space-y-4">
+              <DashboardCard title="Delivery Partner Integrations">
+                <p className="mb-3 text-sm text-slate-600">Connect and manage delivery partner accounts.</p>
+                <div className="space-y-2">
+                  {["Zomato", "Swiggy", "Dunzo", "Porter", "Rapido", "Shadowfax"].map((partner, index) => (
+                    <PartnerCard
+                      key={partner}
+                      name={partner}
+                      connected={index < 2}
+                      status={index < 2 ? "connected" : index === 2 ? "sync-failed" : "disconnected"}
+                      lastSync={index < 2 ? "2 min ago" : "Not connected"}
+                      onConfigure={() => setDialogPartner(partner)}
+                    />
+                  ))}
+                </div>
+              </DashboardCard>
 
-          <DashboardCard title="Order Settings">
-            <SettingRow label="Auto accept orders" value={autoAccept ? "Enabled" : "Disabled"} />
-            <SettingRow label="Configuration" value="Settings → Order Automation" />
-            <SettingRow label="Business hours" value="Configured" />
-            <SettingRow label="Holiday mode" value="Off" />
-          </DashboardCard>
-        </aside>
+              <DashboardCard title="Order Alerts & Sound">
+                <div className="rounded-xl border border-orange-100 bg-white p-3">
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-9 place-items-center rounded-xl bg-orange-50 text-orange-600">
+                      <Bell className="size-4" />
+                    </span>
+                    <div>
+                      <p className="font-black text-slate-950">Sound settings moved to Settings</p>
+                      <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">Configure online alerts, kitchen sounds, waiter sounds, repeat count, and test sounds from one place.</p>
+                    </div>
+                  </div>
+                  <Button className="mt-3 w-full" variant="outline" asChild>
+                    <Link href="/owner/settings">Open Notification & Sound</Link>
+                  </Button>
+                </div>
+              </DashboardCard>
+
+              <DashboardCard title="Order Settings">
+                <SettingRow label="Auto accept orders" value={autoAccept ? "Enabled" : "Disabled"} />
+                <SettingRow label="Configuration" value="Settings → Order Automation" />
+                <SettingRow label="Business hours" value="Configured" />
+                <SettingRow label="Holiday mode" value="Off" />
+              </DashboardCard>
+            </div>
+          </aside>
+        </div>
         ) : null}
       </div>
 
@@ -1655,17 +1681,6 @@ function buildOpsOrders(orders: DemoOrder[], tableOrders: TableOrder[], now: num
     };
   });
   return [...customerOrders, ...kotOrders].sort(newestFirst);
-}
-
-function buildOrderMetrics(orders: OpsOrder[], tableOrders: TableOrder[], cateringInquiries: CateringQuote[]) {
-  return {
-    newOrders: orders.filter((order) => order.status === "new").length + cateringInquiries.filter((quote) => (quote.status ?? "new") === "new").length,
-    preparing: orders.filter((order) => ["accepted", "preparing", "occupied"].includes(order.status)).length,
-    ready: orders.filter((order) => ["ready", "picked-up"].includes(order.status)).length,
-    kotTickets: tableOrders.filter((order) => !["completed", "billed"].includes(order.status)).length,
-    delayed: orders.filter((order) => order.delay?.delayed).length,
-    critical: orders.filter((order) => order.delay?.priority === "critical").length,
-  };
 }
 
 function buildTabCounts(orders: ActiveOpsOrder[], cateringInquiries: CateringQuote[]): Record<OrderTab, number> {

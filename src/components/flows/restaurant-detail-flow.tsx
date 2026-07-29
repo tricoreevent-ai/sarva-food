@@ -57,7 +57,7 @@ import { APP_NAME } from "@/lib/constants";
 import type { MenuItem, Offer, Restaurant } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import type { CustomerAddressDoc } from "@/types/firebase";
-import { placeCustomerOrder } from "@/services/customer-order-api";
+import { CustomerOrderError, placeCustomerOrder } from "@/services/customer-order-api";
 
 type WizardStep = "menu" | "offers" | "details" | "confirm" | "success";
 type FulfillmentType = "delivery" | "parcel";
@@ -102,6 +102,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
   const removeItem = useCartStore((state) => state.removeItem);
   const applyOffer = useCartStore((state) => state.applyOffer);
   const clearCart = useCartStore((state) => state.clearCart);
+  const replaceCart = useCartStore((state) => state.replaceCart);
 
   const [step, setStep] = useState<WizardStep>("menu");
   const [query, setQuery] = useState("");
@@ -207,6 +208,12 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       scheduledFor: new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString(),
     };
   }, [restaurant, scheduledDate, scheduledTime]);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    const compatibleItems = cartItems.filter((item) => item.restaurantSlug === restaurant.slug);
+    if (compatibleItems.length !== cartItems.length) replaceCart(compatibleItems);
+  }, [cartItems, replaceCart, restaurant]);
 
   useEffect(() => {
     if (!restaurant || typeof restaurant.latitude !== "number" || typeof restaurant.longitude !== "number" || typeof navigator === "undefined" || !navigator.geolocation) {
@@ -500,8 +507,8 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
       });
       setStep("success");
       toast.success(orderTiming === "scheduled" ? "Scheduled order sent to the restaurant." : "Order sent to the restaurant.");
-    } catch {
-      toast.error("Could not place the order. Please try again.");
+    } catch (error) {
+      toast.error(customerOrderFailureMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -685,9 +692,7 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
                 scheduledForLabel={scheduledSlotLabel}
                 contactPhone={contactPhone}
                 contactWhatsApp={contactWhatsApp}
-                submitting={submitting}
                 onBack={() => goTo("details")}
-                onSubmit={submitOrder}
               />
             ) : null}
           </section>
@@ -700,8 +705,9 @@ export function RestaurantDetailFlow({ slug }: { slug: string }) {
               totals={totals}
               onQty={updateQuantity}
               onRemove={removeItem}
-              onAction={() => goTo(nextStep(step))}
-              actionLabel={cartActionLabel(step)}
+              onAction={() => step === "confirm" ? void submitOrder() : goTo(nextStep(step))}
+              actionLabel={step === "confirm" ? (orderTiming === "scheduled" ? "Send order" : "Place order") : cartActionLabel(step)}
+              actionDisabled={submitting}
             />
           </aside>
         </div>
@@ -2066,9 +2072,7 @@ function ConfirmStep({
   scheduledForLabel,
   contactPhone,
   contactWhatsApp,
-  submitting,
   onBack,
-  onSubmit,
 }: {
   restaurant: Restaurant;
   cartItems: CartLine[];
@@ -2079,9 +2083,7 @@ function ConfirmStep({
   scheduledForLabel: string;
   contactPhone: string;
   contactWhatsApp: string;
-  submitting: boolean;
   onBack: () => void;
-  onSubmit: () => void;
 }) {
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
@@ -2100,8 +2102,7 @@ function ConfirmStep({
             {customer.address ? <p className="mt-2 text-sm font-semibold">{customer.address}{customer.landmark ? `, ${customer.landmark}` : ""}</p> : null}
           </div>
           {cartItems.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
-              <MenuImage item={item} className="size-16 shrink-0" />
+            <div key={item.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-1 font-black">{item.name}</p>
                 <p className="text-sm font-semibold text-muted-foreground">{item.quantity} x {formatCurrency(itemPrice(item, fulfillmentType))}</p>
@@ -2130,10 +2131,6 @@ function ConfirmStep({
               </Button>
             ) : null}
           </div>
-          <Button className="h-12 w-full bg-emerald-700 text-white hover:bg-emerald-800" onClick={onSubmit} disabled={submitting}>
-            {submitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-            {orderTiming === "scheduled" ? "Send scheduled order" : "Place order and wait for confirmation"}
-          </Button>
           <Button className="h-12 w-full" variant="outline" disabled>
             <CreditCard className="size-4" />
             Pay via UPI - Coming soon
@@ -2207,6 +2204,7 @@ function CartSummary({
   onRemove,
   onAction,
   actionLabel,
+  actionDisabled = false,
 }: {
   restaurant: Restaurant;
   items: CartLine[];
@@ -2216,26 +2214,26 @@ function CartSummary({
   onRemove: (id: string) => void;
   onAction: () => void;
   actionLabel: string;
+  actionDisabled?: boolean;
 }) {
   return (
     <div className="sticky top-24 rounded-2xl bg-white p-4 shadow-sm">
       <h2 className="font-black">Your Order</h2>
       <p className="text-sm text-muted-foreground">{restaurant.displayName ?? restaurant.name}</p>
       {items.length ? (
-        <div className="mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
+        <div className="mt-4 max-h-[320px] space-y-2 overflow-y-auto pr-1">
           {items.map((item) => (
-            <div key={item.id} className="rounded-2xl bg-slate-50 p-3">
-              <div className="flex items-start gap-3">
-                <MenuImage item={item} className="size-14 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-1 font-black">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(itemPrice(item, fulfillmentType))}</p>
+            <div key={item.id} className="rounded-xl bg-slate-50 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-sm font-black leading-5">{item.name}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">{formatCurrency(itemPrice(item, fulfillmentType))} each</p>
                 </div>
-                <button type="button" onClick={() => onRemove(item.id)} className="text-red-500" aria-label="Remove item">
+                <button type="button" onClick={() => onRemove(item.id)} className="shrink-0 text-red-500" aria-label="Remove item">
                   <X className="size-4" />
                 </button>
               </div>
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-2 flex items-center justify-between gap-3">
                 <QtyButton quantity={item.quantity} onAdd={() => onQty(item.id, item.quantity + 1)} onQty={(quantity) => onQty(item.id, quantity)} />
                 <span className="font-black">{formatCurrency(itemPrice(item, fulfillmentType) * item.quantity)}</span>
               </div>
@@ -2252,8 +2250,9 @@ function CartSummary({
       <div className="mt-4">
         <TotalsBlock totals={totals} />
       </div>
-      <Button className="mt-4 h-12 w-full bg-orange-600 hover:bg-orange-700" disabled={!items.length} onClick={onAction}>
+      <Button className="mt-4 h-12 w-full bg-orange-600 hover:bg-orange-700" disabled={!items.length || actionDisabled} onClick={onAction}>
         {actionLabel}
+        {actionDisabled ? <Loader2 className="size-4 animate-spin" /> : null}
         <ArrowRight className="size-4" />
       </Button>
     </div>
@@ -2436,13 +2435,21 @@ async function notifyOwnerAboutOrder(payload: Record<string, unknown>) {
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      const body = await response.json().catch(() => null) as { error?: string } | null;
-      console.warn("[Food Gedi order] Owner email notification was not sent.", body?.error || response.status);
+      await response.json().catch(() => null);
     }
-  } catch (error) {
-    console.warn("[Food Gedi order] Owner email notification request failed.", { reason: safeClientReason(error) });
+  } catch {
+    // Notification failure must not block customer order placement.
   }
 }
+
+function customerOrderFailureMessage(error: unknown) {
+  if (error instanceof CustomerOrderError) return error.message;
+  const reason = safeClientReason(error);
+  if (/session|auth|401/i.test(reason)) return "Your session expired. Please sign in again.";
+  if (/network|fetch|failed/i.test(reason)) return "Unable to connect to the restaurant. Check your internet and try again.";
+  return "Order could not be placed. Please review your cart and delivery details.";
+}
+
 function FloatingCart({ count, total, step, disabled, onClick }: { count: number; total: number; step: WizardStep; disabled: boolean; onClick: () => void }) {
   if (disabled) return null;
   return (
