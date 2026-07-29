@@ -1,12 +1,12 @@
 # Go Live Guide
 
-Feature ID: `RC5-PRODUCTION-GO-LIVE`
+Feature ID: `RC6.5-PRODUCTION-GO-LIVE`
 
 ## Preconditions
 
 - Repository gates pass.
 - Hostinger env validation passes with real production values.
-- Hosted `/api/release-info` reports the final SHA, `v1.0.0-rc5`, and `deploymentEnvironment: production`.
+- Hosted `/api/release-info` reports the final SHA, `v1.0.0-rc6.5`, and `deploymentEnvironment: production`.
 - Firebase rules/indexes are deployed.
 - Provider dashboard checks are complete.
 - Manual browser/device/printer smoke passes.

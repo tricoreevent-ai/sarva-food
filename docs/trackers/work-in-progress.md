@@ -1,8 +1,18 @@
 # Release Closeout
 
-Last updated: 2026-07-23
+Last updated: 2026-07-29
 
-Current Sprint: RC5 final menu link and sharing hardening
+Current Sprint: RC6.5 final tracker reconciliation and project completion pass
+
+RC6.5 Tracker Reconciliation Result: repository implementation is complete through RC6.4.1 base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`. The RC6.5 pass found stale tracker/release-artifact drift, not unfinished application features. Release metadata now targets `v1.0.0-rc6.5`; remaining work is external Hostinger deployment verification, provider dashboards, Firebase Console, authenticated browser/device, Lighthouse/Chrome, long-run heap, and hardware/printer/QR validation.
+
+RC6.4.1 Operational Classification Result: primary source/type tabs are retained, secondary operational-state chips and smart priority counts are derived from the shared classification model, last filters persist per module on the client, and Dashboard/Order Desk/Active Orders/Kitchen/History/Customer Search reuse the same classification helpers without new APIs or listeners.
+
+RC6.4 Order Navigation Result: Owner operational order navigation now classifies All, Dine In, Parcel, Delivery, Online, QR, Scheduled, Catering, and Cancelled through one shared source/type classifier while preserving existing workflows and role permissions.
+
+RC6.3.1 Restaurant Hero Gap Result: the restaurant detail route-level duplicate top spacing was removed so the hero begins immediately below the public header without global spacing resets, JavaScript layout calculations, or regressions to checkout, tracking, login, owner, POS, Kitchen, dashboard, or settings surfaces.
+
+RC6.3 Customer Experience Result: customer discovery, branding consistency, order tracking, checkout validation, order-display normalization, and customer order compatibility fields were hardened without Firestore schema changes.
 
 RC5 Deployment Certification Result: repository security P0/P1 fixes complete for Cloudinary signing, customer order notification, production test-session hiding, public ingestion rate/payload bounds, and stable release timestamps. Read-only Firestore certification found production-data integrity remediation items (menu ownership/channel documents, owner reference, historical consistency fields, one missing order mirror, and legacy/guest customer references). No production data was changed. Candidate is ready for staging but production remains gated on backed-up controlled data repair and revalidation.
 
@@ -34,9 +44,9 @@ Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 waiter-servi
 
 Phase 4E Result: POS Active Orders actions are fully wired and regression-checked; completion now requires Served + Paid, Ready can only transition to Served, delay values are capped into human/stale labels, duplicate timeline events collapse, 100% kitchen progress is green, cards use a responsive compact grid, and the footer is a sticky four-metric bar. Operational smoke passes 12/12.
 
-Current Phase: RC5 Owner/Waiter Active Orders unification complete; deployment and external production verification pending
+Current Phase: RC6.5 repository reconciliation complete pending final validation
 
-Current Task: Deploy the final RC5 hardening candidate, verify hosted SHA, then complete provider/device/Firebase/hardware/browser/performance production gates.
+Current Task: Commit/push the RC6.5 synchronized tracker/release metadata after validation, then deploy and verify hosted SHA before production signoff.
 
 Phase 4D Result: operational automation now passes 9/9 deterministic checks covering dual-storage draft recovery, restaurant/operator isolation, quota/network/permission/conflict/provider faults, reconnect/focus/visibility replay, role contracts, notification retry/dedup/token lifecycle, service-worker background actions/deep links, and Active Orders accessibility. Fixed service-worker deep-link tab reuse so a matching tab with query parameters is focused instead of duplicated.
 
@@ -84,9 +94,9 @@ Active Orders Code Baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
 
 Production URL: `https://violet-squid-380447.hostingersite.com`
 
-Last Verified Build: `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run analyze`, `npm.cmd run audit:release`, `npm.cmd run smoke:operational` (42/42), `npm.cmd run profile:runtime`, and `git diff --check` PASS on 2026-07-22; build/analyze retain the accepted Firebase/protobuf warning.
+Last Verified Build: RC6.5 validation is rerun in this pass: `npm run typecheck`, `npm run lint`, `npm run build`, `npm run analyze`, `npm run audit:release`, `npm run smoke:operational`, `npm run profile:runtime`, `npm run theme:contrast`, `npm run brand:visual`, and `git diff --check`; build/analyze retain the accepted Firebase/protobuf warning.
 
-Last Verified Production Runtime: `/api/release-info` reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, `publicAppUrl=https://violet-squid-380447.hostingersite.com`, and Node `v22.18.0`. The hosted runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA.
+Last Verified Production Runtime: verify `/api/release-info` after RC6.5 deployment; do not claim production readiness until hosted SHA and version match the final commit.
 
 Files Remaining:
 
@@ -95,12 +105,12 @@ Files Remaining:
 Next Command:
 
 ```powershell
-Deploy final RC5 hardening commit and run hosted Active Orders/POS/Kitchen/Owner Dashboard/Reports multi-role QA plus Owner Notification and Payment Verification Centers with real provider credentials/devices.
+Deploy final RC6.5 commit and verify `/api/release-info`, health endpoints, authenticated multi-role workflows, providers, browser/device matrix, Lighthouse/Chrome, long-run heap, and hardware/printer/QR gates.
 ```
 
 Next Exact Task:
 
-Deploy final RC5 operational hardening, verify hosted VAPID and owner Razorpay, then complete Firebase Console, browser/device, Lighthouse, Chrome profiling, long-run heap, Active Orders/Owner Dashboard/Reports multi-role, and hardware QA.
+Deploy final RC6.5 repository candidate, verify hosted SHA/version, then complete Firebase Console, provider, browser/device, Lighthouse, Chrome profiling, long-run heap, Active Orders/Owner Dashboard/Reports multi-role, and hardware QA.
 
 Known Risks:
 

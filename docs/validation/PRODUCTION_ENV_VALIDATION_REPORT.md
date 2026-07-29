@@ -2,6 +2,8 @@
 
 Generated: 2026-07-26T13:55:22.537Z
 
+Status: Superseded historical local-env report. RC6.5 requires `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5`; rerun `npm run validate:prod-env` in a production-equivalent Hostinger/Firebase/provider environment before production signoff.
+
 ## Summary
 
 | Status | Count |
@@ -47,7 +49,7 @@ Generated: 2026-07-26T13:55:22.537Z
 | required:CLOUDINARY_CLOUD_NAME | PASS | configured |
 | required:CLOUDINARY_API_KEY | PASS | configured |
 | required:CLOUDINARY_API_SECRET | PASS | configured |
-| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc5 |
+| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc5 at generation time; RC6.5 now requires v1.0.0-rc6.5 |
 | environment:NEXT_PUBLIC_APP_ENV | ERROR | must be production |
 | url:NEXT_PUBLIC_APP_URL | ERROR | must be a valid https URL |
 | firebase:NEXT_PUBLIC_USE_FIREBASE | PASS | must be true |

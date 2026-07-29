@@ -2,6 +2,8 @@
 
 Generated: 2026-07-26T13:58:12.789Z
 
+Status: Superseded hosted probe. After RC6.5 deploy, rerun deployment verification and require final SHA plus `applicationVersion=v1.0.0-rc6.5`.
+
 ## Summary
 
 | Status | Count |

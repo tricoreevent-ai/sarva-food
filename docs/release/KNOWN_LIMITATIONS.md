@@ -1,5 +1,13 @@
 # Known Limitations
 
+RC6.5 final tracker reconciliation closes repository tracker/release-artifact drift after RC6.4.1. No repository P0/P1 feature work remains pending. Production launch still requires deploying the final RC6.5 commit and verifying `/api/release-info`, health endpoints, authenticated multi-role workflows, provider dashboards, Firebase Console, Lighthouse/Chrome, long-run heap, and hardware/printer/QR gates.
+
+RC6.4.1 operational classification is repository complete. Source/type filters, secondary operational filters, smart-priority counts, and per-module persisted filters are derived from existing state with no new APIs or listeners. Hosted browser/device verification remains external.
+
+RC6.3.1 restaurant header-to-hero spacing is repository complete. Remaining validation is hosted visual smoke across customer, checkout, tracking, login, owner, POS, Kitchen, dashboard, and settings pages after deploy.
+
+RC6.3 customer experience and order tracking hardening is repository complete. Hosted customer journey and browser/device verification remain external.
+
 RC5 Owner/Waiter Active Orders unification closes the remaining repository-side duplicated active-order workflow by rendering Owner Active Orders through the same operational component and action contracts used by POS/Waiter. Order-only tickets now have transactional, retry-safe Send To Kitchen linkage. The final unification commit still requires Hostinger redeployment and authenticated hosted multi-role/device/provider/hardware verification before customer go-live.
 
 RC5 final operational hardening closes the remaining repository-side live consistency risks found in POS add-on KOTs, Kitchen create retry idempotency, Kitchen full-snapshot streaming, Kitchen ready-signal polling, stale Owner Dashboard KPIs, and one-shot Owner Reports. The final hardening commit still requires Hostinger redeployment and authenticated hosted multi-role/device/provider/hardware verification before customer go-live.
@@ -18,7 +26,7 @@ Feature ID: `RC1-PRODUCTION-GO-LIVE`
 
 ## Current No-Go Items
 
-- Hosted env reports `deploymentEnvironment: development`.
+- Hosted runtime must report the final RC6.5 commit and `applicationVersion=v1.0.0-rc6.5` through `/api/release-info`.
 - Local production env validation lacks production-only secrets and provider values.
 - Firebase Console rules/indexes/authorized domains require manual verification.
 - Razorpay live/sandbox order, checkout, verify, webhook, failure, refund, and reconciliation require dashboard smoke.

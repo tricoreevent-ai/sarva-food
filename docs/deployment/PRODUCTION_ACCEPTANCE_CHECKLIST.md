@@ -1,19 +1,19 @@
 # Production Acceptance Checklist
 
-Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
-Date: 2026-07-16
+Release: `v1.0.0-rc6.5` candidate; existing RC tags remain immutable
+Date: 2026-07-29
 
 ## Acceptance Decision
 
 Current decision: `NO GO`.
 
-Production readiness score: `90%`.
+Production readiness score: `92%`.
 
 ## Required Pass Gates
 
 | Gate | Status | Required Evidence |
 | --- | --- | --- |
-| Release metadata | ✅ Completed | `/api/release-info` shows hosted runtime SHA containing Active Orders baseline, branch, `v1.0.0-rc5`, HTTPS URL, and `deploymentEnvironment: production`. |
+| Release metadata | 🔴 Required | `/api/release-info` must show final RC6.5 SHA, branch, `v1.0.0-rc6.5`, HTTPS URL, and `deploymentEnvironment: production`. |
 | Production env validation | 🔴 Blocking | `npm run validate:prod-env` passes with real production values. |
 | Health endpoints | ✅ Completed | `/health/live`, `/health/ready`, `/health/startup` return healthy/safe metadata after final redeploy. |
 | Build pipeline | ✅ Completed | Typecheck, lint, build, analyze pass. |
@@ -30,17 +30,17 @@ Production readiness score: `90%`.
 
 | Endpoint | Status | Current Result | Required Result |
 | --- | --- | --- | --- |
-| `/api/release-info` | PASS | Hosted metadata reports Node `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`; runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`. | Recheck exact hosted SHA before final tag/signoff. |
-| `/health/live` | PASS | Endpoint returns `ok` with safe public metadata. | Endpoint returns `ok` after final RC5 redeploy. |
+| `/api/release-info` | REQUIRED | Hosted metadata must report Node `v22.x`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and final RC6.5 SHA. | Recheck exact hosted SHA before final tag/signoff. |
+| `/health/live` | PASS | Endpoint returns `ok` with safe public metadata. | Endpoint returns `ok` after final RC6.5 redeploy. |
 | `/health/ready` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok`; provider gaps are either configured or explicitly accepted for production scope. |
-| `/health/startup` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok` after final RC5 redeploy/restart. |
+| `/health/startup` | PASS | Endpoint returns `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing. | Endpoint returns `ok` after final RC6.5 redeploy/restart. |
 
 ## Production Configuration Status
 
 | Item | Status | Current Evidence | Required Action |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_APP_ENV` | PASS | Hosted metadata reports `production`. | Keep value set during latest SHA redeploy/restart. |
-| `NEXT_PUBLIC_APP_VERSION` | PASS | Hosted metadata reports `v1.0.0-rc5`. | Keep value set during latest SHA redeploy/restart. |
+| `NEXT_PUBLIC_APP_VERSION` | REQUIRED | Hosted metadata must report `v1.0.0-rc6.5`. | Keep value set during latest SHA redeploy/restart. |
 | `NEXT_PUBLIC_APP_URL` | PASS | Hosted metadata reports `https://violet-squid-380447.hostingersite.com`. | Replace only if final custom HTTPS domain is used. |
 | Firebase Admin | PASS | Health endpoints report Admin configured. | Keep service account values in Hostinger only. |
 | Firebase Client | PASS | Health endpoints report public Firebase configured. | Confirm Firebase authorized domains before launch. |
@@ -106,4 +106,4 @@ Production readiness score: `90%`.
 
 ## Sign-off Rule
 
-Mark production accepted only after every 🔴 item is resolved and every 🟡 item has a dated manual result. Repository-only evidence is sufficient for RC5 deployment testing, not for public production launch.
+Mark production accepted only after every 🔴 item is resolved and every 🟡 item has a dated manual result. Repository-only evidence is sufficient for RC6.5 deployment testing, not for public production launch.

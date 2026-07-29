@@ -1,6 +1,6 @@
 {
   "name": "food-gedi-commerce-ecosystem",
-  "version": "1.0.0-rc.6.2",
+  "version": "1.0.0-rc.6.5",
   "private": true,
   "engines": {
     "node": ">=22 <23",

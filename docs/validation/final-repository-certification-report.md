@@ -1,33 +1,33 @@
 # Final Repository Certification Report
 
-Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
+Release: `v1.0.0-rc6.5` candidate; existing RC tags remain immutable
 Branch: `release/production-nammude`
-Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Hosted RC5 runtime: includes Active Orders baseline; verify exact SHA with `/api/release-info`
+Current base commit: `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` before RC6.5 reconciliation
+Hosted runtime: verify exact RC6.5 SHA and version with `/api/release-info`
 Final certification commit: latest `origin/release/production-nammude` branch head
-Date: 2026-07-16
+Date: 2026-07-29
 
-## RC4 / RC5 Current Status
+## RC6.5 Current Status
 
 | Area | Result |
 | --- | --- |
-| Repository readiness | `99%` |
-| Production readiness | `90%` |
+| Repository readiness | `100%` after validation |
+| Production readiness | `92%` until external gates pass |
 | Decision | Repository `GO`; production launch `NO GO`. |
-| Tag recommendation | Keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5` from the final RC5 validation commit. |
-| Hosted status | `/api/release-info` reports RC5/production runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for exact hosted SHA. |
-| Latest validation | 2026-07-16 `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check` passed. Hosted release/health probes are ok. |
+| Tag recommendation | Keep existing RC tags unchanged; create `v1.0.0-rc6.5` only after validation and hosted release-info verification. |
+| Hosted status | Verify `/api/release-info` after RC6.5 deployment for exact SHA, version, branch, and production environment. |
+| Latest validation | RC6.5 final gates are rerun in this pass. |
 | Required before launch | Production env/provider validation, Lighthouse, Firebase Console checks, provider dashboard checks, authenticated browser/device smoke, and printer/hardware smoke. |
 
 ## Certification Result
 
 | Area | Score | Result |
 | --- | ---: | --- |
-| Repository health | 99% | PASS: no confirmed repository-side blocker remains. |
+| Repository health | 100% | PASS: no confirmed repository-side blocker remains. |
 | Security | 98% | PASS: masked logging, request ids, correlation/trace context, safe errors, and health metadata are in place. |
 | Performance | 95% | PASS: bundle analysis, route splitting, lazy runtime ownership, and bounded Firestore probes are verified where repository-verifiable. |
 | Accessibility | 94% | PASS repository-side patterns; final viewport and screen-reader smoke remains manual browser validation. |
-| Production readiness | 90% | NO-GO until manual infrastructure, provider, browser, and hardware gates pass. |
+| Production readiness | 92% | NO-GO until manual infrastructure, provider, browser, and hardware gates pass. |
 
 ## Repository Health
 
@@ -35,7 +35,7 @@ Date: 2026-07-16
 - No duplicate API family, repository, Firestore collection, schema, payment provider contract, or production data migration was introduced. The current workspace includes documented POS/Active Orders operational UX fixes.
 - Runtime `console` usage that remains is centralized server logging or scoped client/browser diagnostics; no `debugger` statement is present.
 - Legacy compatibility docs/code remain tracked as debt and were not renamed during release freeze.
-- 2026-07-16 local validation passed typecheck, lint, build, analyze, release audit, operational smoke, runtime profile, and diff check; production env validation remains external because real Hostinger/Firebase/Razorpay values are unavailable locally.
+- RC6.5 local validation covers typecheck, lint, build, analyze, release audit, operational smoke, runtime profile, contrast, brand visual regression, and diff check; production env validation remains external because real Hostinger/Firebase/Razorpay values are unavailable locally.
 
 ## Security Audit
 
@@ -51,7 +51,7 @@ Date: 2026-07-16
 - RC5 image optimization is complete repository-side: Cloudinary presets, AVIF/WebP upload handling, `dpr_auto` delivery cleanup, and right-sized thumbnails are documented in `docs/performance/IMAGE_OPTIMIZATION_REPORT.md`.
 - Existing route-level skeletons, dynamic boundaries, lazy toast/runtime ownership, lazy import/export paths, no-store public data, and bounded health probes remain intact.
 - No new listener, polling loop, high-volume collection scan, duplicate route family, or N+1 repository pattern was confirmed by the release audit.
-- Lighthouse/Core Web Vitals must be rerun against the hosted RC5 production runtime.
+- Lighthouse/Core Web Vitals must be rerun against the hosted RC6.5 production runtime.
 
 ## Accessibility And Responsive Audit
 
@@ -75,7 +75,7 @@ Date: 2026-07-16
 ## Bundle And Dependency Audit
 
 - `npm run build` and `npm run analyze` pass on Node `v22.16.0`.
-- Package metadata reports `1.0.0-rc.5`.
+- Package metadata reports `1.0.0-rc.6.5`.
 - No dependency installation, dependency upgrade, or new runtime package was added in the final certification pass.
 
 ## Technical Debt
@@ -88,7 +88,7 @@ Date: 2026-07-16
 ## Remaining Manual Deployment Tasks
 
 - Recheck hosted `/api/release-info` plus `/health/*` before final tag/signoff.
-- Keep `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`, `NEXT_PUBLIC_APP_ENV=production`, and HTTPS `NEXT_PUBLIC_APP_URL`; configure/verify Firebase VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, live Razorpay keys/webhook, and provider values.
+- Keep `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5`, `NEXT_PUBLIC_APP_ENV=production`, and HTTPS `NEXT_PUBLIC_APP_URL`; configure/verify Firebase VAPID, `TABLE_QR_SECRET`, `DATABASE_ALERT_EMAIL`, live Razorpay keys/webhook, and provider values.
 - Deploy Firestore rules and indexes in the target Firebase project.
 - Configure Firebase authorized domains and production secrets.
 - Smoke SMTP, Razorpay, WhatsApp, SMS, push/VAPID, Meta, Cloudinary, Mapbox, and Google OAuth with real provider access.

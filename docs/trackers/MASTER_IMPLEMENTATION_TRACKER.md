@@ -1,6 +1,6 @@
 # Food Gedi Master Implementation Tracker
 
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 This is the permanent single source of truth for planning and future Codex work.
 Every future implementation task must read this file before changing code.
@@ -11,14 +11,62 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 
 | Field | Value |
 | --- | --- |
-| Current Sprint | RC6 Brand Visibility and Logo System Hardening |
-| Release Version | `v1.0.0-rc6.2` candidate |
-| Latest Git Commit | Pending RC6.2 brand rendering pipeline commit on `release/production-nammude`; use `git rev-parse HEAD` after commit for the exact SHA. Existing RC tags must not be moved. |
+| Current Sprint | RC6.5 Final Tracker Reconciliation and Project Completion Pass |
+| Release Version | `v1.0.0-rc6.5` candidate |
+| Latest Git Commit | RC6.4.1 base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`; final RC6.5 reconciliation commit is produced by this pass. Existing RC tags must not be moved. |
 | Active Branch | `release/production-nammude` |
-| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com` is reachable and reports commit `b992d2631bc3ed2dc785957c81bee174b927270f`; that deployed runtime still uses the old image-based logo pipeline and is the source of the blank cream icon tile until RC6.2 is redeployed. Use `/api/release-info` for the exact hosted SHA. |
-| Build Date | 2026-07-27 |
-| Verification Status | RC6.2 brand rendering pipeline passed browser DOM/computed-style proof on local production build for customer home/login, plus brand visual/audit and release validation gates. Build/analyze retain the accepted Firebase/protobuf warning. |
-| Scope | RC6 eliminates logo visibility failures through one brand asset manager/provider, surface-aware logo selection, stronger Food Gedi SVG variants, regenerated favicon/PWA assets, notification/manifest/release metadata alignment, compact header branding, and reduced-motion-safe brand animation. |
+| Hostinger Deployment | `https://violet-squid-380447.hostingersite.com`; hosted runtime must be reverified with `/api/release-info` after RC6.5 deployment before production signoff. |
+| Build Date | 2026-07-29 |
+| Verification Status | RC6.4.1 is synchronized locally/remotely and repository implementation is complete. RC6.5 reconciles tracker/release artifacts and reruns final validation. Build/analyze retain the accepted Firebase/protobuf warning. |
+| Scope | RC6.5 closes stale tracker/release-document drift after RC6 brand, customer experience, hero spacing, and operational order classification work. No restaurant feature, API, Firestore schema/rule/index, listener, or UI redesign is introduced in this reconciliation pass. |
+
+## RC6.5 Final Tracker Reconciliation - 2026-07-29
+
+| Area | Result |
+| --- | --- |
+| Tracker audit | Complete. `docs/`, `reports/`, release scripts, and tracker files were scanned for stale pending/WIP/TODO/placeholder/release-state language. Actionable repository feature blockers were not found. |
+| Documentation drift | Fixed. Current release docs now identify RC6.5 as the active candidate and RC6.4.1 `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` as the synchronized base before this reconciliation commit. |
+| Release metadata | Fixed. Package metadata and `src/lib/release.ts` now report `v1.0.0-rc6.5` so release-info no longer advertises the closed RC6.2 brand-pipeline milestone. |
+| Pending work classification | Complete. Repository P0/P1 work is closed; remaining items are external production deployment, provider dashboards, Firebase Console, authenticated browser/device, Lighthouse/Chrome, long-run heap, and hardware/printer/QR validation. |
+| Implementation boundary | No new features, architecture refactor, Firestore schema/rule/index change, API contract change, or operational workflow change. |
+| Validation | Final RC6.5 validation commands are rerun after this tracker synchronization and recorded in the final response. |
+
+## RC6.4.1 Enterprise Operational Order Classification Enhancement - 2026-07-28
+
+| Area | Result |
+| --- | --- |
+| Shared classification | Complete. Existing order source tabs remain intact and secondary operational-state filters are derived from the shared order classification model. |
+| Smart priority | Complete. Critical, delayed, SLA, ready, waiter/customer/driver waiting, kitchen blocked, pending-payment, paid, refund, and cancelled states surface from existing order data without new Firestore listeners. |
+| Reuse | Complete. Dashboard Live Orders, Order Desk, Active Orders, Kitchen, History, and Customer Search use the shared classification bar/helpers where applicable. |
+| Persistence | Complete. Last-selected filters persist per module on the client only; no backend storage or API change. |
+| Performance | Complete. Counts and filtered sets are memoized from existing state; no duplicate subscriptions, polling, or repeated Firestore reads were introduced. |
+| Validation | Passed before RC6.5: `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, and `git diff --check`. |
+
+## RC6.4 Enterprise Order Classification Navigation - 2026-07-28
+
+| Area | Result |
+| --- | --- |
+| Operational navigation | Complete. Owner order surfaces classify Dine In, Parcel, Delivery, Online, QR, Scheduled, Catering, Cancelled, and All through one shared source/type classifier. |
+| UI boundary | Complete. Existing APIs, repositories, listeners, and workflow actions were reused; classification affects navigation/filtering only. |
+| Validation | Passed final RC6.4 validation before the RC6.4.1 enhancement commit. |
+
+## RC6.3.1 Restaurant Header-to-Hero Gap Removal - 2026-07-28
+
+| Area | Result |
+| --- | --- |
+| Root cause | Fixed at the restaurant detail wrapper level. The page-specific top spacing duplicated the global public-header offset and created the visible blank strip above the restaurant hero. |
+| Fix scope | One route-level layout spacing correction; no global reset, no JavaScript measurement, no header redesign, and no regression to checkout, order tracking, login, owner, POS, Kitchen, dashboard, or settings surfaces. |
+| Validation | Passed `typecheck`, `lint`, `build`, and visual route review during RC6.3.1. |
+
+## RC6.3 Customer Experience, Branding Consistency, and Order Tracking Hardening - 2026-07-28
+
+| Area | Result |
+| --- | --- |
+| Customer home | Complete. Customer discovery and public header branding were hardened while preserving the existing customer ordering model. |
+| Order tracking | Complete. Customer order display/tracking uses stronger order display normalization and status handling with no Firestore schema change. |
+| Checkout/order API | Complete. Checkout validation and order repository/API compatibility fields were aligned for customer-facing order flow resilience. |
+| Branding | Complete. BrandLogo sizing/surface behavior was tightened across customer and dashboard headers after the inline-SVG logo fix. |
+| Validation | Passed RC6.3 final validation gates before RC6.3.1 spacing and RC6.4 classification passes. |
 
 ## RC6 Brand Visibility and Logo System Hardening - 2026-07-27
 
@@ -255,7 +303,7 @@ Do not rebuild completed modules. Reuse, extend, bug fix, or optimize the existi
 | Audit Source | Interrupted production-branch audit request resumed from `C:\Users\DINESH\.codex\attachments\5bc0417a-88d8-4741-9c2f-4d0c3bdfb2b4\pasted-text.txt`. |
 | RC4 Tag | `v1.0.0-rc4` currently resolves to `66f7c6e5b8aba5991f4fe74b7e3b44c6079e5b38`; do not move it. |
 | Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; hosted RC5 production runtime includes this baseline. |
-| Recommendation | Keep RC4 immutable and create `v1.0.0-rc5` from the final RC5 validation commit after local gates pass. |
+| Recommendation | Historical RC5 note; superseded by RC6.5. Keep existing RC tags immutable. |
 | Validation | `npm run typecheck`, `npm run lint`, `npm run build`, `cmd /c npm run analyze`, `cmd /c npm run audit:release`, `cmd /c npm run smoke:operational`, and `cmd /c npm run verify:performance` passed on 2026-07-13. Build/analyze retain the accepted Firebase/protobuf warning. |
 | Code Fix During Continuation | `CompactOrderAccordionActions` hook order was corrected by moving the empty-action return below all hooks and memoizing the action runner. |
 | Current Readiness | Repository readiness `99%`; production readiness `90%`; production launch `NO GO` until production secrets/provider, Firebase Console, browser/device, Lighthouse, and hardware gates pass. |

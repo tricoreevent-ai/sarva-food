@@ -1,22 +1,22 @@
 # Production Operational Runbook
 
-Release candidate: `v1.0.0-rc5`; existing `v1.0.0-rc4` tag remains immutable
+Release candidate: `v1.0.0-rc6.5`; existing RC tags remain immutable
 Branch: `release/production-nammude`
-Commit: Phase 4C starts from synchronized branch head `1735938074e71598befcff2578b5220df218ede2`; deploy the final committed Phase 4C head
-Tag: keep `v1.0.0-rc4` unchanged; create `v1.0.0-rc5`
+Commit: deploy the final committed RC6.5 head after validation
+Tag: keep existing RC tags unchanged; create `v1.0.0-rc6.5` only after hosted verification
 
-## Current Phase 4C Snapshot
+## Current RC6.5 Snapshot
 
 | Area | Status |
 | --- | --- |
-| Repository validation | 2026-07-16 typecheck, lint, build, analyze, Phase 4C verification, audit, operational smoke, and runtime profile passed. |
-| Hosted deployment verification | Previous RC5 probe passed; redeploy the uncommitted Phase 4C changes and verify the exact SHA and service-worker version. |
+| Repository validation | RC6.5 final validation must pass before commit/push. |
+| Hosted deployment verification | Redeploy RC6.5 and verify exact SHA/version through `/api/release-info`. |
 | Public smoke | `7` pass, `18` manual. |
 | Provider probe | `8` pass, `3` manual. |
 | Memory probe | `1` pass, `2` manual. |
-| Production readiness | `90%`; production launch remains `NO GO`. |
+| Production readiness | `92%`; production launch remains `NO GO` until external gates pass. |
 
-Immediate operator action: commit Phase 4C, configure the public VAPID and stable payment-encryption key, redeploy/restart the final RC5 commit, clear cache, and rerun deployment/performance/provider/smoke reports with `PRODUCTION_URL=https://violet-squid-380447.hostingersite.com` before tagging or launch signoff.
+Immediate operator action: deploy/restart the final RC6.5 commit, clear cache, verify `/api/release-info`, configure the public VAPID and stable payment-encryption key, and rerun deployment/performance/provider/smoke reports with `PRODUCTION_URL=https://violet-squid-380447.hostingersite.com` before tagging or launch signoff.
 
 ## Operational Logging
 
@@ -105,8 +105,8 @@ Health responses are no-store and expose status booleans plus `requestId` only. 
 ## Infrastructure Checklist
 
 - Hostinger branch is `release/production-nammude`.
-- Hosted `/api/release-info` matches the final `v1.0.0-rc5` commit.
+- Hosted `/api/release-info` matches the final `v1.0.0-rc6.5` commit.
 - Hosted metadata reports `deploymentEnvironment: production`.
-- Hosted metadata reports `applicationVersion: v1.0.0-rc5`.
+- Hosted metadata reports `applicationVersion: v1.0.0-rc6.5`.
 - Cache is cleared after redeploy.
 - `/robots.txt`, `/sitemap.xml`, and `/manifest.json` are checked after cache clear.

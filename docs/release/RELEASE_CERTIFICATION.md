@@ -1,14 +1,14 @@
 # Release Certification
 
-Feature ID: `RC5-SYNCHRONIZED-READINESS`
-Date: 2026-07-16
-Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
+Feature ID: `RC6.5-SYNCHRONIZED-READINESS`
+Date: 2026-07-29
+Release: `v1.0.0-rc6.5` candidate; existing RC tags remain immutable
 Branch: `release/production-nammude`
-Decision: `NO GO` for production launch, `GO` for RC5 candidate commit/tag
+Decision: `NO GO` for production launch, `GO` for RC6.5 candidate commit/tag after validation
 
 ## Executive Summary
 
-RC4 repository-side production hardening is complete and the existing RC4 tag should remain immutable. Hosted RC5 runtime contains Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; complete manual/provider gates before tagging RC5 after hosted gates pass.
+Repository-side implementation is complete through RC6.4.1 base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`. RC6.5 reconciles tracker/release metadata only; complete hosted/provider/manual gates before tagging RC6.5 after hosted gates pass.
 
 Production go-live remains blocked by manual Lighthouse, authenticated browser/device QA, provider dashboard validation, Firebase Console checks, and printer/hardware smoke.
 
@@ -22,6 +22,8 @@ Production go-live remains blocked by manual Lighthouse, authenticated browser/d
 | `npm run build` | Passed with accepted Firebase/protobuf warning |
 | `npm run analyze` | Passed with accepted Firebase/protobuf warning |
 | `npm run profile:runtime` | Passed |
+| `npm run theme:contrast` | RC6.5 final gate |
+| `npm run brand:visual` | RC6.5 final gate |
 | `npm run audit:release` | Passed |
 | `npm run smoke:operational` | Passed |
 | `npm run verify:phase4c` | Passed `19/19` notification catalog, push lifecycle, complete payment test-center, owner-checkout resolution, security, deep-link, and ten-tenant checks |
@@ -29,14 +31,14 @@ Production go-live remains blocked by manual Lighthouse, authenticated browser/d
 | 2026-07-13 RC5 closure | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, and `smoke:operational` passed |
 | 2026-07-13 pending-work audit | No actionable repository-side TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read found |
 | 2026-07-13 final optimization cleanup | Duplicated client error-reason helpers consolidated; compact order action controls received explicit accessible labels; pure phone normalization extracted away from Firebase-backed service imports |
-| 2026-07-13 release package verification | Production environment matrix corrected to `v1.0.0-rc5` |
+| 2026-07-29 release package verification | Release metadata corrected to `v1.0.0-rc6.5` |
 | 2026-07-16 Active Orders closure | Active Orders workspace redesign passed typecheck, lint, build, analyze, release audit, operational smoke, runtime profile, and diff check |
 
 ## Hosted Evidence
 
 | Gate | Result |
 | --- | --- |
-| Deployment verification | `17` pass, `0` warnings, `0` errors: hosted metadata is RC5/production and includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
+| Deployment verification | Manual after RC6.5 deploy: hosted metadata must report final SHA, branch, production environment, and `v1.0.0-rc6.5` |
 | Public production smoke | `7` pass, `18` manual |
 | Provider verification | `8` pass, `3` manual |
 | Memory monitor | `1` pass, `2` manual |
@@ -63,12 +65,12 @@ Production go-live remains blocked by manual Lighthouse, authenticated browser/d
 
 | Area | Score |
 | --- | ---: |
-| Repository readiness | 99% |
-| Production readiness | 90% |
+| Repository readiness | 100% |
+| Production readiness | 92% |
 | Risk level | Medium-high until manual/provider gates pass |
 
 ## Go / No-Go
 
-Repository decision: `GO` for RC5 candidate commit/tag.
+Repository decision: `GO` for RC6.5 candidate commit/tag after validation.
 
 Production decision: `NO GO` until production env validation, Lighthouse/Core Web Vitals, Firebase Console checks, provider dashboard checks, authenticated browser smoke, and hardware/printer checks pass.

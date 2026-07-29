@@ -28,7 +28,7 @@ Add these in Hostinger hPanel under Environment variables. Keep real values out 
 NEXT_PUBLIC_APP_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-hostinger-domain.com
 NEXT_PUBLIC_APP_NAME=Food Gedi
-NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5
+NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5
 NEXT_PUBLIC_USE_FIREBASE=true
 NEXT_PUBLIC_FIREBASE_USE_EMULATORS=false
 
@@ -135,7 +135,7 @@ curl.exe https://violet-squid-380447.hostingersite.com/health/ready
 curl.exe https://violet-squid-380447.hostingersite.com/health/startup
 ```
 
-For rc5, hosted `/api/release-info` must report the final pushed `release/production-nammude` commit from the release handoff, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc5`.
+For RC6.5, hosted `/api/release-info` must report the final pushed `release/production-nammude` commit from the release handoff, `deploymentEnvironment: production`, and `applicationVersion: v1.0.0-rc6.5`.
 
 Optional environment validation after setting a local production env file:
 

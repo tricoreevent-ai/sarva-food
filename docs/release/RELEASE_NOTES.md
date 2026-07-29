@@ -1,5 +1,35 @@
 # Release Notes
 
+## RC6.5 Final Tracker Reconciliation - 2026-07-29
+
+- Reconciled tracker, release, deployment, validation, performance, and handoff documentation against the current `release/production-nammude` base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`.
+- Updated release metadata to `v1.0.0-rc6.5` / `1.0.0-rc.6.5`.
+- Closed stale RC5/RC6.2 documentation conflicts; no unfinished repository P0/P1 feature work was identified.
+- No restaurant workflow, UI redesign, API contract, Firestore schema/rule/index, or realtime-listener change was introduced.
+- Production remains gated on hosted RC6.5 deployment verification, provider dashboards, Firebase Console, authenticated browser/device smoke, Lighthouse/Chrome profiling, long-run heap, and hardware/printer/QR validation.
+
+## RC6.4.1 Enterprise Operational Order Classification Enhancement - 2026-07-28
+
+- Retained existing primary source/type filters and added reusable secondary operational-state chips with counts for active restaurant operations.
+- Added smart-priority surfacing for critical, delayed, SLA, ready pickup/waiter, pending bill/payment, waiting customer/driver, kitchen blocked, payment failed, refund, and cancelled conditions.
+- Reused the shared classification model across Dashboard Live Orders, Order Desk, Active Orders, Kitchen, History, and Customer Search without introducing new Firestore listeners or APIs.
+- Persisted the last selected filter per module on the client only and memoized all counts from existing state.
+
+## RC6.4 Enterprise Order Classification Navigation - 2026-07-28
+
+- Hardened operational order navigation around one shared order source/type classifier for All, Dine In, Parcel, Delivery, Online, QR, Scheduled, Catering, and Cancelled.
+- Preserved existing repositories, APIs, realtime streams, role permissions, and workflow actions.
+
+## RC6.3.1 Remove Restaurant Header-to-Hero Gap - 2026-07-28
+
+- Removed the restaurant detail route-level duplicate top spacing that caused a visible blank strip between the public header and hero.
+- Kept sticky header behavior and non-restaurant page spacing intact without global CSS resets or JavaScript layout calculations.
+
+## RC6.3 Customer Experience, Branding Consistency, and Order Tracking Hardening - 2026-07-28
+
+- Hardened customer discovery, public-header branding, checkout validation, order display normalization, and order tracking behavior.
+- Preserved existing customer ordering APIs and Firestore schema.
+
 ## RC6.2 Critical Brand Logo Rendering Pipeline Fix - 2026-07-28
 
 - Confirmed the production failure through browser DOM evidence: deployed commit `b992d2631bc3ed2dc785957c81bee174b927270f` renders `.brand-mark > img[src="/icons/food-gedi-icon-filled.svg"]`; the container and image are visible, but there are no inline SVG paths in the DOM.
@@ -189,7 +219,7 @@ Production URL: `https://violet-squid-380447.hostingersite.com`
 ### Status
 
 - Active release metadata, package metadata, environment templates, and deployment docs now align on `v1.0.0-rc5` / `1.0.0-rc.5`.
-- The existing `v1.0.0-rc1`, `v1.0.0-rc2`, `v1.0.0-rc3`, and `v1.0.0-rc4` tags remain immutable; tag the final RC5 validation commit as the new `v1.0.0-rc5` candidate.
+- Historical RC5 tagging guidance is superseded by RC6.5; existing RC tags remain immutable.
 - Phase 4 hardening and report synchronization are complete repository-side.
 - Production release remains blocked by production env/provider validation, Firebase Console, provider dashboard, authenticated browser, Lighthouse, and hardware smoke gates.
 - Phase 4C repository work is complete locally and pending commit/deployment; production readiness remains `90%` until hosted VAPID, real-device push, and owner Razorpay provider evidence pass.

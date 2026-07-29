@@ -1,16 +1,16 @@
 # Final Release Certificate
 
-Generated: 2026-07-16T04:39:44.923Z
+Generated: 2026-07-29
 
 | Field | Value |
 | --- | --- |
-| Release Version | v1.0.0-rc5 |
-| Active Orders Code Baseline | ba8e957d57b949a94d0c42a3b170cf198917c0d8 |
-| Hosted Runtime At Report Generation | RC5 production runtime includes Active Orders baseline; verify exact SHA with `/api/release-info` |
+| Release Version | v1.0.0-rc6.5 |
+| Current Base Commit | 98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81 before RC6.5 reconciliation |
+| Hosted Runtime At Report Generation | Verify final RC6.5 SHA/version with `/api/release-info` after deployment |
 | Branch | release/production-nammude |
-| Build Date | 2026-07-16 |
+| Build Date | 2026-07-29 |
 | Environment | local-certification |
-| Working Tree | Dirty before final certification commit |
+| Working Tree | RC6.5 reconciliation changes pending validation/commit |
 | Production URL | http://localhost:3000 |
 | Plugin Foundation Status | Implemented, disabled by default |
 | Enhancement Status | Phase 2A registry and Phase 2B runtime/SDK implemented locally; plugin runtime flags remain disabled by default |

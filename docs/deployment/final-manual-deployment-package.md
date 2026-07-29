@@ -1,12 +1,12 @@
 # Final Manual Deployment Package
 
-Release: `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains immutable
+Release: `v1.0.0-rc6.5` candidate; existing RC tags remain immutable
 Branch: `release/production-nammude`
 Active Orders code baseline: `ba8e957d57b949a94d0c42a3b170cf198917c0d8`
-Current hosted runtime status: RC5 production runtime includes Active Orders baseline; verify exact SHA with `/api/release-info`
+Current hosted runtime status: verify final RC6.5 SHA and version with `/api/release-info`
 Runtime release commit: latest `origin/release/production-nammude` branch head
 Final repository certification commit: latest `origin/release/production-nammude` branch head
-Release tag: keep `v1.0.0-rc4` unchanged; create immutable `v1.0.0-rc5` on the final committed candidate.
+Release tag: keep existing RC tags unchanged; create immutable `v1.0.0-rc6.5` only after hosted verification.
 
 ## Files Changed
 
@@ -71,10 +71,10 @@ Release tag: keep `v1.0.0-rc4` unchanged; create immutable `v1.0.0-rc5` on the f
 
 ## Configuration Changes
 
-- Release version is `v1.0.0-rc5`.
-- Package version is `1.0.0-rc.5`.
+- Release version is `v1.0.0-rc6.5`.
+- Package version is `1.0.0-rc.6.5`.
 - Keep existing `v1.0.0-rc1`, `v1.0.0-rc2`, and `v1.0.0-rc3` immutable; deploy the final pushed `release/production-nammude` commit.
-- `NEXT_PUBLIC_APP_VERSION` must be `v1.0.0-rc5` in production.
+- `NEXT_PUBLIC_APP_VERSION` must be `v1.0.0-rc6.5` in production.
 - Health metadata now falls back to production-safe environment labels when app env is absent.
 - Admin owner credential actions no longer return generated temporary passwords to the browser.
 - Public no-store health endpoints are available at `/health/live`, `/health/ready`, and `/health/startup`.
@@ -116,9 +116,9 @@ npx firebase-tools deploy
 2. Set branch `release/production-nammude`.
 3. Configure production env from `.env.hostinger.example`.
 4. Confirm `NEXT_PUBLIC_APP_ENV=production`.
-5. Confirm `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`.
+5. Confirm `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5`.
 6. Confirm `NEXT_PUBLIC_APP_URL` is the final HTTPS domain.
-7. Recheck `/api/release-info` before tag/signoff; redeploy only if Hostinger no longer serves the intended RC5 runtime.
+7. Recheck `/api/release-info` before tag/signoff; redeploy if Hostinger does not serve the intended RC6.5 runtime.
 8. Restart the Node app after env changes.
 9. Verify `/api/release-info`.
 
@@ -223,8 +223,8 @@ Hostinger rollback:
 
 ## Release Certification Checklist
 
-- `v1.0.0-rc5` tag points to the final committed candidate after the existing RC4 tag remains unchanged.
-- `/api/release-info` reports final SHA, branch, `deploymentEnvironment: production`, HTTPS public URL, and `applicationVersion: v1.0.0-rc5`.
+- `v1.0.0-rc6.5` tag points to the final committed candidate after existing RC tags remain unchanged.
+- `/api/release-info` reports final SHA, branch, `deploymentEnvironment: production`, HTTPS public URL, and `applicationVersion: v1.0.0-rc6.5`.
 - `/health/live`, `/health/ready`, and `/health/startup` return safe no-store health metadata with no exposed secrets.
 - Production env validation passes with real Hostinger values.
 - Firestore rules/indexes are deployed.

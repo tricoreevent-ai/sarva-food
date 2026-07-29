@@ -51,11 +51,23 @@ function syncRc5HardeningReports() {
     ["| Listeners and indexes | No listener, rule, or index added. |", "| Listeners and indexes | Kitchen ready-signal and Reports SSE listeners are page-scoped, deduplicated by one EventSource per mounted screen, and closed on unmount; no index added. |"],
   ]);
   syncDoc("release", "FINAL_BUG_REPORT.md", [
-    ["| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |", "| Firestore audit | No collection, schema, rule, or index changed. Kitchen create idempotency and scoped SSE read paths now prevent duplicate KOTs, stale ready signals, and stale Reports. |"],
+    ["| Scope | RC5 owner-login and Kitchen History enterprise UI hardening; authentication APIs, Firestore schema/rules/indexes, and provider contracts remain backward compatible. |", "| Scope | RC6.5 final tracker/release reconciliation after RC6.4.1 operational classification; authentication APIs, Firestore schema/rules/indexes, provider contracts, and restaurant workflows remain unchanged. |"],
+    ["| Owner Login | Legacy compact owner login lacked enterprise state handling; new surface adds remembered email, autofocus/autocomplete, Caps Lock detection, session-timeout messaging, stronger loading state, and accessible feedback. |", "| RC6.4.1 | Operational order classification is repository complete and shared across owner operational surfaces without duplicate listeners or API changes. |"],
+    ["| Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, sticky table actions, sorting, saved filters, bulk selection, export, print, and expandable details. |", "| RC6.3.1 | Restaurant hero top gap is fixed through route-level spacing correction without global layout regression. |"],
+    ["| Firestore audit | No collection, schema, rule, index, or repository contract changed. No duplicate listener was introduced. |", "| Firestore audit | No collection, schema, rule, or index changed in RC6.5. Kitchen create idempotency and scoped SSE read paths remain covered by existing smoke/profile gates. |"],
+    ["| `src/components/flows/owner-portal-login-flow.tsx` | Rebuilt the owner login UX while preserving the existing owner auth and password OTP flows. |", "| `src/lib/order-classification.ts` | Shared source/type and operational-state classification remains canonical after RC6.4/RC6.4.1. |"],
+    ["| `src/components/flows/kitchen-display-flow.tsx` | Replaced Kitchen History cards with an enterprise table, filters, exports, bulk selection, sticky actions, and expandable row details. |", "| `src/components/orders/order-classification-bar.tsx` | Reusable filter UI remains the canonical order-classification surface. |"],
+    ["| `src/app/api/owner/kitchen/route.ts` | Added bounded page/pageSize/search/date/status/payment/priority/table/waiter/customer/item/print filters for Kitchen History. |", "| `src/components/flows/restaurant-detail-flow.tsx` | Route-level hero spacing fix remains limited to the restaurant detail surface. |"],
+    ["| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke now verifies owner-login UX and Kitchen History table contracts. |", "| `docs/trackers/*`, `docs/release/*`, `docs/README.md`, `docs/AI_HANDOFF.md` | RC6.5 reconciles stale tracker/release status language. |"],
   ]);
   syncDoc("release", "FINAL_RELEASE_READINESS.md", [
-    ["| `npm run smoke:operational` | Passed 26/26, including owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |", "| `npm run smoke:operational` | Passed 40/40, including incremental Kitchen stream, ready-signal SSE, Reports live sync, add-on ticket idempotency, owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |"],
-    ["| Firestore | No collection/schema/rule/index change and no new realtime listener. |", "| Firestore | No collection/schema/rule/index change; idempotent Kitchen create semantics and scoped Kitchen/Reports SSE read paths are covered. |"],
+    ["| `npm run smoke:operational` | Passed 26/26, including owner-login UX, Kitchen History table, payment-independent split, and partial-payment bill-only merge guards. |", "| `npm run smoke:operational` | Passed 49/49. |"],
+    ["| `npm run profile:runtime` | Passed. |", "| `npm run profile:runtime` | Passed. |\n| `npm run theme:contrast` | Passed. |\n| `npm run brand:visual` | Passed 25 SVG assets. |"],
+    ["| Branch baseline | `release/production-nammude` RC5 enterprise waiter workflow before this production-hardening pass. |", "| Branch baseline | `release/production-nammude` RC6.4.1 base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` before RC6.5 reconciliation. |"],
+    ["| Workflow | Payment remains independent of Kitchen/service state; completion still requires Served + Paid. Split Bill and Smart Bill Merge now follow payment-state guards consistently. |", "| Workflow | Repository workflows are complete; RC6.5 changes only release metadata and tracker/release documentation. |"],
+    ["| Billing merge | Partial-payment open tickets can merge billing-only; locked, authorized, paid, refunded, closed, or already merged bills remain blocked in UI and repository. |", "| Billing merge | Existing payment, split, and merge guards remain unchanged. |"],
+    ["| Firestore | No collection/schema/rule/index change and no new realtime listener. |", "| Firestore | No collection/schema/rule/index change in RC6.5. |"],
+    ["| Security | Tenant checks, owner permissions, payment locks, and provider-secret boundaries remain unchanged. |", "| Security | Tenant checks, owner permissions, payment locks, provider-secret boundaries, and RBAC remain unchanged. |"],
   ]);
 }
 
@@ -322,13 +334,13 @@ function writeReports() {
     ["Gate", "Status", "Reason"],
     [
       ["Production Chrome Performance", "Manual", "Chrome and React DevTools are available, but the owner route requires a valid production-equivalent authenticated session."],
-      ["Hosted Lighthouse/Core Web Vitals", "Manual", "Run after the final RC5 hardening commit is deployed with production env and provider values."],
+      ["Hosted Lighthouse/Core Web Vitals", "Manual", "Run after the final RC6.5 commit is deployed with production env and provider values."],
       ["30-minute heap stability", "Manual", "Requires authenticated browser session and continuous POS/Kitchen/customer operation."],
       ["Authenticated smoke", "Manual", "Owner/customer/admin credentials, provider dashboards, and printer hardware are outside this workspace."],
       ["Provider/hardware", "Manual", "Razorpay, SMTP, WhatsApp, Firebase Console, printers, and devices require external access."],
     ],
   );
-  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, owner login UX, Kitchen History enterprise table, image delivery, observability, and push/payment readiness measurements. Firestore collections, auth flows, and provider contracts remain backward compatible.";
+  const finalScope = "This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, RC6 brand/customer/order-classification hardening, image delivery, observability, and push/payment readiness measurements. RC6.5 is tracker/release reconciliation only; Firestore collections, auth flows, APIs, listeners, and provider contracts remain backward compatible.";
   const firebaseWarningNote = "The remaining Firebase/protobuf dynamic dependency warning is expected. Build/analyze trace it through `@protobufjs/inquire -> protobufjs -> @grpc/proto-loader -> @firebase/firestore -> firebase/firestore -> src/firebase/collections.ts -> src/app/api/admin/system-diagnostics/route.ts`. It originates in upstream Firebase/protobuf server dependency code, not application debug code. The application already keeps Firebase client startup behind config/accessor boundaries where touched; replacing or aliasing Firebase/protobuf internals during certification is not safe, so the warning remains documented and accepted.";
 
   writeDoc("performance", "RUNTIME_PROFILE.md", `# Runtime Profile\n\nDate: ${generatedAt}\n\n## Measurement Inputs\n\n| Source | Result |\n| --- | --- |\n| Build route manifests | ${existsSync(appManifestDir) ? "Read from `.next/server/app/**/page_client-reference-manifest.js`." : "Unavailable until `npm run build` or `npm run analyze` runs."} |\n| Browser profiler | No local Chrome/Lighthouse executable is assumed by this script; production Chrome Performance remains manual. |\n| Synthetic load | 100 kitchen orders and 1000 POS products measured with Node performance timers. |\n\n## Route Runtime Budget Snapshot\n\n${measuredRoutes}\n\n## Stress Timing Snapshot\n\n${stressRows}\n\n## Notes\n\nHydration time, FPS, long tasks, Chrome memory, and real network waterfalls still require hosted production Chrome profiling because this workspace script cannot observe browser main-thread scheduling.\n`);
@@ -442,7 +454,7 @@ Date: ${generatedAt}
 | --- | --- |
 | Repository readiness | 100% |
 | Production readiness | 92% |
-| Recommendation | NO-GO until final RC5 is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
+| Recommendation | NO-GO for production launch until final RC6.5 is deployed and hosted authenticated multi-role, provider, browser/device, Firebase Console, Lighthouse, Chrome profiling, long-run heap, and hardware gates pass. |
 
 ## Remaining Manual Gates
 
@@ -450,7 +462,7 @@ ${finalManualGates}
 | Hosted VAPID | Manual | Set the documented public key in Hostinger, redeploy, and verify \`vapidConfigured=true\`. |
 | Push delivery | Manual | Register real devices and verify foreground/background/action/deep-link behavior in Chrome, Edge, Firefox, Android, and supported Safari/iPhone PWA. |
 | Razorpay | Manual | Complete owner sandbox checkout, failed/cancel/timeout, capture/refund, dashboard webhook, live key rotation, and settlement checks. |
-| Hostinger redeploy | Manual | Deploy the final RC5 hardening commit, clear cache, and verify release info plus all health endpoints. |
+| Hostinger redeploy | Manual | Deploy the final RC6.5 commit, clear cache, and verify release info plus all health endpoints. |
 
 ## Accepted Warning
 

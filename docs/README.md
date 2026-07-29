@@ -6,15 +6,15 @@ This is the single entry point for repository documentation on `release/producti
 
 | Field | Value |
 | --- | --- |
-| Release candidate | `v1.0.0-rc5` |
+| Release candidate | `v1.0.0-rc6.5` |
 | Branch | `release/production-nammude` |
-| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
-| Hosted runtime status | RC5 production runtime includes Active Orders baseline; verify exact SHA with `/api/release-info` |
-| Repository readiness | `99%` |
-| Production readiness | `90%` |
-| Production launch | `NO GO` until provider, browser, device, Lighthouse, Firebase Console, and hardware gates pass |
-| Phase 4C | Repository implemented; deploy and verify VAPID/device push plus owner Razorpay sandbox/live flows |
-| POS draft P0 | Repository fixed; deploy and verify owner/waiter/cashier recovery on hosted browsers/devices |
+| Current base commit | `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` before RC6.5 reconciliation |
+| Hosted runtime status | Verify exact deployed SHA with `/api/release-info` after RC6.5 deployment |
+| Repository readiness | `100%` after local validation |
+| Production readiness | `92%` until hosted/provider/browser/device/Firebase Console/performance/hardware gates pass |
+| Production launch | `NO GO` until the deployed app reports the RC6.5 SHA and external gates pass |
+| Current closure | RC6.5 tracker/release reconciliation; no new restaurant features |
+| Remaining gates | Hostinger deploy, provider dashboards, Firebase Console, authenticated multi-role browser/device smoke, Lighthouse/Chrome, long-run heap, printer/QR hardware |
 | AI handoff | `docs/AI_HANDOFF.md` |
 
 ## Trackers

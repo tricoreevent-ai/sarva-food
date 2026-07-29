@@ -4,7 +4,7 @@ Phase 5A Kitchen repository closure: PASS. Hosted QA must verify waiter push on 
 
 Phase 4D repository closure: PASS. The deterministic operational suite passes 9/9 and full local release gates pass. Deployment sign-off remains blocked only by production environment, provider-console, authenticated real-device/browser, Firebase Console, Lighthouse, and hardware evidence.
 
-Feature ID: `RC5-SYNCHRONIZED-READINESS`
+Feature ID: `RC6.5-SYNCHRONIZED-READINESS`
 
 ## Current Gate Status
 
@@ -15,14 +15,14 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 | ✅ Completed | Bundle/performance reports | `docs/performance/FINAL_BUNDLE_REPORT.md`, `docs/performance/PRODUCTION_PERFORMANCE_VERIFICATION_REPORT.md`. |
 | ✅ Completed | Phase 4C repository verification | `docs/validation/PHASE_4C_AUTOMATED_VERIFICATION.md`: `19/19` checks, 34 notification scenarios, 10 tenant mappings. |
 | ✅ Completed | Phase 5C workflow verification | `docs/validation/OPERATIONAL_HARDENING_REPORT.md`: `20/20` checks covering payment independence, POS New Order cancel resume, Owner Orders payment state, and Kitchen item-first cards. |
-| ✅ Completed | Hostinger RC5 runtime metadata | Hosted metadata reports `applicationVersion=v1.0.0-rc5`, `deploymentEnvironment=production`, Node `v22.18.0`, and a runtime that includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`; use `/api/release-info` for the exact hosted SHA. |
+| 🔴 Required | Hostinger RC6.5 runtime metadata | Hosted metadata must report final RC6.5 SHA, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and Node `v22.x`; use `/api/release-info` for the exact hosted SHA. |
 | 🔴 Blocking | Production env validation | `docs/validation/PRODUCTION_ENV_VALIDATION_REPORT.md`: `17` errors and `1` manual check needing production Hostinger/Firebase/QR/alert/encryption values and owner Razorpay verification. |
 | 🟡 Pending Manual | Browser/device/provider/hardware/Lighthouse | Complete before go-live. |
 
 ## Hostinger
 
 - Set `NEXT_PUBLIC_APP_ENV=production`.
-- Set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc5`.
+- Set `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5`.
 - Set final HTTPS `NEXT_PUBLIC_APP_URL`.
 - Configure Firebase Admin credentials.
 - Set the documented public Firebase VAPID key and verify `vapidConfigured=true` after Phase 5C deploy.
@@ -32,12 +32,12 @@ Feature ID: `RC5-SYNCHRONIZED-READINESS`
 - Configure provider secrets only in Hostinger/env dashboards.
 - Redeploy current branch.
 - Clear Hostinger cache.
-- Verify `/api/release-info` reports final SHA, `applicationVersion: v1.0.0-rc5`, and `deploymentEnvironment: production`.
+- Verify `/api/release-info` reports final SHA, `applicationVersion: v1.0.0-rc6.5`, and `deploymentEnvironment: production`.
 - Verify `/health/live`, `/health/ready`, and `/health/startup`.
 
 Current hosted probe on 2026-07-16:
 
-- `/api/release-info`: Node is `v22.18.0`, `applicationVersion=v1.0.0-rc5`, and `deploymentEnvironment=production`; runtime includes Active Orders baseline `ba8e957d57b949a94d0c42a3b170cf198917c0d8`.
+- `/api/release-info`: Node is `v22.x`, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, and the hosted SHA matches the final RC6.5 commit.
 - `/health/ready`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 - `/health/startup`: `ok`; Firestore connected, Storage/SMTP/Cloudinary configured, Firebase Admin/Public configured, VAPID missing, Razorpay owner-scoped or missing.
 

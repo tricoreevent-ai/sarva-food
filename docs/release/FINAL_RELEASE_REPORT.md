@@ -1,16 +1,16 @@
 # Final Release Report
 
-Date: 2026-07-16
+Date: 2026-07-29
 
 | Field | Value |
 | --- | --- |
-| Release Candidate | `v1.0.0-rc5` candidate; existing `v1.0.0-rc4` tag remains unchanged |
+| Release Candidate | `v1.0.0-rc6.5` candidate; existing RC tags remain unchanged |
 | Production Branch | `release/production-nammude` |
-| Active Orders code baseline | `ba8e957d57b949a94d0c42a3b170cf198917c0d8` |
-| Hosted RC5 runtime status | Includes Active Orders baseline; verify exact SHA with `/api/release-info` |
+| Current base commit | `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` before RC6.5 reconciliation |
+| Hosted runtime status | Verify final RC6.5 SHA/version with `/api/release-info` |
 | Production URL | `https://violet-squid-380447.hostingersite.com` |
-| Certification Result | Repository certified for RC5 candidate commit/tag after synchronization; production signoff remains blocked. |
-| Feature Scope | Production hardening, validation, reports, cache/header tuning, auth/toast lazy loading, duplicate logo request prevention, POS/Active Orders operational UX fixes, low-risk phone-helper bundle cleanup, RC5 image optimization, Owner Active Orders operational workspace redesign, and release documentation. |
+| Certification Result | Repository certified for RC6.5 candidate commit/tag after validation; production signoff remains blocked. |
+| Feature Scope | RC6.5 tracker/release reconciliation only; no new restaurant workflow, API, Firestore schema/rule/index, listener, or UI redesign. |
 
 ## Validation
 
@@ -48,7 +48,7 @@ Date: 2026-07-16
 | Operational workflow | Incremental KOT, Ready To Serve waiter view, Order History filters, compact active rows, and portaled More actions are implemented; hook-order audit fix applied. |
 | Active Orders workspace | Operational summary cards, live counts, advanced search, workflow ribbon, status rail, delay/KOT/payment indicators, kitchen progress, compact expanded details, context-aware actions, and mobile workflow cues are implemented without API/schema/repository changes. |
 | Technical debt cleanup | Duplicated client error-reason helpers now use shared `src/lib/client-diagnostics.ts`; compact order icon-only action controls now expose explicit accessible names. |
-| Release package review | Production environment matrix now aligns on `v1.0.0-rc5`; historical RC4 references remain only for immutable tag and rollback context. |
+| Release package review | Production environment matrix now aligns on `v1.0.0-rc6.5`; historical RC references remain only for immutable tag and rollback context. |
 | Bundle audit | `docs/performance/FINAL_BUNDLE_REPORT.md` and `docs/performance/BUNDLE_DEEP_ANALYSIS.md` include largest route/chunk/module/vendor tables; latest `/owner/orders` route-owned JS is `697 KB`. |
 | Runtime profiling | Runtime, render, memory, network, performance, and stress reports regenerated. |
 | Pending-work audit | No actionable repository-side TODO/FIXME, app-source `console.log`, duplicate order component, incomplete repository path, duplicate listener, or unbounded Firestore read remains. |
@@ -68,10 +68,10 @@ Date: 2026-07-16
 | Providers | Razorpay owner-scoped/live flow, WhatsApp/SMS/push, SMTP sends, Cloudinary uploads, Google OAuth redirects. |
 | Firebase Console | Authorized domains, VAPID, rules/index deployment, protected reads/writes. |
 | Hardware | 58mm/80mm/A4 print, KOT, receipts, reprint, QR scan/camera/upload. |
-| Chrome profiling | Capture Performance/Coverage/Memory after Hostinger serves the RC5 production env. |
+| Chrome profiling | Capture Performance/Coverage/Memory after Hostinger serves the RC6.5 production env. |
 
 ## Decision
 
-Repository: `GO` for a new RC5 candidate after commit/tag.
+Repository: `GO` for a new RC6.5 candidate after validation/commit/tag.
 
 Production: `NO GO` until latest SHA redeploy and all required manual/external gates pass.

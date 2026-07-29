@@ -1,26 +1,26 @@
 # Final Bug Report
 
-Date: 2026-07-28T15:23:06.027Z
+Date: 2026-07-29T02:26:24.876Z
 
 ## Final RC Bug-Hunt Result
 
 | Area | Result |
 | --- | --- |
-| Scope | RC5 owner-login and Kitchen History enterprise UI hardening; authentication APIs, Firestore schema/rules/indexes, and provider contracts remain backward compatible. |
-| Owner Login | Legacy compact owner login lacked enterprise state handling; new surface adds remembered email, autofocus/autocomplete, Caps Lock detection, session-timeout messaging, stronger loading state, and accessible feedback. |
-| Kitchen History | Long accordion/card history was not scalable for management workflows; new screen provides bounded server-filtered paging, sticky table actions, sorting, saved filters, bulk selection, export, print, and expandable details. |
+| Scope | RC6.5 final tracker/release reconciliation after RC6.4.1 operational classification; authentication APIs, Firestore schema/rules/indexes, provider contracts, and restaurant workflows remain unchanged. |
+| RC6.4.1 | Operational order classification is repository complete and shared across owner operational surfaces without duplicate listeners or API changes. |
+| RC6.3.1 | Restaurant hero top gap is fixed through route-level spacing correction without global layout regression. |
 | Security | Tenant isolation, owner permissions, auth endpoints, and provider-secret boundaries remain unchanged. |
-| Firestore audit | No collection, schema, rule, or index changed. Kitchen create idempotency and scoped SSE read paths now prevent duplicate KOTs, stale ready signals, and stale Reports. |
+| Firestore audit | No collection, schema, rule, or index changed in RC6.5. Kitchen create idempotency and scoped SSE read paths remain covered by existing smoke/profile gates. |
 | React/Next warnings | Build/analyze pass with the accepted Firebase/protobuf dynamic dependency warning only. |
 
 ## Confirmed Fixes
 
 | File | Fix |
 | --- | --- |
-| `src/components/flows/owner-portal-login-flow.tsx` | Rebuilt the owner login UX while preserving the existing owner auth and password OTP flows. |
-| `src/components/flows/kitchen-display-flow.tsx` | Replaced Kitchen History cards with an enterprise table, filters, exports, bulk selection, sticky actions, and expandable row details. |
-| `src/app/api/owner/kitchen/route.ts` | Added bounded page/pageSize/search/date/status/payment/priority/table/waiter/customer/item/print filters for Kitchen History. |
-| `scripts/release/operational-hardening-smoke.mjs` | Operational smoke now verifies owner-login UX and Kitchen History table contracts. |
+| `src/lib/order-classification.ts` | Shared source/type and operational-state classification remains canonical after RC6.4/RC6.4.1. |
+| `src/components/orders/order-classification-bar.tsx` | Reusable filter UI remains the canonical order-classification surface. |
+| `src/components/flows/restaurant-detail-flow.tsx` | Route-level hero spacing fix remains limited to the restaurant detail surface. |
+| `docs/trackers/*`, `docs/release/*`, `docs/README.md`, `docs/AI_HANDOFF.md` | RC6.5 reconciles stale tracker/release status language. |
 
 ## Accepted Warning
 

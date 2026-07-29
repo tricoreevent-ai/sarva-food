@@ -1,6 +1,6 @@
 # Active Orders Performance Report
 
-Date: 2026-07-28T15:23:06.027Z
+Date: 2026-07-29T02:26:24.876Z
 
 ## Root Cause
 
@@ -17,11 +17,11 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.23ms | 0.32ms | 0.86ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.01ms | 0.04ms | 0.27ms | <100ms update |
-| POS 1000-item category switch | 0.04ms | 0.07ms | 0.17ms | <50ms switch |
-| POS 1000-item search filter | 0.06ms | 0.11ms | 0.46ms | debounced |
-| Active Orders 100-order filter/group | 0.11ms | 0.17ms | 0.42ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.40ms | 0.51ms | 0.98ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.33ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.17ms | 0.27ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.16ms | 0.68ms | debounced |
+| Active Orders 100-order filter/group | 0.16ms | 0.24ms | 0.57ms | <50ms interaction |
 
 ## Density And Runtime Controls
 

@@ -1,18 +1,18 @@
 # Post Deployment Checklist
 
-Feature ID: `RC5-SYNCHRONIZED-READINESS`
+Feature ID: `RC6.5-SYNCHRONIZED-READINESS`
 
 ## Required Before This Checklist Can Pass
 
 - Hostinger `/api/release-info` must report `deploymentEnvironment: production`.
-- Hosted SHA must match the final committed RC5 candidate.
+- Hosted SHA must match the final committed RC6.5 candidate.
 - `npm run validate:prod-env` must pass in production-equivalent env.
 - Lighthouse mobile/desktop and authenticated browser/device/provider/printer smoke must be recorded.
 
 ## Metadata
 
 - `/api/release-info` returns final SHA.
-- `applicationVersion` is `v1.0.0-rc5`.
+- `applicationVersion` is `v1.0.0-rc6.5`.
 - `deploymentEnvironment` is `production`.
 - `publicAppUrl` is the final HTTPS domain.
 - Plugin flags are disabled unless approved.

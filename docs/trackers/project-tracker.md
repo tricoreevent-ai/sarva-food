@@ -1,5 +1,36 @@
 # Project Tracker
 
+## RC6.5 Final Tracker Reconciliation - 2026-07-29
+
+- Reconciled tracker, release, deployment, validation, performance, and handoff documentation against current `release/production-nammude` history.
+- Confirmed current synchronized base before this pass: `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` (`RC6.4.1 enhance operational order classification`).
+- Found no unfinished repository P0/P1 application feature work in the trackers; stale RC5/RC6.2 wording is documentation drift.
+- Updated release metadata to `v1.0.0-rc6.5` / `1.0.0-rc.6.5`.
+- Repository readiness remains 100% after validation; production readiness remains 92% until hosted deployment and external production gates pass.
+
+## RC6.4.1 Enterprise Operational Classification - 2026-07-28
+
+- Retained existing primary order filters: All, Dine In, Parcel, Delivery, Online, QR, Scheduled, Catering, and Cancelled.
+- Added reusable secondary operational-state classification chips and counts from existing order state: New, Kitchen, Preparing, Ready, Serving, Delivery, Completed, Delayed, Critical, Pending Payment, Paid, Refund, and Cancelled.
+- Added smart-priority surfacing for delayed/critical/SLA, ready pickup/waiter, waiting customer/driver, kitchen blocked, payment failed, and pending-bill conditions without new listeners.
+- Reused the shared classification model across Dashboard Live Orders, Order Desk, Active Orders, Kitchen, History, and Customer Search where applicable.
+- Persisted last selected filters per module on the client only and kept derived counts memoized from existing state.
+
+## RC6.4 Order Classification Navigation - 2026-07-28
+
+- Hardened owner order navigation around one shared source/type classifier.
+- Kept APIs, repositories, Firestore reads, realtime listeners, role permissions, and workflow actions unchanged.
+
+## RC6.3.1 Header-to-Hero Gap Fix - 2026-07-28
+
+- Removed the restaurant detail page-specific duplicate top spacing that created a blank strip between the public header and hero.
+- Kept sticky header behavior intact without global margin resets or JavaScript layout calculations.
+
+## RC6.3 Customer Experience and Order Tracking - 2026-07-28
+
+- Hardened customer discovery/home presentation, public/header brand consistency, checkout validation, order display normalization, and order tracking behavior.
+- Preserved existing customer ordering APIs and Firestore schema.
+
 ## RC5 Owner/Waiter Active Orders Unification - 2026-07-22
 
 - Owner Active Orders now renders the same exported operational panel and live merged order/KOT dataset used by POS/Waiter, removing the duplicated active-order workflow.
@@ -191,7 +222,7 @@ Last updated: 2026-07-17
 | Repository readiness | `100%` |
 | Production readiness | `92%` |
 | Current decision | Repository `GO`; production launch `NO GO` |
-| Recommendation | Keep RC4 unchanged; tag the final RC5 validation commit after local gates pass |
+| Recommendation | Historical RC5 note; superseded by RC6.5. Keep existing RC tags immutable. |
 | Pending work matrix | Repository-side audit found no remaining code blocker; current pending work is external/manual only. |
 | Final optimization cleanup | Shared duplicated client error-reason helper, added explicit accessible names for compact order action controls, and moved pure phone normalization into `src/lib/phone.ts` to avoid unnecessary Firebase-heavy service ownership in client bundles; no business logic/API/schema changes. |
 | Production monitoring | Internal monitoring store, grouped error/log viewer, Admin Production Monitoring dashboard, Owner diagnostics expansion, alert rules, provider/performance/self-test views, and client/server signal capture added without Firestore schema or business workflow changes. |

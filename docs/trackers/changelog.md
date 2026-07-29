@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-29
+
+- Reconciled RC6.5 tracker/release metadata against the synchronized RC6.4.1 branch base `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81`.
+- Updated package/release metadata to `v1.0.0-rc6.5` / `1.0.0-rc.6.5`.
+- Synchronized master tracker, project tracker, WIP closeout, documentation hub, AI handoff, release readiness, known limitations, and release reports so stale RC5/RC6.2 pending language no longer conflicts with the current repository state.
+- Confirmed no repository P0/P1 feature implementation remained pending; remaining gates are hosted deployment verification plus provider, Firebase Console, authenticated browser/device, Lighthouse/Chrome, long-run heap, and hardware/printer/QR validation.
+
+## 2026-07-28
+
+- Completed RC6.4.1 operational classification enhancement: retained source/type tabs, added secondary operational-state chips/counts, smart-priority surfacing, per-module persisted filters, and memoized derived counts without new APIs or listeners.
+- Completed RC6.4 order classification navigation across owner operational order surfaces using the shared order classification model.
+- Completed RC6.3.1 restaurant header-to-hero gap removal by removing route-level duplicate spacing rather than applying a global CSS reset.
+- Completed RC6.3 customer experience and order tracking hardening across discovery, public/header branding, checkout validation, order display normalization, and tracking behavior.
+
 ## 2026-07-22
 
 - Unified Owner Active Orders with the shared POS/Waiter operational panel and merged order/KOT live dataset.
@@ -79,7 +93,7 @@
 ## 2026-07-13
 
 - Synchronized the active RC5 release metadata across package files, release constants, environment templates, deployment docs, trackers, and validation reports.
-- Confirmed the existing `v1.0.0-rc4` tag remains immutable and the final RC5 validation commit should become `v1.0.0-rc5` after local gates pass.
+- Confirmed the existing `v1.0.0-rc4` tag remains immutable; historical RC5 tagging guidance is superseded by RC6.5.
 - Preserved production readiness at `86%` and repository readiness at `99%`; production launch remains `NO GO` until Hostinger, provider, Firebase Console, browser/device, Lighthouse, and hardware gates pass.
 - Re-ran the repository pending-work and performance audit: no actionable runtime TODO/FIXME, app-source `console.log`, duplicate order components, incomplete repository feature, duplicate listener, or unbounded Firestore read was found; bundle evidence refreshed from current analyzer output.
 - Documented `dcff59e050de1dace19460198cb2909372bce7d5` as the committed RC5 handoff base after documentation centralization.
