@@ -1,6 +1,6 @@
 # Performance Budget
 
-Date: 2026-07-29T11:16:40.043Z
+Date: 2026-07-29T11:52:32.690Z
 
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
