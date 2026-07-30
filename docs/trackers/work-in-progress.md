@@ -2,7 +2,9 @@
 
 Last updated: 2026-07-29
 
-Current Sprint: RC6.10 final production certification and release closure
+Current Sprint: RC6.12 release freeze and UAT bug management
+
+RC6.12 Release Freeze Result: repository is frozen for Production UAT. No new features, redesigns, architecture changes, or opportunistic refactors are permitted. Only verified UAT defects with reproduction steps, root cause, targeted fix scope, validation evidence, regression check, and commit SHA may be changed. Active documents: `docs/release/RC6_12_RELEASE_FREEZE.md`, `docs/trackers/UAT_BUG_DASHBOARD.md`, and `docs/validation/RC6_5_PRODUCTION_UAT_PLAN.md`.
 
 RC6.10 Production Certification Result: repository and remote are synchronized at `c17119a509aa28880fc9a507b94317b1d1727b69`, Hostinger `/api/release-info` reports the same SHA, `applicationVersion=v1.0.0-rc6.5`, `deploymentEnvironment=production`, Node `v22.18.0`, and the deployment verification suite passes 17/17. Remaining work is limited to authenticated live browser/device workflow evidence, provider dashboards, Firebase Console rules/indexes/auth-domain checks, Lighthouse/Chrome profiling, long-run heap, and hardware/printer/QR validation.
 
@@ -46,9 +48,9 @@ Phase 5A Result: Kitchen no longer serves orders. Superseded by RC5 waiter-servi
 
 Phase 4E Result: POS Active Orders actions are fully wired and regression-checked; completion now requires Served + Paid, Ready can only transition to Served, delay values are capped into human/stale labels, duplicate timeline events collapse, 100% kitchen progress is green, cards use a responsive compact grid, and the footer is a sticky four-metric bar. Operational smoke passes 12/12.
 
-Current Phase: RC6.10 production metadata verified; manual live workflow certification remains
+Current Phase: RC6.12 release freeze active; UAT bug intake only
 
-Current Task: Complete authenticated live customer/owner/kitchen/waiter/POS browser workflow certification and remaining provider/Firebase/hardware gates before production signoff.
+Current Task: Run Production UAT, record every issue in the UAT bug dashboard, and fix only confirmed defects.
 
 Phase 4D Result: operational automation now passes 9/9 deterministic checks covering dual-storage draft recovery, restaurant/operator isolation, quota/network/permission/conflict/provider faults, reconnect/focus/visibility replay, role contracts, notification retry/dedup/token lifecycle, service-worker background actions/deep links, and Active Orders accessibility. Fixed service-worker deep-link tab reuse so a matching tab with query parameters is focused instead of duplicated.
 

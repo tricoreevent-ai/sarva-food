@@ -8,17 +8,18 @@ Future AI agents must read this file before making changes.
 | --- | --- |
 | Branch | `release/production-nammude` |
 | Release | `v1.0.0-rc6.5` candidate |
-| Current base commit | `98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81` before RC6.5 reconciliation |
-| Hosted runtime status | Verify exact deployed SHA with `/api/release-info` after RC6.5 deployment |
+| Current base commit | `509679d2c0d1e6ce5a3a315369f799a79700006c` at RC6.10 deployment certification |
+| Hosted runtime status | Production SHA/version verified with `/api/release-info` |
 | Repository readiness | `100%` after local validation |
-| Production readiness | `92%` until external production gates pass |
+| Production readiness | `95%` until external UAT/provider/device/hardware gates pass |
 | Production launch | `NO GO` |
-| Current local phase | RC6.5 final tracker/release reconciliation; repository feature implementation is complete |
+| Current local phase | RC6.12 release freeze and UAT bug management |
 | Documentation hub | `docs/README.md` |
 | Master tracker | `docs/trackers/MASTER_IMPLEMENTATION_TRACKER.md` |
 
 ## Completed Phases
 
+- Release freeze is active. Only verified Production UAT defects may be fixed.
 - Repository-side RC6 implementation and production hardening are considered feature complete.
 - RC6.4.1 operational classification, RC6.3 customer/order-tracking hardening, RC6.3.1 restaurant hero gap removal, and RC6 brand/logo fixes are complete in the repository.
 - POS draft autosave now uses local-first state, scoped localStorage/IndexedDB recovery, coalesced writes, categorized retry messaging, and waiter/cashier-aligned authorization.
@@ -28,7 +29,7 @@ Future AI agents must read this file before making changes.
 
 ## Pending Deployment Work
 
-- Deploy the final RC6.5 commit and verify `/api/release-info` reports the same SHA and `v1.0.0-rc6.5`.
+- Production deployment metadata is verified. Recheck `/api/release-info` after any freeze-time bug-fix commit.
 - Set the documented public `NEXT_PUBLIC_FIREBASE_VAPID_KEY` and stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` in Hostinger; never expose private VAPID or Razorpay secrets through public variables.
 - Use Owner Settings Notification Test Center and Payment Verification Center with real registered devices and owner Razorpay sandbox credentials.
 - Keep `NEXT_PUBLIC_APP_ENV=production`, `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5`, and final HTTPS `NEXT_PUBLIC_APP_URL`.
@@ -46,6 +47,7 @@ Future AI agents must read this file before making changes.
 
 ## Coding Rules
 
+- During release freeze, do not implement anything unless tied to a reproducible UAT bug with root cause and regression validation.
 - Do not rewrite completed features.
 - Do not modify business logic, APIs, repositories, architecture, Firestore schema, rules, or indexes unless fixing a confirmed bug.
 - Do not create duplicate documentation.
