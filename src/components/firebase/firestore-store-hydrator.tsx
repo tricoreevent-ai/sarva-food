@@ -9,7 +9,6 @@ import { listenInventory, listenLoyaltyCustomers } from "@/services/production-d
 import { DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import { useAppStore } from "@/lib/app-store";
 import { RELEASE_VERSION } from "@/lib/release";
-import { safeClientReason } from "@/lib/client-diagnostics";
 import type { InventoryItem, LoyaltyCustomer } from "@/lib/types";
 
 declare global {
@@ -97,13 +96,12 @@ export function FirestoreStoreHydrator() {
         .then((items) => {
           if (active) applyOwnerMenuItems(items);
         })
-        .catch((error) => console.warn("[Food Gedi owner menu] server load failed", safeClientReason(error)));
+        .catch(() => undefined);
 
       unsubscribers.push(
         listenMenuItems(restaurantId, (items) => {
           applyOwnerMenuItems(items);
-        }, (error) => {
-          console.warn("[Food Gedi owner menu] Firestore listener failed; keeping server menu snapshot.", safeClientReason(error));
+        }, () => {
           void fetchOwnerMenuItems(restaurantId)
             .then((items) => {
               if (active) applyOwnerMenuItems(items);

@@ -30,36 +30,30 @@ export function SearchInput({ value, onChange, placeholder, ariaLabel, className
   }
 
   return (
-    <>
-      <span className="pointer-events-none absolute size-0 overflow-hidden opacity-0" aria-hidden="true">
-        <input tabIndex={-1} type="text" name={`${fieldId}-username-decoy`} autoComplete="username" />
-        <input tabIndex={-1} type="password" name={`${fieldId}-password-decoy`} autoComplete="current-password" />
-      </span>
-      <input
-        id={fieldId}
-        name={fieldId}
-        type="search"
-        role="searchbox"
-        autoComplete="new-password"
-        autoCorrect="off"
-        autoCapitalize="none"
-        spellCheck={false}
-        enterKeyHint="search"
-        inputMode="search"
-        data-lpignore="true"
-        data-1p-ignore="true"
-        data-form-type="other"
-        readOnly={locked}
-        autoFocus={autoFocus}
-        value={value}
-        onPointerDown={arm}
-        onKeyDown={arm}
-        onFocus={arm}
-        onChange={change}
-        className={className}
-        placeholder={placeholder}
-        aria-label={ariaLabel}
-      />
-    </>
+    <input
+      id={fieldId}
+      name={fieldId}
+      type="search"
+      role="searchbox"
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="none"
+      spellCheck={false}
+      enterKeyHint="search"
+      inputMode="search"
+      data-lpignore="true"
+      data-1p-ignore="true"
+      data-form-type="search"
+      readOnly={locked}
+      autoFocus={autoFocus}
+      value={value}
+      onPointerDown={arm}
+      onKeyDown={arm}
+      onFocus={arm}
+      onChange={change}
+      className={className}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+    />
   );
 }

@@ -38,6 +38,7 @@ import { actualOrderTime, readableOrderId, readableTableOrderId, relativeOrderTi
 import { isLiveTerminalStatus, mergeLiveOperationalOrders, type LiveOperationalOrder } from "@/lib/live-operational-orders";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
 import { sortOrdersByOperationalPriority } from "@/lib/order-classification";
+import { shouldUseOperationalStreams } from "@/lib/client-operational-streams";
 import type { DemoOrder, MenuItem, OfflineQueueItem, OrderLine, PosTable, PrinterSettings, StaffMember, TableOrder } from "@/lib/types";
 import type { OrderBadgeTone } from "@/components/orders/OrderAccordion.types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -199,6 +200,7 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!shouldUseOperationalStreams()) return;
     const events = new EventSource("/api/owner/pos/stream");
     events.addEventListener("state", (event) => {
       try {

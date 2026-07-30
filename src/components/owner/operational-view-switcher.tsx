@@ -85,16 +85,12 @@ export function OperationalViewSwitcher() {
         <span className="hidden md:inline">{operationalViewLabel(session.viewMode)}</span>
       </Button>
       {open ? (
-        <div className="absolute right-0 top-12 z-50 w-72 space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-2xl">
+        <form className="absolute right-0 top-12 z-50 w-72 space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-2xl" onSubmit={(event) => { event.preventDefault(); void switchView(); }}>
           <p className="font-black text-slate-950">Switch operational view</p>
           <select className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-bold" value={viewMode} onChange={(event) => setViewMode(event.target.value as OperationalView)}>
             {operationalViews.map((view) => <option key={view} value={view}>{operationalViewLabel(view)}</option>)}
           </select>
           <div className="relative">
-            <span className="pointer-events-none absolute size-0 overflow-hidden opacity-0" aria-hidden="true">
-              <input tabIndex={-1} type="text" name="owner-view-switch-username" autoComplete="username" />
-              <input tabIndex={-1} type="password" name="owner-view-switch-password-decoy" autoComplete="current-password" />
-            </span>
             <LockKeyhole className="pointer-events-none absolute left-3 top-3.5 size-4 text-slate-400" />
             <Input
               id="owner-view-switch-password"
@@ -108,10 +104,10 @@ export function OperationalViewSwitcher() {
             />
           </div>
           <div className="flex gap-2">
-            <Button className="flex-1" disabled={saving || !password} onClick={() => void switchView()}>{saving ? "Switching..." : "Switch"}</Button>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={saving || !password}>{saving ? "Switching..." : "Switch"}</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           </div>
-        </div>
+        </form>
       ) : null}
     </div>
   );

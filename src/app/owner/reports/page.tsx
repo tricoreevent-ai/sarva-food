@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
+import { shouldUseOperationalStreams } from "@/lib/client-operational-streams";
 import { formatCurrency } from "@/lib/utils";
 
 type Order = {
@@ -78,6 +79,7 @@ export default function OwnerReportsPage() {
   }, [range]);
 
   useEffect(() => {
+    if (!shouldUseOperationalStreams()) return;
     const events = new EventSource("/api/owner/reports/stream");
     events.addEventListener("state", (event) => {
       try {

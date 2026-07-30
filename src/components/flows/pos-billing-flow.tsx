@@ -26,6 +26,7 @@ import { buildBillContext, buildKotContext, calculateBillTotals, defaultBillTemp
 import { DEFAULT_BRANCH_ID, DEFAULT_RESTAURANT_ID, resolveTenantId } from "@/lib/tenant";
 import type { DemoOrder, InventoryItem, LoyaltyCustomer, MenuCategory, MenuItem, OwnerBusinessProfile, PaperWidth, PosBill, PosTable, PrintLog, PrintTemplate, RestaurantBranch, StaffMember, TableOrder, TaxSettings } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
+import { shouldUseOperationalStreams } from "@/lib/client-operational-streams";
 import { actualOrderTime, readableOrderId, readableTableOrderId } from "@/lib/order-display";
 import { formatDelayTime, formatOperationalDuration, getKitchenDelay } from "@/lib/kitchen-delay";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings, type PosDisplayPreferenceDefaults } from "@/lib/order-delay-settings";
@@ -466,7 +467,6 @@ export function PosBillingFlow() {
       void refreshPosReadModel({ signal: controller.signal })
         .catch((error) => {
           if ((error as Error).name !== "AbortError") {
-            console.error("[pos] bootstrap failed", { reason: error instanceof Error ? error.name : typeof error });
             toast.error("POS data could not be loaded.");
           }
         });
@@ -479,6 +479,7 @@ export function PosBillingFlow() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!shouldUseOperationalStreams()) return;
     const events = new EventSource(`/api/owner/pos/stream?restaurantId=${encodeURIComponent(restaurantId)}`);
     events.addEventListener("state", (event) => {
       try {
@@ -491,7 +492,7 @@ export function PosBillingFlow() {
         setSyncStatus("online");
         setReadModelError("");
       } catch (error) {
-        console.error("[pos] stream parse failed", { reason: error instanceof Error ? error.name : typeof error });
+        if ((error as Error).name !== "AbortError") setSyncStatus("retrying");
       }
     });
     events.addEventListener("error", () => {
@@ -1269,7 +1270,6 @@ export function PosBillingFlow() {
       toast.success("Order placed. Kitchen Operations has been updated.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Order could not be completed. Please retry.";
-      console.error("[pos] order processing failed", { message, reason: error instanceof Error ? error.name : typeof error });
       toast.error(message);
       setProcessingState("idle");
       setWizardStep(3);
@@ -1453,7 +1453,7 @@ export function PosBillingFlow() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ log: { type: target, status, user: authUser.name, branchId: branch.id, printerProfileId: billingPrinter?.id ?? "browser-billing", referenceId } }),
-    }).catch((error) => console.error("[pos] print log failed", { target, referenceId, reason: error instanceof Error ? error.name : typeof error }));
+    }).catch(() => undefined);
   }
 
   function printTicket(target: "bill" | "kot", copies: BillCopy[] = target === "bill" ? ["Customer Copy"] : ["Kitchen Copy"], duplicate = false, sourceBill: PosBill = bill) {

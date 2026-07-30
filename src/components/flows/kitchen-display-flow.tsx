@@ -42,6 +42,7 @@ import { defaultOperationalSettings, normalizeOperationalSettings, type Operatio
 import { readableTableOrderId } from "@/lib/order-display";
 import { playOperationalSound, type OperationalSound } from "@/lib/operational-sounds";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
+import { shouldUseOperationalStreams } from "@/lib/client-operational-streams";
 import { cn } from "@/lib/utils";
 import { buildOrderClassificationOptions, buildOrderOperationOptions, filterOrdersByClassification, filterOrdersByOperation, orderClassificationIds, orderOperationIds, sortOrdersByOperationalPriority, type OrderClassificationId, type OrderOperationId } from "@/lib/order-classification";
 import type { PrinterProfile, TableOrder, TableOrderStatus } from "@/lib/types";
@@ -265,6 +266,10 @@ export function KitchenDisplayFlow() {
         })
         .catch(() => { fallbackLoaded = false; });
     };
+    if (!shouldUseOperationalStreams()) {
+      loadFallback();
+      return () => { active = false; };
+    }
     const events = new EventSource("/api/owner/kitchen/notify-waiter/stream");
     events.addEventListener("ready-signals", (event) => {
       if (!active) return;
@@ -307,7 +312,6 @@ export function KitchenDisplayFlow() {
       })
       .catch((error) => {
         if ((error as Error).name === "AbortError") return;
-        console.error("[kitchen] bootstrap failed", { reason: error instanceof Error ? error.name : typeof error });
         if (active) {
           setConnectionState("error");
           const message = error instanceof Error ? error.message : "Kitchen board could not be loaded.";
@@ -315,6 +319,10 @@ export function KitchenDisplayFlow() {
           toast.error(message);
         }
       });
+    if (!shouldUseOperationalStreams()) return () => {
+      active = false;
+      controller.abort();
+    };
     const events = new EventSource("/api/owner/kitchen/stream");
     events.addEventListener("orders", (event) => {
       if (!active) return;
@@ -323,8 +331,7 @@ export function KitchenDisplayFlow() {
         setOrders((current) => reconcileKitchenOrders(current, applyRealtimePatch(current, payload.data, payload.upsert, payload.removed)));
         setConnectionState("realtime");
         setConnectionError("");
-      } catch (error) {
-        console.error("[kitchen] stream parse failed", { reason: error instanceof Error ? error.name : typeof error });
+      } catch {
         setConnectionState("error");
         setConnectionError("Kitchen realtime update could not be read. Refresh the board.");
       }
@@ -417,7 +424,6 @@ export function KitchenDisplayFlow() {
       }
       return true;
     } catch (error) {
-      console.error("[kitchen] status update failed", { orderId: order.id, status, reason: error instanceof Error ? error.name : typeof error });
       setOrders((current) => current.map((item) => item.id === order.id ? previousOrder : item));
       setConnectionState("error");
       if (!options.silent) toast.error(error instanceof Error ? error.message : "Kitchen status could not be updated.");
@@ -497,8 +503,7 @@ export function KitchenDisplayFlow() {
           body: JSON.stringify({ id: order.id, printedCountIncrement: 1 }),
         }).catch(() => undefined),
       ]);
-    } catch (error) {
-      console.error("[kitchen] print log failed", { orderId: order.id, reason: error instanceof Error ? error.name : typeof error });
+    } catch {
       if (!options.auto) toast.error("KOT printed, but the print log could not be saved.");
     }
     if (!options.auto) toast.success(options.reprint ? "KOT reprint sent." : "KOT print sent.");
@@ -531,8 +536,7 @@ export function KitchenDisplayFlow() {
     try {
       await savePrinterSettings({ ...settings, autoPrintOrders: !settings.autoPrintOrders });
       toast.success(`Auto KOT printing ${settings.autoPrintOrders ? "disabled" : "enabled"}.`);
-    } catch (error) {
-      console.error("[kitchen] printer setting update failed", { reason: error instanceof Error ? error.name : typeof error });
+    } catch {
       toast.error("Kitchen printer setting could not be saved.");
     }
   }

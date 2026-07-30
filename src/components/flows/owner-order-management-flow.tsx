@@ -50,6 +50,7 @@ import { serviceStatusForKitchenOrder } from "@/lib/live-operational-orders";
 import { defaultOperationalSettings, normalizeOperationalSettings, type OperationalSettings } from "@/lib/order-delay-settings";
 import { normalizePhone } from "@/lib/phone";
 import { applyRealtimePatch } from "@/lib/realtime-patch";
+import { shouldUseOperationalStreams } from "@/lib/client-operational-streams";
 import type { CateringQuote, DemoOrder, OrderChannel, OrderStatus, TableOrder, TableOrderStatus } from "@/lib/types";
 
 const ActiveOrdersPanel = dynamic(() => import("@/components/flows/active-orders-panel").then((module) => module.ActiveOrdersPanel), {
@@ -281,6 +282,7 @@ export function OwnerOrderManagementFlow() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!shouldUseOperationalStreams()) return;
     const events = new EventSource("/api/owner/pos/stream");
     events.addEventListener("state", (event) => {
       try {

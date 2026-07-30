@@ -1,6 +1,6 @@
 # Final Performance Report
 
-Date: 2026-07-29T15:47:37.868Z
+Date: 2026-07-30T11:52:26.491Z
 
 This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, RC6 brand/customer/order-classification hardening, image delivery, observability, and push/payment readiness measurements. RC6.5 is tracker/release reconciliation only; Firestore collections, auth flows, APIs, listeners, and provider contracts remain backward compatible.
 
@@ -25,10 +25,10 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 | /orders | 21 | 547 KB | 194 KB | - | Tracked |
 | /profile | 25 | 586 KB | 194 KB | 250 KB | Over |
 | /owner | 28 | 643 KB | 194 KB | 350 KB | Over |
-| /owner/orders | 33 | 790 KB | 194 KB | 500 KB | Over |
+| /owner/orders | 33 | 792 KB | 194 KB | 500 KB | Over |
 | /owner/settings | 32 | 769 KB | 194 KB | 300 KB | Over |
-| /owner/kitchen | 31 | 755 KB | 194 KB | - | Tracked |
-| /owner/pos | 29 | 647 KB | 194 KB | 650 KB | Pass |
+| /owner/kitchen | 31 | 756 KB | 194 KB | - | Tracked |
+| /owner/pos | 29 | 648 KB | 194 KB | 650 KB | Pass |
 | /admin | 23 | 546 KB | 194 KB | - | Tracked |
 
 ## Over-Budget Routes
@@ -38,18 +38,18 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 | / | 487 KB | 250 KB | Over |
 | /profile | 586 KB | 250 KB | Over |
 | /owner | 643 KB | 350 KB | Over |
-| /owner/orders | 790 KB | 500 KB | Over |
+| /owner/orders | 792 KB | 500 KB | Over |
 | /owner/settings | 769 KB | 300 KB | Over |
 
 ## Stress Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.41ms | 0.60ms | 1.45ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.08ms | 0.34ms | <100ms update |
-| POS 1000-item category switch | 0.07ms | 0.15ms | 0.28ms | <50ms switch |
-| POS 1000-item search filter | 0.13ms | 0.26ms | 0.90ms | debounced |
-| Active Orders 100-order filter/group | 0.18ms | 0.38ms | 0.64ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.40ms | 0.47ms | 0.96ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.05ms | 0.31ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.12ms | 0.27ms | <50ms switch |
+| POS 1000-item search filter | 0.09ms | 0.17ms | 0.62ms | debounced |
+| Active Orders 100-order filter/group | 0.17ms | 0.24ms | 0.57ms | <50ms interaction |
 
 ## Conclusion
 

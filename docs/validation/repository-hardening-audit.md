@@ -1,10 +1,10 @@
 # Repository Hardening Audit
 
-Generated: 2026-07-29T15:38:49.162Z
+Generated: 2026-07-30T11:51:44.691Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
-| runtime-console | 15 | Runtime console call; prefer productionLogger or operational logging. |
+| runtime-console | 6 | Runtime console call; prefer productionLogger or operational logging. |
 | raw-error-message | 63 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
@@ -18,8 +18,6 @@ Generated: 2026-07-29T15:38:49.162Z
 - `src/hooks/use-customer-data.ts` (1)
 - `src/hooks/use-realtime-order.ts` (2)
 - `src/components/flows/customer-discovery-home.tsx` (1)
-- `src/components/flows/kitchen-display-flow.tsx` (5)
-- `src/components/flows/pos-billing-flow.tsx` (4)
 - `src/components/flows/restaurant-tables-flow.tsx` (2)
 
 ### raw-error-message
