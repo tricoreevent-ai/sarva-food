@@ -32,13 +32,13 @@ const icons: Record<string, LucideIcon> = {
   refund: RefreshCw,
 };
 
-const overflowFilterIds = new Set(["refund", "cancelled", "archived", "old-orders"]);
+const overflowFilterIds = new Set(["critical", "delayed", "refund", "cancelled", "archived", "old-orders"]);
 
 export function OrderClassificationBar<T extends string>({
   value,
   options,
   onChange,
-  label = "Order classification",
+  label = "Order Channels",
   className,
   sticky,
   readOnly,
@@ -52,6 +52,7 @@ export function OrderClassificationBar<T extends string>({
   readOnly?: boolean;
 }) {
   const id = useId();
+  const displayLabel = filterLabel(label);
   const labelId = `${id}-order-filters`;
   const [primaryOptions, moreOptions] = options.reduce<[Array<OrderFilterOption<T>>, Array<OrderFilterOption<T>>]>(
     (groups, item) => {
@@ -66,26 +67,32 @@ export function OrderClassificationBar<T extends string>({
     <nav className={cn(sticky && "sticky top-0 z-20 bg-inherit py-1", className)} aria-labelledby={labelId}>
       <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
         <div className="mb-2 flex items-center justify-between gap-3 px-1">
-          <h2 id={labelId} className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</h2>
+          <h2 id={labelId} className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{displayLabel}</h2>
           <span className="text-[10px] font-bold text-slate-400">{options.length} filters</span>
         </div>
         <div className="customer-scroll -mx-1 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {primaryOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
-          {moreOptions.length ? (
-            <details className="group flex-none snap-start sm:contents">
-              <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg border border-dashed border-slate-200 px-3 text-xs font-black text-slate-500 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 [&::-webkit-details-marker]:hidden motion-reduce:transition-none">
-                More filters
-                <span className="inline-flex min-w-5 justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">{moreOptions.length}</span>
-              </summary>
-              <div className="mt-1 inline-flex gap-1.5 sm:mt-0 sm:contents">
-                {moreOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
-              </div>
-            </details>
-          ) : null}
         </div>
+        {moreOptions.length ? (
+          <details className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-1">
+            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md px-2 text-xs font-black text-slate-500 transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 [&::-webkit-details-marker]:hidden motion-reduce:transition-none">
+              More filters
+              <span className="inline-flex min-w-5 justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px]">{moreOptions.length}</span>
+            </summary>
+            <div className="customer-scroll mt-1 flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+              {moreOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
+            </div>
+          </details>
+        ) : null}
       </div>
     </nav>
   );
+}
+
+function filterLabel(label: string) {
+  if (/operational state|operations/i.test(label)) return "Order Status";
+  if (/classification/i.test(label)) return "Order Channels";
+  return label;
 }
 
 function FilterChip<T extends string>({
