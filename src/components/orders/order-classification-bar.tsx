@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, ClipboardList, CircleDollarSign, Globe2, PackageCheck, QrCode, ReceiptText, RefreshCw, Truck, Utensils, Wifi, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OrderFilterOption } from "@/lib/order-classification";
@@ -31,6 +32,8 @@ const icons: Record<string, LucideIcon> = {
   refund: RefreshCw,
 };
 
+const overflowFilterIds = new Set(["refund", "cancelled", "archived", "old-orders"]);
+
 export function OrderClassificationBar<T extends string>({
   value,
   options,
@@ -48,34 +51,73 @@ export function OrderClassificationBar<T extends string>({
   sticky?: boolean;
   readOnly?: boolean;
 }) {
+  const id = useId();
+  const labelId = `${id}-order-filters`;
+  const [primaryOptions, moreOptions] = options.reduce<[Array<OrderFilterOption<T>>, Array<OrderFilterOption<T>>]>(
+    (groups, item) => {
+      const isOverflow = options.length > 10 && item.count === 0 && item.id !== value && overflowFilterIds.has(item.id);
+      groups[isOverflow ? 1 : 0].push(item);
+      return groups;
+    },
+    [[], []],
+  );
+
   return (
-    <nav className={cn(sticky && "sticky top-0 z-20 bg-inherit py-1", className)} aria-label={label}>
-      <div className="customer-scroll flex snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        {options.map((item) => {
-          const Icon = icons[item.id] ?? ClipboardList;
-          const active = value === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={readOnly}
-              onClick={() => onChange(item.id)}
-              className={cn(
-                "flex min-h-10 snap-start items-center gap-2 rounded-lg border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-default motion-reduce:transition-none",
-                active ? toneClass(item.tone) : "border-transparent text-slate-600 hover:bg-slate-50",
-              )}
-              aria-label={`${item.label}: ${item.count} orders${item.insight ? `. ${item.insight}` : ""}`}
-              aria-pressed={active}
-            >
-              <Icon className="size-4 shrink-0" />
-              <span className="whitespace-nowrap">{item.label}</span>
-              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", active ? activeCountClass(item.tone) : "bg-slate-100 text-slate-500")}>{item.count}</span>
-              {item.insight ? <span className={cn("hidden whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] uppercase sm:inline", insightClass(item.tone))}>{item.insight}</span> : null}
-            </button>
-          );
-        })}
+    <nav className={cn(sticky && "sticky top-0 z-20 bg-inherit py-1", className)} aria-labelledby={labelId}>
+      <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+        <div className="mb-2 flex items-center justify-between gap-3 px-1">
+          <h2 id={labelId} className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</h2>
+          <span className="text-[10px] font-bold text-slate-400">{options.length} filters</span>
+        </div>
+        <div className="customer-scroll -mx-1 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+          {primaryOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
+          {moreOptions.length ? (
+            <details className="group flex-none snap-start sm:contents">
+              <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg border border-dashed border-slate-200 px-3 text-xs font-black text-slate-500 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 [&::-webkit-details-marker]:hidden motion-reduce:transition-none">
+                More filters
+                <span className="inline-flex min-w-5 justify-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">{moreOptions.length}</span>
+              </summary>
+              <div className="mt-1 inline-flex gap-1.5 sm:mt-0 sm:contents">
+                {moreOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
+              </div>
+            </details>
+          ) : null}
+        </div>
       </div>
     </nav>
+  );
+}
+
+function FilterChip<T extends string>({
+  item,
+  active,
+  readOnly,
+  onChange,
+}: {
+  item: OrderFilterOption<T>;
+  active: boolean;
+  readOnly?: boolean;
+  onChange: (value: T) => void;
+}) {
+  const Icon = icons[item.id] ?? ClipboardList;
+  return (
+    <button
+      type="button"
+      disabled={readOnly}
+      onClick={() => onChange(item.id)}
+      className={cn(
+        "inline-flex min-h-10 flex-none snap-start items-center gap-2 rounded-lg border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-default sm:flex-initial motion-reduce:transition-none",
+        active ? toneClass(item.tone) : "border-transparent text-slate-600 hover:bg-slate-50",
+      )}
+      aria-label={`${item.label}: ${item.count} orders${item.insight ? `. ${item.insight}` : ""}`}
+      aria-pressed={active}
+      title={item.insight ? `${item.label}: ${item.count}. ${item.insight}` : `${item.label}: ${item.count}`}
+    >
+      <Icon className="size-4 shrink-0" />
+      <span>{item.label}</span>
+      <span className={cn("inline-flex min-w-5 shrink-0 justify-center rounded-full px-1.5 py-0.5 text-[10px]", active ? activeCountClass(item.tone) : "bg-slate-100 text-slate-500")}>{item.count}</span>
+      {item.insight ? <span className={cn("size-2 shrink-0 rounded-full", insightClass(item.tone))} aria-hidden="true" /> : null}
+    </button>
   );
 }
 
@@ -96,9 +138,9 @@ function activeCountClass(tone: OrderFilterOption["tone"]) {
 }
 
 function insightClass(tone: OrderFilterOption["tone"]) {
-  if (tone === "danger") return "bg-red-50 text-red-700";
-  if (tone === "warning") return "bg-amber-50 text-amber-700";
-  if (tone === "success") return "bg-emerald-50 text-emerald-700";
-  if (tone === "info") return "bg-blue-50 text-blue-700";
-  return "bg-slate-100 text-slate-500";
+  if (tone === "danger") return "bg-red-500";
+  if (tone === "warning") return "bg-amber-500";
+  if (tone === "success") return "bg-emerald-500";
+  if (tone === "info") return "bg-blue-500";
+  return "bg-slate-400";
 }

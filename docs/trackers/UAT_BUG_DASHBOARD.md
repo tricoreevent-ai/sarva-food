@@ -9,11 +9,11 @@ Current production SHA at dashboard creation: `509679d2c0d1e6ce5a3a315369f799a79
 
 | Metric | Count |
 | --- | ---: |
-| Total bugs | 0 |
+| Total bugs | 1 |
 | Open bugs | 0 |
-| Closed bugs | 0 |
+| Closed bugs | 1 |
 | Critical bugs | 0 |
-| High bugs | 0 |
+| High bugs | 1 |
 | Regression bugs | 0 |
 | Release blockers | 0 |
 
@@ -23,7 +23,7 @@ Current decision: `GO for UAT`, `NO-GO for public launch until UAT/provider/devi
 
 | Bug ID | Module | Environment | Device | Browser | Severity | Status | Root Cause | Files Changed | Validation | Regression Risk | Commit SHA |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| _None reported yet_ |  |  |  |  |  |  |  |  |  |  |  |
+| UAT-RC6.13-001 | Active Orders filter navigation | Production UAT / repository | Desktop, tablet, mobile | Chrome-family visual report | High | Closed | Shared filter bar forced every chip into one horizontal nowrap row and rendered long insight labels inside chips, causing overlap/clipping at scale. | `src/components/orders/order-classification-bar.tsx`, `src/lib/order-classification.ts` | `npm run typecheck`, `npm run lint`, `npm run build`, `git diff --check` | Low: shared component only; no workflow/API/state/listener changes. | This commit |
 
 ## Status Values
 

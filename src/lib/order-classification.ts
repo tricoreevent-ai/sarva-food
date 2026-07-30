@@ -34,7 +34,7 @@ export type OrderClassificationOption = OrderFilterOption<OrderClassificationId>
 export type OrderOperationOption = OrderFilterOption<OrderOperationId>;
 
 export const defaultOrderClassifications: Array<{ id: OrderClassificationId; label: string }> = [
-  { id: "all", label: "All" },
+  { id: "all", label: "All Channels" },
   { id: "dine-in", label: "Dine In" },
   { id: "parcel", label: "Parcel" },
   { id: "delivery", label: "Delivery" },
@@ -50,7 +50,7 @@ export const defaultOrderClassifications: Array<{ id: OrderClassificationId; lab
 ];
 export const orderClassificationIds = defaultOrderClassifications.map((item) => item.id) as OrderClassificationId[];
 export const defaultOrderOperations: Array<{ id: OrderOperationId; label: string }> = [
-  { id: "all", label: "All States" },
+  { id: "all", label: "All Status" },
   { id: "new", label: "New" },
   { id: "kitchen", label: "Kitchen" },
   { id: "preparing", label: "Preparing" },
