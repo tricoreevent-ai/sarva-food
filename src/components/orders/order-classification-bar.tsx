@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, ClipboardList, CircleDollarSign, Globe2, PackageCheck, QrCode, ReceiptText, RefreshCw, Truck, Utensils, Wifi, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OrderFilterOption } from "@/lib/order-classification";
@@ -32,7 +32,10 @@ const icons: Record<string, LucideIcon> = {
   refund: RefreshCw,
 };
 
-const overflowFilterIds = new Set(["critical", "delayed", "refund", "cancelled", "archived", "old-orders"]);
+const priorityChannelIds = new Set(["all", "dine-in", "parcel", "delivery"]);
+const priorityStatusIds = new Set(["all", "new", "kitchen", "preparing", "ready"]);
+const priorityStaffIds = new Set(["all", "operations", "waiter"]);
+const advancedFilterIds = new Set(["critical", "delayed", "refund", "cancelled", "archived", "old-orders"]);
 
 export function OrderClassificationBar<T extends string>({
   value,
@@ -54,36 +57,36 @@ export function OrderClassificationBar<T extends string>({
   const id = useId();
   const displayLabel = filterLabel(label);
   const labelId = `${id}-order-filters`;
-  const [primaryOptions, moreOptions] = options.reduce<[Array<OrderFilterOption<T>>, Array<OrderFilterOption<T>>]>(
-    (groups, item) => {
-      const isOverflow = options.length > 10 && item.count === 0 && item.id !== value && overflowFilterIds.has(item.id);
-      groups[isOverflow ? 1 : 0].push(item);
+  const [primaryOptions, moreOptions] = useMemo(() => {
+    const priorityIds = priorityIdsFor(displayLabel, options);
+    return options.reduce<[Array<OrderFilterOption<T>>, Array<OrderFilterOption<T>>]>((groups, item) => {
+      const active = item.id === value;
+      const priority = priorityIds.has(item.id);
+      const advanced = advancedFilterIds.has(item.id);
+      groups[active || priority || (options.length <= 6 && !advanced) ? 0 : 1].push(item);
       return groups;
-    },
-    [[], []],
-  );
+    }, [[], []]);
+  }, [displayLabel, options, value]);
 
   return (
     <nav className={cn(sticky && "sticky top-0 z-20 bg-inherit py-1", className)} aria-labelledby={labelId}>
-      <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-        <div className="mb-2 flex items-center justify-between gap-3 px-1">
+      <div className="rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+        <div className="mb-1 flex items-center gap-3 px-1">
           <h2 id={labelId} className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{displayLabel}</h2>
-          <span className="text-[10px] font-bold text-slate-400">{options.length} filters</span>
         </div>
         <div className="customer-scroll -mx-1 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {primaryOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
+          {moreOptions.length ? (
+            <details className="contents">
+              <summary className="inline-flex min-h-10 flex-none cursor-pointer list-none items-center gap-1.5 rounded-lg border border-dashed border-slate-200 px-3 text-xs font-black text-slate-500 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 [&::-webkit-details-marker]:hidden motion-reduce:transition-none" aria-label={`${displayLabel}: show ${moreOptions.length} more filters`}>
+                +{moreOptions.length}
+              </summary>
+              <div className="customer-scroll flex basis-full gap-1.5 overflow-x-auto pt-1 sm:flex-wrap sm:overflow-visible">
+                {moreOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
+              </div>
+            </details>
+          ) : null}
         </div>
-        {moreOptions.length ? (
-          <details className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-1">
-            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md px-2 text-xs font-black text-slate-500 transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 [&::-webkit-details-marker]:hidden motion-reduce:transition-none">
-              More filters
-              <span className="inline-flex min-w-5 justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px]">{moreOptions.length}</span>
-            </summary>
-            <div className="customer-scroll mt-1 flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
-              {moreOptions.map((item) => <FilterChip key={item.id} item={item} active={value === item.id} readOnly={readOnly} onChange={onChange} />)}
-            </div>
-          </details>
-        ) : null}
       </div>
     </nav>
   );
@@ -93,6 +96,13 @@ function filterLabel(label: string) {
   if (/operational state|operations/i.test(label)) return "Order Status";
   if (/classification/i.test(label)) return "Order Channels";
   return label;
+}
+
+function priorityIdsFor<T extends string>(label: string, options: Array<OrderFilterOption<T>>) {
+  const ids = new Set<string>(options.map((item) => item.id));
+  if (ids.has("dine-in") || /channel/i.test(label)) return priorityChannelIds;
+  if (ids.has("new") || ids.has("ready") || /status/i.test(label)) return priorityStatusIds;
+  return priorityStaffIds;
 }
 
 function FilterChip<T extends string>({
@@ -113,7 +123,7 @@ function FilterChip<T extends string>({
       disabled={readOnly}
       onClick={() => onChange(item.id)}
       className={cn(
-        "inline-flex min-h-10 flex-none snap-start items-center gap-2 rounded-lg border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-default sm:flex-initial motion-reduce:transition-none",
+        "inline-flex min-h-10 flex-none snap-start items-center gap-1.5 rounded-lg border px-2.5 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-600 disabled:cursor-default sm:flex-initial motion-reduce:transition-none",
         active ? toneClass(item.tone) : "border-transparent text-slate-600 hover:bg-slate-50",
       )}
       aria-label={`${item.label}: ${item.count} orders${item.insight ? `. ${item.insight}` : ""}`}
