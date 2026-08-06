@@ -89,7 +89,7 @@ export default function AdminCampaignsPage() {
             onShareItem={(item) => void whatsappShare.openShare({
               item,
               restaurant: restaurants.find((restaurant) => restaurant.slug === item.restaurantSlug),
-              template: offer.offerType === "festival" ? "festival" : "promotional",
+              template: offer.offerType === "festival" ? "festival-offer" : "limited-time",
             })}
           />
         )) : (

@@ -171,7 +171,9 @@ export function OwnerMenuManagementFlow() {
   const taxSettings = useAppStore((state) => state.taxSettings);
   const combos = useAppStore((state) => state.comboOffers);
   const authUser = useAppStore((state) => state.authUser);
+  const restaurants = useAppStore((state) => state.restaurants);
   const restaurantId = resolveTenantId(authUser.restaurantSlug ?? DEFAULT_RESTAURANT_ID);
+  const restaurant = restaurants.find((entry) => entry.slug === restaurantId || entry.id === restaurantId);
   const {
     items: menuItems,
     status: menuStatus,
@@ -1803,7 +1805,8 @@ export function OwnerMenuManagementFlow() {
                       onPreviewImage={() => setImagePreviewItem(item)}
                       onEdit={() => beginEdit(item)}
                       onCopyLink={() => void copyCustomerItemLink(item, prompt)}
-                      onShareWhatsApp={() => void whatsappShare.openShare({ item })}
+                      marketingAnalytics={whatsappShare.analytics[item.id]}
+                      onShareWhatsApp={() => void whatsappShare.openShare({ item, restaurant })}
                       onToggleSoldOut={() => void toggleSoldOut(item.id)}
                       onCloneItem={() => void duplicateMenuItem(item)}
                       onDelete={() => void deleteMenuItem(item.id)}
@@ -1827,7 +1830,8 @@ export function OwnerMenuManagementFlow() {
                       onPreviewImage={() => setImagePreviewItem(item)}
                       onEdit={() => beginEdit(item)}
                       onCopyLink={() => void copyCustomerItemLink(item, prompt)}
-                      onShareWhatsApp={() => void whatsappShare.openShare({ item })}
+                      marketingAnalytics={whatsappShare.analytics[item.id]}
+                      onShareWhatsApp={() => void whatsappShare.openShare({ item, restaurant })}
                       onToggleSoldOut={() => void toggleSoldOut(item.id)}
                       onCloneItem={() => void duplicateMenuItem(item)}
                       onDelete={() => void deleteMenuItem(item.id)}
@@ -1881,8 +1885,11 @@ export function OwnerMenuManagementFlow() {
               if (!open) whatsappShare.closeShare();
             }}
             onCopy={() => void whatsappShare.copyMessage()}
+            onCopyLink={() => void whatsappShare.copyLink()}
             onWhatsApp={whatsappShare.openWhatsApp}
-            onChannel={whatsappShare.openChannel}
+            onWhatsAppWeb={whatsappShare.openWhatsAppWeb}
+            onUpdate={whatsappShare.updateShare}
+            onDownload={() => whatsappShare.recordShare("download")}
           />
 
           <Dialog open={Boolean(imagePreviewItem)} onOpenChange={(open) => !open && setImagePreviewItem(null)}>
@@ -2723,6 +2730,7 @@ function MenuItemRow({
   onMoveUp,
   onMoveDown,
   orderSaving,
+  marketingAnalytics,
 }: {
   variant: "table" | "card";
   item: MenuItem;
@@ -2740,6 +2748,7 @@ function MenuItemRow({
   onMoveUp: () => void;
   onMoveDown: () => void;
   orderSaving: boolean;
+  marketingAnalytics?: { shares: number; lastShared?: string; clicks: number; orders: number; conversion: number };
 }) {
   const customerVisible = isItemVisible(item, "delivery") && !item.soldOut;
   const statusLabel = item.soldOut ? "Sold Out" : customerVisible ? "Active" : "Hidden";
@@ -2810,6 +2819,7 @@ function MenuItemRow({
           </div>
           <p className="line-clamp-1 text-xs font-semibold text-muted-foreground">{item.description || "No description added."}</p>
           <p className="mt-1 truncate text-xs font-bold text-muted-foreground">{metadata}</p>
+          {marketingAnalytics ? <p className="mt-1 text-xs font-bold text-emerald-700">Shared {marketingAnalytics.shares}× · Last {marketingAnalytics.lastShared ? new Date(marketingAnalytics.lastShared).toLocaleDateString() : "never"} · Clicks {marketingAnalytics.clicks} · Conversion {marketingAnalytics.conversion}%</p> : null}
         </div>
         <span className="truncate font-semibold text-foreground">{item.category || "Uncategorised"}</span>
         <ChannelPriceCell item={item} channel="dine-in" />
@@ -2847,6 +2857,7 @@ function MenuItemRow({
             <MiniPrice label="Parcel" value={formatChannelItemPrice(item, "parcel")} />
             <MiniPrice label="Delivery" value={formatChannelItemPrice(item, "delivery")} />
           </div>
+          {marketingAnalytics ? <p className="mt-2 text-xs font-bold text-emerald-700">Shared {marketingAnalytics.shares}× · Clicks {marketingAnalytics.clicks} · Conversion {marketingAnalytics.conversion}%</p> : null}
           <div className="mt-2">
             <DisplayOrderControls value={item.displayOrder ?? 0} onMoveUp={onMoveUp} onMoveDown={onMoveDown} saving={orderSaving} />
           </div>
@@ -2861,7 +2872,7 @@ function MenuItemRow({
 
 function buildCustomerItemPath(item: MenuItem) {
   const slug = item.restaurantSlug || DEFAULT_RESTAURANT_ID;
-  const itemId = item.id.split("::")[0];
+  const itemId = item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return `/restaurant/${encodeURIComponent(slug)}/item/${encodeURIComponent(itemId)}`;
 }
 

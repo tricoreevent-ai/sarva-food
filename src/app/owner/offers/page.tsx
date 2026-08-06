@@ -362,7 +362,7 @@ export default function OwnerOffersPage() {
                 onToggleHomepage={() => void toggleVisibility(offer, "showOnHomepage")}
                 onToggleFeatured={() => void toggleVisibility(offer, "featured")}
                 onDelete={() => void removeOffer(offer)}
-                onShareItem={(item) => void whatsappShare.openShare({ item, restaurant, template: offer.offerType === "festival" ? "festival" : "promotional" })}
+                onShareItem={(item) => void whatsappShare.openShare({ item, restaurant, template: offer.offerType === "festival" ? "festival-offer" : "limited-time" })}
               />
             ))}
           </div>

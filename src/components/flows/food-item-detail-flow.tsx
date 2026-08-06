@@ -75,7 +75,7 @@ export function FoodItemDetailFlow({
   const activeRestaurant = restaurant ?? loadedRestaurant;
   const { items, offers, status: menuStatus, retry: retryMenu } = usePublicMenu(activeRestaurant?.slug ?? restaurantSlug);
   const requestedItemId = canonicalMenuItemId(itemId ?? "");
-  const activeItem = item ?? items.find((entry) => canonicalMenuItemId(entry.id) === requestedItemId);
+  const activeItem = item ?? items.find((entry) => canonicalMenuItemId(entry.id) === requestedItemId || publicItemSlug(entry.name) === requestedItemId.toLowerCase());
   const { reviews, summary: reviewSummary } = usePublicReviews(activeRestaurant?.slug, activeItem?.id);
   const activeOffer = offers.find((offer) => offer.code === offerCode);
   const addItem = useCartStore((state) => state.addItem);
@@ -1033,6 +1033,10 @@ function FoodTypeIcon({ item }: { item: MenuItem }) {
 
 function normalizedFoodType(item: MenuItem) {
   return item.foodType ?? (item.isVeg ? "veg" : "nonveg");
+}
+
+function publicItemSlug(value: string) {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 function foodTypeLabel(item: MenuItem) {
