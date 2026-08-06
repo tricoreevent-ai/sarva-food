@@ -194,6 +194,7 @@ export function FoodItemDetailFlow({
     addSelectionToCart();
     const query = new URLSearchParams({ mode: "fast" });
     if (activeOffer) query.set("offer", activeOffer.code);
+    if (source?.startsWith("campaign:")) query.set("campaign", source.slice("campaign:".length));
     router.push(`${ROUTES.checkout}?${query.toString()}`);
   }
 

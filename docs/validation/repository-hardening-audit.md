@@ -1,6 +1,6 @@
 # Repository Hardening Audit
 
-Generated: 2026-08-06T06:18:36.603Z
+Generated: 2026-08-06T07:00:10.345Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
@@ -9,7 +9,7 @@ Generated: 2026-08-06T06:18:36.603Z
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
 | listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
-| api-error-envelope | 185 | API error envelope; verify requestId/meta where customer-safe. |
+| api-error-envelope | 188 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
 
@@ -107,7 +107,7 @@ Generated: 2026-08-06T06:18:36.603Z
 - `src/app/api/owner/marketing-campaigns/route.ts` (6)
 - `src/app/api/owner/marketing-shares/route.ts` (4)
 - `src/app/api/owner/master-menu-templates/route.ts` (6)
-- 23 more files omitted.
+- 24 more files omitted.
 
 ## Release Interpretation
 

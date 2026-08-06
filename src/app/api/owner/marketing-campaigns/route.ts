@@ -65,7 +65,7 @@ function campaignPayload(body: Record<string, unknown>) {
     publicSlug: campaignSlug(String(body.publicSlug || body.name || "campaign")), name: String(body.name || "").slice(0, 120), type: String(body.type || "Custom").slice(0, 60), status,
     menuItemIds: Array.isArray(body.menuItemIds) ? body.menuItemIds.map(String).slice(0, 30) : [], template: String(body.template || "todays-special"), tone: String(body.tone || "professional"),
     layout: String(body.layout || "Classic"), socialFormat: String(body.socialFormat || "WhatsApp"), cta: String(body.cta || "Order Now").slice(0, 40), message: String(body.message || "").slice(0, 8000),
-    scheduleAt: String(body.scheduleAt || "").slice(0, 40), scheduleKind: String(body.scheduleKind || "").slice(0, 40), itemSnapshots: sanitizeItems(body.itemSnapshots), restaurantName: String(body.restaurantName || "").slice(0, 160), restaurantSlug: String(body.restaurantSlug || "").slice(0, 160),
+    scheduleAt: iso(body.scheduleAt), scheduleKind: String(body.scheduleKind || "").slice(0, 40), orderingOpensAt: iso(body.orderingOpensAt), orderingClosesAt: iso(body.orderingClosesAt), cookingStartsAt: iso(body.cookingStartsAt), deliveryStartsAt: iso(body.deliveryStartsAt), pickupStartsAt: iso(body.pickupStartsAt), expiresAt: iso(body.expiresAt), autoDisableAt: iso(body.autoDisableAt), maximumOrders: positiveInt(body.maximumOrders), maximumQuantity: positiveInt(body.maximumQuantity), orderCount: Number(body.orderCount || 0), quantityOrdered: Number(body.quantityOrdered || 0), shortUrl: String(body.shortUrl || "").slice(0, 500), itemSnapshots: sanitizeItems(body.itemSnapshots), restaurantName: String(body.restaurantName || "").slice(0, 160), restaurantSlug: String(body.restaurantSlug || "").slice(0, 160),
   };
 }
 
@@ -77,6 +77,9 @@ function sanitizeItems(value: unknown) {
 async function syncPublicCampaign(id: string, data: Record<string, unknown>) {
   const tenantId = String(data.tenantId || ""); const slug = campaignSlug(String(data.publicSlug || data.name || id));
   const ref = adminDb().collection("publicMarketingCampaigns").doc(`${tenantId}:${slug}`);
-  if (data.status !== "published") { await ref.delete().catch(() => undefined); return; }
-  await ref.set({ campaignSlug: slug, restaurantSlug: String(data.restaurantSlug || tenantId), restaurantName: String(data.restaurantName || ""), name: String(data.name || ""), type: String(data.type || ""), cta: String(data.cta || "Order Now"), layout: String(data.layout || "Classic"), items: data.itemSnapshots ?? [], publishedAt: new Date().toISOString() });
+  if (data.status !== "published" && data.status !== "scheduled") { await ref.delete().catch(() => undefined); return; }
+  await ref.set({ campaignId: id, campaignSlug: slug, restaurantSlug: String(data.restaurantSlug || tenantId), restaurantName: String(data.restaurantName || ""), name: String(data.name || ""), type: String(data.type || ""), cta: String(data.cta || "Order Now"), layout: String(data.layout || "Classic"), items: data.itemSnapshots ?? [], scheduleAt: data.scheduleAt || "", orderingOpensAt: data.orderingOpensAt || "", orderingClosesAt: data.orderingClosesAt || "", cookingStartsAt: data.cookingStartsAt || "", deliveryStartsAt: data.deliveryStartsAt || "", pickupStartsAt: data.pickupStartsAt || "", expiresAt: data.expiresAt || "", autoDisableAt: data.autoDisableAt || "", maximumOrders: data.maximumOrders || 0, maximumQuantity: data.maximumQuantity || 0, orderCount: data.orderCount || 0, quantityOrdered: data.quantityOrdered || 0, status: data.status, publishedAt: new Date().toISOString() });
 }
+
+function iso(value: unknown) { const text = String(value || "").slice(0, 40); return text && Number.isFinite(new Date(text).getTime()) ? new Date(text).toISOString() : ""; }
+function positiveInt(value: unknown) { const number = Math.floor(Number(value || 0)); return Number.isFinite(number) && number > 0 ? Math.min(number, 100000) : 0; }

@@ -53,6 +53,7 @@ type CreateOrderRequest = {
   total: number;
   acceptedTermsVersion: string;
   acceptedTermsAt: string;
+  campaign?: string;
 };
 const checkoutPrefsKey = "food-gedi.checkout.preferences:v1";
 const legacyCheckoutPrefsKeys = ["nammude.checkout.preferences:v1"] as const;
@@ -60,9 +61,11 @@ const legacyCheckoutPrefsKeys = ["nammude.checkout.preferences:v1"] as const;
 export function CheckoutForm({
   fastMode = false,
   initialOfferCode,
+  campaign,
 }: {
   fastMode?: boolean;
   initialOfferCode?: string;
+  campaign?: string;
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -190,7 +193,7 @@ export function CheckoutForm({
               });
 
               if (!user) {
-                const query = new URLSearchParams({ next: "/checkout" });
+                const query = new URLSearchParams({ next: campaign ? `/checkout?campaign=${encodeURIComponent(campaign)}` : "/checkout" });
                 if (appliedOfferCode) query.set("offer", appliedOfferCode);
                 router.push(`/login?${query.toString()}`);
                 return;
@@ -224,6 +227,7 @@ export function CheckoutForm({
                 total: totals.total,
                 acceptedTermsVersion: cmsVersion ?? "default",
                 acceptedTermsAt: new Date().toISOString(),
+                campaign,
               };
 
               try {

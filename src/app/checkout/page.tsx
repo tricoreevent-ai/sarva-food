@@ -21,11 +21,12 @@ const CheckoutSummary = dynamic(
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ mode?: string; offer?: string }>;
+  searchParams?: Promise<{ mode?: string; offer?: string; campaign?: string }>;
 }) {
   const params = searchParams ? await searchParams : {};
   const fastMode = params.mode === "fast";
   const initialOfferCode = parseOfferCode(params.offer);
+  const campaign = /^[a-z0-9-]{1,80}$/.test(params.campaign ?? "") ? params.campaign : undefined;
 
   // Screen note: Checkout is a two-column desktop flow and stacked mobile form with offer code support.
   return (
@@ -56,7 +57,7 @@ export default async function CheckoutPage({
           />
         </section>
         <section className="grid gap-5 lg:grid-cols-[1fr_420px]">
-          <CheckoutForm fastMode={fastMode} initialOfferCode={initialOfferCode} />
+          <CheckoutForm fastMode={fastMode} initialOfferCode={initialOfferCode} campaign={campaign} />
           <CheckoutSummary />
         </section>
         <ResponsibilityDisclaimer surface="checkout" />

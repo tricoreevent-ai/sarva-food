@@ -1,7 +1,7 @@
 import type { MarketingTone, WhatsAppTemplateKind } from "@/features/marketing/messageTemplates";
 import type { MenuItem } from "@/lib/types";
 
-export const campaignTypes = ["Today's Specials", "Lunch Menu", "Dinner Menu", "Fish Festival", "Weekend Offers", "Best Sellers", "Category", "Festival", "Custom"] as const;
+export const campaignTypes = ["Today's Special", "Tomorrow's Special", "Weekend Offer", "Breakfast Menu", "Lunch Menu", "Dinner Menu", "Festival Menu", "Chef Recommendation", "Limited Stock", "Fresh Catch", "Only Today", "Pre-order", "Flash Sale", "Combo Offer", "Bulk Catering", "Family Pack", "Category", "Custom"] as const;
 export const campaignLayouts = ["Classic", "Minimal", "Luxury", "Premium", "Festival", "Offer", "Instagram Story", "WhatsApp Status", "Square", "Landscape", "Restaurant Showcase"] as const;
 export const campaignCtas = ["Order Now", "Order Direct", "Call Now", "WhatsApp Order", "View Menu", "Reserve Table", "Get Offer", "Scan QR"] as const;
 export const socialFormats = ["WhatsApp", "Instagram Story", "Instagram Feed", "Facebook", "Telegram", "X", "Email"] as const;
@@ -23,10 +23,23 @@ export type MarketingCampaign = {
   message: string;
   scheduleAt?: string;
   scheduleKind?: string;
+  orderingOpensAt?: string;
+  orderingClosesAt?: string;
+  cookingStartsAt?: string;
+  deliveryStartsAt?: string;
+  pickupStartsAt?: string;
+  expiresAt?: string;
+  autoDisableAt?: string;
+  maximumOrders?: number;
+  maximumQuantity?: number;
+  orderCount?: number;
+  quantityOrdered?: number;
+  shortUrl?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  metrics: { whatsappShares: number; posterDownloads: number; copiedLinks: number; copiedMessages: number; qrDownloads: number; clicks: number; orders: number; revenue: number };
+  metrics: { whatsappShares: number; posterDownloads: number; copiedLinks: number; copiedMessages: number; qrDownloads: number; clicks: number; orders: number; revenue: number; repeatCustomers?: number };
+  clickHours?: Record<string, number>;
 };
 
 export function campaignSlug(name: string) {
@@ -59,14 +72,28 @@ export function campaignPricing(item: MenuItem) {
   return { selling, original, savings, discount: original > selling ? Math.round((savings / original) * 100) : 0 };
 }
 
-export function buildCampaignMessage(name: string, restaurantName: string, items: MenuItem[], cta: string, link: string) {
+export function buildCampaignMessage(name: string, restaurantName: string, items: MenuItem[], cta: string, link: string, timing?: { orderingClosesAt?: string; deliveryStartsAt?: string }) {
   const lines = items.filter((item) => !item.soldOut && item.menuVisibility?.delivery !== false).map((item) => {
     const price = item.deliveryPrice ?? item.parcelPrice ?? item.price;
     return `🍽️ *${item.name}* — ₹${price}`;
   });
-  return [`🔥 *${name}*`, `From *${restaurantName}*`, "", ...lines, "", `👉 *${cta}*`, link].join("\n");
+  return [`🔥 *${name}*`, "", ...lines, "", "✅ Direct from Restaurant", "🚚 Home Delivery Available", items[0]?.prepTime ? `⏱ Ready in ${items[0].prepTime}` : "", timing?.orderingClosesAt ? `\n📅 Ordering closes:\n${friendly(timing.orderingClosesAt)}` : "", timing?.deliveryStartsAt ? `🚚 Delivery starts ${friendly(timing.deliveryStartsAt)}` : "", "", `👇 *${cta}*`, link, "", `📍 ${restaurantName}`, "", "Powered by Food Gedi"].filter(Boolean).join("\n");
 }
 
-export function emptyMetrics(): MarketingCampaign["metrics"] {
+export function emptyMetrics(): MarketingCampaign["metrics"] & { repeatCustomers?: number } {
   return { whatsappShares: 0, posterDownloads: 0, copiedLinks: 0, copiedMessages: 0, qrDownloads: 0, clicks: 0, orders: 0, revenue: 0 };
 }
+
+export function campaignAvailability(campaign: Pick<MarketingCampaign, "status" | "scheduleAt" | "orderingOpensAt" | "orderingClosesAt" | "expiresAt" | "autoDisableAt" | "maximumOrders" | "maximumQuantity" | "orderCount" | "quantityOrdered">, now = new Date()) {
+  const time = now.getTime(); const opens = dateMs(campaign.orderingOpensAt); const closes = dateMs(campaign.orderingClosesAt); const expires = dateMs(campaign.expiresAt); const disabled = dateMs(campaign.autoDisableAt);
+  const scheduled = dateMs(campaign.scheduleAt); const effectivelyPublished = campaign.status === "published" || (campaign.status === "scheduled" && scheduled > 0 && time >= scheduled);
+  if (!effectivelyPublished) return { orderable: false, state: campaign.status === "scheduled" ? "scheduled" : "unavailable", message: campaign.status === "scheduled" ? `Ordering opens ${friendly(campaign.orderingOpensAt || campaign.scheduleAt)}` : "This campaign is not currently available." };
+  if (opens && time < opens) return { orderable: false, state: "coming-soon", message: `Ordering opens ${friendly(campaign.orderingOpensAt)}` };
+  if ((closes && time >= closes) || (expires && time >= expires) || (disabled && time >= disabled)) return { orderable: false, state: "expired", message: "Ordering for this special has closed." };
+  if (campaign.maximumOrders && (campaign.orderCount ?? 0) >= campaign.maximumOrders) return { orderable: false, state: "sold-out", message: "This campaign has reached its maximum number of orders." };
+  if (campaign.maximumQuantity && (campaign.quantityOrdered ?? 0) >= campaign.maximumQuantity) return { orderable: false, state: "sold-out", message: "This special is sold out." };
+  return { orderable: true, state: "active", message: closes ? `Ordering closes ${friendly(campaign.orderingClosesAt)}` : "Order directly from the restaurant." };
+}
+
+function dateMs(value?: string) { const parsed = value ? new Date(value).getTime() : 0; return Number.isFinite(parsed) ? parsed : 0; }
+function friendly(value?: string) { if (!value) return "soon"; return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(value)); }

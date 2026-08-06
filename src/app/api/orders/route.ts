@@ -5,6 +5,10 @@ import { OrderRepository } from "@/repositories/order-repository";
 import { AuditRepository } from "@/repositories/audit-repository";
 import { productionLogger, safeErrorName } from "@/lib/server/production-logger";
 import type { OrderDoc, OrderLineDoc, RestaurantDoc } from "@/types/firebase";
+import { adminDb } from "@/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { campaignAvailability, type MarketingCampaign } from "@/features/marketing/campaign-engine";
+import { createHash } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,6 +34,7 @@ type CreateOrderBody = {
   total?: number;
   acceptedTermsVersion?: string;
   acceptedTermsAt?: string;
+  campaign?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -112,6 +117,9 @@ export async function POST(request: NextRequest) {
       ? 0
       : money(configuredDeliveryFee);
     const total = Math.max(0, money(subtotal - discount + deliveryFee + tax));
+    const campaign = cleanCampaign(body.campaign);
+    const campaignReservation = campaign ? await reserveCampaign(restaurantId, campaign, requestedLines, total, session.uid) : null;
+    if (campaign && !campaignReservation?.ok) return fail(campaignReservation?.error || "This campaign is no longer available. View today's menu for current items.", 409, campaignReservation?.code || "CAMPAIGN_UNAVAILABLE");
     const order = stripUndefined({
       id: orderId,
       tenantId: restaurant.tenantId ?? restaurantId,
@@ -157,6 +165,7 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
       ...(deliveryPlaceId ? { deliveryPlaceId } : {}),
       ...(offerValidation.offerCode ? { offerCode: offerValidation.offerCode } : {}),
+      ...(campaign ? { campaignCode: campaign, source: "WhatsApp" } : {}),
     }) as OrderDoc;
 
     const address = order.deliveryAddress && order.deliveryGeo ? (() => {
@@ -179,7 +188,9 @@ export async function POST(request: NextRequest) {
         ...(order.deliveryPlaceId ? { placeId: order.deliveryPlaceId } : {}),
       };
     })() : undefined;
-    const savedOrder = await repository.create(order, address);
+    let savedOrder;
+    try { savedOrder = await repository.create(order, address); }
+    catch (error) { if (campaignReservation?.ok) await rollbackCampaign(campaignReservation); throw error; }
     await new AuditRepository().record({
       tenantId: order.tenantId,
       restaurantId: order.restaurantId,
@@ -205,6 +216,27 @@ export async function POST(request: NextRequest) {
     return fail("Unable to connect to the restaurant. Please try again in a moment.", 500, "ORDER_CREATE_FAILED");
   }
 }
+
+async function reserveCampaign(restaurantId: string, slug: string, requestedLines: OrderLineDoc[], revenue: number, customerId: string) {
+  const db = adminDb(); const publicRef = db.collection("publicMarketingCampaigns").doc(`${restaurantId}:${slug}`); const quantity = requestedLines.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(publicRef); if (!snapshot.exists) return { ok: false as const, error: "This campaign was updated or removed. Open today's menu to continue.", code: "CAMPAIGN_UPDATED" };
+      const data = snapshot.data() as MarketingCampaign & { items?: Array<{ name?: string }>; campaignId?: string }; const privateRef = data.campaignId ? db.collection("marketingCampaigns").doc(data.campaignId) : null; const privateSnapshot = privateRef ? await transaction.get(privateRef) : null;
+      const availability = campaignAvailability(data); if (!availability.orderable) return { ok: false as const, error: `${availability.message} View today's available menu below.`, code: availability.state === "sold-out" ? "CAMPAIGN_SOLD_OUT" : availability.state === "scheduled" || availability.state === "coming-soon" ? "CAMPAIGN_NOT_OPEN" : "CAMPAIGN_EXPIRED" };
+      const names = (data.items ?? []).map((item) => String(item.name || "").trim().toLowerCase()); if (requestedLines.some((line) => !names.some((name) => String(line.name || "").trim().toLowerCase().startsWith(name)))) return { ok: false as const, error: "The menu changed after this campaign was shared. Review today's menu before ordering.", code: "CAMPAIGN_MENU_UPDATED" };
+      const nextOrders = (data.orderCount ?? 0) + 1; const nextQuantity = (data.quantityOrdered ?? 0) + quantity;
+      if (data.maximumOrders && nextOrders > data.maximumOrders) return { ok: false as const, error: "This special has reached its maximum number of orders. Try today's best sellers instead.", code: "CAMPAIGN_SOLD_OUT" };
+      if (data.maximumQuantity && nextQuantity > data.maximumQuantity) return { ok: false as const, error: "Only a smaller quantity remains for this special. Refresh the campaign and adjust your cart.", code: "CAMPAIGN_QUANTITY_LIMIT" };
+      transaction.update(publicRef, { orderCount: nextOrders, quantityOrdered: nextQuantity, updatedAt: new Date().toISOString() });
+      if (privateRef) { const customerHash = createHash("sha256").update(`${restaurantId}:${customerId}`).digest("hex").slice(0, 20); const seen = Array.isArray(privateSnapshot?.data()?.customerHashes) && privateSnapshot.data()!.customerHashes.includes(customerHash); transaction.set(privateRef, { orderCount: FieldValue.increment(1), quantityOrdered: FieldValue.increment(quantity), "metrics.orders": FieldValue.increment(1), "metrics.revenue": FieldValue.increment(revenue), ...(seen ? { "metrics.repeatCustomers": FieldValue.increment(1) } : { customerHashes: FieldValue.arrayUnion(customerHash) }), updatedAt: new Date().toISOString() }, { merge: true }); }
+      return { ok: true as const, publicRef, privateRef, quantity, revenue };
+    });
+  } catch { return { ok: false as const, error: "Campaign availability could not be confirmed. Wait a moment and try again.", code: "CAMPAIGN_CHECK_UNAVAILABLE" }; }
+}
+
+async function rollbackCampaign(reservation: { publicRef: FirebaseFirestore.DocumentReference; privateRef: FirebaseFirestore.DocumentReference | null; quantity: number; revenue: number }) { const batch = adminDb().batch(); batch.set(reservation.publicRef, { orderCount: FieldValue.increment(-1), quantityOrdered: FieldValue.increment(-reservation.quantity) }, { merge: true }); if (reservation.privateRef) batch.set(reservation.privateRef, { orderCount: FieldValue.increment(-1), quantityOrdered: FieldValue.increment(-reservation.quantity), "metrics.orders": FieldValue.increment(-1), "metrics.revenue": FieldValue.increment(-reservation.revenue) }, { merge: true }); await batch.commit().catch(() => undefined); }
+function cleanCampaign(value?: string) { const clean = String(value || "").toLowerCase(); return /^[a-z0-9-]{1,80}$/.test(clean) ? clean : ""; }
 
 function fail(error: string, status: number, code: string, details?: Record<string, unknown>) {
   return NextResponse.json({ ok: false, error, code, ...details }, { status });

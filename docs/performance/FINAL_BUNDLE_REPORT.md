@@ -1,6 +1,6 @@
 # Final Bundle Report
 
-Date: 2026-08-06T06:18:36.096Z
+Date: 2026-08-06T07:00:09.795Z
 
 ## Route Ownership
 
@@ -13,7 +13,7 @@ Date: 2026-08-06T06:18:36.096Z
 | /profile | 25 | 584 KB | 195 KB | 250 KB | Over |
 | /owner | 29 | 651 KB | 195 KB | 350 KB | Over |
 | /owner/orders | 34 | 804 KB | 195 KB | 500 KB | Over |
-| /owner/settings | 33 | 774 KB | 195 KB | 300 KB | Over |
+| /owner/settings | 33 | 773 KB | 195 KB | 300 KB | Over |
 | /owner/kitchen | 32 | 768 KB | 195 KB | - | Tracked |
 | /owner/pos | 30 | 656 KB | 195 KB | 650 KB | Over |
 | /admin | 24 | 548 KB | 195 KB | - | Tracked |
@@ -26,7 +26,7 @@ Date: 2026-08-06T06:18:36.096Z
 | /profile | 584 KB | 250 KB | Over |
 | /owner | 651 KB | 350 KB | Over |
 | /owner/orders | 804 KB | 500 KB | Over |
-| /owner/settings | 774 KB | 300 KB | Over |
+| /owner/settings | 773 KB | 300 KB | Over |
 | /owner/pos | 656 KB | 650 KB | Over |
 
 ## Dependency Notes

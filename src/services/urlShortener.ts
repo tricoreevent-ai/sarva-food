@@ -1,5 +1,3 @@
-import { menuItemShortPath } from "@/lib/menu-item-links";
-
 export type ShortenedUrl = {
   originalUrl: string;
   shortUrl: string;
@@ -27,12 +25,14 @@ export async function shortenUrl(originalUrl: string, options: ShortenOptions = 
 
   try {
     const url = new URL(normalizedUrl);
-    const match = url.pathname.match(/^\/restaurant\/([^/]+)\/item\/([^/]+)\/?$/);
+    const match = url.pathname.match(/^\/restaurant\/([^/]+)\/(?:item|menu)\/([^/]+)\/?$/);
     if (!match) return originalUrlResult(normalizedUrl);
-    const text = `${url.origin}${menuItemShortPath(match[1], match[2])}`;
+    const response = await fetch("/api/owner/short-links", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ restaurantId: decodeURIComponent(match[1]), targetPath: url.pathname, kind: "item" }) });
+    const payload = await response.json().catch(() => ({})) as { data?: { shortUrl?: string }; error?: string };
+    if (!response.ok || !payload.data?.shortUrl) throw new Error(payload.error || "Smart link service is temporarily unavailable.");
     const result: ShortenedUrl = {
       originalUrl: normalizedUrl,
-      shortUrl: text,
+      shortUrl: payload.data.shortUrl,
       provider: "internal",
       ok: true,
     };
