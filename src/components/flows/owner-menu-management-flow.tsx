@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/client-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, MessageCircle, PackageCheck, Plus, QrCode, RefreshCw, Save, Search, SlidersHorizontal, Star, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Edit3, Eye, FileSpreadsheet, ImagePlus, Languages, Link2, Loader2, Megaphone, MessageCircle, PackageCheck, Plus, QrCode, RefreshCw, Save, Search, SlidersHorizontal, Star, Trash2, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { WhatsAppShareModal } from "@/components/WhatsAppShareModal";
+import { CampaignManagerDialog } from "@/components/marketing/campaign-manager-dialog";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CloudinaryUploadWidget } from "@/components/media/cloudinary-upload-widget";
 import { IMAGE_FALLBACKS, SafeImage } from "@/components/media/safe-image";
@@ -233,6 +234,7 @@ export function OwnerMenuManagementFlow() {
   const [cuisineQuery, setCuisineQuery] = useState("");
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [campaignManagerOpen, setCampaignManagerOpen] = useState(false);
   const [itemPage, setItemPage] = useState(1);
   const [imagePreviewItem, setImagePreviewItem] = useState<MenuItem | null>(null);
   const [activeLanguage, setActiveLanguage] = useState<"en" | "hi" | "ml" | "ta" | "kn" | "ar">("en");
@@ -1661,6 +1663,12 @@ export function OwnerMenuManagementFlow() {
                         Create Item
                       </Button>
                     </Tip>
+                    <Tip label="Create, schedule and review marketing campaigns">
+                      <Button type="button" variant="outline" onClick={() => setCampaignManagerOpen(true)}>
+                        <Megaphone className="size-4" />
+                        Campaign Manager
+                      </Button>
+                    </Tip>
                   </div>
                 }
               />
@@ -1731,6 +1739,7 @@ export function OwnerMenuManagementFlow() {
             {selectedItems.length ? (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 p-3">
                 <p className="mr-auto text-sm font-black text-foreground">{selectedItems.length} selected</p>
+                <Button type="button" size="sm" onClick={() => setCampaignManagerOpen(true)}><Megaphone className="size-4" />Market Selected</Button>
                 <BulkAction label="Mark Active" onClick={() => void applyBulkAction("active")} />
                 <BulkAction label="Mark Sold Out" onClick={() => void applyBulkAction("sold-out")} />
                 <BulkAction label="Enable Delivery" onClick={() => void applyBulkAction("enable-delivery")} />
@@ -1891,6 +1900,7 @@ export function OwnerMenuManagementFlow() {
             onUpdate={whatsappShare.updateShare}
             onDownload={() => whatsappShare.recordShare("download")}
           />
+          <CampaignManagerDialog open={campaignManagerOpen} onOpenChange={setCampaignManagerOpen} menuItems={menuItems} restaurant={restaurant} initialItemIds={selectedItemIds} />
 
           <Dialog open={Boolean(imagePreviewItem)} onOpenChange={(open) => !open && setImagePreviewItem(null)}>
             <DialogContent className="max-w-2xl">
@@ -2873,7 +2883,7 @@ function MenuItemRow({
 function buildCustomerItemPath(item: MenuItem) {
   const slug = item.restaurantSlug || DEFAULT_RESTAURANT_ID;
   const itemId = item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `/restaurant/${encodeURIComponent(slug)}/item/${encodeURIComponent(itemId)}`;
+  return `/restaurant/${encodeURIComponent(slug)}/menu/${encodeURIComponent(itemId)}`;
 }
 
 function DisplayOrderControls({ value, onMoveUp, onMoveDown, saving }: { value: number; onMoveUp: () => void; onMoveDown: () => void; saving: boolean }) {

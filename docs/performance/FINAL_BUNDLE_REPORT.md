@@ -1,32 +1,33 @@
 # Final Bundle Report
 
-Date: 2026-07-30T11:52:26.491Z
+Date: 2026-08-06T06:18:36.096Z
 
 ## Route Ownership
 
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
-| / | 18 | 487 KB | 194 KB | 250 KB | Over |
-| /restaurants | 21 | 521 KB | 194 KB | - | Tracked |
-| /checkout | 27 | 622 KB | 194 KB | - | Tracked |
-| /orders | 21 | 547 KB | 194 KB | - | Tracked |
-| /profile | 25 | 586 KB | 194 KB | 250 KB | Over |
-| /owner | 28 | 643 KB | 194 KB | 350 KB | Over |
-| /owner/orders | 33 | 792 KB | 194 KB | 500 KB | Over |
-| /owner/settings | 32 | 769 KB | 194 KB | 300 KB | Over |
-| /owner/kitchen | 31 | 756 KB | 194 KB | - | Tracked |
-| /owner/pos | 29 | 648 KB | 194 KB | 650 KB | Pass |
-| /admin | 23 | 546 KB | 194 KB | - | Tracked |
+| / | 19 | 488 KB | 195 KB | 250 KB | Over |
+| /restaurants | 22 | 523 KB | 195 KB | - | Tracked |
+| /checkout | 28 | 624 KB | 195 KB | - | Tracked |
+| /orders | 22 | 549 KB | 195 KB | - | Tracked |
+| /profile | 25 | 584 KB | 195 KB | 250 KB | Over |
+| /owner | 29 | 651 KB | 195 KB | 350 KB | Over |
+| /owner/orders | 34 | 804 KB | 195 KB | 500 KB | Over |
+| /owner/settings | 33 | 774 KB | 195 KB | 300 KB | Over |
+| /owner/kitchen | 32 | 768 KB | 195 KB | - | Tracked |
+| /owner/pos | 30 | 656 KB | 195 KB | 650 KB | Over |
+| /admin | 24 | 548 KB | 195 KB | - | Tracked |
 
 ## Remaining Route JS Risk
 
 | Route | Current JS | Budget | Status |
 | --- | --- | --- | --- |
-| / | 487 KB | 250 KB | Over |
-| /profile | 586 KB | 250 KB | Over |
-| /owner | 643 KB | 350 KB | Over |
-| /owner/orders | 792 KB | 500 KB | Over |
-| /owner/settings | 769 KB | 300 KB | Over |
+| / | 488 KB | 250 KB | Over |
+| /profile | 584 KB | 250 KB | Over |
+| /owner | 651 KB | 350 KB | Over |
+| /owner/orders | 804 KB | 500 KB | Over |
+| /owner/settings | 774 KB | 300 KB | Over |
+| /owner/pos | 656 KB | 650 KB | Over |
 
 ## Dependency Notes
 

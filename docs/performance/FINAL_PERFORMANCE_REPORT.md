@@ -1,6 +1,6 @@
 # Final Performance Report
 
-Date: 2026-07-30T11:52:26.491Z
+Date: 2026-08-06T06:18:36.096Z
 
 This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, RC6 brand/customer/order-classification hardening, image delivery, observability, and push/payment readiness measurements. RC6.5 is tracker/release reconciliation only; Firestore collections, auth flows, APIs, listeners, and provider contracts remain backward compatible.
 
@@ -19,37 +19,38 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
-| / | 18 | 487 KB | 194 KB | 250 KB | Over |
-| /restaurants | 21 | 521 KB | 194 KB | - | Tracked |
-| /checkout | 27 | 622 KB | 194 KB | - | Tracked |
-| /orders | 21 | 547 KB | 194 KB | - | Tracked |
-| /profile | 25 | 586 KB | 194 KB | 250 KB | Over |
-| /owner | 28 | 643 KB | 194 KB | 350 KB | Over |
-| /owner/orders | 33 | 792 KB | 194 KB | 500 KB | Over |
-| /owner/settings | 32 | 769 KB | 194 KB | 300 KB | Over |
-| /owner/kitchen | 31 | 756 KB | 194 KB | - | Tracked |
-| /owner/pos | 29 | 648 KB | 194 KB | 650 KB | Pass |
-| /admin | 23 | 546 KB | 194 KB | - | Tracked |
+| / | 19 | 488 KB | 195 KB | 250 KB | Over |
+| /restaurants | 22 | 523 KB | 195 KB | - | Tracked |
+| /checkout | 28 | 624 KB | 195 KB | - | Tracked |
+| /orders | 22 | 549 KB | 195 KB | - | Tracked |
+| /profile | 25 | 584 KB | 195 KB | 250 KB | Over |
+| /owner | 29 | 651 KB | 195 KB | 350 KB | Over |
+| /owner/orders | 34 | 804 KB | 195 KB | 500 KB | Over |
+| /owner/settings | 33 | 774 KB | 195 KB | 300 KB | Over |
+| /owner/kitchen | 32 | 768 KB | 195 KB | - | Tracked |
+| /owner/pos | 30 | 656 KB | 195 KB | 650 KB | Over |
+| /admin | 24 | 548 KB | 195 KB | - | Tracked |
 
 ## Over-Budget Routes
 
 | Route | Current JS | Budget | Status |
 | --- | --- | --- | --- |
-| / | 487 KB | 250 KB | Over |
-| /profile | 586 KB | 250 KB | Over |
-| /owner | 643 KB | 350 KB | Over |
-| /owner/orders | 792 KB | 500 KB | Over |
-| /owner/settings | 769 KB | 300 KB | Over |
+| / | 488 KB | 250 KB | Over |
+| /profile | 584 KB | 250 KB | Over |
+| /owner | 651 KB | 350 KB | Over |
+| /owner/orders | 804 KB | 500 KB | Over |
+| /owner/settings | 774 KB | 300 KB | Over |
+| /owner/pos | 656 KB | 650 KB | Over |
 
 ## Stress Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.40ms | 0.47ms | 0.96ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.05ms | 0.31ms | <100ms update |
-| POS 1000-item category switch | 0.06ms | 0.12ms | 0.27ms | <50ms switch |
-| POS 1000-item search filter | 0.09ms | 0.17ms | 0.62ms | debounced |
-| Active Orders 100-order filter/group | 0.17ms | 0.24ms | 0.57ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.87ms | 1.46ms | 46.59ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.06ms | 0.13ms | 0.74ms | <100ms update |
+| POS 1000-item category switch | 0.20ms | 0.35ms | 0.76ms | <50ms switch |
+| POS 1000-item search filter | 0.31ms | 0.60ms | 1.75ms | debounced |
+| Active Orders 100-order filter/group | 0.48ms | 0.77ms | 1.77ms | <50ms interaction |
 
 ## Conclusion
 

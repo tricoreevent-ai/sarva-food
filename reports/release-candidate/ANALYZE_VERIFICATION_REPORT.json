@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-06T05:37:07.254Z",
+  "generatedAt": "2026-08-06T06:18:25.686Z",
   "summary": {
     "counts": {
       "PASS": 1,
-      "WARNING": 1,
+      "WARNING": 0,
       "ERROR": 0,
       "FAIL": 0,
       "MANUAL": 0
@@ -18,8 +18,8 @@
     },
     {
       "name": "analyzer:exit",
-      "status": "WARNING",
-      "detail": "next build exit=1 signal=none error=none"
+      "status": "PASS",
+      "detail": "next build exit=0 signal=none error=none"
     },
     {
       "name": "analyzer:middleware-artifacts",
@@ -36,7 +36,7 @@
     {
       "file": ".next/analyze/nodejs.html",
       "exists": true,
-      "bytes": 2238716
+      "bytes": 2265159
     },
     {
       "file": ".next/analyze/edge.html",
@@ -46,7 +46,7 @@
     {
       "file": ".next/analyze/client.html",
       "exists": true,
-      "bytes": 1648403
+      "bytes": 1740558
     }
   ]
 }

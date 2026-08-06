@@ -214,7 +214,7 @@ function buildRestaurantUrl(restaurantSlug: string) {
 
 function buildCustomerItemUrl(item: MenuItem, restaurantSlug: string) {
   const itemId = publicItemSlug(item.name);
-  const path = ROUTES.item(encodeURIComponent(restaurantSlug), encodeURIComponent(itemId));
+  const path = `${ROUTES.menu(encodeURIComponent(restaurantSlug))}/${encodeURIComponent(itemId)}`;
   if (typeof window !== "undefined" && window.location.origin) return `${window.location.origin}${path}`;
   const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   return configuredOrigin ? `${configuredOrigin}${path}` : path;
