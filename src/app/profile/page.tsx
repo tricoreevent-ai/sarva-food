@@ -54,7 +54,7 @@ import { useAppStore } from "@/lib/app-store";
 import { APP_NAME } from "@/lib/constants";
 import { resetCustomerOrderingSession } from "@/lib/customer-session-reset";
 import { resolveCustomerPhotoURL } from "@/lib/customer-profile-image";
-import { safeClientReason } from "@/lib/client-diagnostics";
+import { captureException } from "@/services/analytics-service";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatCurrency, getInitials } from "@/lib/utils";
 import type { CateringQuote } from "@/lib/types";
@@ -211,7 +211,7 @@ function ProfilePageContent() {
       setAddressMessage(message);
       toast.success(message);
     } catch (error) {
-      console.error("[customer/profile] address save failed", { reason: safeClientReason(error) });
+      void captureException(error, { surface: "customer-profile-address-save" });
       setAddressMessage(friendlyProfileMessage(error, "Could not save address. Check the details and try again."));
     } finally {
       setSavingAddress(false);
@@ -239,7 +239,7 @@ function ProfilePageContent() {
       customer.retry();
       setAddressMessage("Address deleted.");
     } catch (error) {
-      console.error("[customer/profile] address delete failed", { reason: safeClientReason(error) });
+      void captureException(error, { surface: "customer-profile-address-delete" });
       setAddressMessage("Could not delete address. Refresh and try again.");
     }
   }
@@ -455,7 +455,7 @@ function ProfilePageContent() {
       const message = error instanceof Error && /requires-recent-login/i.test(error.message)
         ? "For security, sign out and sign in again before changing email or password."
         : "Could not save profile. Please check the details and try again.";
-      console.error("[customer/profile] account save failed", { reason: safeClientReason(error) });
+      void captureException(error, { surface: "customer-profile-save" });
       setAccountMessage(message);
     } finally {
       setSavingAccount(false);

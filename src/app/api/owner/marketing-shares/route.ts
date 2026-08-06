@@ -3,10 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
+import { rateLimit } from "@/lib/server/rate-limit";
 
 const channels = new Set(["whatsapp", "whatsapp-web", "copy-message", "copy-link", "download"]);
 
 export async function GET(request: NextRequest) {
+  const limited = rateLimit(request, "owner-marketing-shares-read", 120); if (limited) return limited;
   const session = await getSessionFromRequest(request, "owner");
   if (!session) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
   const tenantId = resolveTenantId(request.nextUrl.searchParams.get("restaurantId") || session.tenantId || "");
@@ -20,6 +22,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, "owner-marketing-shares-write", 120); if (limited) return limited;
   const session = await getSessionFromRequest(request, "owner");
   if (!session) return NextResponse.json({ error: "Owner access is required." }, { status: 403 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;

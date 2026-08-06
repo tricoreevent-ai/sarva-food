@@ -1,24 +1,21 @@
 # Repository Hardening Audit
 
-Generated: 2026-08-06T07:00:10.345Z
+Generated: 2026-08-06T07:39:13.933Z
 
 | Check | Hits | Note |
 | --- | ---: | --- |
-| runtime-console | 6 | Runtime console call; prefer productionLogger or operational logging. |
+| runtime-console | 0 | Runtime console call; prefer productionLogger or operational logging. |
 | raw-error-message | 63 | Raw error-message access; ensure returned/logged text is sanitized. |
 | debt-marker | 0 | Debt marker requiring release triage. |
 | firestore-unbounded-get | 0 | Potential unbounded Firestore collection read. |
 | listener-lifecycle | 61 | Realtime/listener site; verify cleanup and reconnect bounds. |
-| api-error-envelope | 188 | API error envelope; verify requestId/meta where customer-safe. |
+| api-error-envelope | 190 | API error envelope; verify requestId/meta where customer-safe. |
 
 ## Top Findings
 
 ### runtime-console
 
-- `src/hooks/use-customer-data.ts` (1)
-- `src/hooks/use-realtime-order.ts` (2)
-- `src/components/flows/customer-discovery-home.tsx` (1)
-- `src/components/flows/restaurant-tables-flow.tsx` (2)
+- None
 
 ### raw-error-message
 
@@ -107,7 +104,7 @@ Generated: 2026-08-06T07:00:10.345Z
 - `src/app/api/owner/marketing-campaigns/route.ts` (6)
 - `src/app/api/owner/marketing-shares/route.ts` (4)
 - `src/app/api/owner/master-menu-templates/route.ts` (6)
-- 24 more files omitted.
+- 25 more files omitted.
 
 ## Release Interpretation
 

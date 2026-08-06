@@ -1,7 +1,7 @@
 "use client";
 
-import { Component, Suspense, useEffect, useTransition, type ReactNode } from "react";
-import { ModuleLoading, OwnerLoadingScreen, PageError } from "@/components/state/page-state";
+import { Component, Suspense, useTransition, type ReactNode } from "react";
+import { ModuleLoading, PageError } from "@/components/state/page-state";
 import { captureException } from "@/services/analytics-service";
 
 export type ModuleSurface = "customer" | "owner" | "admin";
@@ -47,7 +47,7 @@ class ModuleCrashBoundary extends Component<BoundaryProps, BoundaryState> {
 
   render() {
     if (this.state.error) {
-      return <ModuleErrorFallback module={this.props.module} onRetry={this.reset} />;
+      return <ModuleErrorFallback module={this.props.module} onRetry={this.reset} errorId={supportErrorId(this.state.error)} />;
     }
 
     return this.props.children;
@@ -77,28 +77,26 @@ export function ModuleRouteError({
 function ModuleErrorFallback({
   module,
   onRetry,
+  errorId,
 }: {
   module: ModuleSurface;
   onRetry: () => void;
+  errorId?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const copy = moduleCopy[module];
 
-  useEffect(() => {
-    if (module !== "owner") return;
-    const timer = window.setTimeout(() => startTransition(onRetry), 1200);
-    return () => window.clearTimeout(timer);
-  }, [module, onRetry]);
-
-  if (module === "owner") {
-    return <OwnerLoadingScreen label={isPending ? "Loading....." : "Loading....."} />;
-  }
-
   return (
     <PageError
       title={copy.title}
-      description={isPending ? "Reloading this module..." : copy.description}
+      description={isPending ? "Reloading this module..." : `${copy.description}${errorId ? ` Support ID: ${errorId}.` : ""}`}
       onRetry={() => startTransition(onRetry)}
     />
   );
+}
+
+function supportErrorId(error: Error) {
+  let hash = 2166136261;
+  for (const char of `${error.name}:${error.message}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `FG-${(hash >>> 0).toString(36).toUpperCase()}`;
 }

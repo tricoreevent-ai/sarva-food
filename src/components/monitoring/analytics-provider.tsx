@@ -225,7 +225,7 @@ function monitorErrors() {
         source: "web",
       }).catch(() => undefined);
     }
-    originalConsoleError(...args);
+    if (process.env.NODE_ENV !== "production") originalConsoleError(...args);
   };
   return () => {
     window.removeEventListener("error", onError);

@@ -34,7 +34,7 @@ import { getCartSubtotal, useCartStore } from "@/lib/cart-store";
 import { defaultCmsSettings } from "@/lib/cms-defaults";
 import { resolveHomepageCategories } from "@/services/cms/cms-category-service";
 import { getHomepageCmsItems, resolveCmsSettings } from "@/services/cms/cms-homepage-service";
-import { safeClientReason } from "@/lib/client-diagnostics";
+import { captureException } from "@/services/analytics-service";
 import { APP_NAME } from "@/lib/constants";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import type { CommerceLocation } from "@/hooks/use-location-commerce";
@@ -236,7 +236,7 @@ export function CustomerDiscoveryHome() {
       }
       customer.retry();
     } catch (error) {
-      console.error("[customer/home] favorite update failed", { reason: safeClientReason(error) });
+      void captureException(error, { surface: "customer-home-favorite" });
       notifyCustomerHome("error", "Could not update favorite. Please try again.");
     }
   }

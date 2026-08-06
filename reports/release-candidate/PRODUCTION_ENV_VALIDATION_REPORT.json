@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-07-26T13:55:22.540Z",
+  "generatedAt": "2026-08-06T07:18:18.478Z",
   "summary": {
     "counts": {
       "PASS": 46,
-      "WARNING": 0,
+      "WARNING": 2,
       "ERROR": 17,
       "FAIL": 0,
-      "MANUAL": 1
+      "MANUAL": 2
     },
     "exitCode": 1
   },
@@ -169,7 +169,7 @@
     {
       "name": "version:NEXT_PUBLIC_APP_VERSION",
       "status": "ERROR",
-      "detail": "expected v1.0.0-rc5"
+      "detail": "expected v1.0.0-rc6.5"
     },
     {
       "name": "environment:NEXT_PUBLIC_APP_ENV",
@@ -180,6 +180,21 @@
       "name": "url:NEXT_PUBLIC_APP_URL",
       "status": "ERROR",
       "detail": "must be a valid https URL"
+    },
+    {
+      "name": "url:NEXT_PUBLIC_SHORT_LINK_ORIGIN",
+      "status": "WARNING",
+      "detail": "missing; smart links will safely use NEXT_PUBLIC_APP_URL"
+    },
+    {
+      "name": "whatsapp:cloud-api",
+      "status": "MANUAL",
+      "detail": "optional for sharing links; required only for automated outbound WhatsApp messages"
+    },
+    {
+      "name": "monitoring:sentry",
+      "status": "WARNING",
+      "detail": "missing; first-party structured monitoring remains active but external alerting is unavailable"
     },
     {
       "name": "firebase:NEXT_PUBLIC_USE_FIREBASE",

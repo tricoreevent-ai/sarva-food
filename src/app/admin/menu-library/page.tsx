@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { normalizeMasterTemplate, parseTemplatePayload } from "@/lib/master-menu-template-normalizer";
 import { formatCurrency } from "@/lib/utils";
+import { captureException } from "@/services/analytics-service";
 
 type Template = Record<string, unknown> & {
   id: string;
@@ -194,7 +195,7 @@ export default function AdminMenuLibraryPage() {
       if (summary?.errors?.length) toast.error(summary.errors.slice(0, 3).join(" "));
       await load();
     } catch (error) {
-      console.error("[admin-menu-library] import failed", { reason: error instanceof Error ? error.name : typeof error });
+      void captureException(error, { surface: "admin-menu-library-import" });
       toast.error("Import failed. Check the file and try again.");
     } finally {
       setImporting(false);
@@ -225,7 +226,7 @@ export default function AdminMenuLibraryPage() {
       setImportText(text);
       toast.success("Import file loaded for preview.");
     } catch (error) {
-      console.error("[admin-menu-library] import file read failed", { reason: error instanceof Error ? error.name : typeof error });
+      void captureException(error, { surface: "admin-menu-library-file-read" });
       toast.error("Import file could not be read.");
     }
   }

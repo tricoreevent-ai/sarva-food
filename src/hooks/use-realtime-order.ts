@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { safeClientReason } from "@/lib/client-diagnostics";
+import { captureException } from "@/services/analytics-service";
+import { fetchWithTimeout } from "@/lib/client-fetch";
 import type { OrderDoc } from "@/types/firebase";
 
 export function useRealtimeOrder(orderId?: string) {
@@ -17,7 +18,7 @@ export function useRealtimeOrder(orderId?: string) {
       setLoading(true);
       setError("");
       try {
-        const response = await fetch(`/api/customer/orders?id=${encodeURIComponent(orderId)}`, { cache: "no-store" });
+        const response = await fetchWithTimeout(`/api/customer/orders?id=${encodeURIComponent(orderId)}`, { cache: "no-store" });
         const payload = await response.json().catch(() => ({})) as { data?: OrderDoc; error?: string };
         if (active) {
           setOrder(response.ok ? payload.data ?? null : null);
@@ -25,7 +26,7 @@ export function useRealtimeOrder(orderId?: string) {
           setLoading(false);
         }
       } catch (error) {
-        console.error("[realtime-order] load failed", { reason: safeClientReason(error) });
+        void captureException(error, { surface: "realtime-order-load" });
         if (active) {
           setOrder(null);
           setError("Order could not be loaded. Check your connection and try again.");
@@ -43,7 +44,7 @@ export function useRealtimeOrder(orderId?: string) {
         setLoading(false);
       });
     }).catch((error) => {
-      console.error("[realtime-order] subscription failed", { reason: safeClientReason(error) });
+      void captureException(error, { surface: "realtime-order-subscription" });
     });
     return () => {
       active = false;

@@ -65,6 +65,10 @@ for (const [key, detail] of Object.entries(deprecated)) {
 checks.push(check("version:NEXT_PUBLIC_APP_VERSION", envValue("NEXT_PUBLIC_APP_VERSION") === expectedVersion ? "PASS" : "ERROR", `expected ${expectedVersion}`));
 checks.push(check("environment:NEXT_PUBLIC_APP_ENV", envValue("NEXT_PUBLIC_APP_ENV") === "production" ? "PASS" : "ERROR", "must be production"));
 checks.push(check("url:NEXT_PUBLIC_APP_URL", isHttpsUrl(envValue("NEXT_PUBLIC_APP_URL")) ? "PASS" : "ERROR", "must be a valid https URL"));
+const shortLinkOrigin = envValue("NEXT_PUBLIC_SHORT_LINK_ORIGIN");
+checks.push(check("url:NEXT_PUBLIC_SHORT_LINK_ORIGIN", !shortLinkOrigin ? "WARNING" : isHttpsUrl(shortLinkOrigin) ? "PASS" : "ERROR", shortLinkOrigin ? "must be a valid branded https origin" : "missing; smart links will safely use NEXT_PUBLIC_APP_URL"));
+checks.push(check("whatsapp:cloud-api", envValue("WHATSAPP_CLOUD_API_TOKEN") ? "PASS" : "MANUAL", "optional for sharing links; required only for automated outbound WhatsApp messages"));
+checks.push(check("monitoring:sentry", envValue("NEXT_PUBLIC_SENTRY_DSN") ? "PASS" : "WARNING", "missing; first-party structured monitoring remains active but external alerting is unavailable"));
 checks.push(check("firebase:NEXT_PUBLIC_USE_FIREBASE", envValue("NEXT_PUBLIC_USE_FIREBASE") === "true" ? "PASS" : "ERROR", "must be true"));
 checks.push(check("firebase:emulators", envValue("NEXT_PUBLIC_FIREBASE_USE_EMULATORS") === "false" ? "PASS" : "ERROR", "must be false in production"));
 checks.push(check("login:dev", envValue("NEXT_PUBLIC_ENABLE_DEV_LOGIN") === "false" ? "PASS" : "ERROR", "must be false in production"));

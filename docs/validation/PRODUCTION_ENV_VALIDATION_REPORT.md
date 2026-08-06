@@ -1,18 +1,16 @@
 # Production Environment Validation Report
 
-Generated: 2026-07-26T13:55:22.537Z
-
-Status: Superseded historical local-env report. RC6.5 requires `NEXT_PUBLIC_APP_VERSION=v1.0.0-rc6.5`; rerun `npm run validate:prod-env` in a production-equivalent Hostinger/Firebase/provider environment before production signoff.
+Generated: 2026-08-06T07:18:18.474Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
 | PASS | 46 |
-| WARNING | 0 |
+| WARNING | 2 |
 | ERROR | 17 |
 | FAIL | 0 |
-| MANUAL | 1 |
+| MANUAL | 2 |
 
 ## Checks
 
@@ -49,9 +47,12 @@ Status: Superseded historical local-env report. RC6.5 requires `NEXT_PUBLIC_APP_
 | required:CLOUDINARY_CLOUD_NAME | PASS | configured |
 | required:CLOUDINARY_API_KEY | PASS | configured |
 | required:CLOUDINARY_API_SECRET | PASS | configured |
-| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc5 at generation time; RC6.5 now requires v1.0.0-rc6.5 |
+| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc6.5 |
 | environment:NEXT_PUBLIC_APP_ENV | ERROR | must be production |
 | url:NEXT_PUBLIC_APP_URL | ERROR | must be a valid https URL |
+| url:NEXT_PUBLIC_SHORT_LINK_ORIGIN | WARNING | missing; smart links will safely use NEXT_PUBLIC_APP_URL |
+| whatsapp:cloud-api | MANUAL | optional for sharing links; required only for automated outbound WhatsApp messages |
+| monitoring:sentry | WARNING | missing; first-party structured monitoring remains active but external alerting is unavailable |
 | firebase:NEXT_PUBLIC_USE_FIREBASE | PASS | must be true |
 | firebase:emulators | PASS | must be false in production |
 | login:dev | ERROR | must be false in production |

@@ -1,16 +1,15 @@
 # Final Release Certificate
 
-Generated: 2026-07-29
+Generated: 2026-08-06T07:39:39.755Z
 
 | Field | Value |
 | --- | --- |
 | Release Version | v1.0.0-rc6.5 |
-| Current Base Commit | 98e16ab1cb5fcc2cb4fc9e4f55d95eca6f414a81 before RC6.5 reconciliation |
-| Hosted Runtime At Report Generation | Verify final RC6.5 SHA/version with `/api/release-info` after deployment |
+| Git SHA At Report Generation | af11518ae79ab288da566f46a90d50d802b46c0b (pre-final certification commit) |
 | Branch | release/production-nammude |
-| Build Date | 2026-07-29 |
+| Build Date | 2026-08-06 |
 | Environment | local-certification |
-| Working Tree | RC6.5 reconciliation changes pending validation/commit |
+| Working Tree | Dirty before final certification commit |
 | Production URL | http://localhost:3000 |
 | Plugin Foundation Status | Implemented, disabled by default |
 | Enhancement Status | Phase 2A registry and Phase 2B runtime/SDK implemented locally; plugin runtime flags remain disabled by default |
@@ -21,10 +20,10 @@ Generated: 2026-07-29
 | Area | Status | Detail |
 | --- | --- | --- |
 | Bundle Analyzer | PASS | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
-| Production Validation | FAIL | {"PASS":46,"WARNING":1,"ERROR":24,"FAIL":0,"MANUAL":0} |
+| Production Validation | FAIL | {"PASS":46,"WARNING":2,"ERROR":17,"FAIL":0,"MANUAL":2} |
 | Deployment Verification | PASS | {"PASS":17,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
 | Performance Verification | MANUAL | {"PASS":4,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
-| Smoke Results | MANUAL | {"PASS":7,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":18} |
+| Smoke Results | FAIL | {"PASS":5,"WARNING":0,"ERROR":0,"FAIL":2,"MANUAL":18} |
 | Memory Stability | MANUAL | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
 | Provider Verification | MANUAL | {"PASS":8,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":3} |
 
@@ -42,7 +41,7 @@ Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify `
 1. Set production env vars.
 2. Run `npm run validate:prod-env`.
 3. Run `npm run build` and `npm run analyze`.
-4. Deploy the latest `origin/release/production-nammude` branch head to Hostinger.
+4. Deploy final commit to Hostinger.
 5. Run deployment, provider, performance, memory, and smoke verification.
 
 ## Sign-off Checklist
@@ -53,6 +52,6 @@ Redeploy the previous Hostinger commit, keep plugin flags disabled, and verify `
 | Production Validation | FAIL |
 | Deployment Verification | PASS |
 | Performance Verification | MANUAL |
-| Smoke Results | MANUAL |
+| Smoke Results | FAIL |
 | Memory Stability | MANUAL |
 | Provider Verification | MANUAL |

@@ -41,6 +41,8 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
   ].filter(Boolean);
   const configurationWarnings = [
     explicitAdminCredentials || firestoreConnectivity.status !== "connected" ? "" : "firebase_admin_explicit_config_missing_using_application_default_credentials",
+    process.env.NEXT_PUBLIC_SHORT_LINK_ORIGIN ? "" : "short_link_origin_missing_using_public_app_url",
+    process.env.NEXT_PUBLIC_SENTRY_DSN ? "" : "external_error_alerting_not_configured",
   ].filter(Boolean);
 
   return {

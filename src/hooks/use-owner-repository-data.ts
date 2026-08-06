@@ -12,11 +12,12 @@ import type {
   StaffMember,
   Supplier,
 } from "@/lib/types";
+import { fetchWithTimeout } from "@/lib/client-fetch";
 
 type LoadState = "idle" | "loading" | "success" | "error" | "refreshing";
 
 async function requestJson<T>(url: string, init?: RequestInit) {
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     cache: "no-store",
     credentials: "include",
     headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}), ...init?.headers },

@@ -3,8 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
+import { rateLimit } from "@/lib/server/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, "owner-short-links", 40); if (limited) return limited;
   const session = await getSessionFromRequest(request, "owner");
   if (!session) return NextResponse.json({ error: "Sign in as an owner to create a smart link." }, { status: 403 });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;

@@ -4,8 +4,10 @@ import { adminDb } from "@/firebase/admin";
 import { campaignSlug, emptyMetrics } from "@/features/marketing/campaign-engine";
 import { getSessionFromRequest } from "@/lib/server-auth";
 import { resolveTenantId } from "@/lib/tenant";
+import { rateLimit } from "@/lib/server/rate-limit";
 
 export async function GET(request: NextRequest) {
+  const limited = rateLimit(request, "owner-marketing-campaigns-read", 90); if (limited) return limited;
   const access = await ownerAccess(request, request.nextUrl.searchParams.get("restaurantId"));
   if (access.error) return access.error;
   const snapshot = await adminDb().collection("marketingCampaigns").where("tenantId", "==", access.tenantId).limit(200).get();
@@ -14,6 +16,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, "owner-marketing-campaigns-write", 40); if (limited) return limited;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const access = await ownerAccess(request, String(body.restaurantId || ""));
   if (access.error) return access.error;
@@ -28,6 +31,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const limited = rateLimit(request, "owner-marketing-campaigns-write", 80); if (limited) return limited;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const access = await ownerAccess(request, String(body.restaurantId || ""));
   if (access.error) return access.error;

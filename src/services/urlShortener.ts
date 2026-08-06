@@ -27,7 +27,7 @@ export async function shortenUrl(originalUrl: string, options: ShortenOptions = 
     const url = new URL(normalizedUrl);
     const match = url.pathname.match(/^\/restaurant\/([^/]+)\/(?:item|menu)\/([^/]+)\/?$/);
     if (!match) return originalUrlResult(normalizedUrl);
-    const response = await fetch("/api/owner/short-links", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ restaurantId: decodeURIComponent(match[1]), targetPath: url.pathname, kind: "item" }) });
+    const response = await fetchWithTimeout("/api/owner/short-links", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ restaurantId: decodeURIComponent(match[1]), targetPath: url.pathname, kind: "item" }) });
     const payload = await response.json().catch(() => ({})) as { data?: { shortUrl?: string }; error?: string };
     if (!response.ok || !payload.data?.shortUrl) throw new Error(payload.error || "Smart link service is temporarily unavailable.");
     const result: ShortenedUrl = {
@@ -60,3 +60,4 @@ function isHttpUrl(value: string) {
     return false;
   }
 }
+import { fetchWithTimeout } from "@/lib/client-fetch";

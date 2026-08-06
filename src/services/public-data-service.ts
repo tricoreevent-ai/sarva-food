@@ -244,7 +244,7 @@ function logPublicDataClientResult(path: string, count: number, meta?: PublicApi
 }
 
 function logPublicDataClientWarning(scope: string, message: string, details?: Record<string, unknown>) {
-  console.warn(`[Food Gedi public data] ${scope}: ${message}`, details ?? {});
+  if (process.env.NODE_ENV !== "production") console.warn(`[Food Gedi public data] ${scope}: ${message}`, details ?? {});
 }
 
 function safeUrlPath(url: string) {

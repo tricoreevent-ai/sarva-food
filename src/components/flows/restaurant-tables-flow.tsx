@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { PosTable, TableOrder } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useAppStore } from "@/lib/app-store";
+import { captureException } from "@/services/analytics-service";
 
 type DisplayStatus = "Available" | "Occupied" | "Reserved" | "Cleaning" | "Inactive";
 type TableDraft = {
@@ -209,7 +210,7 @@ export function RestaurantTablesFlow() {
       setDraft(null);
       toast.success(generateQr ? "Table saved and QR generated." : "Table saved.");
     } catch (error) {
-      console.error("[tables] save table failed", { table: draft.table, generateQr, error });
+      void captureException(error, { surface: "owner-tables-save", table: draft.table, generateQr });
       toast.error(error instanceof Error ? error.message : "Table could not be saved.");
     } finally {
       setSavingDraft(false);
@@ -634,7 +635,7 @@ function QrManagementPanel({ table, restaurantName, onAction }: { table: PosTabl
     void validateGeneratedQr(table)
       .then(() => { if (active) setValidation("valid"); })
       .catch((error) => {
-        console.error("[tables] QR validation failed", { table: table.table, url, error });
+        void captureException(error, { surface: "owner-table-qr-validation", table: table.table });
         if (active) setValidation("invalid");
       });
     return () => { active = false; };

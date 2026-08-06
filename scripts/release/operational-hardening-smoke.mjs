@@ -69,6 +69,11 @@ const dashboardShellRuntime = read("src/components/layout/dashboard-shell.tsx");
 const cloudinarySignature = read("src/app/api/cloudinary/signature/route.ts");
 const orderNotification = read("src/app/api/public/order-notification/route.ts");
 const testSession = read("src/app/api/auth/test-session/route.ts");
+const campaignApi = read("src/app/api/owner/marketing-campaigns/route.ts");
+const customerOrderApi = read("src/app/api/orders/route.ts");
+const smartLinkApi = read("src/app/s/[code]/route.ts");
+const globalError = read("src/app/global-error.tsx");
+const clientFetch = read("src/lib/client-fetch.ts");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -488,6 +493,15 @@ await check("security:upload-notification-and-test-endpoint-boundaries", () => {
   for (const token of ['getSessionFromRequest(request, "customer")', "getForCustomer", "order-notification:", "ownerEmail: undefined"]) assert.ok(orderNotification.includes(token), token);
   assert.ok(testSession.includes('process.env.NODE_ENV === "production"'));
   assert.ok(testSession.includes('{ status: 404 }'));
+});
+
+await check("marketing:production-hardening", () => {
+  for (const token of ["rateLimit", "smartLinkVisits", "createHash", "runTransaction"]) assert.ok(smartLinkApi.includes(token), token);
+  assert.ok(campaignApi.includes("rateLimit"));
+  for (const token of ["reserveCampaign", "rollbackCampaign", "campaignAvailability"]) assert.ok(customerOrderApi.includes(token), token);
+  for (const token of ["AbortSignal.timeout", "fetchWithTimeout"]) assert.ok(clientFetch.includes(token), token);
+  for (const token of ["Support ID", "captureException", "onClick={reset}"]) assert.ok(globalError.includes(token), token);
+  for (const token of ["short_link_origin_missing_using_public_app_url", "external_error_alerting_not_configured"]) assert.ok(productionHealth.includes(token), token);
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

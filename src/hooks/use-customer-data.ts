@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { safeClientReason } from "@/lib/client-diagnostics";
+import { captureException } from "@/services/analytics-service";
+import { fetchWithTimeout } from "@/lib/client-fetch";
 import type { CustomerAddressDoc, CustomerLoyaltyDoc, CustomerOrderDoc, CustomerProfileDoc, FirestoreDate } from "@/types/firebase";
 import type { CateringQuote } from "@/lib/types";
 
@@ -39,7 +40,7 @@ export function useCustomerData(customerId?: string | null) {
     setStatus("loading");
     setError(null);
     try {
-      const response = await fetch("/api/customer/account", { cache: "no-store" });
+      const response = await fetchWithTimeout("/api/customer/account", { cache: "no-store" });
       const payload = await response.json().catch(() => ({})) as { data?: Payload; error?: string };
       if (!response.ok || !payload.data) {
         setStatus("error");
@@ -49,7 +50,7 @@ export function useCustomerData(customerId?: string | null) {
       setData(payload.data);
       setStatus("success");
     } catch (error) {
-      console.error("[customer-data] load failed", { reason: safeClientReason(error) });
+      void captureException(error, { surface: "customer-data" });
       setStatus("error");
       setError("Could not load customer account. Check your connection and try again.");
     }
