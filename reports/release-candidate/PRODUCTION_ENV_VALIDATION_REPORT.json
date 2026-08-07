@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-08-06T07:18:18.478Z",
+  "generatedAt": "2026-08-07T06:30:49.944Z",
   "summary": {
     "counts": {
-      "PASS": 46,
-      "WARNING": 2,
-      "ERROR": 17,
+      "PASS": 35,
+      "WARNING": 3,
+      "ERROR": 10,
       "FAIL": 0,
       "MANUAL": 2
     },
@@ -14,338 +14,344 @@
     {
       "name": "required:NEXT_PUBLIC_APP_ENV",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it selects production-safe behavior. Used by runtime configuration. Fix: set to production.",
+      "category": "Release Metadata"
     },
     {
       "name": "required:NEXT_PUBLIC_APP_URL",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Infrastructure"
     },
     {
       "name": "placeholder:NEXT_PUBLIC_APP_URL",
       "status": "ERROR",
-      "detail": "value still looks like a placeholder/local example"
+      "detail": "A placeholder cannot initialize production safely. Used by public URL and mutation-origin validation. Fix: set the final HTTPS origin.",
+      "category": "Infrastructure"
     },
     {
       "name": "required:NEXT_PUBLIC_APP_VERSION",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it identifies the deployed release. Used by release and health endpoints. Fix: set to v1.0.0-rc6.5.",
+      "category": "Release Metadata"
     },
     {
       "name": "required:NEXT_PUBLIC_USE_FIREBASE",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Firebase"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_API_KEY",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Firebase"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Authentication"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_PROJECT_ID",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Firebase"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Firebase"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
       "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:NEXT_PUBLIC_FIREBASE_VAPID_KEY",
-      "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Notifications"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_APP_ID",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Firebase"
     },
     {
       "name": "required:FIREBASE_ADMIN_PROJECT_ID",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it authorizes server-side tenant operations on Hostinger. Used by src/firebase/admin.ts. Fix: set the service-account project id.",
+      "category": "Firebase"
     },
     {
       "name": "required:FIREBASE_ADMIN_CLIENT_EMAIL",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it identifies the server service account. Used by src/firebase/admin.ts. Fix: set the service-account client email.",
+      "category": "Firebase"
     },
     {
       "name": "required:FIREBASE_ADMIN_PRIVATE_KEY",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it signs Firebase Admin requests. Used by src/firebase/admin.ts. Fix: set the full PEM value with escaped newlines.",
+      "category": "Security"
     },
     {
       "name": "required:TABLE_QR_SECRET",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it prevents forged table sessions. Used by table QR signing and verification. Fix: generate and retain a random value of at least 32 characters.",
+      "category": "QR"
     },
     {
-      "name": "required:SMTP_HOST",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:SMTP_PORT",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:SMTP_SECURE",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:SMTP_USER",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:SMTP_PASS",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:SMTP_FROM",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:DATABASE_ALERT_EMAIL",
+      "name": "required:PAYMENT_SETTINGS_ENCRYPTION_KEY",
       "status": "ERROR",
-      "detail": "missing or empty"
+      "detail": "Required because it protects owner-managed payment credentials at rest. Used by payment settings encryption. Fix: generate and retain a random value of at least 32 characters.",
+      "category": "Payments"
     },
     {
-      "name": "required:NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
+      "name": "optional:notifications",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Notifications"
     },
     {
-      "name": "required:NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID",
+      "name": "optional:notifications",
+      "status": "WARNING",
+      "detail": "email notifications and outage alerts remain unavailable. Missing: DATABASE_ALERT_EMAIL. Fix: configure the SMTP group and alert recipient together.",
+      "category": "Notifications"
+    },
+    {
+      "name": "optional:infrastructure",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Infrastructure"
     },
     {
-      "name": "required:GOOGLE_OAUTH_CLIENT_ID",
+      "name": "optional:authentication",
       "status": "PASS",
-      "detail": "configured"
+      "detail": "configured",
+      "category": "Authentication"
     },
     {
-      "name": "required:GOOGLE_OAUTH_CLIENT_SECRET",
+      "name": "optional:infrastructure",
       "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:CLOUDINARY_CLOUD_NAME",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:CLOUDINARY_API_KEY",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "required:CLOUDINARY_API_SECRET",
-      "status": "PASS",
-      "detail": "configured"
-    },
-    {
-      "name": "version:NEXT_PUBLIC_APP_VERSION",
-      "status": "ERROR",
-      "detail": "expected v1.0.0-rc6.5"
-    },
-    {
-      "name": "environment:NEXT_PUBLIC_APP_ENV",
-      "status": "ERROR",
-      "detail": "must be production"
+      "detail": "configured",
+      "category": "Infrastructure"
     },
     {
       "name": "url:NEXT_PUBLIC_APP_URL",
       "status": "ERROR",
-      "detail": "must be a valid https URL"
+      "detail": "must be a valid https URL. Required to prevent unsafe or ambiguous production startup. Used by Infrastructure configuration. Fix: set the documented production value and rerun npm run validate:prod-env.",
+      "category": "Infrastructure"
     },
     {
       "name": "url:NEXT_PUBLIC_SHORT_LINK_ORIGIN",
       "status": "WARNING",
-      "detail": "missing; smart links will safely use NEXT_PUBLIC_APP_URL"
+      "detail": "missing; smart links will safely use NEXT_PUBLIC_APP_URL",
+      "category": "Infrastructure"
     },
     {
       "name": "whatsapp:cloud-api",
       "status": "MANUAL",
-      "detail": "optional for sharing links; required only for automated outbound WhatsApp messages"
+      "detail": "optional for sharing links; required only for automated outbound WhatsApp messages",
+      "category": "Marketing"
     },
     {
       "name": "monitoring:sentry",
       "status": "WARNING",
-      "detail": "missing; first-party structured monitoring remains active but external alerting is unavailable"
+      "detail": "missing; first-party structured monitoring remains active but external alerting is unavailable",
+      "category": "Monitoring"
     },
     {
       "name": "firebase:NEXT_PUBLIC_USE_FIREBASE",
       "status": "PASS",
-      "detail": "must be true"
+      "detail": "must be true",
+      "category": "Firebase"
     },
     {
       "name": "firebase:emulators",
       "status": "PASS",
-      "detail": "must be false in production"
+      "detail": "must not be true in production; absence safely defaults to false",
+      "category": "Firebase"
     },
     {
       "name": "login:dev",
       "status": "ERROR",
-      "detail": "must be false in production"
+      "detail": "must not be true in production; absence safely defaults to false. Required to prevent unsafe or ambiguous production startup. Used by Authentication configuration. Fix: set the documented production value and rerun npm run validate:prod-env.",
+      "category": "Authentication"
     },
     {
       "name": "login:test",
       "status": "PASS",
-      "detail": "must be false in production"
+      "detail": "must not be true in production; absence safely defaults to false",
+      "category": "Authentication"
     },
     {
       "name": "plugins:quality",
       "status": "PASS",
-      "detail": "quality diagnostics should stay disabled unless profiling"
+      "detail": "quality diagnostics should stay disabled unless profiling",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:dashboard",
       "status": "PASS",
-      "detail": "developer dashboard must stay disabled"
+      "detail": "developer dashboard must stay disabled",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:profiler",
       "status": "PASS",
-      "detail": "plugin profiler must stay disabled unless profiling"
+      "detail": "plugin profiler must stay disabled unless profiling",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:restaurant-health",
       "status": "PASS",
-      "detail": "restaurant health plugin should stay disabled unless running controlled admin smoke"
+      "detail": "restaurant health plugin should stay disabled unless running controlled admin smoke",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET",
       "status": "PASS",
-      "detail": "example plugin flags must stay disabled in production"
+      "detail": "example plugin flags must stay disabled in production",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET",
       "status": "PASS",
-      "detail": "example plugin flags must stay disabled in production"
+      "detail": "example plugin flags must stay disabled in production",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET",
       "status": "PASS",
-      "detail": "example plugin flags must stay disabled in production"
+      "detail": "example plugin flags must stay disabled in production",
+      "category": "Infrastructure"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET",
       "status": "PASS",
-      "detail": "example plugin flags must stay disabled in production"
+      "detail": "example plugin flags must stay disabled in production",
+      "category": "Infrastructure"
     },
     {
       "name": "firebase:api-key-format",
       "status": "PASS",
-      "detail": "client api key must look like a Firebase web key"
+      "detail": "client api key must look like a Firebase web key",
+      "category": "Firebase"
     },
     {
       "name": "firebase:app-id-format",
       "status": "PASS",
-      "detail": "app id must match 1:<sender>:web:<hash>"
+      "detail": "app id must match 1:<sender>:web:<hash>",
+      "category": "Firebase"
     },
     {
       "name": "firebase:sender-format",
       "status": "PASS",
-      "detail": "messaging sender id must be numeric"
-    },
-    {
-      "name": "firebase:admin-project-match",
-      "status": "ERROR",
-      "detail": "admin and public project ids must match"
-    },
-    {
-      "name": "firebase:admin-email",
-      "status": "ERROR",
-      "detail": "admin client email must be a service account"
-    },
-    {
-      "name": "firebase:private-key",
-      "status": "ERROR",
-      "detail": "private key must be full PEM with escaped newlines"
+      "detail": "messaging sender id must be numeric",
+      "category": "Firebase"
     },
     {
       "name": "cloudinary:cloud-name-match",
       "status": "PASS",
-      "detail": "public and server cloud names must match"
+      "detail": "public and server cloud names must match",
+      "category": "Infrastructure"
     },
     {
       "name": "cloudinary:cloud-name-format",
       "status": "PASS",
-      "detail": "cloud name format"
+      "detail": "cloud name format",
+      "category": "Infrastructure"
     },
     {
       "name": "cloudinary:api-key-format",
       "status": "PASS",
-      "detail": "api key should be numeric"
+      "detail": "api key should be numeric",
+      "category": "Infrastructure"
     },
     {
       "name": "razorpay:configuration",
       "status": "MANUAL",
-      "detail": "owner-scoped configuration required; global fallback intentionally disabled"
+      "detail": "owner-scoped configuration required; global fallback intentionally disabled",
+      "category": "Payments"
     },
     {
       "name": "smtp:port",
       "status": "PASS",
-      "detail": "port must be positive integer"
+      "detail": "port must be positive integer",
+      "category": "Notifications"
     },
     {
       "name": "smtp:secure",
       "status": "PASS",
-      "detail": "SMTP_SECURE must be true or false"
+      "detail": "SMTP_SECURE must be true or false",
+      "category": "Notifications"
     },
     {
       "name": "smtp:from",
       "status": "PASS",
-      "detail": "SMTP_FROM must include email address"
+      "detail": "SMTP_FROM must include email address",
+      "category": "Notifications"
     },
     {
       "name": "smtp:gmail-app-password",
       "status": "PASS",
-      "detail": "Gmail should use a 16-character app password"
+      "detail": "Gmail should use a 16-character app password",
+      "category": "Notifications"
     },
     {
       "name": "oauth:client-match",
       "status": "PASS",
-      "detail": "public/server OAuth client ids must match"
+      "detail": "public/server OAuth client ids must match",
+      "category": "Authentication"
     },
     {
       "name": "oauth:client-format",
       "status": "PASS",
-      "detail": "Google OAuth client id format"
-    },
-    {
-      "name": "secret:TABLE_QR_SECRET",
-      "status": "ERROR",
-      "detail": "minimum 32 characters"
-    },
-    {
-      "name": "secret:PAYMENT_SETTINGS_ENCRYPTION_KEY",
-      "status": "ERROR",
-      "detail": "minimum 32 characters"
+      "detail": "Google OAuth client id format",
+      "category": "Authentication"
     }
   ],
-  "sections": []
+  "sections": [
+    {
+      "title": "Release Metadata",
+      "body": "- **ERROR** `required:NEXT_PUBLIC_APP_ENV`: Required because it selects production-safe behavior. Used by runtime configuration. Fix: set to production.\n- **ERROR** `required:NEXT_PUBLIC_APP_VERSION`: Required because it identifies the deployed release. Used by release and health endpoints. Fix: set to v1.0.0-rc6.5."
+    },
+    {
+      "title": "Infrastructure",
+      "body": "- **PASS** `required:NEXT_PUBLIC_APP_URL`: configured\n- **ERROR** `placeholder:NEXT_PUBLIC_APP_URL`: A placeholder cannot initialize production safely. Used by public URL and mutation-origin validation. Fix: set the final HTTPS origin.\n- **PASS** `optional:infrastructure`: configured\n- **PASS** `optional:infrastructure`: configured\n- **ERROR** `url:NEXT_PUBLIC_APP_URL`: must be a valid https URL. Required to prevent unsafe or ambiguous production startup. Used by Infrastructure configuration. Fix: set the documented production value and rerun npm run validate:prod-env.\n- **WARNING** `url:NEXT_PUBLIC_SHORT_LINK_ORIGIN`: missing; smart links will safely use NEXT_PUBLIC_APP_URL\n- **PASS** `plugins:quality`: quality diagnostics should stay disabled unless profiling\n- **PASS** `plugins:dashboard`: developer dashboard must stay disabled\n- **PASS** `plugins:profiler`: plugin profiler must stay disabled unless profiling\n- **PASS** `plugins:restaurant-health`: restaurant health plugin should stay disabled unless running controlled admin smoke\n- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET`: example plugin flags must stay disabled in production\n- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET`: example plugin flags must stay disabled in production\n- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET`: example plugin flags must stay disabled in production\n- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET`: example plugin flags must stay disabled in production\n- **PASS** `cloudinary:cloud-name-match`: public and server cloud names must match\n- **PASS** `cloudinary:cloud-name-format`: cloud name format\n- **PASS** `cloudinary:api-key-format`: api key should be numeric"
+    },
+    {
+      "title": "Firebase",
+      "body": "- **PASS** `required:NEXT_PUBLIC_USE_FIREBASE`: configured\n- **PASS** `required:NEXT_PUBLIC_FIREBASE_API_KEY`: configured\n- **PASS** `required:NEXT_PUBLIC_FIREBASE_PROJECT_ID`: configured\n- **PASS** `required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`: configured\n- **PASS** `required:NEXT_PUBLIC_FIREBASE_APP_ID`: configured\n- **ERROR** `required:FIREBASE_ADMIN_PROJECT_ID`: Required because it authorizes server-side tenant operations on Hostinger. Used by src/firebase/admin.ts. Fix: set the service-account project id.\n- **ERROR** `required:FIREBASE_ADMIN_CLIENT_EMAIL`: Required because it identifies the server service account. Used by src/firebase/admin.ts. Fix: set the service-account client email.\n- **PASS** `firebase:NEXT_PUBLIC_USE_FIREBASE`: must be true\n- **PASS** `firebase:emulators`: must not be true in production; absence safely defaults to false\n- **PASS** `firebase:api-key-format`: client api key must look like a Firebase web key\n- **PASS** `firebase:app-id-format`: app id must match 1:<sender>:web:<hash>\n- **PASS** `firebase:sender-format`: messaging sender id must be numeric"
+    },
+    {
+      "title": "Authentication",
+      "body": "- **PASS** `required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: configured\n- **PASS** `optional:authentication`: configured\n- **ERROR** `login:dev`: must not be true in production; absence safely defaults to false. Required to prevent unsafe or ambiguous production startup. Used by Authentication configuration. Fix: set the documented production value and rerun npm run validate:prod-env.\n- **PASS** `login:test`: must not be true in production; absence safely defaults to false\n- **PASS** `oauth:client-match`: public/server OAuth client ids must match\n- **PASS** `oauth:client-format`: Google OAuth client id format"
+    },
+    {
+      "title": "Notifications",
+      "body": "- **PASS** `required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`: configured\n- **PASS** `optional:notifications`: configured\n- **WARNING** `optional:notifications`: email notifications and outage alerts remain unavailable. Missing: DATABASE_ALERT_EMAIL. Fix: configure the SMTP group and alert recipient together.\n- **PASS** `smtp:port`: port must be positive integer\n- **PASS** `smtp:secure`: SMTP_SECURE must be true or false\n- **PASS** `smtp:from`: SMTP_FROM must include email address\n- **PASS** `smtp:gmail-app-password`: Gmail should use a 16-character app password"
+    },
+    {
+      "title": "Security",
+      "body": "- **ERROR** `required:FIREBASE_ADMIN_PRIVATE_KEY`: Required because it signs Firebase Admin requests. Used by src/firebase/admin.ts. Fix: set the full PEM value with escaped newlines."
+    },
+    {
+      "title": "QR",
+      "body": "- **ERROR** `required:TABLE_QR_SECRET`: Required because it prevents forged table sessions. Used by table QR signing and verification. Fix: generate and retain a random value of at least 32 characters."
+    },
+    {
+      "title": "Payments",
+      "body": "- **ERROR** `required:PAYMENT_SETTINGS_ENCRYPTION_KEY`: Required because it protects owner-managed payment credentials at rest. Used by payment settings encryption. Fix: generate and retain a random value of at least 32 characters.\n- **MANUAL** `razorpay:configuration`: owner-scoped configuration required; global fallback intentionally disabled"
+    },
+    {
+      "title": "Marketing",
+      "body": "- **MANUAL** `whatsapp:cloud-api`: optional for sharing links; required only for automated outbound WhatsApp messages"
+    },
+    {
+      "title": "Monitoring",
+      "body": "- **WARNING** `monitoring:sentry`: missing; first-party structured monitoring remains active but external alerting is unavailable"
+    }
+  ]
 }

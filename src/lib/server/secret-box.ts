@@ -5,6 +5,9 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 const secretPrefix = "v1:";
 
 function secretKey() {
+  if (process.env.NODE_ENV === "production" && !process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY) {
+    throw new Error("Payment settings encryption is not configured.");
+  }
   const material =
     process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY ||
     process.env.NEXTAUTH_SECRET ||

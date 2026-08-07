@@ -74,6 +74,10 @@ const customerOrderApi = read("src/app/api/orders/route.ts");
 const smartLinkApi = read("src/app/s/[code]/route.ts");
 const globalError = read("src/app/global-error.tsx");
 const clientFetch = read("src/lib/client-fetch.ts");
+const productionLogger = read("src/lib/server/production-logger.ts");
+const secretBox = read("src/lib/server/secret-box.ts");
+const predeploy = read("scripts/release/predeploy.mjs");
+const envValidator = read("scripts/validate-production-env.mjs");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -502,6 +506,15 @@ await check("marketing:production-hardening", () => {
   for (const token of ["AbortSignal.timeout", "fetchWithTimeout"]) assert.ok(clientFetch.includes(token), token);
   for (const token of ["Support ID", "captureException", "onClick={reset}"]) assert.ok(globalError.includes(token), token);
   for (const token of ["short_link_origin_missing_using_public_app_url", "external_error_alerting_not_configured"]) assert.ok(productionHealth.includes(token), token);
+});
+
+await check("deployment:configuration-health-and-automation", () => {
+  for (const token of ["configurationHealth", "components:", '"PASS"', '"WARN"', '"FAIL"']) assert.ok(productionHealth.includes(token), token);
+  for (const token of ["validate:prod-env", "typecheck", "lint", "build", "audit:release", "smoke:operational", "theme:contrast", "brand:visual", "diff:check"]) assert.ok(predeploy.includes(token), token);
+  for (const token of ["Release Metadata", "Authentication", "Firebase", "Payments", "Marketing", "QR", "Notifications", "Security", "Infrastructure", "Monitoring"]) assert.ok(envValidator.includes(token), token);
+  assert.ok(productionLogger.includes("JSON.stringify(payload)"));
+  assert.ok(productionLogger.includes("recordMonitoringLog(level, event, safeData)"));
+  assert.ok(secretBox.includes('process.env.NODE_ENV === "production" && !process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY'));
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

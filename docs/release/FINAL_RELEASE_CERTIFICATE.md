@@ -1,13 +1,13 @@
 # Final Release Certificate
 
-Generated: 2026-08-06T07:39:39.755Z
+Generated: 2026-08-07T06:44:24.730Z
 
 | Field | Value |
 | --- | --- |
 | Release Version | v1.0.0-rc6.5 |
-| Git SHA At Report Generation | af11518ae79ab288da566f46a90d50d802b46c0b (pre-final certification commit) |
+| Git SHA At Report Generation | 1f1ced3a1baa4ccbb918e1cf946cadf37216e0dd (pre-final certification commit) |
 | Branch | release/production-nammude |
-| Build Date | 2026-08-06 |
+| Build Date | 2026-08-07 |
 | Environment | local-certification |
 | Working Tree | Dirty before final certification commit |
 | Production URL | http://localhost:3000 |
@@ -20,7 +20,7 @@ Generated: 2026-08-06T07:39:39.755Z
 | Area | Status | Detail |
 | --- | --- | --- |
 | Bundle Analyzer | PASS | {"PASS":1,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
-| Production Validation | FAIL | {"PASS":46,"WARNING":2,"ERROR":17,"FAIL":0,"MANUAL":2} |
+| Production Validation | FAIL | {"PASS":35,"WARNING":3,"ERROR":10,"FAIL":0,"MANUAL":2} |
 | Deployment Verification | PASS | {"PASS":17,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":0} |
 | Performance Verification | MANUAL | {"PASS":4,"WARNING":0,"ERROR":0,"FAIL":0,"MANUAL":2} |
 | Smoke Results | FAIL | {"PASS":5,"WARNING":0,"ERROR":0,"FAIL":2,"MANUAL":18} |

@@ -1,85 +1,148 @@
 # Production Environment Validation Report
 
-Generated: 2026-08-06T07:18:18.474Z
+Generated: 2026-08-07T06:30:49.943Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 46 |
-| WARNING | 2 |
-| ERROR | 17 |
+| PASS | 35 |
+| WARNING | 3 |
+| ERROR | 10 |
 | FAIL | 0 |
 | MANUAL | 2 |
 
 ## Checks
 
-| Check | Status | Detail |
-| --- | --- | --- |
-| required:NEXT_PUBLIC_APP_ENV | ERROR | missing or empty |
-| required:NEXT_PUBLIC_APP_URL | PASS | configured |
-| placeholder:NEXT_PUBLIC_APP_URL | ERROR | value still looks like a placeholder/local example |
-| required:NEXT_PUBLIC_APP_VERSION | ERROR | missing or empty |
-| required:NEXT_PUBLIC_USE_FIREBASE | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_API_KEY | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_PROJECT_ID | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_VAPID_KEY | PASS | configured |
-| required:NEXT_PUBLIC_FIREBASE_APP_ID | PASS | configured |
-| required:FIREBASE_ADMIN_PROJECT_ID | ERROR | missing or empty |
-| required:FIREBASE_ADMIN_CLIENT_EMAIL | ERROR | missing or empty |
-| required:FIREBASE_ADMIN_PRIVATE_KEY | ERROR | missing or empty |
-| required:TABLE_QR_SECRET | ERROR | missing or empty |
-| required:SMTP_HOST | PASS | configured |
-| required:SMTP_PORT | PASS | configured |
-| required:SMTP_SECURE | PASS | configured |
-| required:SMTP_USER | PASS | configured |
-| required:SMTP_PASS | PASS | configured |
-| required:SMTP_FROM | PASS | configured |
-| required:DATABASE_ALERT_EMAIL | ERROR | missing or empty |
-| required:NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN | PASS | configured |
-| required:NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID | PASS | configured |
-| required:GOOGLE_OAUTH_CLIENT_ID | PASS | configured |
-| required:GOOGLE_OAUTH_CLIENT_SECRET | PASS | configured |
-| required:NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME | PASS | configured |
-| required:CLOUDINARY_CLOUD_NAME | PASS | configured |
-| required:CLOUDINARY_API_KEY | PASS | configured |
-| required:CLOUDINARY_API_SECRET | PASS | configured |
-| version:NEXT_PUBLIC_APP_VERSION | ERROR | expected v1.0.0-rc6.5 |
-| environment:NEXT_PUBLIC_APP_ENV | ERROR | must be production |
-| url:NEXT_PUBLIC_APP_URL | ERROR | must be a valid https URL |
-| url:NEXT_PUBLIC_SHORT_LINK_ORIGIN | WARNING | missing; smart links will safely use NEXT_PUBLIC_APP_URL |
-| whatsapp:cloud-api | MANUAL | optional for sharing links; required only for automated outbound WhatsApp messages |
-| monitoring:sentry | WARNING | missing; first-party structured monitoring remains active but external alerting is unavailable |
-| firebase:NEXT_PUBLIC_USE_FIREBASE | PASS | must be true |
-| firebase:emulators | PASS | must be false in production |
-| login:dev | ERROR | must be false in production |
-| login:test | PASS | must be false in production |
-| plugins:quality | PASS | quality diagnostics should stay disabled unless profiling |
-| plugins:dashboard | PASS | developer dashboard must stay disabled |
-| plugins:profiler | PASS | plugin profiler must stay disabled unless profiling |
-| plugins:restaurant-health | PASS | restaurant health plugin should stay disabled unless running controlled admin smoke |
-| plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET | PASS | example plugin flags must stay disabled in production |
-| plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET | PASS | example plugin flags must stay disabled in production |
-| plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET | PASS | example plugin flags must stay disabled in production |
-| plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET | PASS | example plugin flags must stay disabled in production |
-| firebase:api-key-format | PASS | client api key must look like a Firebase web key |
-| firebase:app-id-format | PASS | app id must match 1:<sender>:web:<hash> |
-| firebase:sender-format | PASS | messaging sender id must be numeric |
-| firebase:admin-project-match | ERROR | admin and public project ids must match |
-| firebase:admin-email | ERROR | admin client email must be a service account |
-| firebase:private-key | ERROR | private key must be full PEM with escaped newlines |
-| cloudinary:cloud-name-match | PASS | public and server cloud names must match |
-| cloudinary:cloud-name-format | PASS | cloud name format |
-| cloudinary:api-key-format | PASS | api key should be numeric |
-| razorpay:configuration | MANUAL | owner-scoped configuration required; global fallback intentionally disabled |
-| smtp:port | PASS | port must be positive integer |
-| smtp:secure | PASS | SMTP_SECURE must be true or false |
-| smtp:from | PASS | SMTP_FROM must include email address |
-| smtp:gmail-app-password | PASS | Gmail should use a 16-character app password |
-| oauth:client-match | PASS | public/server OAuth client ids must match |
-| oauth:client-format | PASS | Google OAuth client id format |
-| secret:TABLE_QR_SECRET | ERROR | minimum 32 characters |
-| secret:PAYMENT_SETTINGS_ENCRYPTION_KEY | ERROR | minimum 32 characters |
+| Category | Check | Status | Detail |
+| --- | --- | --- | --- |
+| Release Metadata | required:NEXT_PUBLIC_APP_ENV | ERROR | Required because it selects production-safe behavior. Used by runtime configuration. Fix: set to production. |
+| Infrastructure | required:NEXT_PUBLIC_APP_URL | PASS | configured |
+| Infrastructure | placeholder:NEXT_PUBLIC_APP_URL | ERROR | A placeholder cannot initialize production safely. Used by public URL and mutation-origin validation. Fix: set the final HTTPS origin. |
+| Release Metadata | required:NEXT_PUBLIC_APP_VERSION | ERROR | Required because it identifies the deployed release. Used by release and health endpoints. Fix: set to v1.0.0-rc6.5. |
+| Firebase | required:NEXT_PUBLIC_USE_FIREBASE | PASS | configured |
+| Firebase | required:NEXT_PUBLIC_FIREBASE_API_KEY | PASS | configured |
+| Authentication | required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN | PASS | configured |
+| Firebase | required:NEXT_PUBLIC_FIREBASE_PROJECT_ID | PASS | configured |
+| Firebase | required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET | PASS | configured |
+| Notifications | required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID | PASS | configured |
+| Firebase | required:NEXT_PUBLIC_FIREBASE_APP_ID | PASS | configured |
+| Firebase | required:FIREBASE_ADMIN_PROJECT_ID | ERROR | Required because it authorizes server-side tenant operations on Hostinger. Used by src/firebase/admin.ts. Fix: set the service-account project id. |
+| Firebase | required:FIREBASE_ADMIN_CLIENT_EMAIL | ERROR | Required because it identifies the server service account. Used by src/firebase/admin.ts. Fix: set the service-account client email. |
+| Security | required:FIREBASE_ADMIN_PRIVATE_KEY | ERROR | Required because it signs Firebase Admin requests. Used by src/firebase/admin.ts. Fix: set the full PEM value with escaped newlines. |
+| QR | required:TABLE_QR_SECRET | ERROR | Required because it prevents forged table sessions. Used by table QR signing and verification. Fix: generate and retain a random value of at least 32 characters. |
+| Payments | required:PAYMENT_SETTINGS_ENCRYPTION_KEY | ERROR | Required because it protects owner-managed payment credentials at rest. Used by payment settings encryption. Fix: generate and retain a random value of at least 32 characters. |
+| Notifications | optional:notifications | PASS | configured |
+| Notifications | optional:notifications | WARNING | email notifications and outage alerts remain unavailable. Missing: DATABASE_ALERT_EMAIL. Fix: configure the SMTP group and alert recipient together. |
+| Infrastructure | optional:infrastructure | PASS | configured |
+| Authentication | optional:authentication | PASS | configured |
+| Infrastructure | optional:infrastructure | PASS | configured |
+| Infrastructure | url:NEXT_PUBLIC_APP_URL | ERROR | must be a valid https URL. Required to prevent unsafe or ambiguous production startup. Used by Infrastructure configuration. Fix: set the documented production value and rerun npm run validate:prod-env. |
+| Infrastructure | url:NEXT_PUBLIC_SHORT_LINK_ORIGIN | WARNING | missing; smart links will safely use NEXT_PUBLIC_APP_URL |
+| Marketing | whatsapp:cloud-api | MANUAL | optional for sharing links; required only for automated outbound WhatsApp messages |
+| Monitoring | monitoring:sentry | WARNING | missing; first-party structured monitoring remains active but external alerting is unavailable |
+| Firebase | firebase:NEXT_PUBLIC_USE_FIREBASE | PASS | must be true |
+| Firebase | firebase:emulators | PASS | must not be true in production; absence safely defaults to false |
+| Authentication | login:dev | ERROR | must not be true in production; absence safely defaults to false. Required to prevent unsafe or ambiguous production startup. Used by Authentication configuration. Fix: set the documented production value and rerun npm run validate:prod-env. |
+| Authentication | login:test | PASS | must not be true in production; absence safely defaults to false |
+| Infrastructure | plugins:quality | PASS | quality diagnostics should stay disabled unless profiling |
+| Infrastructure | plugins:dashboard | PASS | developer dashboard must stay disabled |
+| Infrastructure | plugins:profiler | PASS | plugin profiler must stay disabled unless profiling |
+| Infrastructure | plugins:restaurant-health | PASS | restaurant health plugin should stay disabled unless running controlled admin smoke |
+| Infrastructure | plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET | PASS | example plugin flags must stay disabled in production |
+| Infrastructure | plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET | PASS | example plugin flags must stay disabled in production |
+| Infrastructure | plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET | PASS | example plugin flags must stay disabled in production |
+| Infrastructure | plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET | PASS | example plugin flags must stay disabled in production |
+| Firebase | firebase:api-key-format | PASS | client api key must look like a Firebase web key |
+| Firebase | firebase:app-id-format | PASS | app id must match 1:<sender>:web:<hash> |
+| Firebase | firebase:sender-format | PASS | messaging sender id must be numeric |
+| Infrastructure | cloudinary:cloud-name-match | PASS | public and server cloud names must match |
+| Infrastructure | cloudinary:cloud-name-format | PASS | cloud name format |
+| Infrastructure | cloudinary:api-key-format | PASS | api key should be numeric |
+| Payments | razorpay:configuration | MANUAL | owner-scoped configuration required; global fallback intentionally disabled |
+| Notifications | smtp:port | PASS | port must be positive integer |
+| Notifications | smtp:secure | PASS | SMTP_SECURE must be true or false |
+| Notifications | smtp:from | PASS | SMTP_FROM must include email address |
+| Notifications | smtp:gmail-app-password | PASS | Gmail should use a 16-character app password |
+| Authentication | oauth:client-match | PASS | public/server OAuth client ids must match |
+| Authentication | oauth:client-format | PASS | Google OAuth client id format |
+
+## Release Metadata
+
+- **ERROR** `required:NEXT_PUBLIC_APP_ENV`: Required because it selects production-safe behavior. Used by runtime configuration. Fix: set to production.
+- **ERROR** `required:NEXT_PUBLIC_APP_VERSION`: Required because it identifies the deployed release. Used by release and health endpoints. Fix: set to v1.0.0-rc6.5.
+
+## Infrastructure
+
+- **PASS** `required:NEXT_PUBLIC_APP_URL`: configured
+- **ERROR** `placeholder:NEXT_PUBLIC_APP_URL`: A placeholder cannot initialize production safely. Used by public URL and mutation-origin validation. Fix: set the final HTTPS origin.
+- **PASS** `optional:infrastructure`: configured
+- **PASS** `optional:infrastructure`: configured
+- **ERROR** `url:NEXT_PUBLIC_APP_URL`: must be a valid https URL. Required to prevent unsafe or ambiguous production startup. Used by Infrastructure configuration. Fix: set the documented production value and rerun npm run validate:prod-env.
+- **WARNING** `url:NEXT_PUBLIC_SHORT_LINK_ORIGIN`: missing; smart links will safely use NEXT_PUBLIC_APP_URL
+- **PASS** `plugins:quality`: quality diagnostics should stay disabled unless profiling
+- **PASS** `plugins:dashboard`: developer dashboard must stay disabled
+- **PASS** `plugins:profiler`: plugin profiler must stay disabled unless profiling
+- **PASS** `plugins:restaurant-health`: restaurant health plugin should stay disabled unless running controlled admin smoke
+- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET`: example plugin flags must stay disabled in production
+- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET`: example plugin flags must stay disabled in production
+- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET`: example plugin flags must stay disabled in production
+- **PASS** `plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET`: example plugin flags must stay disabled in production
+- **PASS** `cloudinary:cloud-name-match`: public and server cloud names must match
+- **PASS** `cloudinary:cloud-name-format`: cloud name format
+- **PASS** `cloudinary:api-key-format`: api key should be numeric
+
+## Firebase
+
+- **PASS** `required:NEXT_PUBLIC_USE_FIREBASE`: configured
+- **PASS** `required:NEXT_PUBLIC_FIREBASE_API_KEY`: configured
+- **PASS** `required:NEXT_PUBLIC_FIREBASE_PROJECT_ID`: configured
+- **PASS** `required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`: configured
+- **PASS** `required:NEXT_PUBLIC_FIREBASE_APP_ID`: configured
+- **ERROR** `required:FIREBASE_ADMIN_PROJECT_ID`: Required because it authorizes server-side tenant operations on Hostinger. Used by src/firebase/admin.ts. Fix: set the service-account project id.
+- **ERROR** `required:FIREBASE_ADMIN_CLIENT_EMAIL`: Required because it identifies the server service account. Used by src/firebase/admin.ts. Fix: set the service-account client email.
+- **PASS** `firebase:NEXT_PUBLIC_USE_FIREBASE`: must be true
+- **PASS** `firebase:emulators`: must not be true in production; absence safely defaults to false
+- **PASS** `firebase:api-key-format`: client api key must look like a Firebase web key
+- **PASS** `firebase:app-id-format`: app id must match 1:<sender>:web:<hash>
+- **PASS** `firebase:sender-format`: messaging sender id must be numeric
+
+## Authentication
+
+- **PASS** `required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: configured
+- **PASS** `optional:authentication`: configured
+- **ERROR** `login:dev`: must not be true in production; absence safely defaults to false. Required to prevent unsafe or ambiguous production startup. Used by Authentication configuration. Fix: set the documented production value and rerun npm run validate:prod-env.
+- **PASS** `login:test`: must not be true in production; absence safely defaults to false
+- **PASS** `oauth:client-match`: public/server OAuth client ids must match
+- **PASS** `oauth:client-format`: Google OAuth client id format
+
+## Notifications
+
+- **PASS** `required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`: configured
+- **PASS** `optional:notifications`: configured
+- **WARNING** `optional:notifications`: email notifications and outage alerts remain unavailable. Missing: DATABASE_ALERT_EMAIL. Fix: configure the SMTP group and alert recipient together.
+- **PASS** `smtp:port`: port must be positive integer
+- **PASS** `smtp:secure`: SMTP_SECURE must be true or false
+- **PASS** `smtp:from`: SMTP_FROM must include email address
+- **PASS** `smtp:gmail-app-password`: Gmail should use a 16-character app password
+
+## Security
+
+- **ERROR** `required:FIREBASE_ADMIN_PRIVATE_KEY`: Required because it signs Firebase Admin requests. Used by src/firebase/admin.ts. Fix: set the full PEM value with escaped newlines.
+
+## QR
+
+- **ERROR** `required:TABLE_QR_SECRET`: Required because it prevents forged table sessions. Used by table QR signing and verification. Fix: generate and retain a random value of at least 32 characters.
+
+## Payments
+
+- **ERROR** `required:PAYMENT_SETTINGS_ENCRYPTION_KEY`: Required because it protects owner-managed payment credentials at rest. Used by payment settings encryption. Fix: generate and retain a random value of at least 32 characters.
+- **MANUAL** `razorpay:configuration`: owner-scoped configuration required; global fallback intentionally disabled
+
+## Marketing
+
+- **MANUAL** `whatsapp:cloud-api`: optional for sharing links; required only for automated outbound WhatsApp messages
+
+## Monitoring
+
+- **WARNING** `monitoring:sentry`: missing; first-party structured monitoring remains active but external alerting is unavailable

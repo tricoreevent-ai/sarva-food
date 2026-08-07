@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-08-07T06:34:34.272Z",
+  "checks": [
+    {
+      "id": "validate:prod-env",
+      "status": "FAIL",
+      "exitCode": 1,
+      "durationMs": 497
+    },
+    {
+      "id": "typecheck",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 6555
+    },
+    {
+      "id": "lint",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 54387
+    },
+    {
+      "id": "build",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 158977
+    },
+    {
+      "id": "audit:release",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 795
+    },
+    {
+      "id": "smoke:operational",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 961
+    },
+    {
+      "id": "theme:contrast",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 682
+    },
+    {
+      "id": "brand:visual",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 1790
+    },
+    {
+      "id": "diff:check",
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 151
+    }
+  ]
+}

@@ -110,21 +110,25 @@ Restaurants become visible to customers from the database when their public rest
 
 ## Pre-Deploy Checks
 
-Run these locally before pushing:
+Load the intended production environment locally, then run the single blocking gate:
 
 ```bash
-npm run typecheck
-npm run lint
-npm run build
-cmd /c npm run analyze
-cmd /c npm run audit:release
-cmd /c npm run smoke:operational
-cmd /c npm run verify:phase4c
-cmd /c npm run verify:performance
-git diff --check
+npm run predeploy
 ```
 
-The repository hardening audit report is generated at `docs/validation/repository-hardening-audit.md`.
+This validates environment configuration, types, lint, the production build, release audit, operational smoke contracts, theme contrast, brand assets, and the Git diff. It exits non-zero when any gate fails and refreshes `docs/release/AUTOMATED_DEPLOYMENT_CHECKLIST.md`.
+
+Run `npm run analyze` separately for bundle evidence; it intentionally rebuilds the application and is retained as a release certification gate rather than duplicated inside every predeploy.
+
+## Integration Setup
+
+- **Firebase:** create the production web app and service account, enable required Authentication providers, deploy Firestore/Storage rules and indexes, and restrict authorized domains.
+- **Payments:** configure credentials per restaurant in Owner → Settings → Payments. Keep global Razorpay variables unset unless the legacy global fallback is deliberately enabled. Verify signed webhooks before accepting live payments.
+- **Marketing:** set `NEXT_PUBLIC_SHORT_LINK_ORIGIN` for branded short links when available. WhatsApp Cloud variables are required only for automated outbound sends; ordinary WhatsApp sharing uses generated links without them.
+- **Monitoring:** first-party structured logs and health endpoints work without Sentry. Configure `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN` and alert routing when external incident notification is required.
+- **Email notifications:** configure the complete SMTP group and `DATABASE_ALERT_EMAIL` together. Missing SMTP is a warning because core ordering remains available, but email delivery and outage alerts do not.
+
+Never place credentials in Git, build logs, checklist files, or `NEXT_PUBLIC_*` variables unless the provider explicitly defines the value as public.
 
 After deployment, verify release and health metadata:
 
@@ -166,6 +170,14 @@ npm run firebase:seed:production
 9. Verify `/`, `/restaurants`, `/restaurant/cafe-al-arab-thanisandra`, `/owner/login`, and `/admin/login`.
 10. Connect the final custom domain and update `NEXT_PUBLIC_APP_URL` to that HTTPS URL.
 11. Redeploy after changing `NEXT_PUBLIC_APP_URL`.
+
+## Release Verification and Rollback
+
+After deploy, compare `/api/release-info` and all three health endpoints with the SHA in the automated checklist. Health `result` values are `PASS`, `WARN`, or `FAIL`; a readiness/startup `FAIL` blocks launch. A `WARN` identifies an optional provider or explicit-credential fallback without exposing its value.
+
+Complete customer, Owner, Admin, POS, Kitchen, payment, notification, campaign-link, responsive, accessibility, and physical-printer/device smoke tests in production.
+
+If verification fails, redeploy the previously certified SHA, restore its matching environment snapshot, keep new feature flags disabled, clear application/CDN caches, and repeat release-info plus health verification. Do not rotate `TABLE_QR_SECRET` or `PAYMENT_SETTINGS_ENCRYPTION_KEY` during rollback; doing so invalidates printed QR signatures or encrypted payment settings.
 
 ## Notes
 

@@ -55,11 +55,13 @@ export function maskLogData(data: Record<string, unknown>) {
 
 function logProduction(level: LogLevel, event: string, data: Record<string, unknown> = {}) {
   if (!shouldLog(level)) return;
-  const payload = sanitize({ level, event, ...data, timestamp: new Date().toISOString() });
-  recordMonitoringLog(level, event, data);
-  if (level === "ERROR" || level === "SECURITY" || level === "PAYMENT") return console.error("[food-gedi]", payload);
-  if (level === "WARN") return console.warn("[food-gedi]", payload);
-  console.info("[food-gedi]", payload);
+  const safeData = sanitize(data) as Record<string, unknown>;
+  const payload = sanitize({ level, event, ...safeData, timestamp: new Date().toISOString() });
+  const line = JSON.stringify(payload);
+  recordMonitoringLog(level, event, safeData);
+  if (level === "ERROR" || level === "SECURITY" || level === "PAYMENT") return console.error(line);
+  if (level === "WARN") return console.warn(line);
+  console.info(line);
 }
 
 function shouldLog(level: LogLevel) {

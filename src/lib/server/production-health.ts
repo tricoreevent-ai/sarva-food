@@ -34,7 +34,10 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
     process.env.GOOGLE_APPLICATION_CREDENTIALS ||
     process.env.FIREBASE_CONFIG
   );
+  const productionMode = (process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV) === "production";
+  const validPublicOrigin = isHttpsOrigin(process.env.NEXT_PUBLIC_APP_URL);
   const issues = [
+    productionMode && !validPublicOrigin ? "production_public_app_url_missing_or_invalid" : "",
     config.firebaseConfiguration.publicConfigured ? "" : "firebase_public_config_missing",
     firestoreConnectivity.status === "connected" || kind === "live" ? "" : ("issue" in firestoreConnectivity ? firestoreConnectivity.issue : "firestore_unavailable"),
     storageConnectivity.status === "configured" || kind === "live" ? "" : "storage_unavailable",
@@ -43,10 +46,16 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
     explicitAdminCredentials || firestoreConnectivity.status !== "connected" ? "" : "firebase_admin_explicit_config_missing_using_application_default_credentials",
     process.env.NEXT_PUBLIC_SHORT_LINK_ORIGIN ? "" : "short_link_origin_missing_using_public_app_url",
     process.env.NEXT_PUBLIC_SENTRY_DSN ? "" : "external_error_alerting_not_configured",
+    process.env.TABLE_QR_SECRET ? "" : "table_qr_signing_unavailable",
+    process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY ? "" : "owner_payment_settings_encryption_unavailable",
   ].filter(Boolean);
+  const result = issues.length ? "FAIL" : configurationWarnings.length ? "WARN" : "PASS";
+  const databaseStatus = healthResult(firestoreConnectivity.status === "connected" || kind === "live", kind === "live");
+  const storageStatus = healthResult(storageConnectivity.status === "configured" || kind === "live", kind === "live");
 
   return {
     status: issues.length ? "degraded" : "ok",
+    result,
     check: kind,
     appName: APP_NAME,
     releaseMarker: RELEASE_MARKER,
@@ -71,11 +80,37 @@ export async function buildHealthSnapshot(kind: HealthCheckKind) {
     cloudinaryAvailability: config.cloudinaryAvailability,
     razorpayConfiguration: config.razorpayConfiguration,
     firebaseConfiguration: config.firebaseConfiguration,
+    configurationHealth: {
+      status: result,
+      required: issues.length ? "FAIL" : "PASS",
+      optional: configurationWarnings.length ? "WARN" : "PASS",
+    },
+    components: {
+      database: { status: databaseStatus },
+      firebase: { status: config.firebaseConfiguration.publicConfigured ? "PASS" : "FAIL", adminCredentials: config.firebaseConfiguration.adminConfigured ? "PASS" : explicitAdminCredentials ? "PASS" : "WARN" },
+      storage: { status: storageStatus },
+      queues: { status: "PASS", pending: 0, implementation: "request-owned" },
+      providers: {
+        status: [config.smtpAvailability.status, config.cloudinaryAvailability.status].includes("missing") ? "WARN" : "PASS",
+        smtp: config.smtpAvailability.status === "configured" ? "PASS" : "WARN",
+        cloudinary: config.cloudinaryAvailability.status === "configured" ? "PASS" : "WARN",
+        razorpay: config.razorpayConfiguration.status === "configured" ? "PASS" : "WARN",
+      },
+    },
     issues,
     configurationWarnings,
     generatedAt: new Date().toISOString(),
     durationMs: Math.round(performance.now() - started),
   };
+}
+
+function healthResult(healthy: boolean, notChecked: boolean) {
+  return notChecked ? "WARN" : healthy ? "PASS" : "FAIL";
+}
+
+function isHttpsOrigin(value?: string) {
+  try { return Boolean(value && new URL(value).protocol === "https:"); }
+  catch { return false; }
 }
 
 export function healthStatusCode(snapshot: Awaited<ReturnType<typeof buildHealthSnapshot>>) {

@@ -21,6 +21,8 @@
     "theme:contrast": "node scripts/validate-theme-contrast.mjs",
     "brand:visual": "node scripts/brand-visual-regression.mjs",
     "validate:prod-env": "node scripts/validate-production-env.mjs",
+    "predeploy": "node scripts/release/predeploy.mjs",
+    "checklist:deployment": "node scripts/release/generate-deployment-checklist.mjs",
     "verify:deployment": "node scripts/release/verify-deployment.mjs",
     "verify:performance": "node scripts/release/verify-performance.mjs",
     "smoke:production": "node scripts/release/production-smoke-suite.mjs",
