@@ -1,6 +1,6 @@
 # Active Orders Performance Report
 
-Date: 2026-08-07T07:16:56.415Z
+Date: 2026-08-07T08:40:51.382Z
 
 ## Root Cause
 
@@ -17,11 +17,11 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.23ms | 0.33ms | 1.41ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.01ms | 0.03ms | 0.24ms | <100ms update |
-| POS 1000-item category switch | 0.04ms | 0.07ms | 0.17ms | <50ms switch |
-| POS 1000-item search filter | 0.06ms | 0.12ms | 0.60ms | debounced |
-| Active Orders 100-order filter/group | 0.10ms | 0.18ms | 0.40ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.56ms | 0.71ms | 2.42ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.03ms | 0.08ms | 0.44ms | <100ms update |
+| POS 1000-item category switch | 0.09ms | 0.16ms | 0.37ms | <50ms switch |
+| POS 1000-item search filter | 0.14ms | 0.26ms | 0.90ms | debounced |
+| Active Orders 100-order filter/group | 0.23ms | 0.57ms | 1.27ms | <50ms interaction |
 
 ## Density And Runtime Controls
 
@@ -39,13 +39,13 @@ The POS Active Orders panel kept expansion state in the parent and rendered up t
 | Route | JS chunks | JS | CSS | Budget | Status |
 | --- | --- | --- | --- | --- | --- |
 | / | 20 | 491 KB | 195 KB | 250 KB | Over |
-| /restaurants | 23 | 526 KB | 195 KB | - | Tracked |
+| /restaurants | 22 | 522 KB | 195 KB | - | Tracked |
 | /checkout | 29 | 628 KB | 195 KB | - | Tracked |
 | /orders | 23 | 552 KB | 195 KB | - | Tracked |
-| /profile | 26 | 588 KB | 195 KB | 250 KB | Over |
+| /profile | 27 | 592 KB | 195 KB | 250 KB | Over |
 | /owner | 30 | 655 KB | 195 KB | 350 KB | Over |
 | /owner/orders | 35 | 808 KB | 195 KB | 500 KB | Over |
-| /owner/settings | 34 | 777 KB | 195 KB | 300 KB | Over |
+| /owner/settings | 36 | 816 KB | 195 KB | 300 KB | Over |
 | /owner/kitchen | 33 | 772 KB | 195 KB | - | Tracked |
 | /owner/pos | 31 | 660 KB | 195 KB | 650 KB | Over |
 | /admin | 25 | 551 KB | 195 KB | - | Tracked |

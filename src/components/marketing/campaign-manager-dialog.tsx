@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, BarChart3, CalendarClock, Clipboard, Copy, Download, ExternalLink, Loader2, Megaphone, Play, Plus, QrCode, Save, Search, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,10 @@ import { toast } from "@/lib/client-toast";
 import { fetchWithTimeout } from "@/lib/client-fetch";
 
 type Draft = { id?: string; name: string; type: string; status: CampaignStatus; menuItemIds: string[]; template: WhatsAppTemplateKind; tone: MarketingTone; layout: string; socialFormat: string; cta: string; message: string; scheduleAt: string; scheduleKind: string; orderingOpensAt: string; orderingClosesAt: string; cookingStartsAt: string; deliveryStartsAt: string; pickupStartsAt: string; expiresAt: string; autoDisableAt: string; maximumOrders: number; maximumQuantity: number; shortUrl?: string };
+const emptyInitialItemIds: string[] = [];
 const freshDraft = (ids: string[] = []): Draft => ({ name: "Today's Special", type: "Today's Special", status: "draft", menuItemIds: ids, template: "todays-special", tone: "professional", layout: "Classic", socialFormat: "WhatsApp", cta: "Order Now", message: "", scheduleAt: "", scheduleKind: "", orderingOpensAt: "", orderingClosesAt: "", cookingStartsAt: "", deliveryStartsAt: "", pickupStartsAt: "", expiresAt: "", autoDisableAt: "", maximumOrders: 0, maximumQuantity: 0 });
 
-export function CampaignManagerDialog({ open, onOpenChange, menuItems, restaurant, initialItemIds = [] }: { open: boolean; onOpenChange: (open: boolean) => void; menuItems: MenuItem[]; restaurant?: Restaurant; initialItemIds?: string[] }) {
+export function CampaignManagerDialog({ open, onOpenChange, menuItems, restaurant, initialItemIds = emptyInitialItemIds }: { open: boolean; onOpenChange: (open: boolean) => void; menuItems: MenuItem[]; restaurant?: Restaurant; initialItemIds?: string[] }) {
   const [tab, setTab] = useState<"build" | "history" | "analytics">("build");
   const [draft, setDraft] = useState<Draft>(() => freshDraft(initialItemIds));
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>([]);
@@ -28,8 +29,14 @@ export function CampaignManagerDialog({ open, onOpenChange, menuItems, restauran
   const campaignLink = draft.shortUrl || publicUrl;
   const message = draft.message || buildCampaignMessage(draft.name, restaurantName, selected, draft.cta, campaignLink, draft);
 
-  useEffect(() => { if (!open) return; void Promise.resolve().then(() => setDraft((current) => current.id ? current : { ...current, menuItemIds: initialItemIds.length ? initialItemIds : current.menuItemIds })); void loadCampaigns(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  async function loadCampaigns() { setLoading(true); try { const response = await fetchWithTimeout(`/api/owner/marketing-campaigns?restaurantId=${encodeURIComponent(restaurantSlug)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setCampaigns(payload.data ?? []); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not load campaigns."); } finally { setLoading(false); } }
+  const loadCampaigns = useCallback(async () => { setLoading(true); try { const response = await fetchWithTimeout(`/api/owner/marketing-campaigns?restaurantId=${encodeURIComponent(restaurantSlug)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setCampaigns(payload.data ?? []); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not load campaigns."); } finally { setLoading(false); } }, [restaurantSlug]);
+  useEffect(() => {
+    if (!open) return;
+    queueMicrotask(() => {
+      setDraft((current) => current.id ? current : { ...current, menuItemIds: initialItemIds.length ? initialItemIds : current.menuItemIds });
+      void loadCampaigns();
+    });
+  }, [initialItemIds, loadCampaigns, open]);
   function update(next: Partial<Draft>) { setDraft((current) => ({ ...current, ...next, message: next.message ?? (Object.keys(next).some((key) => ["name", "menuItemIds", "cta"].includes(key)) ? "" : current.message) })); }
   function pickCategory(category: string) { update({ type: "Category", name: `${category} Collection`, menuItemIds: visibleItems.filter((item) => item.category === category).map((item) => item.id) }); }
 

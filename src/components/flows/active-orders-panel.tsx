@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardE
 import { showLazySarvaNotification, toast } from "@/lib/client-toast";
 import { usePersistedOrderFilter } from "@/hooks/use-persisted-order-filter";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { OperationalOrderStatusBadge } from "@/components/orders/OperationalOrderStatusBadge";
 import { OrderClassificationBar } from "@/components/orders/order-classification-bar";
 import type { DemoOrder, PosTable, StaffMember, TableOrder } from "@/lib/types";
@@ -772,26 +773,28 @@ function ActiveOrderCard({
         </button>
       </div>
 
+      <TooltipProvider delayDuration={200}>
       <div className="grid h-11 grid-cols-6 border-t border-slate-100" aria-label={`${orderNumber} actions`}>
         {completed ? (
-          <button type="button" data-action="archive" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Move To History" title="Move To History"><History className="size-4" /><span className="sr-only">History</span></button>
+          <ActiveOrderIconTooltip label="Move this completed order into history for reporting."><button type="button" data-action="archive" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Move To History"><History className="size-4" /><span className="sr-only">History</span></button></ActiveOrderIconTooltip>
         ) : canComplete ? (
-          <button type="button" data-action="complete" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Complete Order" title="Complete Order"><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
+          <ActiveOrderIconTooltip label="Mark this paid and served order as completed."><button type="button" data-action="complete" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Complete Order"><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button></ActiveOrderIconTooltip>
         ) : served && !paid ? (
-          <button type="button" data-action="complete" disabled onClick={handleAction} className={activeOrderActionClass(false, "success")} aria-label="Complete Order" title={pendingPaymentMessage}><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button>
+          <ActiveOrderIconTooltip label={pendingPaymentMessage}><button type="button" data-action="complete" disabled onClick={handleAction} className={activeOrderActionClass(false, "success")} aria-label="Complete Order"><CheckCircle2 className="size-4" /><span className="sr-only">Complete</span></button></ActiveOrderIconTooltip>
         ) : kitchenAction ? (
-          <button type="button" data-action={kitchenAction.id} disabled={busy || !kitchenActionAllowed} onClick={handleAction} className={activeOrderActionClass(kitchenActionAllowed, "success")} aria-label={kitchenAction.label} title={kitchenActionAllowed ? kitchenAction.title : "Kitchen state changes are handled by Kitchen Operations."}>{kitchenAction.icon}<span className="sr-only">{kitchenAction.label}</span></button>
+          <ActiveOrderIconTooltip label={kitchenActionAllowed ? kitchenAction.title : "Kitchen state changes are handled by Kitchen Operations."}><button type="button" data-action={kitchenAction.id} disabled={busy || !kitchenActionAllowed} onClick={handleAction} className={activeOrderActionClass(kitchenActionAllowed, "success")} aria-label={kitchenAction.label}>{kitchenAction.icon}<span className="sr-only">{kitchenAction.label}</span></button></ActiveOrderIconTooltip>
         ) : ready ? (
-          <button type="button" data-action="pickup" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Pick Up Order" title="Pick up the ready order for service"><Utensils className="size-4" /><span className="sr-only">Pick Up</span></button>
+          <ActiveOrderIconTooltip label="Confirm the ready order has been picked up for service."><button type="button" data-action="pickup" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "success")} aria-label="Pick Up Order"><Utensils className="size-4" /><span className="sr-only">Pick Up</span></button></ActiveOrderIconTooltip>
         ) : (
-          <button type="button" data-action="serve" disabled={!pickedUp || busy} onClick={handleAction} className={activeOrderActionClass(pickedUp, "success")} aria-label="Serve Order" title={pickedUp ? "Serve Order" : "Cannot Serve: pick up the ready order first."}><Utensils className="size-4" /><span className="sr-only">Serve</span></button>
+          <ActiveOrderIconTooltip label={pickedUp ? "Mark the picked-up order as served at the table." : "Cannot serve yet: pick up the ready order first."}><button type="button" data-action="serve" disabled={!pickedUp || busy} onClick={handleAction} className={activeOrderActionClass(pickedUp, "success")} aria-label="Serve Order"><Utensils className="size-4" /><span className="sr-only">Serve</span></button></ActiveOrderIconTooltip>
         )}
-        <button type="button" data-action="notify" disabled={!canNotifyForView || busy} onClick={handleAction} className={activeOrderActionClass(canNotifyForView, "default")} aria-label="Ready Signal" title={view === "waiter" ? "Kitchen sends ready signals; pick up the ticket before serving." : canNotify ? "Send Ready Signal" : "Cannot signal: order is not Ready or has no kitchen ticket."}><BellRing className="size-4" /><span className="sr-only">Signal</span></button>
-        <button type="button" data-action="payment" disabled={!canCollectForView || busy} onClick={handleAction} className={activeOrderActionClass(canCollectForView, "payment")} aria-label="Collect Payment" title={canCollect ? "Collect Payment" : paymentUnavailableReason(order)}><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button>
-        <button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print" title={["ready", "picked-up", "served"].includes(order.status) || paid ? "Print Bill" : "Print KOT"}><Printer className="size-4" /><span className="sr-only">Print</span></button>
-        <button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview" title="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button>
+        <ActiveOrderIconTooltip label={view === "waiter" ? "Kitchen sends ready signals; pick up the ticket before serving." : canNotify ? "Send the waiter a ready-for-pickup signal." : "Cannot signal yet: the order is not ready or has no kitchen ticket."}><button type="button" data-action="notify" disabled={!canNotifyForView || busy} onClick={handleAction} className={activeOrderActionClass(canNotifyForView, "default")} aria-label="Ready Signal"><BellRing className="size-4" /><span className="sr-only">Signal</span></button></ActiveOrderIconTooltip>
+        <ActiveOrderIconTooltip label={canCollect ? "Open payment collection for this order." : paymentUnavailableReason(order)}><button type="button" data-action="payment" disabled={!canCollectForView || busy} onClick={handleAction} className={activeOrderActionClass(canCollectForView, "payment")} aria-label="Collect Payment"><CircleDollarSign className="size-4" /><span className="sr-only">Payment</span></button></ActiveOrderIconTooltip>
+        <ActiveOrderIconTooltip label={["ready", "picked-up", "served"].includes(order.status) || paid ? "Print the customer bill for this order." : "Print the kitchen order ticket."}><button type="button" data-action="print" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="Print"><Printer className="size-4" /><span className="sr-only">Print</span></button></ActiveOrderIconTooltip>
+        <ActiveOrderIconTooltip label="Open the compact order preview and operational timeline."><button type="button" data-action="preview" disabled={busy} onClick={handleAction} className={activeOrderActionClass(true, "default")} aria-label="View / Preview"><Eye className="size-4" /><span className="sr-only">Preview</span></button></ActiveOrderIconTooltip>
         <ActiveOrderActionMenu order={order} actions={menuActions} disabled={busy} onAction={onAction} />
       </div>
+      </TooltipProvider>
 
       {expanded ? (
         <div id={expandedId} className="grid gap-3 border-t border-slate-100 bg-slate-50/60 p-3 text-xs lg:grid-cols-2">
@@ -846,6 +849,17 @@ function ActiveOrderCard({
 }
 
 const MemoActiveOrderCard = memo(ActiveOrderCard);
+
+function ActiveOrderIconTooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="contents">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function ActiveOrdersSkeleton() {
   return Array.from({ length: 8 }, (_, index) => (
