@@ -7,6 +7,7 @@ import {
   paymentMethod,
   restaurantPaymentGatewayNotConfigured,
   subunitsToAmount,
+  withPaymentProviderTimeout,
 } from "@/lib/server/owner-payment-settings";
 import { requireOwnerFeature } from "@/lib/server/owner-api-access";
 import { tenantScope } from "@/repositories/shared";
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = createRazorpayClient(settings);
-    const payment = await client.payments.fetch(body.paymentId).catch(() => null);
+    const payment = await withPaymentProviderTimeout(client.payments.fetch(body.paymentId)).catch(() => null);
     if (!payment) {
       return fail("Payment gateway is unavailable. Please try again.", 502);
     }
@@ -58,13 +59,13 @@ export async function POST(request: NextRequest) {
     }
 
     const amount = Number(body.amount ?? 0);
-    const refund = await client.payments.refund(body.paymentId, {
+    const refund = await withPaymentProviderTimeout(client.payments.refund(body.paymentId, {
       ...(amount > 0 ? { amount: amountToSubunits(amount) } : {}),
       notes: {
         orderId: body.orderId,
         reason: body.reason?.trim() || "Owner refund",
       },
-    }).catch(() => null);
+    })).catch(() => null);
     if (!refund) {
       return fail("Refund was rejected by the payment gateway.", 502);
     }

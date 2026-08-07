@@ -11,6 +11,7 @@ import {
   restaurantPaymentGatewayNotConfigured,
   scopeFromRazorpayOrder,
   subunitsToAmount,
+  withPaymentProviderTimeout,
 } from "@/lib/server/owner-payment-settings";
 import { OrderRepository } from "@/repositories/order-repository";
 import { apiError } from "@/lib/server/api-response";
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     return fail("Invalid payment signature");
   }
 
-  const payment = await createRazorpayClient(settings).payments.fetch(razorpay_payment_id).catch(() => null);
+  const payment = await withPaymentProviderTimeout(createRazorpayClient(settings).payments.fetch(razorpay_payment_id)).catch(() => null);
   if (!payment) {
     return fail("Payment gateway is unavailable. Please try again.", 502);
   }

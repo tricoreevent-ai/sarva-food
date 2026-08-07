@@ -46,12 +46,12 @@ const checks = [];
 
 for (const [key, category, why, usedAt, fix] of required) {
   const value = envValue(key);
-  checks.push(check(`required:${key}`, value ? "PASS" : "ERROR", value ? "configured" : `Required because it ${why}. Used by ${usedAt}. Fix: ${fix}.`, { category }));
-  if (value && isPlaceholder(value)) checks.push(check(`placeholder:${key}`, "ERROR", `A placeholder cannot initialize production safely. Used by ${usedAt}. Fix: ${fix}.`, { category }));
+  checks.push(check(`required:${key}`, value ? "PASS" : "ERROR", value ? "configured" : `Required because it ${why}. Used by ${usedAt}. Fix: ${fix}.`, { category, classification: "Required" }));
+  if (value && isPlaceholder(value)) checks.push(check(`placeholder:${key}`, "ERROR", `A placeholder cannot initialize production safely. Used by ${usedAt}. Fix: ${fix}.`, { category, classification: "Required" }));
 }
 for (const [keys, category, impact, fix] of optionalGroups) {
   const missing = keys.filter((key) => !envValue(key));
-  checks.push(check(`optional:${category.toLowerCase().replaceAll(" ", "-")}`, missing.length ? "WARNING" : "PASS", missing.length ? `${impact}. Missing: ${missing.join(", ")}. Fix: ${fix}.` : "configured", { category }));
+  checks.push(check(`optional:${category.toLowerCase().replaceAll(" ", "-")}`, missing.length ? "WARNING" : "PASS", missing.length ? `${impact}. Missing: ${missing.join(", ")}. Fix: ${fix}.` : "configured", { category, classification: "Recommended" }));
 }
 
 for (const [key, detail] of Object.entries(deprecated)) {
@@ -87,6 +87,7 @@ validateDuplicates();
 
 for (const item of checks) {
   item.category ??= categoryFor(item.name);
+  item.classification ??= item.status === "ERROR" || item.status === "FAIL" ? "Required" : item.status === "WARNING" ? "Recommended" : item.status === "MANUAL" ? "Optional" : "Required";
   if (item.status === "ERROR" && !item.detail.includes("Fix:")) {
     item.detail = `${item.detail}. Required to prevent unsafe or ambiguous production startup. Used by ${item.category} configuration. Fix: set the documented production value and rerun npm run validate:prod-env.`;
   }

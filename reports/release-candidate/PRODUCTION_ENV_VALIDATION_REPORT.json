@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-07T06:30:49.944Z",
+  "generatedAt": "2026-08-07T07:05:06.848Z",
   "summary": {
     "counts": {
       "PASS": 35,
@@ -15,301 +15,351 @@
       "name": "required:NEXT_PUBLIC_APP_ENV",
       "status": "ERROR",
       "detail": "Required because it selects production-safe behavior. Used by runtime configuration. Fix: set to production.",
-      "category": "Release Metadata"
+      "category": "Release Metadata",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_APP_URL",
       "status": "PASS",
       "detail": "configured",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "placeholder:NEXT_PUBLIC_APP_URL",
       "status": "ERROR",
       "detail": "A placeholder cannot initialize production safely. Used by public URL and mutation-origin validation. Fix: set the final HTTPS origin.",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_APP_VERSION",
       "status": "ERROR",
       "detail": "Required because it identifies the deployed release. Used by release and health endpoints. Fix: set to v1.0.0-rc6.5.",
-      "category": "Release Metadata"
+      "category": "Release Metadata",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_USE_FIREBASE",
       "status": "PASS",
       "detail": "configured",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_API_KEY",
       "status": "PASS",
       "detail": "configured",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
       "status": "PASS",
       "detail": "configured",
-      "category": "Authentication"
+      "category": "Authentication",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_PROJECT_ID",
       "status": "PASS",
       "detail": "configured",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
       "status": "PASS",
       "detail": "configured",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
       "status": "PASS",
       "detail": "configured",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Required"
     },
     {
       "name": "required:NEXT_PUBLIC_FIREBASE_APP_ID",
       "status": "PASS",
       "detail": "configured",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:FIREBASE_ADMIN_PROJECT_ID",
       "status": "ERROR",
       "detail": "Required because it authorizes server-side tenant operations on Hostinger. Used by src/firebase/admin.ts. Fix: set the service-account project id.",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:FIREBASE_ADMIN_CLIENT_EMAIL",
       "status": "ERROR",
       "detail": "Required because it identifies the server service account. Used by src/firebase/admin.ts. Fix: set the service-account client email.",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "required:FIREBASE_ADMIN_PRIVATE_KEY",
       "status": "ERROR",
       "detail": "Required because it signs Firebase Admin requests. Used by src/firebase/admin.ts. Fix: set the full PEM value with escaped newlines.",
-      "category": "Security"
+      "category": "Security",
+      "classification": "Required"
     },
     {
       "name": "required:TABLE_QR_SECRET",
       "status": "ERROR",
       "detail": "Required because it prevents forged table sessions. Used by table QR signing and verification. Fix: generate and retain a random value of at least 32 characters.",
-      "category": "QR"
+      "category": "QR",
+      "classification": "Required"
     },
     {
       "name": "required:PAYMENT_SETTINGS_ENCRYPTION_KEY",
       "status": "ERROR",
       "detail": "Required because it protects owner-managed payment credentials at rest. Used by payment settings encryption. Fix: generate and retain a random value of at least 32 characters.",
-      "category": "Payments"
+      "category": "Payments",
+      "classification": "Required"
     },
     {
       "name": "optional:notifications",
       "status": "PASS",
       "detail": "configured",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Recommended"
     },
     {
       "name": "optional:notifications",
       "status": "WARNING",
       "detail": "email notifications and outage alerts remain unavailable. Missing: DATABASE_ALERT_EMAIL. Fix: configure the SMTP group and alert recipient together.",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Recommended"
     },
     {
       "name": "optional:infrastructure",
       "status": "PASS",
       "detail": "configured",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Recommended"
     },
     {
       "name": "optional:authentication",
       "status": "PASS",
       "detail": "configured",
-      "category": "Authentication"
+      "category": "Authentication",
+      "classification": "Recommended"
     },
     {
       "name": "optional:infrastructure",
       "status": "PASS",
       "detail": "configured",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Recommended"
     },
     {
       "name": "url:NEXT_PUBLIC_APP_URL",
       "status": "ERROR",
       "detail": "must be a valid https URL. Required to prevent unsafe or ambiguous production startup. Used by Infrastructure configuration. Fix: set the documented production value and rerun npm run validate:prod-env.",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "url:NEXT_PUBLIC_SHORT_LINK_ORIGIN",
       "status": "WARNING",
       "detail": "missing; smart links will safely use NEXT_PUBLIC_APP_URL",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Recommended"
     },
     {
       "name": "whatsapp:cloud-api",
       "status": "MANUAL",
       "detail": "optional for sharing links; required only for automated outbound WhatsApp messages",
-      "category": "Marketing"
+      "category": "Marketing",
+      "classification": "Optional"
     },
     {
       "name": "monitoring:sentry",
       "status": "WARNING",
       "detail": "missing; first-party structured monitoring remains active but external alerting is unavailable",
-      "category": "Monitoring"
+      "category": "Monitoring",
+      "classification": "Recommended"
     },
     {
       "name": "firebase:NEXT_PUBLIC_USE_FIREBASE",
       "status": "PASS",
       "detail": "must be true",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "firebase:emulators",
       "status": "PASS",
       "detail": "must not be true in production; absence safely defaults to false",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "login:dev",
       "status": "ERROR",
       "detail": "must not be true in production; absence safely defaults to false. Required to prevent unsafe or ambiguous production startup. Used by Authentication configuration. Fix: set the documented production value and rerun npm run validate:prod-env.",
-      "category": "Authentication"
+      "category": "Authentication",
+      "classification": "Required"
     },
     {
       "name": "login:test",
       "status": "PASS",
       "detail": "must not be true in production; absence safely defaults to false",
-      "category": "Authentication"
+      "category": "Authentication",
+      "classification": "Required"
     },
     {
       "name": "plugins:quality",
       "status": "PASS",
       "detail": "quality diagnostics should stay disabled unless profiling",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:dashboard",
       "status": "PASS",
       "detail": "developer dashboard must stay disabled",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:profiler",
       "status": "PASS",
       "detail": "plugin profiler must stay disabled unless profiling",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:restaurant-health",
       "status": "PASS",
       "detail": "restaurant health plugin should stay disabled unless running controlled admin smoke",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_CLOCK_WIDGET",
       "status": "PASS",
       "detail": "example plugin flags must stay disabled in production",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_DEVELOPER_NOTES_WIDGET",
       "status": "PASS",
       "detail": "example plugin flags must stay disabled in production",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_SYSTEM_INFORMATION_WIDGET",
       "status": "PASS",
       "detail": "example plugin flags must stay disabled in production",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "plugins:example:NEXT_PUBLIC_ENABLE_THEME_PREVIEW_WIDGET",
       "status": "PASS",
       "detail": "example plugin flags must stay disabled in production",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "firebase:api-key-format",
       "status": "PASS",
       "detail": "client api key must look like a Firebase web key",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "firebase:app-id-format",
       "status": "PASS",
       "detail": "app id must match 1:<sender>:web:<hash>",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "firebase:sender-format",
       "status": "PASS",
       "detail": "messaging sender id must be numeric",
-      "category": "Firebase"
+      "category": "Firebase",
+      "classification": "Required"
     },
     {
       "name": "cloudinary:cloud-name-match",
       "status": "PASS",
       "detail": "public and server cloud names must match",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "cloudinary:cloud-name-format",
       "status": "PASS",
       "detail": "cloud name format",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "cloudinary:api-key-format",
       "status": "PASS",
       "detail": "api key should be numeric",
-      "category": "Infrastructure"
+      "category": "Infrastructure",
+      "classification": "Required"
     },
     {
       "name": "razorpay:configuration",
       "status": "MANUAL",
       "detail": "owner-scoped configuration required; global fallback intentionally disabled",
-      "category": "Payments"
+      "category": "Payments",
+      "classification": "Optional"
     },
     {
       "name": "smtp:port",
       "status": "PASS",
       "detail": "port must be positive integer",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Required"
     },
     {
       "name": "smtp:secure",
       "status": "PASS",
       "detail": "SMTP_SECURE must be true or false",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Required"
     },
     {
       "name": "smtp:from",
       "status": "PASS",
       "detail": "SMTP_FROM must include email address",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Required"
     },
     {
       "name": "smtp:gmail-app-password",
       "status": "PASS",
       "detail": "Gmail should use a 16-character app password",
-      "category": "Notifications"
+      "category": "Notifications",
+      "classification": "Required"
     },
     {
       "name": "oauth:client-match",
       "status": "PASS",
       "detail": "public/server OAuth client ids must match",
-      "category": "Authentication"
+      "category": "Authentication",
+      "classification": "Required"
     },
     {
       "name": "oauth:client-format",
       "status": "PASS",
       "detail": "Google OAuth client id format",
-      "category": "Authentication"
+      "category": "Authentication",
+      "classification": "Required"
     }
   ],
   "sections": [

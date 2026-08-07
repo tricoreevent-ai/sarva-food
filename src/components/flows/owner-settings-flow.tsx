@@ -1232,7 +1232,7 @@ const emptyRazorpaySettings: RazorpaySettingsDraft = {
   invoicePrefix: "INV",
   receiptPrefix: "RCPT",
   currency: "INR",
-  sampleKeyId: "rzp_test_T9lbdbFplbPTXF",
+  sampleKeyId: "",
   sampleMerchantId: "T9lUMBJPGiTKrd",
 };
 

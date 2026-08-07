@@ -46,7 +46,7 @@ export function writeReport(baseName, title, checks, sections = []) {
     "## Checks",
     "",
     checks.some((item) => item.category)
-      ? table(["Category", "Check", "Status", "Detail"], checks.map((item) => [item.category ?? "General", item.name, item.status, item.detail]))
+      ? table(["Category", "Classification", "Check", "Status", "Detail"], checks.map((item) => [item.category ?? "General", item.classification ?? "Required", item.name, item.status, item.detail]))
       : table(["Check", "Status", "Detail"], checks.map((item) => [item.name, item.status, item.detail])),
     ...sections.flatMap((section) => ["", `## ${section.title}`, "", section.body]),
     "",

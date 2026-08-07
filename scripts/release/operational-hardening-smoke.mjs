@@ -78,6 +78,11 @@ const productionLogger = read("src/lib/server/production-logger.ts");
 const secretBox = read("src/lib/server/secret-box.ts");
 const predeploy = read("scripts/release/predeploy.mjs");
 const envValidator = read("scripts/validate-production-env.mjs");
+const paymentSettings = read("src/lib/server/owner-payment-settings.ts");
+const paymentOrder = read("src/app/api/payments/razorpay/order/route.ts");
+const paymentVerify = read("src/app/api/payments/razorpay/verify/route.ts");
+const paymentRefund = read("src/app/api/payments/razorpay/refund/route.ts");
+const productionCertification = read("scripts/release/generate-final-production-certification.mjs");
 
 await check("draft:dual-storage-and-newest-wins", () => {
   for (const token of ["window.localStorage.setItem", "putOfflineRecord(\"metadata\"", "Date.parse(indexed.savedAt) > Date.parse(local.savedAt)"]) {
@@ -515,6 +520,16 @@ await check("deployment:configuration-health-and-automation", () => {
   assert.ok(productionLogger.includes("JSON.stringify(payload)"));
   assert.ok(productionLogger.includes("recordMonitoringLog(level, event, safeData)"));
   assert.ok(secretBox.includes('process.env.NODE_ENV === "production" && !process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY'));
+});
+
+await check("payments:production-provider-hardening", () => {
+  for (const token of ["allowSamplePaymentValues", "withPaymentProviderTimeout", "Payment provider request timed out."]) assert.ok(paymentSettings.includes(token), token);
+  assert.ok(paymentSettings.includes('process.env.NODE_ENV !== "production"'));
+  for (const route of [paymentOrder, paymentVerify, paymentRefund]) assert.ok(route.includes("withPaymentProviderTimeout"), "bounded provider call");
+});
+
+await check("release:final-production-certification-contract", () => {
+  for (const token of ["FINAL_PRODUCTION_CERTIFICATION.md", "Health Results", "Rollback Checklist", "Support Checklist", "Customer ordering", "Provider dashboards"]) assert.ok(productionCertification.includes(token), token);
 });
 
 const failed = results.filter(({ status }) => status === "FAIL");

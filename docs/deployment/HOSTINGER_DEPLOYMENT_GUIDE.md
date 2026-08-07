@@ -18,6 +18,24 @@ Use these values in the Hostinger "Review build settings" screen:
 | Output directory | `.next` |
 | Start command | `npm run start` |
 
+## Runtime Hardening
+
+These controls are owned by Hostinger and must be confirmed in hPanel after deployment:
+
+| Control | Production setting |
+| --- | --- |
+| Process supervision | Automatic restart after unexpected exit enabled |
+| Restart policy | Restart on failure with bounded backoff; no infinite rapid restart loop |
+| Graceful shutdown | Allow at least 30 seconds after SIGTERM before forced termination |
+| Memory | Allocate at least 1 GB; alert at 80% and restart only after diagnostics |
+| Proxy timeout | At least 60 seconds; application readiness probes use a 12-second database timeout |
+| Compression | Brotli or gzip enabled at the Hostinger reverse proxy |
+| Static caching | Respect immutable one-year asset headers and short manifest/service-worker revalidation |
+| Dynamic caching | Respect no-store HTML, authenticated, API, release, and health responses |
+| Health monitoring | Probe `/health/live`; gate traffic/restarts with `/health/ready` and `/health/startup` |
+
+Next.js handles SIGTERM/SIGINT shutdown for `next start`; Hostinger remains responsible for preserving the process, restarting after host/deployment/process termination, and routing traffic only after readiness succeeds. Verify this behavior with a controlled restart before launch rather than assuming the hosting defaults.
+
 `npm run start` runs `next start --hostname 0.0.0.0`, so the Hostinger reverse proxy can reach the Node process. Do not use `next export` or an `out` directory for this project.
 
 ## Required Environment Variables

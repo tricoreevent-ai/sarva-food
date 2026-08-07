@@ -11,6 +11,7 @@ import type { OrderDoc } from "@/types/firebase";
 
 export const razorpaySampleKeyId = "rzp_test_T9lbdbFplbPTXF";
 export const razorpaySampleMerchantId = "T9lUMBJPGiTKrd";
+const allowSamplePaymentValues = process.env.NODE_ENV !== "production";
 export const restaurantPaymentGatewayNotConfigured = "Restaurant payment gateway is not configured.";
 
 export type RazorpayMethodSettings = {
@@ -199,6 +200,14 @@ export function createRazorpayClient(settings: Pick<RazorpayRuntimeSettings, "ke
   return new Razorpay({ key_id: settings.keyId, key_secret: settings.keySecret }) as unknown as RazorpayClient;
 }
 
+export function withPaymentProviderTimeout<T>(operation: Promise<T>, timeoutMs = 15_000) {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Payment provider request timed out.")), timeoutMs);
+  });
+  return Promise.race([operation, timeout]).finally(() => clearTimeout(timer));
+}
+
 export function assertRazorpayUsable(settings: RazorpayRuntimeSettings) {
   if (!settings.enabled || !settings.keyId || !settings.keySecret) throw new Error(restaurantPaymentGatewayNotConfigured);
 }
@@ -270,14 +279,14 @@ function toPublicSettings(raw: SavedRazorpaySettings, restaurantId: string): Raz
   const settings = normalized(raw);
   return {
     ...settings,
-    keyId: settings.keyId || razorpaySampleKeyId,
+    keyId: settings.keyId || (allowSamplePaymentValues ? razorpaySampleKeyId : ""),
     companyName: settings.companyName || restaurantId,
     secretConfigured: Boolean(secret),
     secretMasked: maskSecret(secret),
     webhookSecretConfigured: Boolean(webhookSecret),
     webhookSecretMasked: maskSecret(webhookSecret),
-    sampleKeyId: razorpaySampleKeyId,
-    sampleMerchantId: razorpaySampleMerchantId,
+    sampleKeyId: allowSamplePaymentValues ? razorpaySampleKeyId : "",
+    sampleMerchantId: allowSamplePaymentValues ? razorpaySampleMerchantId : "",
   };
 }
 

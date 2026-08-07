@@ -29,6 +29,7 @@
     "monitor:memory": "node scripts/release/memory-stability-monitor.mjs",
     "verify:providers": "node scripts/release/provider-verification.mjs",
     "certify:release": "node scripts/release/generate-release-certificate.mjs",
+    "certify:production": "node scripts/release/generate-final-production-certification.mjs",
     "smoke:operational": "node scripts/release/operational-hardening-smoke.mjs",
     "audit:release": "node scripts/release/repository-hardening-audit.mjs",
     "profile:runtime": "node scripts/release/performance-phase3-reports.mjs",

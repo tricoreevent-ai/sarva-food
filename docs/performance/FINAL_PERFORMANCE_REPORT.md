@@ -1,6 +1,6 @@
 # Final Performance Report
 
-Date: 2026-08-07T06:42:19.586Z
+Date: 2026-08-07T07:16:56.415Z
 
 This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, RC6 brand/customer/order-classification hardening, image delivery, observability, and push/payment readiness measurements. RC6.5 is tracker/release reconciliation only; Firestore collections, auth flows, APIs, listeners, and provider contracts remain backward compatible.
 
@@ -26,7 +26,7 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 | /profile | 26 | 588 KB | 195 KB | 250 KB | Over |
 | /owner | 30 | 655 KB | 195 KB | 350 KB | Over |
 | /owner/orders | 35 | 808 KB | 195 KB | 500 KB | Over |
-| /owner/settings | 34 | 778 KB | 195 KB | 300 KB | Over |
+| /owner/settings | 34 | 777 KB | 195 KB | 300 KB | Over |
 | /owner/kitchen | 33 | 772 KB | 195 KB | - | Tracked |
 | /owner/pos | 31 | 660 KB | 195 KB | 650 KB | Over |
 | /admin | 25 | 551 KB | 195 KB | - | Tracked |
@@ -39,18 +39,18 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 | /profile | 588 KB | 250 KB | Over |
 | /owner | 655 KB | 350 KB | Over |
 | /owner/orders | 808 KB | 500 KB | Over |
-| /owner/settings | 778 KB | 300 KB | Over |
+| /owner/settings | 777 KB | 300 KB | Over |
 | /owner/pos | 660 KB | 650 KB | Over |
 
 ## Stress Snapshot
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.33ms | 0.41ms | 1.13ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.07ms | 0.44ms | <100ms update |
-| POS 1000-item category switch | 0.06ms | 0.10ms | 0.22ms | <50ms switch |
-| POS 1000-item search filter | 0.08ms | 0.15ms | 0.59ms | debounced |
-| Active Orders 100-order filter/group | 0.17ms | 0.37ms | 0.51ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.23ms | 0.33ms | 1.41ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.01ms | 0.03ms | 0.24ms | <100ms update |
+| POS 1000-item category switch | 0.04ms | 0.07ms | 0.17ms | <50ms switch |
+| POS 1000-item search filter | 0.06ms | 0.12ms | 0.60ms | debounced |
+| Active Orders 100-order filter/group | 0.10ms | 0.18ms | 0.40ms | <50ms interaction |
 
 ## Conclusion
 

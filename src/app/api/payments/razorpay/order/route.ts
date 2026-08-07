@@ -9,6 +9,7 @@ import {
   createRazorpayClient,
   getRazorpayRuntimeForOrder,
   restaurantPaymentGatewayNotConfigured,
+  withPaymentProviderTimeout,
 } from "@/lib/server/owner-payment-settings";
 import { apiError } from "@/lib/server/api-response";
 import { productionLogger } from "@/lib/server/production-logger";
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
   const receipt = `${settings.receiptPrefix}-${order.id}`.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
   let providerOrder: Awaited<ReturnType<ReturnType<typeof createRazorpayClient>["orders"]["create"]>>;
   try {
-    providerOrder = await createRazorpayClient(settings).orders.create({
+    providerOrder = await withPaymentProviderTimeout(createRazorpayClient(settings).orders.create({
       amount: amountToSubunits(orderTotal),
       currency: settings.currency,
       receipt,
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
         tenantId: order.tenantId,
         customerId: session.uid,
       },
-    });
+    }));
   } catch {
     return fail("Payment gateway is unavailable. Please try again.", 502);
   }
