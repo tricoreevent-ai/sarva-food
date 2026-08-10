@@ -5,6 +5,7 @@ import { toast } from "@/lib/client-toast";
 import { defaultMarketingSettings, defaultRestaurantMarketingSettings, type MarketingSettings, type MarketingTone, type RestaurantMarketingSettings, type WhatsAppTemplateKind } from "@/features/marketing/messageTemplates";
 import { useAlert } from "@/hooks/useAlert";
 import { ROUTES } from "@/lib/constants";
+import { menuItemPath } from "@/lib/menu-item-links";
 import type { MenuItem, Restaurant } from "@/lib/types";
 import { shortenUrl, type ShortenedUrl } from "@/services/urlShortener";
 import {
@@ -68,6 +69,7 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
       };
       const originalUrl = buildCustomerItemUrl(item, restaurantSlug);
       const shortener = await shortenUrl(originalUrl, { enabled: marketingSettings.tinyUrlEnabled });
+      if (!shortener.ok) throw new Error(shortener.error || "Couldn't create the order link. Please retry.");
       const restaurantUrl = buildRestaurantUrl(restaurantSlug);
       const input: WhatsAppMenuItemInput = {
         restaurantName,
@@ -82,11 +84,10 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
         rating: item.averageRating ?? restaurant?.rating,
         shortUrl: shortener.shortUrl,
         customerName,
-        scheduleUrl: `${restaurantUrl}?intent=schedule`,
         deliveryAvailable: restaurant?.orderingEnabled !== false && item.menuVisibility?.delivery !== false,
-        openHours: restaurant?.operatingHours,
+        openHours: undefined,
         phone: restaurant?.contact?.phone ?? restaurant?.ownerProfile?.businessPhone,
-        mapUrl: restaurant?.googleMapLocation,
+        mapUrl: undefined,
         address: restaurant?.address || restaurant?.location,
         prepTime: item.prepTime,
         foodType: item.foodType ?? (item.isVeg ? "veg" : "nonveg"),
@@ -163,8 +164,8 @@ export function useWhatsAppShare(options: UseWhatsAppShareOptions = {}) {
 
   const copyLink = useCallback(async () => {
     if (!preview) return;
-    try { await navigator.clipboard.writeText(preview.originalUrl); toast.success("Public order link copied."); recordShare("copy-link"); }
-    catch { await prompt("Copy public order link", preview.originalUrl, { title: "Copy link", inputLabel: "Public order URL" }); }
+      try { await navigator.clipboard.writeText(preview.shortUrl); toast.success("Smart order link copied."); recordShare("copy-link"); }
+      catch { await prompt("Copy smart order link", preview.shortUrl, { title: "Copy link", inputLabel: "Smart order URL" }); }
   }, [preview, prompt, recordShare]);
 
   const openWhatsApp = useCallback(() => {
@@ -213,8 +214,8 @@ function buildRestaurantUrl(restaurantSlug: string) {
 }
 
 function buildCustomerItemUrl(item: MenuItem, restaurantSlug: string) {
-  const itemId = publicItemSlug(item.name);
-  const path = `${ROUTES.menu(encodeURIComponent(restaurantSlug))}/${encodeURIComponent(itemId)}`;
+  const itemId = item.id?.split("::")[0] || publicItemSlug(item.name);
+  const path = menuItemPath(restaurantSlug, itemId);
   if (typeof window !== "undefined" && window.location.origin) return `${window.location.origin}${path}`;
   const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   return configuredOrigin ? `${configuredOrigin}${path}` : path;

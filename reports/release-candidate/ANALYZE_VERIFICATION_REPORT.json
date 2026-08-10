@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T08:23:40.400Z",
+  "generatedAt": "2026-08-10T11:56:15.820Z",
   "summary": {
     "counts": {
       "PASS": 1,
@@ -36,7 +36,7 @@
     {
       "file": ".next/analyze/nodejs.html",
       "exists": true,
-      "bytes": 2274399
+      "bytes": 2276864
     },
     {
       "file": ".next/analyze/edge.html",
@@ -46,7 +46,7 @@
     {
       "file": ".next/analyze/client.html",
       "exists": true,
-      "bytes": 1771710
+      "bytes": 1773252
     }
   ]
 }

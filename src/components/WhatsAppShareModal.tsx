@@ -60,7 +60,7 @@ export function WhatsAppShareModal({ preview, open, preparing = false, onOpenCha
                   <div className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-black text-primary-foreground">Order Now</div>
                 </div>
               </div>
-              <p className="break-all text-xs font-semibold text-muted-foreground">{preview.originalUrl}</p>
+              <p className="break-all text-xs font-semibold text-muted-foreground">{preview.shortUrl}</p>
             </section>
 
             <section className="space-y-4 p-4 lg:p-5" aria-label="Marketing message builder">
@@ -102,8 +102,8 @@ async function createPoster(preview: WhatsAppSharePreview) {
   ctx.font = "900 68px system-ui"; wrapText(ctx, preview.item.name, 80, 880, 700, 78);
   const price = preview.item.deliveryPrice ?? preview.item.parcelPrice ?? preview.item.price;
   ctx.fillStyle = "#166534"; ctx.font = "900 58px system-ui"; ctx.fillText(formatCurrency(price), 80, 1085);
-  ctx.fillStyle = "#111827"; ctx.font = "700 30px system-ui"; ctx.fillText("ORDER NOW", 80, 1160); ctx.font = "500 24px system-ui"; ctx.fillText(new URL(preview.originalUrl, location.origin).host, 80, 1210);
-  const QRCode = await import("qrcode"); const qrUrl = await QRCode.toDataURL(preview.originalUrl, { width: 220, margin: 1, color: { dark: "#111827", light: "#ffffff" } }); const qr = await loadImage(qrUrl); ctx.drawImage(qr, 760, 1030, 220, 220);
+  ctx.fillStyle = "#111827"; ctx.font = "700 30px system-ui"; ctx.fillText("ORDER NOW", 80, 1160); ctx.font = "500 24px system-ui"; ctx.fillText(new URL(preview.shortUrl, location.origin).host, 80, 1210);
+  const QRCode = await import("qrcode"); const qrUrl = await QRCode.toDataURL(preview.shortUrl, { width: 220, margin: 1, color: { dark: "#111827", light: "#ffffff" } }); const qr = await loadImage(qrUrl); ctx.drawImage(qr, 760, 1030, 220, 220);
   const link = document.createElement("a"); link.download = `${slugify(preview.item.name)}-whatsapp-promo.png`; link.href = canvas.toDataURL("image/png"); link.click();
 }
 

@@ -251,7 +251,9 @@ await check("menu:item-route-and-internal-sharing", () => {
   assert.ok(!shortener.toLowerCase().includes("tinyurl.com"));
   assert.ok(shortLinkRoute.includes("menuItemPath(slug, itemId)"));
   for (const token of ['"telegram"', '"sms"', '"email"', "openChannel"]) assert.ok(shareHook.includes(token) || shareModal.includes(token), token);
-  for (const token of ["Delivery available", "Schedule:", "Call:", "Map:"]) assert.ok(shareTemplate.includes(token), token);
+  for (const token of ["Schedule:", "Call:", "Map:", "input.imageUrl", "input.scheduleUrl"]) assert.ok(!shareTemplate.includes(token), token);
+  assert.ok(shareHook.includes("if (!shortener.ok)"));
+  assert.ok(shareModal.includes("preview.shortUrl"));
 });
 
 await check("health:runtime-failures-vs-credential-warnings", () => {

@@ -29,8 +29,11 @@ export function parseDeepLinkParams(input: {
 
 export function buildFoodItemMetadata(restaurant: Restaurant, item: MenuItem): Metadata {
   const title = `${item.name} from ${restaurant.name}`;
-  const description = `${item.description} Order directly from ${restaurant.name} in your browser.`;
-  const url = ROUTES.item(restaurant.slug, item.id);
+  const origin = (process.env.NEXT_PUBLIC_APP_URL || "https://violet-squid-380447.hostingersite.com").replace(/\/$/, "");
+  const path = ROUTES.item(restaurant.slug, item.id);
+  const description = `${item.description || item.name} Order directly from ${restaurant.name} in your browser.`;
+  const url = `${origin}${path}`;
+  const image = absoluteUrl(item.image || "/images/fallback-food.svg", origin);
 
   return {
     title,
@@ -46,7 +49,7 @@ export function buildFoodItemMetadata(restaurant: Restaurant, item: MenuItem): M
       type: "website",
       images: [
         {
-          url: item.image,
+          url: image,
           width: 1200,
           height: 900,
           alt: item.name,
@@ -57,7 +60,12 @@ export function buildFoodItemMetadata(restaurant: Restaurant, item: MenuItem): M
       card: "summary_large_image",
       title,
       description,
-      images: [item.image],
+      images: [image],
     },
   };
+}
+
+function absoluteUrl(value: string, origin: string) {
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${origin}${value.startsWith("/") ? value : `/${value}`}`;
 }

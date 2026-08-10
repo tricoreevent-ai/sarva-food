@@ -111,7 +111,7 @@ const defaultMethods: RazorpayMethodSettings = {
 export async function getOwnerRazorpaySettings(session: VerifiedSession, requestedRestaurantId?: string | null) {
   const scope = tenantScope(session, requestedRestaurantId);
   const raw = await readOwnerRazorpayRaw(session.uid);
-  return toPublicSettings(raw, scope.tenantId);
+  return toPublicSettings(raw, scope.tenantId, session.uid);
 }
 
 export async function getOwnerRazorpayRuntimeSettings(session: VerifiedSession, requestedRestaurantId?: string | null) {
@@ -123,7 +123,7 @@ export async function getOwnerRazorpayRuntimeSettings(session: VerifiedSession, 
 export async function saveOwnerRazorpaySettings(session: VerifiedSession, input: Record<string, unknown>) {
   const scope = tenantScope(session, stringOrEmpty(input.restaurantId));
   const existing = await readOwnerRazorpayRaw(session.uid);
-  const next = sanitizeSettings(input, existing);
+  const next = sanitizeSettings(input, existing, session.uid);
   const publicConfig = toRestaurantPaymentConfig(next);
   await Promise.all([
     adminDb().collection("ownerProfiles").doc(session.uid).set({
@@ -137,7 +137,7 @@ export async function saveOwnerRazorpaySettings(session: VerifiedSession, input:
       updatedBy: session.uid,
     }, { merge: true }),
   ]);
-  return toPublicSettings(next, scope.tenantId);
+  return toPublicSettings(next, scope.tenantId, session.uid);
 }
 
 export async function resetOwnerRazorpaySettings(session: VerifiedSession, requestedRestaurantId?: string | null) {
@@ -161,7 +161,7 @@ export async function resetOwnerRazorpaySettings(session: VerifiedSession, reque
       updatedBy: session.uid,
     }, { merge: true }),
   ]);
-  return toPublicSettings({}, scope.tenantId);
+  return toPublicSettings({}, scope.tenantId, session.uid);
 }
 
 export async function getRazorpayRuntimeForOrder(orderId: string) {
@@ -240,7 +240,7 @@ async function readOwnerRazorpayRaw(ownerId: string): Promise<SavedRazorpaySetti
   return data?.paymentGatewayConfig?.razorpay ?? data?.paymentConfig ?? {};
 }
 
-function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpaySettings): SavedRazorpaySettings {
+function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpaySettings, ownerId: string): SavedRazorpaySettings {
   const secret = stringOrEmpty(input.keySecret ?? input.razorpaySecret);
   const webhookSecret = stringOrEmpty(input.webhookSecret);
   const methods = objectOrEmpty(input.methods);
@@ -250,8 +250,8 @@ function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpa
     mode: input.mode === "live" ? "live" : "test",
     keyId: stringOrEmpty(input.keyId || input.razorpayKeyId),
     merchantId: stringOrEmpty(input.merchantId).slice(0, 80),
-    keySecretEncrypted: secret && !isMaskedSecret(secret) ? encryptSecret(secret) : existing.keySecretEncrypted,
-    webhookSecretEncrypted: webhookSecret && !isMaskedSecret(webhookSecret) ? encryptSecret(webhookSecret) : existing.webhookSecretEncrypted,
+    keySecretEncrypted: secret && !isMaskedSecret(secret) ? encryptSecret(secret, ownerKeyContext(ownerId)) : existing.keySecretEncrypted,
+    webhookSecretEncrypted: webhookSecret && !isMaskedSecret(webhookSecret) ? encryptSecret(webhookSecret, ownerKeyContext(ownerId)) : existing.webhookSecretEncrypted,
     companyName: stringOrEmpty(input.companyName).slice(0, 80),
     companyLogo: stringOrEmpty(input.companyLogo),
     methods: {
@@ -273,9 +273,9 @@ function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpa
   };
 }
 
-function toPublicSettings(raw: SavedRazorpaySettings, restaurantId: string): RazorpayPublicSettings {
-  const secret = decryptSecret(raw.keySecretEncrypted || raw.keySecret);
-  const webhookSecret = decryptSecret(raw.webhookSecretEncrypted || raw.webhookSecret);
+function toPublicSettings(raw: SavedRazorpaySettings, restaurantId: string, ownerId = ""): RazorpayPublicSettings {
+  const secret = decryptSecret(raw.keySecretEncrypted || raw.keySecret, ownerKeyContext(ownerId));
+  const webhookSecret = decryptSecret(raw.webhookSecretEncrypted || raw.webhookSecret, ownerKeyContext(ownerId));
   const settings = normalized(raw);
   return {
     ...settings,
@@ -291,9 +291,9 @@ function toPublicSettings(raw: SavedRazorpaySettings, restaurantId: string): Raz
 }
 
 function toRuntimeSettings(raw: SavedRazorpaySettings, ownerId: string, restaurantId: string, tenantId: string, fallback: { companyName?: string; companyLogo?: string } = {}): RazorpayRuntimeSettings {
-  const settings = toPublicSettings(raw, restaurantId);
-  const keySecret = decryptSecret(raw.keySecretEncrypted || raw.keySecret) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_SECRET ?? "" : "");
-  const webhookSecret = decryptSecret(raw.webhookSecretEncrypted || raw.webhookSecret) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_WEBHOOK_SECRET ?? "" : "");
+  const settings = toPublicSettings(raw, restaurantId, ownerId);
+  const keySecret = decryptSecret(raw.keySecretEncrypted || raw.keySecret, ownerKeyContext(ownerId)) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_SECRET ?? "" : "");
+  const webhookSecret = decryptSecret(raw.webhookSecretEncrypted || raw.webhookSecret, ownerKeyContext(ownerId)) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_WEBHOOK_SECRET ?? "" : "");
   return {
     ...settings,
     enabled: settings.enabled || Boolean(settings.keyId && keySecret && raw.razorpayEnabled),
@@ -355,6 +355,10 @@ function toRestaurantPaymentConfig(raw: SavedRazorpaySettings) {
     razorpayReceiptPrefix: settings.receiptPrefix,
     razorpayCurrency: settings.currency,
   };
+}
+
+function ownerKeyContext(ownerId: string) {
+  return ownerId ? `owner-payment:${resolveTenantId(ownerId)}` : "platform";
 }
 
 function stringOrEmpty(value: unknown) {

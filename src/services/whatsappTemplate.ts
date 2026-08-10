@@ -1,7 +1,6 @@
 import {
   defaultMarketingSettings,
   defaultRestaurantMarketingSettings,
-  WHATSAPP_MESSAGE_TEMPLATES,
   type MarketingSettings,
   type MarketingTone,
   type RestaurantMarketingSettings,
@@ -21,7 +20,6 @@ export type WhatsAppMenuItemInput = {
   rating?: number;
   shortUrl: string;
   customerName?: string;
-  scheduleUrl?: string;
   deliveryAvailable?: boolean;
   openHours?: string;
   phone?: string;
@@ -52,7 +50,7 @@ export type WhatsAppMessageOptions = {
   tone?: MarketingTone;
 };
 
-export const defaultWhatsAppContentOptions: WhatsAppContentOptions = { includeImage: true, includePrice: true, includeDescription: true, includeOffer: true, includeAddress: false, includePhone: false, includeOrderLink: true, includeDelivery: true, includePrepTime: true };
+export const defaultWhatsAppContentOptions: WhatsAppContentOptions = { includeImage: false, includePrice: true, includeDescription: false, includeOffer: true, includeAddress: false, includePhone: false, includeOrderLink: true, includeDelivery: false, includePrepTime: false };
 
 const marketingSettingsKey = "sarva-marketing-settings:v1";
 const restaurantSettingsPrefix = "sarva-restaurant-marketing-settings:";
@@ -61,8 +59,6 @@ export function generateWhatsAppMenuMessage(input: WhatsAppMenuItemInput, option
   const marketingSettings = { ...defaultMarketingSettings, ...options.marketingSettings };
   const restaurantSettings = { ...defaultRestaurantMarketingSettings, ...options.restaurantSettings };
   const content = { ...defaultWhatsAppContentOptions, ...options.content };
-  const templateId = options.template ?? marketingSettings.defaultTemplate;
-  const template = WHATSAPP_MESSAGE_TEMPLATES[templateId] ?? WHATSAPP_MESSAGE_TEMPLATES["todays-special"];
   const price = input.offerPrice && input.offerPrice > 0 ? input.offerPrice : input.price;
   const ctaText = restaurantSettings.defaultCtaText || marketingSettings.defaultCtaText;
   const footer = [restaurantSettings.whatsappFooter, marketingSettings.promotionalFooter]
@@ -70,43 +66,34 @@ export function generateWhatsAppMenuMessage(input: WhatsAppMenuItemInput, option
     .filter(Boolean)
     .join("\n");
 
-  const replacements = {
-    customer_name: input.customerName?.trim() || "Food lover",
-    restaurant_name: input.restaurantName || humanizeSlug(input.restaurantSlug),
-    restaurant_slug: input.restaurantSlug,
-    item_name: input.itemName,
-    item_description: content.includeDescription ? input.itemDescription ?? "" : "",
-    description: content.includeDescription ? input.itemDescription ?? "" : "",
-    short_description: content.includeDescription ? truncateText(input.itemDescription ?? "", 180) : "",
-    price: content.includePrice ? formatPriceValue(price) : "",
-    item_image: content.includeImage ? input.itemImage ?? "" : "",
-    cuisine: input.cuisine ?? "",
-    category: input.category ?? "",
-    rating: input.rating ? input.rating.toFixed(1) : "",
-    short_url: content.includeOrderLink ? input.shortUrl : "",
-    cta_text: ctaText,
-  };
-
-  const details = [
-    content.includePrepTime && input.prepTime ? `⏱ Ready in ${input.prepTime}` : "",
-    content.includeDelivery && input.deliveryAvailable === false ? "Pickup / dine-in only" : content.includeDelivery && input.deliveryAvailable ? "🚚 Delivery available" : "",
-    input.foodType ? `${input.foodType === "veg" ? "🟢" : "🔴"} ${input.foodType === "veg" ? "Veg" : "Non Veg"}` : "",
-    input.openHours ? `Open: ${input.openHours}` : "",
-    input.scheduleUrl ? `Schedule: ${input.scheduleUrl}` : "",
+  const scheduled = /pre|schedule|tomorrow|later/i.test(options.template ?? "");
+  const lines = scheduled ? [
+    "📅 *Available for Pre-Order*",
+    `🔥 *${input.itemName}*`,
+    content.includePrice ? `💰 ${formatPriceValue(price)}` : "",
+    input.openHours ? `🕒 Available from *${input.openHours}*` : "",
+    "📦 Schedule your order for later.",
+    content.includeOrderLink ? input.shortUrl : "",
+    "❤️ Food Gedi",
+  ] : [
+    "👋 Hello Food Lover!",
+    `🔥 Today's Special from *${input.restaurantName || humanizeSlug(input.restaurantSlug)}*`,
+    `🍽️ *${input.itemName}*`,
+    content.includePrice ? `💰 Starting at *${formatPriceValue(price)}*` : "",
+    "⭐ Freshly prepared",
+    input.rating && input.rating >= 4 ? "⭐ Best seller" : "⭐ Customer favourite",
+    "⭐ Limited stock",
+    `🛵 *${ctaText || "Order Now"}*`,
+    content.includeOrderLink ? input.shortUrl : "",
+    "❤️ Order directly from Food Gedi",
+  ];
+  const optional = [
+    content.includeDescription && input.itemDescription ? truncateText(input.itemDescription, 90) : "",
+    content.includeDelivery && input.deliveryAvailable ? "🛵 Delivery available" : "",
     content.includeAddress && input.address ? `📍 ${input.address}` : "",
-    content.includePhone && input.phone ? `📞 Call: ${input.phone}` : "",
-    input.mapUrl ? `Map: ${input.mapUrl}` : "",
-  ].filter(Boolean).join("\n");
-
-  const toned = applyTone(replaceTemplateTokens(template, replacements), options.tone);
-  return cleanMessage([toned, details, content.includeImage && input.itemImage ? `🖼 ${input.itemImage}` : ""].filter(Boolean).join("\n\n"), footer);
-}
-
-function applyTone(message: string, tone?: MarketingTone) {
-  if (!tone || tone === "professional") return message;
-  const lead: Record<Exclude<MarketingTone, "professional">, string> = { friendly: "😊 A delicious pick for you!", premium: "✨ An exceptional dining experience awaits.", luxury: "🥂 Crafted for a truly refined experience.", short: "", "emoji-rich": "🤩🍽️🔥 Deliciousness is one tap away!", family: "👨‍👩‍👧‍👦 Make mealtime special for the whole family.", urgent: "⏰ Order soon — available for a limited time!", festival: "🎊 Celebrate with flavours everyone loves!", healthy: "🌿 Fresh, wholesome and thoughtfully prepared." };
-  if (tone === "short") return message.split("\n").filter(Boolean).slice(0, 7).join("\n");
-  return `${lead[tone]}\n\n${message}`;
+    content.includePhone && input.phone ? `📞 ${input.phone}` : "",
+  ];
+  return cleanMessage([...lines, ...optional].filter(Boolean).join("\n"), footer);
 }
 
 export function buildWhatsAppShareHref(message: string) {
@@ -139,19 +126,24 @@ export function writeStoredRestaurantMarketingSettings(restaurantSlug: string, s
   window.localStorage.setItem(`${restaurantSettingsPrefix}${restaurantSlug}`, JSON.stringify(settings));
 }
 
-function replaceTemplateTokens(template: string, replacements: Record<string, string>) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => replacements[key] ?? "");
-}
-
 function cleanMessage(message: string, footer: string) {
   const cleaned = message
     .split("\n")
-    .map((line) => line.trimEnd())
+    .map((line) => line.replace(/\uFFFD/g, "").replace(/[^\S\r\n]+/g, " ").trim())
+    .filter(Boolean)
+    .filter((line) => !isTechnicalMarketingUrl(line))
+    .filter((line, index, all) => all.indexOf(line) === index)
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
   return footer ? `${cleaned}\n\n${footer}` : cleaned;
+}
+
+function isTechnicalMarketingUrl(line: string) {
+  if (!/^https?:\/\//i.test(line) && !/^(Map|Schedule):\s*https?:\/\//i.test(line)) return false;
+  if (/\/s\/[A-Z0-9_-]{3,}$/i.test(line)) return false;
+  return /google\.com\/maps|images\.|unsplash|cloudinary|intent=schedule|\/restaurant\/.+\?/.test(line);
 }
 
 function truncateText(value: string, maxLength: number) {

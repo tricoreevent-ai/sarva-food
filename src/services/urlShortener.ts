@@ -38,8 +38,8 @@ export async function shortenUrl(originalUrl: string, options: ShortenOptions = 
     };
     shortUrlCache.set(normalizedUrl, result);
     return result;
-  } catch {
-    return originalUrlResult(normalizedUrl);
+  } catch (error) {
+    return { ...originalUrlResult(normalizedUrl), error: error instanceof Error ? error.message : "Order link couldn't be created." };
   }
 }
 

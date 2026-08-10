@@ -92,9 +92,9 @@ export function buildCampaignMessage(name: string, restaurantName: string, items
       timing?.deliveryStartsAt ? `🚚 Available from ${friendly(timing.deliveryStartsAt)}` : "",
       timing?.orderingClosesAt || timing?.expiresAt ? `⏳ Available until ${friendly(timing.orderingClosesAt || timing.expiresAt)}` : "",
     ].filter(Boolean) : [],
-    Restaurant: [`📍 ${restaurantName}`],
+    Restaurant: [`🏪 ${restaurantName}`],
     CTA: [`👇 *${scheduled ? normalizeScheduledCta(cta) : normalizeOrderNowCta(cta)}*`, safeLink],
-    Footer: ["Powered by Nammude"],
+    Footer: ["❤️ Order directly from Food Gedi"],
   };
   return sanitizeWhatsAppMessage(order.flatMap((block) => blockText[block] ?? []));
 }

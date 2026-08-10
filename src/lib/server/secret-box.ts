@@ -17,29 +17,32 @@ function secretKey() {
   return createHash("sha256").update(material).digest();
 }
 
-export function encryptSecret(value?: string) {
+export function encryptSecret(value?: string, context = "platform") {
   const text = value?.trim();
   if (!text) return "";
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", secretKey(), iv);
+  cipher.setAAD(Buffer.from(context));
   const encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `${secretPrefix}${iv.toString("base64url")}.${tag.toString("base64url")}.${encrypted.toString("base64url")}`;
 }
 
-export function decryptSecret(value?: string) {
+export function decryptSecret(value?: string, context = "platform") {
   if (!value) return "";
   if (!value.startsWith(secretPrefix)) return value;
   try {
     const [ivRaw, tagRaw, encryptedRaw] = value.slice(secretPrefix.length).split(".");
     if (!ivRaw || !tagRaw || !encryptedRaw) return "";
     const decipher = createDecipheriv("aes-256-gcm", secretKey(), Buffer.from(ivRaw, "base64url"));
+    decipher.setAAD(Buffer.from(context));
     decipher.setAuthTag(Buffer.from(tagRaw, "base64url"));
     return Buffer.concat([
       decipher.update(Buffer.from(encryptedRaw, "base64url")),
       decipher.final(),
     ]).toString("utf8");
   } catch {
+    if (context !== "platform") return decryptSecret(value, "platform");
     return "";
   }
 }
