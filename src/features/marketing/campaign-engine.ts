@@ -3,8 +3,9 @@ import type { MenuItem } from "@/lib/types";
 
 export const campaignTypes = ["Today's Special", "Tomorrow's Special", "Weekend Offer", "Breakfast Menu", "Lunch Menu", "Dinner Menu", "Festival Menu", "Chef Recommendation", "Limited Stock", "Fresh Catch", "Only Today", "Pre-order", "Flash Sale", "Combo Offer", "Bulk Catering", "Family Pack", "Category", "Custom"] as const;
 export const campaignLayouts = ["Classic", "Minimal", "Luxury", "Premium", "Festival", "Offer", "Instagram Story", "WhatsApp Status", "Square", "Landscape", "Restaurant Showcase"] as const;
-export const campaignCtas = ["Order Now", "Order Direct", "Call Now", "WhatsApp Order", "View Menu", "Reserve Table", "Get Offer", "Scan QR"] as const;
+export const campaignCtas = ["Order Now", "Order Today", "Limited Stock", "Delivery Available", "Pre-book", "Order Direct", "Call Now", "WhatsApp Order", "View Menu", "Reserve Table", "Get Offer", "Scan QR"] as const;
 export const socialFormats = ["WhatsApp", "Instagram Story", "Instagram Feed", "Facebook", "Telegram", "X", "Email"] as const;
+export const campaignMessageBlocks = ["Headline", "Offer", "Price", "Description", "Schedule", "Restaurant", "CTA", "Footer"] as const;
 
 export type CampaignStatus = "draft" | "published" | "archived" | "scheduled";
 export type MarketingCampaign = {
@@ -72,12 +73,30 @@ export function campaignPricing(item: MenuItem) {
   return { selling, original, savings, discount: original > selling ? Math.round((savings / original) * 100) : 0 };
 }
 
-export function buildCampaignMessage(name: string, restaurantName: string, items: MenuItem[], cta: string, link: string, timing?: { orderingClosesAt?: string; deliveryStartsAt?: string }) {
-  const lines = items.filter((item) => !item.soldOut && item.menuVisibility?.delivery !== false).map((item) => {
+export function buildCampaignMessage(name: string, restaurantName: string, items: MenuItem[], cta: string, link: string, timing?: { orderingOpensAt?: string; orderingClosesAt?: string; deliveryStartsAt?: string; expiresAt?: string; scheduleKind?: string; messageBlocks?: readonly string[] }) {
+  const available = items.filter((item) => !item.soldOut && item.menuVisibility?.delivery !== false);
+  const lines = available.slice(0, 4).map((item) => {
     const price = item.deliveryPrice ?? item.parcelPrice ?? item.price;
-    return `🍽️ *${item.name}* — ₹${price}`;
+    return `🍽️ *${item.name}* - ₹${price}`;
   });
-  return [`🔥 *${name}*`, "", ...lines, "", "✅ Direct from Restaurant", "🚚 Home Delivery Available", items[0]?.prepTime ? `⏱ Ready in ${items[0].prepTime}` : "", timing?.orderingClosesAt ? `\n📅 Ordering closes:\n${friendly(timing.orderingClosesAt)}` : "", timing?.deliveryStartsAt ? `🚚 Delivery starts ${friendly(timing.deliveryStartsAt)}` : "", "", `👇 *${cta}*`, link, "", `📍 ${restaurantName}`, "", "Powered by Food Gedi"].filter(Boolean).join("\n");
+  const order = timing?.messageBlocks?.length ? timing.messageBlocks : campaignMessageBlocks;
+  const scheduled = Boolean(timing?.scheduleKind || timing?.orderingOpensAt || timing?.deliveryStartsAt);
+  const safeLink = isShortMarketingLink(link) ? link : "Smart link will be generated before sharing.";
+  const blockText: Record<string, string[]> = {
+    Headline: [`🔥 *${name.trim() || "Today's Special"}*`],
+    Offer: lines.length ? lines : ["🍽️ Fresh specials available today."],
+    Price: available.length > 1 ? [`Best picks from ${restaurantName}`] : [],
+    Description: available[0]?.description ? [available[0].description.replace(/\s+/g, " ").slice(0, 90)] : [],
+    Schedule: scheduled ? [
+      timing?.orderingOpensAt ? `📅 Ordering opens ${friendly(timing.orderingOpensAt)}` : "",
+      timing?.deliveryStartsAt ? `🚚 Available from ${friendly(timing.deliveryStartsAt)}` : "",
+      timing?.orderingClosesAt || timing?.expiresAt ? `⏳ Available until ${friendly(timing.orderingClosesAt || timing.expiresAt)}` : "",
+    ].filter(Boolean) : [],
+    Restaurant: [`📍 ${restaurantName}`],
+    CTA: [`👇 *${scheduled ? normalizeScheduledCta(cta) : normalizeOrderNowCta(cta)}*`, safeLink],
+    Footer: ["Powered by Nammude"],
+  };
+  return sanitizeWhatsAppMessage(order.flatMap((block) => blockText[block] ?? []));
 }
 
 export function emptyMetrics(): MarketingCampaign["metrics"] & { repeatCustomers?: number } {
@@ -97,3 +116,13 @@ export function campaignAvailability(campaign: Pick<MarketingCampaign, "status" 
 
 function dateMs(value?: string) { const parsed = value ? new Date(value).getTime() : 0; return Number.isFinite(parsed) ? parsed : 0; }
 function friendly(value?: string) { if (!value) return "soon"; return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(value)); }
+function isShortMarketingLink(value: string) { return /^https:\/\/[^/\s]+\/[a-z0-9-]{3,}$/i.test(value) || /^https:\/\/[^/\s]+\/s\/[a-z0-9-]{3,}$/i.test(value); }
+function normalizeOrderNowCta(value: string) { return ["Order Today", "Order Now", "Limited Stock", "Delivery Available"].includes(value) ? value : "Order Now"; }
+function normalizeScheduledCta(value: string) { return value === "Pre-book" ? value : "Pre-book"; }
+function sanitizeWhatsAppMessage(lines: string[]) {
+  return lines
+    .map((line) => line.replace(/\uFFFD/g, "").replace(/[^\S\r\n]+/g, " ").trim())
+    .filter(Boolean)
+    .filter((line, index, all) => all.indexOf(line) === index)
+    .join("\n");
+}

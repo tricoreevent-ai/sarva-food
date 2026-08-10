@@ -1,6 +1,6 @@
 # Runtime Profile
 
-Date: 2026-08-07T08:40:51.382Z
+Date: 2026-08-10T06:35:54.107Z
 
 ## Measurement Inputs
 
@@ -30,11 +30,11 @@ Date: 2026-08-07T08:40:51.382Z
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.56ms | 0.71ms | 2.42ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.03ms | 0.08ms | 0.44ms | <100ms update |
-| POS 1000-item category switch | 0.09ms | 0.16ms | 0.37ms | <50ms switch |
-| POS 1000-item search filter | 0.14ms | 0.26ms | 0.90ms | debounced |
-| Active Orders 100-order filter/group | 0.23ms | 0.57ms | 1.27ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.35ms | 0.43ms | 1.56ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.07ms | 0.37ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.10ms | 0.23ms | <50ms switch |
+| POS 1000-item search filter | 0.11ms | 0.24ms | 0.70ms | debounced |
+| Active Orders 100-order filter/group | 0.18ms | 0.35ms | 0.77ms | <50ms interaction |
 
 ## Notes
 
