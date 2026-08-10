@@ -1,15 +1,15 @@
 # Production Smoke Report
 
-Generated: 2026-07-26T13:58:08.270Z
+Generated: 2026-08-10T09:05:56.375Z
 
 ## Summary
 
 | Status | Count |
 | --- | --- |
-| PASS | 5 |
+| PASS | 7 |
 | WARNING | 0 |
 | ERROR | 0 |
-| FAIL | 2 |
+| FAIL | 0 |
 | MANUAL | 18 |
 
 ## Checks
@@ -21,8 +21,8 @@ Generated: 2026-07-26T13:58:08.270Z
 | route:/offers | PASS | HTTP 200 |
 | route:/api/release-info | PASS | HTTP 200 |
 | route:/health/live | PASS | HTTP 200 |
-| route:/health/ready | FAIL | HTTP 503 |
-| route:/api/public/restaurants | FAIL | HTTP 500 |
+| route:/health/ready | PASS | HTTP 200 |
+| route:/api/public/restaurants | PASS | HTTP 200 |
 | manual:Customer authentication | MANUAL | Requires authenticated browser/provider/hardware validation. |
 | manual:Owner authentication | MANUAL | Requires authenticated browser/provider/hardware validation. |
 | manual:Kitchen flow | MANUAL | Requires authenticated browser/provider/hardware validation. |

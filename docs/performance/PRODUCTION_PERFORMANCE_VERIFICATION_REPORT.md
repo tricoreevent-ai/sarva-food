@@ -1,6 +1,6 @@
 # Production Performance Verification Report
 
-Generated: 2026-07-15T11:57:51.319Z
+Generated: 2026-08-10T09:06:00.825Z
 
 ## Summary
 
@@ -16,9 +16,9 @@ Generated: 2026-07-15T11:57:51.319Z
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| target:url | PASS | http://localhost:3000 |
-| bundle:tracked-route-js | PASS | /owner/orders 697 KB / budget 1200 KB |
-| bundle:static-js-total | PASS | 8837 KB built JS total; informational, not first-load budget. |
+| target:url | PASS | https://violet-squid-380447.hostingersite.com |
+| bundle:tracked-route-js | PASS | /owner/settings 816 KB / budget 1200 KB |
+| bundle:static-js-total | PASS | 9668 KB built JS total; informational, not first-load budget. |
 | bundle:analyzer-client | PASS | .next/analyze/client.html is present and usable. |
 | lighthouse:desktop | MANUAL | Chrome/Lighthouse unavailable or RUN_LIGHTHOUSE=1 not set. |
 | lighthouse:mobile | MANUAL | Run with RUN_LIGHTHOUSE=1 PRODUCTION_URL=https://... |
@@ -39,21 +39,21 @@ Generated: 2026-07-15T11:57:51.319Z
 
 | Metric | Value |
 | --- | --- |
-| staticFiles | 398 |
-| staticJsKb | 8837 |
-| staticCssKb | 191 |
-| routeCount | 103 |
-| maxRoute | /handler/[...stack] 1971 KB JS / 191 KB CSS |
-| maxTrackedRoute | /owner/orders 697 KB JS / 191 KB CSS |
+| staticFiles | 427 |
+| staticJsKb | 9668 |
+| staticCssKb | 195 |
+| routeCount | 105 |
+| maxRoute | /handler/[...stack] 2000 KB JS / 195 KB CSS |
+| maxTrackedRoute | /owner/settings 816 KB JS / 195 KB CSS |
 
 ## Tracked Routes
 
 | Route | JS KB | CSS KB | Chunks |
 | --- | --- | --- | --- |
-| / | 462 | 191 | 19 |
-| /owner | 576 | 191 | 29 |
-| /owner/kitchen | 651 | 191 | 32 |
-| /owner/orders | 697 | 191 | 34 |
-| /owner/pos | 581 | 191 | 30 |
-| /owner/settings | 690 | 191 | 33 |
-| /profile | 553 | 191 | 25 |
+| / | 491 | 195 | 22 |
+| /owner | 655 | 195 | 32 |
+| /owner/kitchen | 772 | 195 | 35 |
+| /owner/orders | 808 | 195 | 37 |
+| /owner/pos | 660 | 195 | 33 |
+| /owner/settings | 816 | 195 | 38 |
+| /profile | 592 | 195 | 29 |

@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-07-26T13:58:08.272Z",
+  "generatedAt": "2026-08-10T09:05:56.376Z",
   "summary": {
     "counts": {
-      "PASS": 5,
+      "PASS": 7,
       "WARNING": 0,
       "ERROR": 0,
-      "FAIL": 2,
+      "FAIL": 0,
       "MANUAL": 18
     },
-    "exitCode": 1
+    "exitCode": 0
   },
   "checks": [
     {
@@ -38,13 +38,13 @@
     },
     {
       "name": "route:/health/ready",
-      "status": "FAIL",
-      "detail": "HTTP 503"
+      "status": "PASS",
+      "detail": "HTTP 200"
     },
     {
       "name": "route:/api/public/restaurants",
-      "status": "FAIL",
-      "detail": "HTTP 500"
+      "status": "PASS",
+      "detail": "HTTP 200"
     },
     {
       "name": "manual:Customer authentication",

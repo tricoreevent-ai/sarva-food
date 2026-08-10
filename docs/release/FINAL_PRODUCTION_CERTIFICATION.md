@@ -1,10 +1,10 @@
 # Final Production Certification
 
-Generated: 2026-08-07T07:17:16.251Z
+Generated: 2026-08-10T09:06:12.261Z
 
 | Field | Value |
 | --- | --- |
-| Base repository SHA | `68fcfbc736b8f60d1736e2c9679ac82678a12309` (pre-certification commit) |
+| Base repository SHA | `ca08ae246a45393ad41a0f8d3c69959f902a9856` (pre-certification commit) |
 | Branch | `release/production-nammude` |
 | Release version | `v1.0.0-rc6.5` |
 | Node version | `v22.16.0` |

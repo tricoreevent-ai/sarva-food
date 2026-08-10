@@ -1,6 +1,6 @@
 # Deployment Verification Report
 
-Generated: 2026-07-29T14:54:44.481Z
+Generated: 2026-08-10T09:05:46.863Z
 
 ## Summary
 
@@ -18,7 +18,7 @@ Generated: 2026-07-29T14:54:44.481Z
 | --- | --- | --- |
 | http:release-info | PASS | https://violet-squid-380447.hostingersite.com/api/release-info -> HTTP 200 |
 | release:version | PASS | expected v1.0.0-rc6.5, saw v1.0.0-rc6.5 |
-| release:sha | PASS | expected c17119a509aa28880fc9a507b94317b1d1727b69, saw c17119a509aa28880fc9a507b94317b1d1727b69 |
+| release:sha | PASS | expected ca08ae246a45393ad41a0f8d3c69959f902a9856, saw ca08ae246a45393ad41a0f8d3c69959f902a9856 |
 | release:branch | PASS | expected release/production-nammude |
 | release:environment | PASS | saw production |
 | release:timestamp | PASS | deployment timestamp present |
