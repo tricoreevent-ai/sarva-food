@@ -1,6 +1,6 @@
 # Final Performance Report
 
-Date: 2026-08-10T07:35:15.479Z
+Date: 2026-08-10T08:01:43.171Z
 
 This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterprise waiter workflow, RC6 brand/customer/order-classification hardening, image delivery, observability, and push/payment readiness measurements. RC6.5 is tracker/release reconciliation only; Firestore collections, auth flows, APIs, listeners, and provider contracts remain backward compatible.
 
@@ -46,11 +46,11 @@ This final report pack consolidates Phase 2, Phase 3, Active Orders, RC5 enterpr
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 1.78ms | 9.07ms | 26.99ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.08ms | 0.28ms | 1.23ms | <100ms update |
-| POS 1000-item category switch | 0.30ms | 1.36ms | 17.70ms | <50ms switch |
-| POS 1000-item search filter | 0.44ms | 1.55ms | 10.72ms | debounced |
-| Active Orders 100-order filter/group | 0.65ms | 1.69ms | 5.54ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 0.34ms | 0.70ms | 4.13ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.02ms | 0.04ms | 0.28ms | <100ms update |
+| POS 1000-item category switch | 0.06ms | 0.10ms | 0.23ms | <50ms switch |
+| POS 1000-item search filter | 0.08ms | 0.16ms | 0.62ms | debounced |
+| Active Orders 100-order filter/group | 0.15ms | 0.20ms | 0.63ms | <50ms interaction |
 
 ## Conclusion
 
