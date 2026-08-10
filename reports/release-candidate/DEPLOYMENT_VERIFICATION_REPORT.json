@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T09:42:51.828Z",
+  "generatedAt": "2026-08-10T09:48:27.461Z",
   "summary": {
     "counts": {
       "PASS": 17,
@@ -24,7 +24,7 @@
     {
       "name": "release:sha",
       "status": "PASS",
-      "detail": "expected ca08ae246a45393ad41a0f8d3c69959f902a9856, saw ca08ae246a45393ad41a0f8d3c69959f902a9856"
+      "detail": "expected 3a08c0b494950afe3e283a5a9a27dfb9d470abff, saw 3a08c0b494950afe3e283a5a9a27dfb9d470abff"
     },
     {
       "name": "release:branch",
