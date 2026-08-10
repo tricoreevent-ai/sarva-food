@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   if (!tenantId || (allowed.size && !allowed.has(tenantId))) return NextResponse.json({ error: "This restaurant is not available to your account." }, { status: 403 });
   const targetPath = safeTarget(String(body.targetPath || ""));
   if (!targetPath) return NextResponse.json({ error: "Choose a valid public restaurant, menu, item, or campaign page." }, { status: 400 });
-  const kind = ["item", "campaign", "menu", "category", "offer"].includes(String(body.kind)) ? String(body.kind) : "campaign";
+  const kind = ["item", "campaign", "menu", "category", "offer", "restaurant"].includes(String(body.kind)) ? String(body.kind) : "campaign";
   const digest = createHash("sha256").update(`${tenantId}|${targetPath}`).digest("base64url").toUpperCase();
   let code = digest.slice(0, 7); let existing: FirebaseFirestore.DocumentSnapshot | null = null;
   for (let length = 7; length <= 12; length += 1) { code = digest.slice(0, length); existing = await adminDb().collection("smartLinks").doc(code).get(); if (!existing.exists || existing.data()?.targetPath === targetPath) break; }
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 function safeTarget(value: string) {
   try {
     const path = value.startsWith("http") ? new URL(value).pathname : value;
-    if (!/^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(path)) return "";
+    if (!/^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/item\/[^/]+|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(path)) return "";
     return path;
   } catch { return ""; }
 }

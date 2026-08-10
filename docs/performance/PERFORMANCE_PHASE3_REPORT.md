@@ -1,6 +1,6 @@
 # Performance Phase 3 Report
 
-Date: 2026-08-10T06:35:54.107Z
+Date: 2026-08-10T07:35:15.479Z
 
 ## Scope
 
@@ -36,11 +36,11 @@ Final runtime smoothness pass for Customer, Owner, Kitchen, and POS without chan
 
 | Scenario | p50 | p95 | Max | Budget |
 | --- | --- | --- | --- | --- |
-| Kitchen 100-order filter/sort | 0.35ms | 0.43ms | 1.56ms | <100ms update |
-| Kitchen snapshot reconciliation | 0.02ms | 0.07ms | 0.37ms | <100ms update |
-| POS 1000-item category switch | 0.06ms | 0.10ms | 0.23ms | <50ms switch |
-| POS 1000-item search filter | 0.11ms | 0.24ms | 0.70ms | debounced |
-| Active Orders 100-order filter/group | 0.18ms | 0.35ms | 0.77ms | <50ms interaction |
+| Kitchen 100-order filter/sort | 1.78ms | 9.07ms | 26.99ms | <100ms update |
+| Kitchen snapshot reconciliation | 0.08ms | 0.28ms | 1.23ms | <100ms update |
+| POS 1000-item category switch | 0.30ms | 1.36ms | 17.70ms | <50ms switch |
+| POS 1000-item search filter | 0.44ms | 1.55ms | 10.72ms | debounced |
+| Active Orders 100-order filter/group | 0.65ms | 1.69ms | 5.54ms | <50ms interaction |
 
 ## Remaining Manual Gates
 

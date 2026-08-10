@@ -507,6 +507,7 @@ await check("security:upload-notification-and-test-endpoint-boundaries", () => {
 await check("marketing:production-hardening", () => {
   for (const token of ["rateLimit", "smartLinkVisits", "createHash", "runTransaction"]) assert.ok(smartLinkApi.includes(token), token);
   assert.ok(campaignApi.includes("rateLimit"));
+  assert.ok(read("src/app/api/owner/short-links/route.ts").includes("\\/item\\/[^/]+"));
   for (const token of ["reserveCampaign", "rollbackCampaign", "campaignAvailability"]) assert.ok(customerOrderApi.includes(token), token);
   for (const token of ["AbortSignal.timeout", "fetchWithTimeout"]) assert.ok(clientFetch.includes(token), token);
   for (const token of ["Support ID", "captureException", "onClick={reset}"]) assert.ok(globalError.includes(token), token);
