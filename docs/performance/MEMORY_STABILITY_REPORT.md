@@ -1,6 +1,6 @@
 # Memory Stability Report
 
-Generated: 2026-08-10T09:06:08.376Z
+Generated: 2026-08-10T09:43:12.711Z
 
 ## Summary
 
@@ -16,7 +16,7 @@ Generated: 2026-08-10T09:06:08.376Z
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| server:heap-growth | PASS | 1.31 MB growth / budget 64 MB |
+| server:heap-growth | PASS | 0.10 MB growth / budget 64 MB |
 | browser:listeners | MANUAL | EventSource/WebSocket/Firestore listener and React mount counts require authenticated Chrome instrumentation. |
 | browser:heap | MANUAL | Detached DOM and client heap require 30-minute authenticated browser session. |
 
@@ -24,6 +24,6 @@ Generated: 2026-08-10T09:06:08.376Z
 
 | Time | Heap MB | RSS MB | Status |
 | --- | --- | --- | --- |
-| 2026-08-10T09:06:05.380Z | 87.63 | 174.84 | ok |
-| 2026-08-10T09:06:06.874Z | 88.29 | 174.84 | ok |
-| 2026-08-10T09:06:08.375Z | 88.94 | 174.84 | ok |
+| 2026-08-10T09:43:09.640Z | 90.87 | 177.41 | ok |
+| 2026-08-10T09:43:11.176Z | 90.91 | 177.41 | ok |
+| 2026-08-10T09:43:12.710Z | 90.97 | 177.41 | ok |
