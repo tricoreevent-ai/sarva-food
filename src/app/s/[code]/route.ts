@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const qr = request.nextUrl.searchParams.get("source") === "qr";
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown"; const bucket = Math.floor(Date.now() / 1_800_000); const fingerprint = createHash("sha256").update(`${code}|${ip}|${request.headers.get("user-agent") || "unknown"}|${bucket}`).digest("hex").slice(0, 32); const visitRef = adminDb().collection("smartLinkVisits").doc(fingerprint);
   const unique = await adminDb().runTransaction(async (transaction) => { const visit = await transaction.get(visitRef); if (visit.exists) return false; transaction.create(visitRef, { code, bucket, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 24 * 60 * 60_000).toISOString() }); transaction.set(ref, { clicks: FieldValue.increment(1), ...(qr ? { qrScans: FieldValue.increment(1) } : {}), lastClickedAt: new Date().toISOString() }, { merge: true }); return true; }).catch(() => false);
-  const campaignMatch = data.targetPath.match(/^\/restaurant\/([^/]+)\/campaign\/([^/]+)/);
+  const campaignMatch = path.match(/^\/restaurant\/([^/]+)\/campaign\/([^/]+)/);
   if (campaignMatch && unique) {
     const campaign = await adminDb().collection("publicMarketingCampaigns").doc(`${campaignMatch[1]}:${campaignMatch[2]}`).get().catch(() => null);
     const campaignId = campaign?.data()?.campaignId;
@@ -27,7 +27,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 function targetPath(value: unknown) {
   if (typeof value !== "string") return "";
   try {
-    const path = value.startsWith("http") ? new URL(value).pathname : value;
+    const url = value.startsWith("http") ? new URL(value) : null;
+    if (url && !trustedTargetHost(url.hostname)) return "";
+    const path = url ? url.pathname : value;
     return /^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/item\/[^/]+|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(path) ? path : "";
   } catch { return ""; }
 }
@@ -50,4 +52,8 @@ function safeOrigin(value?: string | null) {
     if (["0.0.0.0", "127.0.0.1"].includes(url.hostname)) return "";
     return url.origin;
   } catch { return ""; }
+}
+
+function trustedTargetHost(hostname: string) {
+  return ["0.0.0.0", "localhost", "127.0.0.1"].includes(hostname) || hostname.endsWith(".hostingersite.com") || hostname.endsWith(".foodgedi.com") || hostname.endsWith(".sarvafood.com");
 }

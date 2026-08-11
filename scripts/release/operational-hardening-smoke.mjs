@@ -508,6 +508,21 @@ await check("security:upload-notification-and-test-endpoint-boundaries", () => {
 
 await check("marketing:production-hardening", () => {
   for (const token of ["rateLimit", "smartLinkVisits", "createHash", "runTransaction"]) assert.ok(smartLinkApi.includes(token), token);
+  for (const token of ["publicOrigin(request)", "targetPath(data?.targetPath)", "trustedTargetHost", "0.0.0.0", "127.0.0.1", "link-unavailable"]) assert.ok(smartLinkApi.includes(token), token);
+  const normalizeSmartLink = (value) => {
+    try {
+      const url = value.startsWith("http") ? new URL(value) : null;
+      const host = url?.hostname ?? "";
+      const trusted = ["0.0.0.0", "localhost", "127.0.0.1"].includes(host) || host.endsWith(".hostingersite.com") || host.endsWith(".foodgedi.com") || host.endsWith(".sarvafood.com");
+      if (url && !trusted) return "";
+      const target = url ? url.pathname : value;
+      return /^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/item\/[^/]+|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(target) ? `https://violet-squid-380447.hostingersite.com${target}` : "";
+    } catch { return ""; }
+  };
+  assert.equal(normalizeSmartLink("https://0.0.0.0:3000/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew"), "https://violet-squid-380447.hostingersite.com/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew");
+  assert.equal(normalizeSmartLink("/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew"), "https://violet-squid-380447.hostingersite.com/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew");
+  assert.equal(normalizeSmartLink("https://evil.example/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew"), "");
+  assert.equal(normalizeSmartLink("not-a-smart-link"), "");
   assert.ok(campaignApi.includes("rateLimit"));
   assert.ok(read("src/app/api/owner/short-links/route.ts").includes("\\/item\\/[^/]+"));
   for (const token of ["reserveCampaign", "rollbackCampaign", "campaignAvailability"]) assert.ok(customerOrderApi.includes(token), token);
