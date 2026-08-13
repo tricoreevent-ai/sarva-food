@@ -252,8 +252,10 @@ await check("menu:item-route-and-internal-sharing", () => {
   assert.ok(shortLinkRoute.includes("menuItemPath(slug, itemId)"));
   for (const token of ['"telegram"', '"sms"', '"email"', "openChannel"]) assert.ok(shareHook.includes(token) || shareModal.includes(token), token);
   for (const token of ["Schedule:", "Call:", "Map:", "input.imageUrl", "input.scheduleUrl"]) assert.ok(!shareTemplate.includes(token), token);
+  for (const token of ["Today's Special", "₹", "Order Now"]) assert.ok(shareTemplate.includes(token), token);
   assert.ok(shareHook.includes("if (!shortener.ok)"));
   assert.ok(shareModal.includes("preview.shortUrl"));
+  for (const token of ["navigator.canShare", "navigator.share", "Attach it in WhatsApp", "preview.message"]) assert.ok(shareModal.includes(token), token);
 });
 
 await check("health:runtime-failures-vs-credential-warnings", () => {
@@ -516,10 +518,12 @@ await check("marketing:production-hardening", () => {
       const trusted = ["0.0.0.0", "localhost", "127.0.0.1"].includes(host) || host.endsWith(".hostingersite.com") || host.endsWith(".foodgedi.com") || host.endsWith(".sarvafood.com");
       if (url && !trusted) return "";
       const target = url ? url.pathname : value;
-      return /^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/item\/[^/]+|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(target) ? `https://violet-squid-380447.hostingersite.com${target}` : "";
+      const canonical = target.replace(/^\/restaurant\/([^/]+)\/menu\/([^/?#]+)\/?$/, "/restaurant/$1/item/$2");
+      return /^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/item\/[^/]+|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(canonical) ? `https://violet-squid-380447.hostingersite.com${canonical}` : "";
     } catch { return ""; }
   };
   assert.equal(normalizeSmartLink("https://0.0.0.0:3000/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew"), "https://violet-squid-380447.hostingersite.com/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew");
+  assert.equal(normalizeSmartLink("https://0.0.0.0:3000/restaurant/cafe-al-arab-thanisandra/menu/appam-with-chicken-stew"), "https://violet-squid-380447.hostingersite.com/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew");
   assert.equal(normalizeSmartLink("/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew"), "https://violet-squid-380447.hostingersite.com/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew");
   assert.equal(normalizeSmartLink("https://evil.example/restaurant/cafe-al-arab-thanisandra/item/appam-with-chicken-stew"), "");
   assert.equal(normalizeSmartLink("not-a-smart-link"), "");
@@ -538,6 +542,7 @@ await check("deployment:configuration-health-and-automation", () => {
   assert.ok(productionLogger.includes("JSON.stringify(payload)"));
   assert.ok(productionLogger.includes("recordMonitoringLog(level, event, safeData)"));
   assert.ok(secretBox.includes('process.env.NODE_ENV === "production" && !process.env.PAYMENT_SETTINGS_ENCRYPTION_KEY'));
+  for (const token of ["encryptEnvelopeSecret", "decryptEnvelopeSecret", "encryptedDataKey", "AES-256-GCM", ":dek"]) assert.ok(secretBox.includes(token), token);
 });
 
 await check("payments:production-provider-hardening", () => {

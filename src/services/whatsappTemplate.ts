@@ -70,22 +70,18 @@ export function generateWhatsAppMenuMessage(input: WhatsAppMenuItemInput, option
   const lines = scheduled ? [
     "📅 *Available for Pre-Order*",
     `🔥 *${input.itemName}*`,
-    content.includePrice ? `💰 ${formatPriceValue(price)}` : "",
+    content.includePrice ? `💰 ₹${formatPriceValue(price)}` : "",
     input.openHours ? `🕒 Available from *${input.openHours}*` : "",
-    "📦 Schedule your order for later.",
+    "📦 *Schedule Order*",
     content.includeOrderLink ? input.shortUrl : "",
     "❤️ Food Gedi",
   ] : [
-    "👋 Hello Food Lover!",
-    `🔥 Today's Special from *${input.restaurantName || humanizeSlug(input.restaurantSlug)}*`,
+    "👋 Hello Food lover!",
+    `🔥 Today's Special — *${input.restaurantName || humanizeSlug(input.restaurantSlug)}*`,
     `🍽️ *${input.itemName}*`,
-    content.includePrice ? `💰 Starting at *${formatPriceValue(price)}*` : "",
-    "⭐ Freshly prepared",
-    input.rating && input.rating >= 4 ? "⭐ Best seller" : "⭐ Customer favourite",
-    "⭐ Limited stock",
-    `🛵 *${ctaText || "Order Now"}*`,
+    content.includePrice ? `💰 *₹${formatPriceValue(price)}*` : "",
+    `🛒 *${ctaText || "Order Now"}*`,
     content.includeOrderLink ? input.shortUrl : "",
-    "❤️ Order directly from Food Gedi",
   ];
   const optional = [
     content.includeDescription && input.itemDescription ? truncateText(input.itemDescription, 90) : "",

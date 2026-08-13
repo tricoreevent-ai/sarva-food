@@ -4,7 +4,7 @@ import Razorpay from "razorpay";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/firebase/admin";
 import { tenantScope, type TenantScope } from "@/repositories/shared";
-import { decryptSecret, encryptSecret, isMaskedSecret, maskSecret } from "@/lib/server/secret-box";
+import { decryptEnvelopeSecret, encryptEnvelopeSecret, isMaskedSecret, maskSecret } from "@/lib/server/secret-box";
 import { resolveTenantId } from "@/lib/tenant";
 import type { VerifiedSession } from "@/lib/server-auth";
 import type { OrderDoc } from "@/types/firebase";
@@ -250,8 +250,8 @@ function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpa
     mode: input.mode === "live" ? "live" : "test",
     keyId: stringOrEmpty(input.keyId || input.razorpayKeyId),
     merchantId: stringOrEmpty(input.merchantId).slice(0, 80),
-    keySecretEncrypted: secret && !isMaskedSecret(secret) ? encryptSecret(secret, ownerKeyContext(ownerId)) : existing.keySecretEncrypted,
-    webhookSecretEncrypted: webhookSecret && !isMaskedSecret(webhookSecret) ? encryptSecret(webhookSecret, ownerKeyContext(ownerId)) : existing.webhookSecretEncrypted,
+    keySecretEncrypted: secret && !isMaskedSecret(secret) ? encryptEnvelopeSecret(secret, ownerKeyContext(ownerId)) : existing.keySecretEncrypted,
+    webhookSecretEncrypted: webhookSecret && !isMaskedSecret(webhookSecret) ? encryptEnvelopeSecret(webhookSecret, ownerKeyContext(ownerId)) : existing.webhookSecretEncrypted,
     companyName: stringOrEmpty(input.companyName).slice(0, 80),
     companyLogo: stringOrEmpty(input.companyLogo),
     methods: {
@@ -274,8 +274,8 @@ function sanitizeSettings(input: Record<string, unknown>, existing: SavedRazorpa
 }
 
 function toPublicSettings(raw: SavedRazorpaySettings, restaurantId: string, ownerId = ""): RazorpayPublicSettings {
-  const secret = decryptSecret(raw.keySecretEncrypted || raw.keySecret, ownerKeyContext(ownerId));
-  const webhookSecret = decryptSecret(raw.webhookSecretEncrypted || raw.webhookSecret, ownerKeyContext(ownerId));
+  const secret = decryptEnvelopeSecret(raw.keySecretEncrypted || raw.keySecret, ownerKeyContext(ownerId));
+  const webhookSecret = decryptEnvelopeSecret(raw.webhookSecretEncrypted || raw.webhookSecret, ownerKeyContext(ownerId));
   const settings = normalized(raw);
   return {
     ...settings,
@@ -292,8 +292,8 @@ function toPublicSettings(raw: SavedRazorpaySettings, restaurantId: string, owne
 
 function toRuntimeSettings(raw: SavedRazorpaySettings, ownerId: string, restaurantId: string, tenantId: string, fallback: { companyName?: string; companyLogo?: string } = {}): RazorpayRuntimeSettings {
   const settings = toPublicSettings(raw, restaurantId, ownerId);
-  const keySecret = decryptSecret(raw.keySecretEncrypted || raw.keySecret, ownerKeyContext(ownerId)) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_SECRET ?? "" : "");
-  const webhookSecret = decryptSecret(raw.webhookSecretEncrypted || raw.webhookSecret, ownerKeyContext(ownerId)) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_WEBHOOK_SECRET ?? "" : "");
+  const keySecret = decryptEnvelopeSecret(raw.keySecretEncrypted || raw.keySecret, ownerKeyContext(ownerId)) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_SECRET ?? "" : "");
+  const webhookSecret = decryptEnvelopeSecret(raw.webhookSecretEncrypted || raw.webhookSecret, ownerKeyContext(ownerId)) || (settings.keyId === process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_WEBHOOK_SECRET ?? "" : "");
   return {
     ...settings,
     enabled: settings.enabled || Boolean(settings.keyId && keySecret && raw.razorpayEnabled),

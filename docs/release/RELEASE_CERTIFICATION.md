@@ -130,3 +130,16 @@ Manual completion procedure:
 3. Set a stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` in Hostinger only if owner-managed live payment credentials are enabled; preserve any existing key.
 4. Retest `/s/6OPGP_V` and one newly created smart link; neither may redirect to `0.0.0.0`, localhost, or a long technical URL.
 5. Complete WhatsApp, browser/device, Firebase authenticated, payment, SMTP, Lighthouse, Chrome Performance, Chrome Memory, and hardware UAT with screenshots/log evidence.
+
+## RC6.5 Final Production Hardening Addendum - 2026-08-13
+
+| Area | Status | Evidence | Remaining blocker |
+| --- | --- | --- | --- |
+| Canonical smart links | PASS in repository | `/restaurant/{slug}/menu/{item}` legacy targets now normalize to canonical `/restaurant/{slug}/item/{item}` while preserving attribution; internal-host and external-target checks remain enforced. | Deploy successor SHA and retest `/s/6OPGP_V`. |
+| WhatsApp default message | PASS in repository | Default Order Now copy is compact: restaurant, item, price, CTA, one short link; raw map/schedule/image/long URLs are filtered. | Real WhatsApp Web/Android/iPhone UAT. |
+| WhatsApp promo image sharing | PASS in repository | Promo image generation now uses item image/logo where available, bounded image load timeout, Web Share API with files when supported, and download/copy/manual-attach fallback. | Real device/browser WhatsApp sharing evidence. |
+| Payment secret architecture | PASS in repository | New saves use envelope encryption format `v2` with random DEK, AES-256-GCM payload encryption, tenant/owner AAD, KEK-wrapped DEK, and legacy `v1` decrypt compatibility. | Configure stable `PAYMENT_SETTINGS_ENCRYPTION_KEY` if owner-managed online payment is launch-enabled; run owner Razorpay UAT. |
+| Automated validation | PASS | `typecheck`, `lint`, `build`, `analyze`, `audit:release`, `smoke:operational`, `profile:runtime`, `theme:contrast`, `brand:visual`, `git diff --check` passed; analyzer retains accepted Firebase/protobuf warning. | None repository-side. |
+| Test accounts | WARN | Dev-only `/api/auth/test-session` is hidden in production; production seed/admin flows exist but require credentials. | Project owner must provide/create UAT Customer, Owner, Kitchen, Waiter, POS identities through existing admin/Firebase process. |
+
+Production readiness remains evidence-gated. Do not mark WhatsApp, authenticated ordering, role workflows, Razorpay, SMTP, mobile, hardware, Lighthouse, Chrome Performance, or Chrome Memory as PASS until real external evidence is captured.

@@ -29,9 +29,15 @@ function targetPath(value: unknown) {
   try {
     const url = value.startsWith("http") ? new URL(value) : null;
     if (url && !trustedTargetHost(url.hostname)) return "";
-    const path = url ? url.pathname : value;
+    const path = canonicalTargetPath(url ? url.pathname : value);
     return /^\/restaurant\/[^/]+(?:\/menu(?:\/[^/]+)?|\/item\/[^/]+|\/campaign\/[^/]+|\/category\/[^/]+|\/offers?)?\/?$/.test(path) ? path : "";
   } catch { return ""; }
+}
+
+function canonicalTargetPath(path: string) {
+  const itemFromMenu = path.match(/^\/restaurant\/([^/]+)\/menu\/([^/?#]+)\/?$/);
+  if (itemFromMenu) return `/restaurant/${itemFromMenu[1]}/item/${itemFromMenu[2]}`;
+  return path;
 }
 
 function publicOrigin(request: NextRequest) {

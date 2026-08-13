@@ -9,6 +9,7 @@ import { marketingToneOptions, whatsappTemplateOptions, type MarketingTone, type
 import type { WhatsAppSharePreview } from "@/hooks/useWhatsAppShare";
 import type { WhatsAppContentOptions } from "@/services/whatsappTemplate";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "@/lib/client-toast";
 
 type Props = {
   preview: WhatsAppSharePreview | null;
@@ -34,7 +35,14 @@ export function WhatsAppShareModal({ preview, open, preparing = false, onOpenCha
   async function downloadPoster() {
     if (!preview || downloading) return;
     setDownloading(true);
-    try { await createPoster(preview); onDownload?.(); } finally { setDownloading(false); }
+    try {
+      await createPoster(preview);
+      onDownload?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Promo image could not be prepared. Retry after checking the item image.");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -73,7 +81,7 @@ export function WhatsAppShareModal({ preview, open, preparing = false, onOpenCha
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <Button type="button" variant="outline" onClick={onCopy}><Clipboard className="size-4" />Copy Message</Button>
                 <Button type="button" variant="outline" onClick={onCopyLink} disabled={!onCopyLink}><Link2 className="size-4" />Copy Link</Button>
-                <Button type="button" variant="outline" onClick={() => void downloadPoster()} disabled={downloading}>{downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}Promo Image</Button>
+                <Button type="button" variant="outline" onClick={() => void downloadPoster()} disabled={downloading}>{downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}Share Promo Image</Button>
                 <Button type="button" variant="outline" onClick={onWhatsAppWeb ?? onWhatsApp}><Monitor className="size-4" />WhatsApp Web</Button>
                 <Button type="button" variant="outline" onClick={onWhatsApp}><Smartphone className="size-4" />WhatsApp App</Button>
                 <Button type="button" onClick={onWhatsApp}><MessageCircle className="size-4" />Share Contact / Group</Button>
@@ -96,17 +104,41 @@ async function createPoster(preview: WhatsAppSharePreview) {
   const color = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
   ctx.fillStyle = color ? `hsl(${color})` : "#166534"; ctx.fillRect(0, 0, 1080, 1350);
   ctx.fillStyle = "#fff"; ctx.fillRect(48, 48, 984, 1254);
+  const logo = await loadImage(preview.restaurant?.logo || preview.restaurant?.image || "").catch(() => null);
   const image = await loadImage(preview.item.image).catch(() => null);
   if (image) { ctx.save(); ctx.beginPath(); ctx.roundRect(80, 80, 920, 620, 28); ctx.clip(); ctx.drawImage(image, 80, 80, 920, 620); ctx.restore(); }
-  ctx.fillStyle = "#111827"; ctx.font = "800 44px system-ui"; ctx.fillText(preview.restaurantName.slice(0, 34), 80, 780);
+  if (logo) { ctx.save(); ctx.beginPath(); ctx.arc(128, 768, 38, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(logo, 90, 730, 76, 76); ctx.restore(); }
+  ctx.fillStyle = "#111827"; ctx.font = "800 44px system-ui"; ctx.fillText(preview.restaurantName.slice(0, 34), logo ? 186 : 80, 780);
   ctx.font = "900 68px system-ui"; wrapText(ctx, preview.item.name, 80, 880, 700, 78);
   const price = preview.item.deliveryPrice ?? preview.item.parcelPrice ?? preview.item.price;
-  ctx.fillStyle = "#166534"; ctx.font = "900 58px system-ui"; ctx.fillText(formatCurrency(price), 80, 1085);
-  ctx.fillStyle = "#111827"; ctx.font = "700 30px system-ui"; ctx.fillText("ORDER NOW", 80, 1160); ctx.font = "500 24px system-ui"; ctx.fillText(new URL(preview.shortUrl, location.origin).host, 80, 1210);
-  const QRCode = await import("qrcode"); const qrUrl = await QRCode.toDataURL(preview.shortUrl, { width: 220, margin: 1, color: { dark: "#111827", light: "#ffffff" } }); const qr = await loadImage(qrUrl); ctx.drawImage(qr, 760, 1030, 220, 220);
-  const link = document.createElement("a"); link.download = `${slugify(preview.item.name)}-whatsapp-promo.png`; link.href = canvas.toDataURL("image/png"); link.click();
+  ctx.fillStyle = "#166534"; ctx.font = "900 58px system-ui"; ctx.fillText(formatCurrency(price), 80, 1070);
+  ctx.fillStyle = "#166534"; ctx.roundRect(80, 1130, 360, 82, 24); ctx.fill();
+  ctx.fillStyle = "#ffffff"; ctx.font = "900 34px system-ui"; ctx.fillText("ORDER NOW", 128, 1182);
+  ctx.fillStyle = "#111827"; ctx.font = "600 28px system-ui"; ctx.fillText(new URL(preview.shortUrl, location.origin).host, 80, 1260);
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Promo image could not be generated.")), "image/png"));
+  const file = new File([blob], `${slugify(preview.item.name)}-whatsapp-promo.png`, { type: "image/png" });
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], text: preview.message, title: preview.item.name });
+    toast.success("Promo image and message shared.");
+    return;
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a"); link.download = file.name; link.href = objectUrl; link.click();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 5_000);
+  await navigator.clipboard?.writeText(preview.message).catch(() => undefined);
+  toast.success("Image downloaded. Attach it in WhatsApp, then paste the copied message.");
 }
 
-function loadImage(src: string) { return new Promise<HTMLImageElement>((resolve, reject) => { const image = new Image(); image.crossOrigin = "anonymous"; image.onload = () => resolve(image); image.onerror = reject; image.src = src; }); }
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    if (!src) return reject(new Error("Image missing."));
+    const image = new Image();
+    const timer = setTimeout(() => reject(new Error("Image load timed out.")), 6_000);
+    image.crossOrigin = "anonymous";
+    image.onload = () => { clearTimeout(timer); resolve(image); };
+    image.onerror = () => { clearTimeout(timer); reject(new Error("Image could not be loaded.")); };
+    image.src = src;
+  });
+}
 function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, width: number, height: number) { let line = ""; for (const word of text.split(" ")) { const next = `${line}${word} `; if (ctx.measureText(next).width > width && line) { ctx.fillText(line, x, y); line = `${word} `; y += height; } else line = next; } ctx.fillText(line, x, y); }
 function slugify(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
